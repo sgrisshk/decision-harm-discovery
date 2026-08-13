@@ -10,7 +10,19 @@ from typing import Any, cast
 
 import polars as pl
 
+from policy_analytics.outcomes.contract import (
+    DATASET_VERSION as OUTCOME_CONTRACT_DATASET_SCOPE,
+)
+from policy_analytics.outcomes.contract import (
+    DEFAULT_COMPARISON_RULE,
+    ELIGIBLE_COHORT_RULE,
+    OUTCOME_CONTRACT_VERSION,
+    OUTCOME_DEFINITIONS,
+    PRIMARY_OUTCOME_ID,
+)
+
 DATASET_VERSION = "travel-bookings-analytical-v1.0.0"
+CANONICAL_SCHEMA_VERSION = "travel-booking-canonical-v1.0.0"
 ALLOWED_CLASSIFICATIONS = {
     "DECISION_TIME",
     "POST_DECISION",
@@ -24,6 +36,7 @@ ALLOWED_CLASSIFICATIONS = {
 @dataclass(frozen=True)
 class AnalyticalDatasetConfig:
     dataset_version: str = DATASET_VERSION
+    canonical_schema_version: str = CANONICAL_SCHEMA_VERSION
     decision_timestamp_column: str = "booking_date"
     clustering_key: str = "customer_id"
     development_end: str = "2024-12-31"
@@ -176,7 +189,7 @@ def build_analytical_dataset(
     }
 
     version_root = output_root / config.dataset_version
-    version_root.mkdir(parents=True, exist_ok=True)
+    version_root.mkdir(parents=True, exist_ok=False)
     artifact_paths: dict[str, Path] = {}
     for role, partition in partitions.items():
         path = version_root / f"{role}.csv"
@@ -187,26 +200,149 @@ def build_analytical_dataset(
     _write_json(missingness_path, _missingness(frame, split_labels))
     artifact_paths["missingness"] = missingness_path
     source_sha256 = _sha256(source_csv)
+    feature_timing_sha256 = _sha256(feature_timing_path)
+    transformation_implementation_sha256 = _sha256(Path(__file__))
+    partition_hashes = {
+        role: _sha256(path) for role, path in artifact_paths.items() if role in partitions
+    }
+    identity_payload = {
+        "dataset_version": config.dataset_version,
+        "schema_version": config.canonical_schema_version,
+        "source_sha256": source_sha256,
+        "feature_timing_sha256": feature_timing_sha256,
+        "transformation_config": asdict(config),
+        "transformation_implementation_sha256": transformation_implementation_sha256,
+        "outcome_contract_version": OUTCOME_CONTRACT_VERSION,
+        "partition_sha256": partition_hashes,
+    }
     version_identity = hashlib.sha256(
-        f"{config.dataset_version}:{source_sha256}:{_sha256(feature_timing_path)}".encode()
+        json.dumps(identity_payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
     ).hexdigest()
+    feature_manifest = {
+        "dataset_version": config.dataset_version,
+        "schema_version": config.canonical_schema_version,
+        "role": "DECISION_TIME",
+        "columns": [
+            {
+                "name": name,
+                "dtype": str(partitions["features"].schema[name]),
+                "semantic_meaning": timing[name]["semantic_meaning"],
+                "discovery_feature_allowed": True,
+                "leakage_risk": timing[name]["leakage_risk"],
+            }
+            for name in feature_columns
+        ],
+    }
+    feature_manifest_path = version_root / "feature_manifest.json"
+    _write_json(feature_manifest_path, feature_manifest)
+
+    contract_definitions = [
+        {
+            "outcome_id": definition.outcome_id,
+            "role": definition.role.value,
+            "column": definition.column,
+            "unit": definition.unit,
+            "higher_is_worse": definition.higher_is_worse,
+            "missing_data_policy": definition.missing_data_policy.value,
+            "decomposition_of": definition.decomposition_of,
+        }
+        for definition in OUTCOME_DEFINITIONS
+    ]
+    outcome_columns_manifest = {
+        "dataset_version": config.dataset_version,
+        "schema_version": config.canonical_schema_version,
+        "role": "OUTCOME",
+        "stored_columns": outcome_columns,
+        "outcome_contract": {
+            "status": "ATTACHED",
+            "owner": "STATISTICS",
+            "task": "TASK-013",
+            "version": OUTCOME_CONTRACT_VERSION,
+            "dataset_scope": OUTCOME_CONTRACT_DATASET_SCOPE,
+            "available_columns": outcome_columns,
+            "primary_outcome_id": PRIMARY_OUTCOME_ID,
+            "eligible_cohort_rule": ELIGIBLE_COHORT_RULE,
+            "default_comparison_rule": DEFAULT_COMPARISON_RULE,
+            "definitions": contract_definitions,
+        },
+    }
+    outcome_manifest_path = version_root / "outcome_columns_manifest.json"
+    _write_json(outcome_manifest_path, outcome_columns_manifest)
+
+    excluded_columns_manifest = {
+        "dataset_version": config.dataset_version,
+        "schema_version": config.canonical_schema_version,
+        "excluded_from_feature_matrix": [
+            {
+                "name": name,
+                "classification": timing[name]["classification"],
+                "reason": (
+                    "Observed after the booking decision; prohibited by anti-leakage boundary."
+                ),
+            }
+            for name in excluded_columns
+        ]
+        + [
+            {
+                "name": name,
+                "classification": timing[name]["classification"],
+                "reason": f"Physically separated into the {partition} partition.",
+            }
+            for partition, names in (
+                ("outcomes", outcome_columns),
+                ("identifiers", identifier_columns),
+                ("metadata", metadata_source_columns),
+            )
+            for name in names
+        ],
+        "unknown_columns": columns_by_classification["UNKNOWN"],
+    }
+    excluded_manifest_path = version_root / "excluded_columns_manifest.json"
+    _write_json(excluded_manifest_path, excluded_columns_manifest)
+
+    reproducibility_command = "make analytical-dataset"
+    version_metadata = {
+        "dataset_version": config.dataset_version,
+        "schema_version": config.canonical_schema_version,
+        "dataset_identity_sha256": version_identity,
+        "transformation_config": asdict(config),
+        "source_dataset_reference": {
+            "path": str(source_csv),
+            "sha256": source_sha256,
+            "feature_timing_path": str(feature_timing_path),
+            "feature_timing_sha256": feature_timing_sha256,
+        },
+        "identity_payload": identity_payload,
+        "reproducibility_command": reproducibility_command,
+    }
+    version_metadata_path = version_root / "version_metadata.json"
+    _write_json(version_metadata_path, version_metadata)
+
+    supporting_paths = {
+        "feature_manifest": feature_manifest_path,
+        "outcome_columns_manifest": outcome_manifest_path,
+        "excluded_columns_manifest": excluded_manifest_path,
+        "version_metadata": version_metadata_path,
+        "missingness": missingness_path,
+    }
     manifest: dict[str, Any] = {
         "dataset_version": config.dataset_version,
+        "schema_version": config.canonical_schema_version,
         "dataset_identity_sha256": version_identity,
-        "status": "READY_WITH_LIMITATIONS",
+        "status": "READY",
         "record_count": frame.height,
         "row_alignment": "All CSV partitions preserve identical source row order.",
         "source": {
             "path": str(source_csv),
             "sha256": source_sha256,
             "feature_timing_path": str(feature_timing_path),
-            "feature_timing_sha256": _sha256(feature_timing_path),
+            "feature_timing_sha256": feature_timing_sha256,
         },
         "transformation": asdict(config),
         "partitions": {
             role: {
-                "path": str(path),
-                "sha256": _sha256(path),
+                "path": path.name,
+                "sha256": partition_hashes[role],
                 "columns": partitions[role].columns,
                 "schema": _schema_for(partitions[role]),
             }
@@ -214,15 +350,13 @@ def build_analytical_dataset(
             if role in partitions
         },
         "excluded_post_decision_columns": excluded_columns,
-        "primary_outcome": None,
-        "outcome_contract": {
-            "status": "PENDING_TASK_013",
-            "available_columns": outcome_columns,
-            "warning": (
-                "No outcome is selected, directed, or interpreted. Statistics must attach a "
-                "versioned TASK-013 contract before discovery targets an outcome."
-            ),
+        "primary_outcome": PRIMARY_OUTCOME_ID,
+        "outcome_contract": outcome_columns_manifest["outcome_contract"],
+        "supporting_artifacts": {
+            name: {"path": path.name, "sha256": _sha256(path)}
+            for name, path in supporting_paths.items()
         },
+        "reproducibility_command": reproducibility_command,
         "clustering": {"column": config.clustering_key, "partition": "identifiers"},
         "temporal_splits": {
             "column": "split_label",
@@ -249,7 +383,6 @@ def build_analytical_dataset(
             "source_currency": "Renamed from the source METADATA field currency.",
         },
         "limitations": [
-            "TASK-013 outcome definition contract is not yet available.",
             "Candidate-specific exposure-group missingness is computed only after immutable "
             "candidate conditions exist.",
             "This benchmark analytical layer does not replace the blocked production TASK-010 "

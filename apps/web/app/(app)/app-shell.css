@@ -1,0 +1,248 @@
+.appShell {
+  min-height: 100vh;
+}
+
+.appHeader {
+  height: 84px;
+  display: flex;
+  align-items: center;
+  gap: 32px;
+  padding: 0 5vw;
+  border-bottom: 1px solid var(--ink);
+  font-family: var(--font-mono), monospace;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.appBrand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: inherit;
+  text-decoration: none;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.appBrandMark {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  background: var(--ink);
+  color: var(--acid);
+}
+
+.appNav ul {
+  display: flex;
+  gap: 20px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.appNav a {
+  color: var(--muted);
+  text-decoration: none;
+}
+
+.appNav a:hover,
+.appNav a:focus-visible {
+  color: var(--ink);
+}
+
+.appDevLink {
+  margin-left: auto;
+  color: var(--muted);
+  text-decoration: none;
+  border: 1px solid var(--line);
+  padding: 6px 10px;
+}
+
+.appDevLink:hover,
+.appDevLink:focus-visible {
+  color: var(--ink);
+  border-color: var(--ink);
+}
+
+.appMain {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 56px 5vw 80px;
+}
+
+.appPageHeader {
+  margin-bottom: 40px;
+}
+
+.appPageHeader h1 {
+  font-size: clamp(28px, 4vw, 44px);
+  letter-spacing: -0.03em;
+  margin: 0 0 12px;
+}
+
+.appPageHeader p {
+  color: var(--muted);
+  max-width: 640px;
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* State primitives (loading / error / empty) */
+
+.stateBlock {
+  border: 1px solid var(--line);
+  padding: 28px;
+  max-width: 560px;
+}
+
+.stateBlock p {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.stateBlock p + p {
+  margin-top: 8px;
+}
+
+.stateBlock-title {
+  font-weight: 700;
+}
+
+.stateBlock-meta {
+  font-family: var(--font-mono), monospace;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.stateBlock--loading {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  color: var(--muted);
+}
+
+.stateBlock-pulse {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--acid);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--acid) 25%, transparent);
+  animation: statePulse 1.4s ease-in-out infinite;
+}
+
+@keyframes statePulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; }
+}
+
+.stateBlock--error {
+  border-color: var(--ink);
+  background: #e8e6dd;
+}
+
+.stateBlock-retry {
+  display: inline-block;
+  margin-top: 14px;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 700;
+  text-decoration: none;
+  background: none;
+  border: none;
+  border-bottom: 2px solid var(--acid);
+  padding: 0;
+  cursor: pointer;
+}
+
+.stateBlock--empty {
+  color: var(--muted);
+}
+
+/* Resource lists (datasets, findings) */
+
+.resourceList {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  background: var(--line);
+  border: 1px solid var(--line);
+}
+
+.resourceCard {
+  background: var(--paper);
+  padding: 20px 24px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px 20px;
+}
+
+.resourceCard-title {
+  font-weight: 700;
+  font-size: 16px;
+  margin-right: auto;
+}
+
+.resourceCard-tag {
+  font-family: var(--font-mono), monospace;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  border: 1px solid var(--line);
+  padding: 3px 8px;
+}
+
+/* Dev status view */
+
+.devStatusGrid {
+  display: grid;
+  gap: 16px;
+  max-width: 480px;
+}
+
+.devStatusRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border: 1px solid var(--line);
+  padding: 16px 20px;
+  font-family: var(--font-mono), monospace;
+  font-size: 13px;
+}
+
+.devStatusRow .stateBlock--loading {
+  border: none;
+  padding: 0;
+  max-width: none;
+}
+
+.devStatusValue--ok {
+  color: #2f7a41;
+}
+
+.devStatusValue--fail {
+  color: #a4312a;
+}
+
+@media (max-width: 700px) {
+  .appHeader {
+    padding: 0 20px;
+    gap: 20px;
+  }
+  .appNav ul {
+    gap: 14px;
+  }
+  .appMain {
+    padding: 40px 20px 60px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stateBlock-pulse {
+    animation: none;
+  }
+}

@@ -8,6 +8,7 @@ from pathlib import Path
 
 REPOSITORY = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPOSITORY / "packages/analytics/src"))
+sys.path.insert(0, str(REPOSITORY / "packages/schemas/src"))
 
 from policy_analytics.blind_isolation import commit_candidates  # noqa: E402
 

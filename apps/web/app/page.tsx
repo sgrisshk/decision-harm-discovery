@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 const pipeline = ["Raw", "Normalized", "Analytical", "Finding", "Policy"];
 
 export default function Home() {
@@ -21,6 +23,8 @@ export default function Home() {
         </p>
         <div className="actions">
           <a className="primary" href={`${apiUrl}/docs`}>Explore API <span>↗</span></a>
+          <Link className="secondary" href="/datasets">Datasets</Link>
+          <Link className="secondary" href="/findings">Findings</Link>
           <a className="secondary" href={`${apiUrl}/health`}>System health</a>
         </div>
       </section>

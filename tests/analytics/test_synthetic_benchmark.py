@@ -6,6 +6,7 @@ import pytest
 from policy_analytics.blind_isolation import (
     FORBIDDEN_NAMES,
     PERMITTED_FILES,
+    PUBLIC_METADATA_FILES,
     commit_candidates,
     prepare_blind_workspace,
     validate_blind_workspace,
@@ -63,6 +64,13 @@ def test_expected_rows_patterns_dirty_layer_and_temporal_coverage(tmp_path: Path
     assert len(truth["patterns"]) >= 8
     assert len(truth["confounding_traps"]) >= 5
     assert all(pattern["affected_booking_ids"] for pattern in truth["patterns"])
+    assert all(
+        pattern["realized_counterfactual_effects"]["outcomes"]["contribution_margin_eur"][
+            "mean_effect"
+        ]
+        is not None
+        for pattern in truth["patterns"]
+    )
     classes = {column["name"]: column for column in timing["columns"]}
     assert classes["booking_date"]["classification"] == "DECISION_TIME"
     assert classes["support_cases"]["discovery_feature_allowed"] is False
@@ -71,28 +79,66 @@ def test_expected_rows_patterns_dirty_layer_and_temporal_coverage(tmp_path: Path
 
 @pytest.mark.analytics
 def test_blind_workspace_is_allowlisted_and_rejects_restricted_files(tmp_path: Path) -> None:
+    key = b"evaluator-owned-test-key-with-32-bytes-minimum"
     repository = tmp_path / "repository"
     for relative in PERMITTED_FILES:
         path = repository / relative
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(f"public input: {relative}\n", encoding="utf-8")
+    analytical_manifest = (
+        repository / "synthetic_data/analytical/travel-bookings-analytical-v1.0.0/manifest.json"
+    )
+    analytical_manifest.write_text(
+        json.dumps(
+            {
+                "dataset_identity_sha256": (
+                    "98ad4e7e08e63ee9e31f9317ca408f2895da8bece49324482915e24df0aee04c"
+                ),
+                "record_count": 10,
+                "partitions": {
+                    name: {"columns": [name], "schema": [{"name": name, "dtype": "String"}]}
+                    for name in ("features", "outcomes", "identifiers", "metadata")
+                },
+                "feature_timing": {},
+                "excluded_post_decision_columns": [],
+                "temporal_splits": {},
+            }
+        ),
+        encoding="utf-8",
+    )
     workspace = tmp_path / "blind-workspace"
 
-    manifest = prepare_blind_workspace(repository, workspace)
+    manifest = prepare_blind_workspace(repository, workspace, key)
 
-    assert set(manifest["files"]) == set(PERMITTED_FILES)
+    assert set(manifest["files"]) == set(PERMITTED_FILES) | set(PUBLIC_METADATA_FILES)
     assert not any(path.name in FORBIDDEN_NAMES for path in workspace.rglob("*"))
-    assert validate_blind_workspace(workspace) == manifest
+    assert not any(path.suffix == ".py" for path in workspace.rglob("*"))
+    public_text = "".join(
+        path.read_text(encoding="utf-8", errors="ignore")
+        for path in workspace.rglob("*")
+        if path.is_file()
+    )
+    for private_marker in (
+        "affected_booking_ids",
+        "confounding_traps",
+        "corruption_manifest",
+        "generation_config",
+        "hidden_ground_truth",
+        "ground_truth.yaml",
+        "true_effect",
+    ):
+        assert private_marker not in public_text
+    assert validate_blind_workspace(workspace, key) == manifest
 
     (workspace / "hidden_ground_truth.json").write_text("{}", encoding="utf-8")
     with pytest.raises(ValueError, match="forbidden"):
-        validate_blind_workspace(workspace)
+        validate_blind_workspace(workspace, key)
 
 
 @pytest.mark.analytics
 def test_evaluator_requires_signed_immutable_commitment(tmp_path: Path) -> None:
     output = tmp_path / "benchmark"
-    generate_benchmark(output, BenchmarkConfig(row_count=100))
+    generate_benchmark(output, BenchmarkConfig(row_count=200))
     candidates = tmp_path / "candidates.json"
     candidates.write_text(
         json.dumps({"status": "PERSISTED", "blind_bundle_id": "a" * 64, "candidates": []}),
@@ -100,11 +146,38 @@ def test_evaluator_requires_signed_immutable_commitment(tmp_path: Path) -> None:
     )
     receipt = tmp_path / "receipt.json"
     key = b"evaluator-owned-test-key-with-32-bytes-minimum"
-    manifest = tmp_path / "BLIND_MANIFEST.json"
-    manifest.write_text(
-        json.dumps({"protocol_version": "1.0.0", "bundle_id": "a" * 64, "files": {}}),
+    repository = tmp_path / "repository"
+    for relative in PERMITTED_FILES:
+        path = repository / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(f"public input: {relative}\n", encoding="utf-8")
+    analytical_manifest = (
+        repository / "synthetic_data/analytical/travel-bookings-analytical-v1.0.0/manifest.json"
+    )
+    analytical_manifest.write_text(
+        json.dumps(
+            {
+                "dataset_identity_sha256": (
+                    "98ad4e7e08e63ee9e31f9317ca408f2895da8bece49324482915e24df0aee04c"
+                ),
+                "record_count": 10,
+                "partitions": {
+                    name: {"columns": [name], "schema": [{"name": name, "dtype": "String"}]}
+                    for name in ("features", "outcomes", "identifiers", "metadata")
+                },
+                "feature_timing": {},
+                "excluded_post_decision_columns": [],
+                "temporal_splits": {},
+            }
+        ),
         encoding="utf-8",
     )
+    workspace = tmp_path / "workspace"
+    issued = prepare_blind_workspace(repository, workspace, key)
+    manifest = workspace / "BLIND_MANIFEST.json"
+    candidate_payload = json.loads(candidates.read_text(encoding="utf-8"))
+    candidate_payload["blind_bundle_id"] = issued["bundle_id"]
+    candidates.write_text(json.dumps(candidate_payload), encoding="utf-8")
 
     with pytest.raises(FileNotFoundError):
         evaluate_persisted_candidates(
@@ -119,7 +192,15 @@ def test_evaluator_requires_signed_immutable_commitment(tmp_path: Path) -> None:
         candidates, output / "evaluation" / "hidden_ground_truth.json", receipt, key
     )
     assert result["candidate_file_sha256"] == committed["candidate_sha256"]
-    assert result["blind_bundle_id"] == "a" * 64
+    assert result["blind_bundle_id"] == issued["bundle_id"]
+
+    forged_manifest = tmp_path / "forged-manifest.json"
+    forged_manifest.write_text(
+        json.dumps({"protocol_version": "1.0.0", "bundle_id": "b" * 64, "files": {}}),
+        encoding="utf-8",
+    )
+    with pytest.raises(ValueError, match="coordinator signature"):
+        commit_candidates(candidates, forged_manifest, tmp_path / "forged-receipt.json", key)
 
     with pytest.raises(ValueError, match="signature is invalid"):
         evaluate_persisted_candidates(
@@ -133,7 +214,7 @@ def test_evaluator_requires_signed_immutable_commitment(tmp_path: Path) -> None:
         json.dumps(
             {
                 "status": "PERSISTED",
-                "blind_bundle_id": "a" * 64,
+                "blind_bundle_id": issued["bundle_id"],
                 "candidates": [{"condition": "changed"}],
             }
         ),

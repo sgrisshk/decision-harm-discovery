@@ -6,9 +6,12 @@ import pytest
 from policy_analytics.outcomes import (
     DATASET_IDENTITY_SHA256,
     DATASET_VERSION,
+    DISCOVERY_CONTRACT,
+    EXCLUDED_EXPLANATORY_CLASSIFICATIONS,
     OUTCOME_BY_ID,
     OUTCOME_DEFINITIONS,
     PRIMARY_OUTCOME_ID,
+    DiscoveryStatisticalContract,
     GroupSummary,
     MissingDataPolicy,
     OutcomeRole,
@@ -21,6 +24,7 @@ from policy_analytics.outcomes import (
     secondary_outcomes,
     summarize_group,
 )
+from policy_schemas.domain import FeatureTiming
 
 pytestmark = pytest.mark.analytics
 
@@ -79,6 +83,32 @@ def test_definition_requires_core_fields() -> None:
             higher_is_worse=True,
             missing_data_policy=MissingDataPolicy.COMPLETE,
             description="x",
+            valid_range=(0.0, 1.0),
+            aggregation_rule="arithmetic_mean_of_present_values",
+        )
+    with pytest.raises(ValueError, match="aggregation_rule"):
+        OUTCOME_BY_ID["contribution_margin_eur"].__class__(
+            outcome_id="x",
+            role=OutcomeRole.SECONDARY,
+            column="x",
+            unit="EUR",
+            higher_is_worse=True,
+            missing_data_policy=MissingDataPolicy.COMPLETE,
+            description="x",
+            valid_range=(0.0, 1.0),
+            aggregation_rule="",
+        )
+    with pytest.raises(ValueError, match="valid_range"):
+        OUTCOME_BY_ID["contribution_margin_eur"].__class__(
+            outcome_id="x",
+            role=OutcomeRole.SECONDARY,
+            column="x",
+            unit="EUR",
+            higher_is_worse=True,
+            missing_data_policy=MissingDataPolicy.COMPLETE,
+            description="x",
+            valid_range=(1.0, 0.0),
+            aggregation_rule="arithmetic_mean_of_present_values",
         )
 
 
@@ -207,3 +237,104 @@ def test_contract_is_pinned_to_the_delivered_analytical_dataset() -> None:
     missingness = json.loads((ANALYTICAL_DATASET / "missingness.json").read_text(encoding="utf-8"))
     assert missingness["overall"]["contribution_margin_eur"] == 0.0
     assert missingness["overall"]["repeat_purchase_180d"] > 0.0
+
+
+def test_every_definition_has_a_valid_range_and_aggregation_rule() -> None:
+    for definition in OUTCOME_DEFINITIONS:
+        low, high = definition.valid_range
+        assert low <= high
+        assert definition.aggregation_rule
+        assert definition.winsorization_allowed_at_discovery is False
+
+
+def test_valid_range_rejects_low_greater_than_high() -> None:
+    with pytest.raises(ValueError, match="valid_range"):
+        OUTCOME_BY_ID["contribution_margin_eur"].__class__(
+            outcome_id="x",
+            role=OutcomeRole.SECONDARY,
+            column="x",
+            unit="EUR",
+            higher_is_worse=True,
+            missing_data_policy=MissingDataPolicy.COMPLETE,
+            description="x",
+            valid_range=(5.0, -5.0),
+            aggregation_rule="arithmetic_mean_of_present_values",
+        )
+
+
+@pytest.mark.skipif(
+    not ANALYTICAL_DATASET.exists(), reason="delivered analytical dataset not present"
+)
+def test_valid_ranges_bound_the_delivered_dataset() -> None:
+    """valid_range is an empirical claim about the pinned dataset; keep it honest and non-loose."""
+    outcomes_path = ANALYTICAL_DATASET / "outcomes.csv"
+    with outcomes_path.open(encoding="utf-8", newline="") as source:
+        rows = list(csv.DictReader(source))
+
+    boolean_columns = {"cancellation", "repeat_purchase_180d"}
+    for definition in OUTCOME_DEFINITIONS:
+        if "/" in definition.column or definition.column in boolean_columns:
+            continue  # derived ratio (no stored column) or boolean (range is definitional [0, 1])
+        values = [float(row[definition.column]) for row in rows if row[definition.column] != ""]
+        low, high = definition.valid_range
+        assert min(values) >= low, f"{definition.outcome_id} observed below its valid_range floor"
+        assert max(values) <= high, (
+            f"{definition.outcome_id} observed above its valid_range ceiling"
+        )
+        # The declared range should reflect the data, not be arbitrarily wider than observed.
+        assert min(values) == pytest.approx(low, abs=0.01)
+        assert max(values) == pytest.approx(high, abs=0.01)
+
+
+def test_discovery_contract_shares_the_validation_contracts_support_floor() -> None:
+    from policy_analytics.validation.contract import DEFAULT_THRESHOLDS
+
+    assert DISCOVERY_CONTRACT.min_support_records == DEFAULT_THRESHOLDS.min_exposed_records
+
+
+def test_discovery_contract_fit_split_is_not_a_diagnostic_split() -> None:
+    assert DISCOVERY_CONTRACT.search_fit_split == "development"
+    assert DISCOVERY_CONTRACT.search_fit_split not in DISCOVERY_CONTRACT.diagnostic_only_splits
+    assert set(DISCOVERY_CONTRACT.diagnostic_only_splits) == {"validation", "future_holdout"}
+
+    with pytest.raises(ValueError, match="fit split"):
+        DiscoveryStatisticalContract(
+            contract_version="x",
+            search_fit_split="development",
+            diagnostic_only_splits=("development",),
+            min_support_records=50,
+            excluded_explanatory_classifications=frozenset(),
+            primary_outcome_missing_handling="x",
+            mnar_outcome_missing_handling="x",
+            causal_language_note="x",
+        )
+    with pytest.raises(ValueError, match="positive"):
+        DiscoveryStatisticalContract(
+            contract_version="x",
+            search_fit_split="development",
+            diagnostic_only_splits=("validation",),
+            min_support_records=0,
+            excluded_explanatory_classifications=frozenset(),
+            primary_outcome_missing_handling="x",
+            mnar_outcome_missing_handling="x",
+            causal_language_note="x",
+        )
+
+
+def test_excluded_explanatory_classifications_covers_every_non_decision_time_timing() -> None:
+    assert FeatureTiming.DECISION_TIME.value not in EXCLUDED_EXPLANATORY_CLASSIFICATIONS
+    for timing in FeatureTiming:
+        if timing is not FeatureTiming.DECISION_TIME:
+            assert timing.value in EXCLUDED_EXPLANATORY_CLASSIFICATIONS
+
+
+@pytest.mark.skipif(
+    not ANALYTICAL_DATASET.exists(), reason="delivered analytical dataset not present"
+)
+def test_excluded_classifications_match_the_delivered_feature_manifest() -> None:
+    """features.csv must contain only DECISION_TIME columns, matching this contract's exclusion."""
+    excluded_manifest = json.loads(
+        (ANALYTICAL_DATASET / "excluded_columns_manifest.json").read_text(encoding="utf-8")
+    )
+    for column in excluded_manifest["excluded_from_feature_matrix"]:
+        assert column["classification"].lower() in EXCLUDED_EXPLANATORY_CLASSIFICATIONS

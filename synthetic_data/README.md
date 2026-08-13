@@ -18,6 +18,10 @@ Blind discovery is run from a fresh allowlist-only workspace; see
 match an evaluator-signed commitment receipt:
 
 ```sh
+make export-public-benchmark destination=/tmp/policy-blind-run-001
+```
+
+```sh
 uv run python scripts/evaluate_synthetic_benchmark.py candidates.json \
   --receipt artifacts/blind/run-001.receipt.json \
   --ground-truth synthetic_data/evaluation/hidden_ground_truth.json

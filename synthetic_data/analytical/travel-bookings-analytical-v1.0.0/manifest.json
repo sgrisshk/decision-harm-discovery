@@ -3,7 +3,7 @@
     "column": "customer_id",
     "partition": "identifiers"
   },
-  "dataset_identity_sha256": "490c65655aff645ec8da845cff257f23edfccea4abe609553b576b5b800f91e8",
+  "dataset_identity_sha256": "98ad4e7e08e63ee9e31f9317ca408f2895da8bece49324482915e24df0aee04c",
   "dataset_version": "travel-bookings-analytical-v1.0.0",
   "derived_metadata_columns": {
     "source_currency": "Renamed from the source METADATA field currency.",
@@ -179,7 +179,6 @@
     }
   },
   "limitations": [
-    "TASK-013 outcome definition contract is not yet available.",
     "Candidate-specific exposure-group missingness is computed only after immutable candidate conditions exist.",
     "This benchmark analytical layer does not replace the blocked production TASK-010 customer-input canonicalization pipeline."
   ],
@@ -193,8 +192,88 @@
       "contribution_margin_eur",
       "repeat_purchase_180d"
     ],
-    "status": "PENDING_TASK_013",
-    "warning": "No outcome is selected, directed, or interpreted. Statistics must attach a versioned TASK-013 contract before discovery targets an outcome."
+    "dataset_scope": "travel-bookings-analytical-v1.0.0",
+    "default_comparison_rule": "complement of the candidate condition within the eligible cohort",
+    "definitions": [
+      {
+        "column": "contribution_margin_eur",
+        "decomposition_of": null,
+        "higher_is_worse": false,
+        "missing_data_policy": "complete_no_missingness_expected",
+        "outcome_id": "contribution_margin_eur",
+        "role": "primary",
+        "unit": "EUR per booking (nominal; single currency; no inflation or FX adjustment)"
+      },
+      {
+        "column": "gross_profit_eur",
+        "decomposition_of": "contribution_margin_eur",
+        "higher_is_worse": false,
+        "missing_data_policy": "complete_no_missingness_expected",
+        "outcome_id": "gross_profit_eur",
+        "role": "secondary",
+        "unit": "EUR per booking (nominal)"
+      },
+      {
+        "column": "contribution_margin_eur / customer_price_eur",
+        "decomposition_of": "contribution_margin_eur",
+        "higher_is_worse": false,
+        "missing_data_policy": "complete_no_missingness_expected",
+        "outcome_id": "contribution_margin_rate",
+        "role": "secondary",
+        "unit": "ratio, dimensionless (contribution margin \u00f7 quoted price; not stored, computed at analysis time)"
+      },
+      {
+        "column": "cancellation",
+        "decomposition_of": null,
+        "higher_is_worse": true,
+        "missing_data_policy": "complete_no_missingness_expected",
+        "outcome_id": "cancellation",
+        "role": "secondary",
+        "unit": "rate, proportion in [0, 1]"
+      },
+      {
+        "column": "refund_amount_eur",
+        "decomposition_of": "contribution_margin_eur",
+        "higher_is_worse": true,
+        "missing_data_policy": "complete_no_missingness_expected",
+        "outcome_id": "refund_amount_eur",
+        "role": "secondary",
+        "unit": "EUR per booking (nominal)"
+      },
+      {
+        "column": "support_cost_eur",
+        "decomposition_of": "contribution_margin_eur",
+        "higher_is_worse": true,
+        "missing_data_policy": "complete_no_missingness_expected",
+        "outcome_id": "support_cost_eur",
+        "role": "secondary",
+        "unit": "EUR per booking (nominal)"
+      },
+      {
+        "column": "additional_cost_eur",
+        "decomposition_of": "contribution_margin_eur",
+        "higher_is_worse": true,
+        "missing_data_policy": "complete_no_missingness_expected",
+        "outcome_id": "additional_cost_eur",
+        "role": "secondary",
+        "unit": "EUR per booking (nominal)"
+      },
+      {
+        "column": "repeat_purchase_180d",
+        "decomposition_of": null,
+        "higher_is_worse": false,
+        "missing_data_policy": "missing_not_at_random_report_bounds",
+        "outcome_id": "repeat_purchase_180d",
+        "role": "secondary",
+        "unit": "rate, proportion in [0, 1]; not economically commensurable with the EUR outcomes"
+      }
+    ],
+    "eligible_cohort_rule": "booking_date within [2024-01-01, 2025-12-31]; no filter on cancellation, refund, support activity, booking_changes, or repeat_purchase_180d.",
+    "owner": "STATISTICS",
+    "primary_outcome_id": "contribution_margin_eur",
+    "status": "ATTACHED",
+    "task": "TASK-013",
+    "version": "1.1.0"
   },
   "partitions": {
     "features": {
@@ -218,7 +297,7 @@
         "installments",
         "manual_exception"
       ],
-      "path": "synthetic_data/analytical/travel-bookings-analytical-v1.0.0/features.csv",
+      "path": "features.csv",
       "schema": [
         {
           "dtype": "String",
@@ -300,7 +379,7 @@
         "booking_id",
         "customer_id"
       ],
-      "path": "synthetic_data/analytical/travel-bookings-analytical-v1.0.0/identifiers.csv",
+      "path": "identifiers.csv",
       "schema": [
         {
           "dtype": "String",
@@ -319,7 +398,7 @@
         "split_label",
         "source_currency"
       ],
-      "path": "synthetic_data/analytical/travel-bookings-analytical-v1.0.0/metadata.csv",
+      "path": "metadata.csv",
       "schema": [
         {
           "dtype": "Int64",
@@ -346,7 +425,7 @@
         "contribution_margin_eur",
         "repeat_purchase_180d"
       ],
-      "path": "synthetic_data/analytical/travel-bookings-analytical-v1.0.0/outcomes.csv",
+      "path": "outcomes.csv",
       "schema": [
         {
           "dtype": "Boolean",
@@ -380,16 +459,40 @@
       "sha256": "e56b8bd6f02e135f38a21c68577fd8ce953b51e094208c190c86e73bdb58948e"
     }
   },
-  "primary_outcome": null,
+  "primary_outcome": "contribution_margin_eur",
   "record_count": 10000,
+  "reproducibility_command": "make analytical-dataset",
   "row_alignment": "All CSV partitions preserve identical source row order.",
+  "schema_version": "travel-booking-canonical-v1.0.0",
   "source": {
     "feature_timing_path": "synthetic_data/metadata/feature_timing.json",
     "feature_timing_sha256": "71a94071f7fbec5915e896f408137a9c33e39da0c3e58bfb569b63c66f5d83e0",
     "path": "synthetic_data/reference/travel_bookings_clean.csv",
     "sha256": "30843d955f8e8f569e7e27bc0ee9f9f202da80fa1d313845bb673884a387cf42"
   },
-  "status": "READY_WITH_LIMITATIONS",
+  "status": "READY",
+  "supporting_artifacts": {
+    "excluded_columns_manifest": {
+      "path": "excluded_columns_manifest.json",
+      "sha256": "d5e0d37905db9b894b4dc0c00770feb70c1c498ed6d58b4b0b026e9c8ff2a996"
+    },
+    "feature_manifest": {
+      "path": "feature_manifest.json",
+      "sha256": "47146711d16f875a84fd2f6f2b3a775496b6561fd3e8a7144bb1b52c7daba743"
+    },
+    "missingness": {
+      "path": "missingness.json",
+      "sha256": "548eae87bf944f487ddf1e8d0c0fdce531bd23512075641c09d269237b58e102"
+    },
+    "outcome_columns_manifest": {
+      "path": "outcome_columns_manifest.json",
+      "sha256": "e34774cda463d5d283d6c3206d163f9ad851afc68b92b1cf3ca60c109d8c9d16"
+    },
+    "version_metadata": {
+      "path": "version_metadata.json",
+      "sha256": "97eed4f8a53a30ee05dc844fb6bf03a85c4811e80f9607c15d0cc7dab3cb8e91"
+    }
+  },
   "temporal_splits": {
     "boundaries": {
       "development": [
@@ -415,6 +518,7 @@
     "strategy": "chronological; no random shuffling"
   },
   "transformation": {
+    "canonical_schema_version": "travel-booking-canonical-v1.0.0",
     "clustering_key": "customer_id",
     "dataset_version": "travel-bookings-analytical-v1.0.0",
     "decision_timestamp_column": "booking_date",

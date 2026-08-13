@@ -1,0 +1,107 @@
+{
+  "dataset_version": "travel-bookings-analytical-v1.0.0",
+  "outcome_contract": {
+    "available_columns": [
+      "cancellation",
+      "refund_amount_eur",
+      "support_cost_eur",
+      "additional_cost_eur",
+      "gross_profit_eur",
+      "contribution_margin_eur",
+      "repeat_purchase_180d"
+    ],
+    "dataset_scope": "travel-bookings-analytical-v1.0.0",
+    "default_comparison_rule": "complement of the candidate condition within the eligible cohort",
+    "definitions": [
+      {
+        "column": "contribution_margin_eur",
+        "decomposition_of": null,
+        "higher_is_worse": false,
+        "missing_data_policy": "complete_no_missingness_expected",
+        "outcome_id": "contribution_margin_eur",
+        "role": "primary",
+        "unit": "EUR per booking (nominal; single currency; no inflation or FX adjustment)"
+      },
+      {
+        "column": "gross_profit_eur",
+        "decomposition_of": "contribution_margin_eur",
+        "higher_is_worse": false,
+        "missing_data_policy": "complete_no_missingness_expected",
+        "outcome_id": "gross_profit_eur",
+        "role": "secondary",
+        "unit": "EUR per booking (nominal)"
+      },
+      {
+        "column": "contribution_margin_eur / customer_price_eur",
+        "decomposition_of": "contribution_margin_eur",
+        "higher_is_worse": false,
+        "missing_data_policy": "complete_no_missingness_expected",
+        "outcome_id": "contribution_margin_rate",
+        "role": "secondary",
+        "unit": "ratio, dimensionless (contribution margin \u00f7 quoted price; not stored, computed at analysis time)"
+      },
+      {
+        "column": "cancellation",
+        "decomposition_of": null,
+        "higher_is_worse": true,
+        "missing_data_policy": "complete_no_missingness_expected",
+        "outcome_id": "cancellation",
+        "role": "secondary",
+        "unit": "rate, proportion in [0, 1]"
+      },
+      {
+        "column": "refund_amount_eur",
+        "decomposition_of": "contribution_margin_eur",
+        "higher_is_worse": true,
+        "missing_data_policy": "complete_no_missingness_expected",
+        "outcome_id": "refund_amount_eur",
+        "role": "secondary",
+        "unit": "EUR per booking (nominal)"
+      },
+      {
+        "column": "support_cost_eur",
+        "decomposition_of": "contribution_margin_eur",
+        "higher_is_worse": true,
+        "missing_data_policy": "complete_no_missingness_expected",
+        "outcome_id": "support_cost_eur",
+        "role": "secondary",
+        "unit": "EUR per booking (nominal)"
+      },
+      {
+        "column": "additional_cost_eur",
+        "decomposition_of": "contribution_margin_eur",
+        "higher_is_worse": true,
+        "missing_data_policy": "complete_no_missingness_expected",
+        "outcome_id": "additional_cost_eur",
+        "role": "secondary",
+        "unit": "EUR per booking (nominal)"
+      },
+      {
+        "column": "repeat_purchase_180d",
+        "decomposition_of": null,
+        "higher_is_worse": false,
+        "missing_data_policy": "missing_not_at_random_report_bounds",
+        "outcome_id": "repeat_purchase_180d",
+        "role": "secondary",
+        "unit": "rate, proportion in [0, 1]; not economically commensurable with the EUR outcomes"
+      }
+    ],
+    "eligible_cohort_rule": "booking_date within [2024-01-01, 2025-12-31]; no filter on cancellation, refund, support activity, booking_changes, or repeat_purchase_180d.",
+    "owner": "STATISTICS",
+    "primary_outcome_id": "contribution_margin_eur",
+    "status": "ATTACHED",
+    "task": "TASK-013",
+    "version": "1.1.0"
+  },
+  "role": "OUTCOME",
+  "schema_version": "travel-booking-canonical-v1.0.0",
+  "stored_columns": [
+    "cancellation",
+    "refund_amount_eur",
+    "support_cost_eur",
+    "additional_cost_eur",
+    "gross_profit_eur",
+    "contribution_margin_eur",
+    "repeat_purchase_180d"
+  ]
+}

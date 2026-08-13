@@ -22,6 +22,9 @@ heterogeneity, non-random assignment, selection bias, and missing-not-at-random 
 observation. Machine-readable pattern definitions, row memberships, and trap definitions are in
 `synthetic_data/evaluation/hidden_ground_truth.json` and are intentionally omitted here. Because
 the generator implementation encodes those mechanisms, it is restricted from ML Discovery too.
+The restricted truth records deterministic paired effects by replaying the same seed with only one
+pattern mechanism disabled. Direction and impact-error evaluation therefore uses realized effects,
+not nominal loss constants.
 
 The chronological split is:
 

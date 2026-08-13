@@ -28,7 +28,7 @@ package = false
 
 [tool.pytest.ini_options]
 addopts = "-ra --strict-markers"
-pythonpath = ["apps/api", "packages/analytics/src", "packages/schemas/src"]
+pythonpath = [".", "apps/api", "packages/analytics/src", "packages/schemas/src"]
 testpaths = ["tests"]
 markers = [
   "integration: requires PostgreSQL",
@@ -51,6 +51,6 @@ select = ["E", "F", "I", "B", "UP", "SIM", "RUF"]
 [tool.pyright]
 pythonVersion = "3.12"
 typeCheckingMode = "strict"
-include = ["apps/api/app", "packages/analytics/src", "packages/schemas/src", "scripts"]
+include = ["apps/api/app", "packages/analytics/src", "packages/schemas/src", "scripts", "tools"]
 exclude = ["apps/api/migrations"]
 extraPaths = ["apps/api", "packages/analytics/src", "packages/schemas/src"]

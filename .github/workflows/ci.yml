@@ -39,7 +39,18 @@ jobs:
       - run: uv run ruff format --check .
       - run: uv run pyright
       - run: cd apps/api && uv run alembic upgrade head
+      - run: cd apps/api && uv run alembic check
+      - run: cd apps/api && uv run alembic downgrade base && uv run alembic upgrade head
       - run: uv run pytest
+      - run: uv run python scripts/check_repository_data.py
+      - name: Verify generated analytical artifacts and blind export
+        env:
+          BLIND_EVALUATION_KEY: ci-only-blind-evaluation-key-00000000000000000000000000000000
+        run: |
+          make analytical-dataset
+          destination="$(mktemp -d)/blind-workspace"
+          uv run python scripts/prepare_blind_workspace.py "$destination"
+          git diff --exit-code -- synthetic_data
       - run: uvx pip-audit
 
   frontend:
@@ -88,4 +99,3 @@ jobs:
           tags: policy-web:${{ github.sha }}
           cache-from: type=gha,scope=web
           cache-to: type=gha,mode=max,scope=web
-

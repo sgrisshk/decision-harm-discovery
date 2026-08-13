@@ -6,9 +6,11 @@ import os
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "packages/analytics/src"))
+REPOSITORY = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(REPOSITORY / "packages/analytics/src"))
+sys.path.insert(0, str(REPOSITORY / "packages/schemas/src"))
 
-from policy_analytics.synthetic_benchmark import evaluate_persisted_candidates
+from policy_analytics.synthetic_benchmark import evaluate_persisted_candidates  # noqa: E402
 
 
 def main() -> None:

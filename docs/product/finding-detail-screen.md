@@ -4,6 +4,7 @@
 **Task:** TASK-027 ("Finding detail screen" in `TASKS.md`; see naming-conflict note below)
 **Depends on (implementation):** TASK-025 (Findings API completion) → TASK-024 (full finding persistence model)
 **Status of this document:** UX specification only. Not implemented. Backend data required to render this screen does not exist yet (see "Data requirements" below).
+**Companion document:** `FINDING_PRODUCT_CONTRACT.md` is the field-and-wording contract this screen renders — required/optional/qualified-only field lists, the exact permitted-language ladder, and the finalized action matrix (§9, superseding this document's §7). Where the two differ, the contract is authoritative.
 
 ## Naming conflict with the request
 
@@ -97,7 +98,7 @@ The screen must never say "AI says this is true," never hide uncertainty, and ne
   - `adjusted_observational_association` → "Holds after adjustment"
   - `quasi_causal_evidence` → "Quasi-causal"
   - `experimental_evidence` → "Experimentally confirmed"
-- **Readiness pill**: separate from evidence level. Maps to the policy-readiness contract that `OQ-003` is still defining (`EXPERIMENT_ONLY` / `SHADOW_POLICY` / `HIGH_CONFIDENCE`). Until `OQ-003` resolves, this pill is a placeholder driven by evidence level only (see action matrix) and must be visually marked provisional.
+- **Readiness pill**: separate from evidence level, driven by `policy_readiness` (`NOT_READY` / `EXPERIMENT_ONLY` / `SHADOW_POLICY` / `HIGH_CONFIDENCE`). `OQ-003` is now resolved (`docs/validation_contract.md` §7) — this pill is no longer provisional. `HIGH_CONFIDENCE` is currently unreachable system-wide (no policy backtest exists) and must not be treated as an imminent state.
 - Warning count badge is always visible in the header if `warnings` is non-empty — never buried behind a click.
 
 ### 1. What we found
@@ -138,15 +139,7 @@ The screen must never say "AI says this is true," never hide uncertainty, and ne
 
 ### 7. What you can do next — action matrix
 
-Actions are gated by evidence level. This mapping is a **product proposal**, not a resolved contract — `OQ-003` (owned by Statistics, Product supporting) must confirm or replace these thresholds before this becomes binding for policy-candidate creation (TASK-030/031).
-
-| Evidence level | Available actions |
-|---|---|
-| Descriptive observation | "Flag for review," "Request deeper validation" — no policy action offered |
-| Predictive association | Same as above |
-| Adjusted observational association | + "Create policy candidate (shadow/test only)," visibly labeled as not yet safe to auto-enforce |
-| Quasi-causal evidence | + "Create policy candidate" without the shadow-only caveat |
-| Experimental evidence | Full action set |
+**Finalized in `FINDING_PRODUCT_CONTRACT.md` §9** (`OQ-003` is resolved). Actions are gated by `policy_readiness`, not evidence level directly — `policy_readiness` already encodes "what may the business do about it" (`docs/validation_contract.md` §7), so gating on evidence level separately, as this section originally proposed, was redundant. See the contract for the current table and the `NOT_READY`-must-distinguish-rejected-from-immaterial rule.
 
 - A lightweight reaction capture (`Known already / New to us / Doesn't look right / Not actionable / Interesting / Actionable`) is teased on this screen as the entry point for TASK-035/TASK-036, which are downstream Product tasks blocked on this screen shipping. This spec does not fully design the feedback workflow — only reserves the UI slot — to keep TASK-027 scoped.
 

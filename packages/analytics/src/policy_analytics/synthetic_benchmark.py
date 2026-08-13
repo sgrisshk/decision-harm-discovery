@@ -10,7 +10,7 @@ import random
 from dataclasses import asdict, dataclass
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from policy_analytics.blind_isolation import verify_candidate_commitment
 
@@ -42,7 +42,9 @@ def _weighted(rng: random.Random, values: list[str], weights: list[float]) -> st
     return rng.choices(values, weights=weights, k=1)[0]
 
 
-def _generate_row(index: int, rng: random.Random) -> tuple[dict[str, object], list[str]]:
+def _generate_row(
+    index: int, rng: random.Random, disabled_pattern_id: str | None = None
+) -> tuple[dict[str, object], list[str]]:
     booking_date = START_DATE + timedelta(days=rng.randrange(731))
     month = booking_date.month
     drift_period = "late" if booking_date >= date(2025, 1, 1) else "early"
@@ -115,28 +117,34 @@ def _generate_row(index: int, rng: random.Random) -> tuple[dict[str, object], li
 
     if supplier == "BlueWing" and discount >= 0.12 and lead_time < 21:
         patterns.append("P01")
-        loss += 410
-        cancel_logit += 1.05
-        support_lambda += 0.75
+        if disabled_pattern_id != "P01":
+            loss += 410
+            cancel_logit += 1.05
+            support_lambda += 0.75
     if destination == "Zanzibar" and segment == "family" and party_size >= 5 and month in {6, 7, 8}:
         patterns.append("P02")
-        loss += 520 + 45 * party_size
-        support_lambda += 1.0
+        if disabled_pattern_id != "P02":
+            loss += 520 + 45 * party_size
+            support_lambda += 1.0
     if installments >= 3 and customer_type == "new" and channel == "paid_search":
         patterns.append("P03")
-        loss += 240
-        cancel_logit += 0.72
+        if disabled_pattern_id != "P03":
+            loss += 240
+            cancel_logit += 0.72
     if supplier == "Atlas" and trip_duration >= 14 and month in {1, 2, 12}:
         patterns.append("P04")
-        loss += 365
-        support_lambda += 0.55
+        if disabled_pattern_id != "P04":
+            loss += 365
+            support_lambda += 0.55
     if manager == "Manager 4" and manual_exception and customer_price >= 3500:
         patterns.append("P05")
-        loss += 475
+        if disabled_pattern_id != "P05":
+            loss += 475
     if destination == "Tokyo" and lead_time < 10 and payment_method == "bank_transfer":
         patterns.append("P06")
-        loss += 300
-        cancel_logit += 1.15
+        if disabled_pattern_id != "P06":
+            loss += 300
+            cancel_logit += 1.15
     if (
         supplier == "Cedar"
         and channel == "partner"
@@ -144,17 +152,20 @@ def _generate_row(index: int, rng: random.Random) -> tuple[dict[str, object], li
         and drift_period == "late"
     ):
         patterns.append("P07")
-        loss += 390
-        support_lambda += 0.45
+        if disabled_pattern_id != "P07":
+            loss += 390
+            support_lambda += 0.45
     if category == "luxury" and party_size == 1 and lead_time >= 90:
         patterns.append("P08")
-        loss += 440
-        support_lambda += 0.85
+        if disabled_pattern_id != "P08":
+            loss += 440
+            support_lambda += 0.85
     if supplier == "DeltaSun" and month in {9, 10, 11} and party_size >= 4:
         patterns.append("P09")
-        heterogeneous_loss = 610 if segment == "corporate" else 230
-        loss += heterogeneous_loss
-        cancel_logit += 0.85 if segment == "corporate" else 0.25
+        if disabled_pattern_id != "P09":
+            heterogeneous_loss = 610 if segment == "corporate" else 230
+            loss += heterogeneous_loss
+            cancel_logit += 0.85 if segment == "corporate" else 0.25
 
     cancellation = rng.random() < _sigmoid(cancel_logit)
     support_cases = min(6, int(rng.expovariate(1 / max(support_lambda, 0.01))))
@@ -250,15 +261,9 @@ def _dirty_rows(
         "whitespace_manager": [],
         "duplicate_source_rows": [],
     }
-    eligible = list(range(len(rows)))
-    corruption_rng.shuffle(eligible)
-    cursor = 0
 
     def take(count: int) -> list[int]:
-        nonlocal cursor
-        result = eligible[cursor : cursor + count]
-        cursor += count
-        return result
+        return corruption_rng.sample(range(len(rows)), count)
 
     for idx in take(180):
         rows[idx]["supplier"] = ""
@@ -412,7 +417,66 @@ def _schema_profile(rows: list[dict[str, object]]) -> dict[str, Any]:
     }
 
 
-def _ground_truth(config: BenchmarkConfig, memberships: dict[str, list[str]]) -> dict[str, Any]:
+def _realized_pattern_effects(
+    config: BenchmarkConfig,
+    factual_rows: list[dict[str, object]],
+    memberships: dict[str, list[str]],
+) -> dict[str, dict[str, Any]]:
+    """Compute paired factual-minus-disabled effects under identical random draws."""
+    outcome_columns = (
+        "cancellation",
+        "refund_amount_eur",
+        "support_cost_eur",
+        "additional_cost_eur",
+        "gross_profit_eur",
+        "contribution_margin_eur",
+        "repeat_purchase_180d",
+    )
+    effects: dict[str, dict[str, Any]] = {}
+    for pattern_id, affected_ids in memberships.items():
+        affected = set(affected_ids)
+        counterfactual_rng = random.Random(config.seed)
+        counterfactual_rows = [
+            _generate_row(index, counterfactual_rng, disabled_pattern_id=pattern_id)[0]
+            for index in range(config.row_count)
+        ]
+        outcome_effects: dict[str, Any] = {}
+        for column in outcome_columns:
+            paired_differences: list[float] = []
+            for factual, counterfactual in zip(factual_rows, counterfactual_rows, strict=True):
+                if factual["booking_id"] not in affected:
+                    continue
+                factual_value = factual[column]
+                counterfactual_value = counterfactual[column]
+                if factual_value == "" or counterfactual_value == "":
+                    continue
+                if isinstance(factual_value, bool) and isinstance(counterfactual_value, bool):
+                    paired_differences.append(float(int(factual_value) - int(counterfactual_value)))
+                    continue
+                paired_differences.append(
+                    float(str(factual_value)) - float(str(counterfactual_value))
+                )
+            outcome_effects[column] = {
+                "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+                "mean_effect": (
+                    round(sum(paired_differences) / len(paired_differences), 6)
+                    if paired_differences
+                    else None
+                ),
+                "paired_record_count": len(paired_differences),
+            }
+        effects[pattern_id] = {
+            "affected_record_count": len(affected),
+            "outcomes": outcome_effects,
+        }
+    return effects
+
+
+def _ground_truth(
+    config: BenchmarkConfig,
+    memberships: dict[str, list[str]],
+    realized_effects: dict[str, dict[str, Any]],
+) -> dict[str, Any]:
     patterns = [
         (
             "P01",
@@ -525,6 +589,7 @@ def _ground_truth(config: BenchmarkConfig, memberships: dict[str, list[str]]) ->
                 "rule": rule,
                 "behavior": behavior,
                 "affected_booking_ids": memberships[pattern_id],
+                "realized_counterfactual_effects": realized_effects[pattern_id],
             }
             for pattern_id, name, rule, behavior in patterns
         ],
@@ -542,8 +607,17 @@ def _ground_truth(config: BenchmarkConfig, memberships: dict[str, list[str]]) ->
 def generate_benchmark(output_root: Path, config: BenchmarkConfig | None = None) -> dict[str, str]:
     """Generate all benchmark artifacts and return their checksums."""
     config = config or BenchmarkConfig()
-    if config.row_count <= 0 or config.months != 24 or config.start_date != START_DATE.isoformat():
-        raise ValueError("benchmark requires positive rows and the configured 24-month window")
+    if (
+        config.row_count < 180
+        or config.dirty_duplicate_rows < 0
+        or config.dirty_duplicate_rows > config.row_count
+        or config.months != 24
+        or config.start_date != START_DATE.isoformat()
+    ):
+        raise ValueError(
+            "benchmark requires at least 180 rows, a feasible duplicate count, and the configured "
+            "24-month window"
+        )
     rng = random.Random(config.seed)
     clean_rows: list[dict[str, object]] = []
     memberships: dict[str, list[str]] = {f"P{number:02d}": [] for number in range(1, 10)}
@@ -553,6 +627,7 @@ def generate_benchmark(output_root: Path, config: BenchmarkConfig | None = None)
         for pattern_id in matched_patterns:
             memberships[pattern_id].append(str(row["booking_id"]))
     dirty_rows, corruption_manifest = _dirty_rows(clean_rows, config)
+    realized_effects = _realized_pattern_effects(config, clean_rows, memberships)
 
     clean_path = output_root / "reference" / "travel_bookings_clean.csv"
     dirty_path = output_root / "raw" / "travel_bookings_dirty.csv"
@@ -562,7 +637,8 @@ def generate_benchmark(output_root: Path, config: BenchmarkConfig | None = None)
     _write_json(output_root / "metadata" / "schema_profile.json", _schema_profile(clean_rows))
     _write_json(output_root / "metadata" / "corruption_manifest.json", corruption_manifest)
     _write_json(
-        output_root / "evaluation" / "hidden_ground_truth.json", _ground_truth(config, memberships)
+        output_root / "evaluation" / "hidden_ground_truth.json",
+        _ground_truth(config, memberships, realized_effects),
     )
 
     split_manifest = {
@@ -601,7 +677,7 @@ def generate_benchmark(output_root: Path, config: BenchmarkConfig | None = None)
 def evaluate_persisted_candidates(
     candidates_path: Path, ground_truth_path: Path, receipt_path: Path, signing_key: bytes
 ) -> dict[str, Any]:
-    """Match candidate IDs only after verifying an evaluator-signed commitment.
+    """Open truth only after verifying an evaluator-signed commitment.
 
     This narrow evaluator is intentionally mechanical; full statistical benchmark scoring belongs
     to TASK-028.
@@ -609,18 +685,21 @@ def evaluate_persisted_candidates(
     receipt = verify_candidate_commitment(candidates_path, receipt_path, signing_key)
     candidates = json.loads(candidates_path.read_text(encoding="utf-8"))
     truth = json.loads(ground_truth_path.read_text(encoding="utf-8"))
-    truth_ids = {item["id"] for item in truth["patterns"]}
-    candidate_ids = {
-        item["matched_ground_truth_id"]
-        for item in candidates.get("candidates", [])
-        if item.get("matched_ground_truth_id")
-    }
+    if not isinstance(truth.get("patterns"), list):
+        raise ValueError("ground truth patterns must be a list")
+    raw_candidate_items: object = candidates.get("candidates")
+    if not isinstance(raw_candidate_items, list):
+        raise ValueError("candidate artifact must contain a candidates list")
+    candidate_items = cast(list[object], raw_candidate_items)
     return {
         "candidate_file_sha256": _sha256(candidates_path),
         "blind_bundle_id": receipt["blind_bundle_id"],
         "committed_at": receipt["committed_at"],
         "evaluated_at": datetime.now(UTC).isoformat(),
-        "matched_pattern_ids": sorted(candidate_ids & truth_ids),
-        "unknown_claimed_ids": sorted(candidate_ids - truth_ids),
-        "note": "Full precision/recall and confounder scoring is owned by TASK-028 (Statistics).",
+        "candidate_count": len(candidate_items),
+        "ground_truth_pattern_count": len(truth["patterns"]),
+        "note": (
+            "Commitment verified. Rule matching, precision/recall, confounder scoring, direction, "
+            "and impact error are owned by TASK-028; caller-claimed truth IDs are ignored."
+        ),
     }

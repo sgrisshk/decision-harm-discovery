@@ -1,0 +1,127 @@
+{
+  "analytical_dataset_identity_sha256": "98ad4e7e08e63ee9e31f9317ca408f2895da8bece49324482915e24df0aee04c",
+  "analytical_dataset_version": "travel-bookings-analytical-v1.0.0",
+  "assignment_invariants": {
+    "exactly_one_split_per_record": true,
+    "overlap_count": 0,
+    "random_shuffle": false,
+    "row_order_changed": false,
+    "unassigned_count": 0
+  },
+  "config": {
+    "assignment_rule": "closed intervals on booking_date; no random shuffle",
+    "development_end": "2024-12-31",
+    "development_start": "2024-01-01",
+    "future_holdout_end": "2025-12-31",
+    "future_holdout_start": "2025-07-01",
+    "outcome_availability_mode": "CLOSED_SYNTHETIC_BENCHMARK",
+    "timestamp_column": "booking_date",
+    "validation_end": "2025-06-30",
+    "validation_start": "2025-01-01",
+    "version": "travel-bookings-temporal-split-v1.0.0"
+  },
+  "discovery_usage": {
+    "diagnostic_only_splits": [
+      "validation",
+      "future_holdout"
+    ],
+    "permitted_development_rows": 4999,
+    "search_fit_split": "development"
+  },
+  "membership_artifact": {
+    "columns": [
+      "booking_id",
+      "booking_date",
+      "split_label",
+      "outcomes_final"
+    ],
+    "path": "split_membership.csv",
+    "sha256": "82558c0d801d6b11b2a23e1790a889e8df1cf38dbdb789f3d9bc54ea72292413"
+  },
+  "outcome_availability": {
+    "all_rows_final": true,
+    "basis": "TASK-013 defines this generated 24-month benchmark as closed: downstream costs and outcomes were fully realized before export, so it has no right-censoring.",
+    "contract_version": "1.1.0",
+    "mode": "CLOSED_SYNTHETIC_BENCHMARK",
+    "outcomes": [
+      {
+        "column": "contribution_margin_eur",
+        "final_for_all_rows": true,
+        "missing_data_policy": "complete_no_missingness_expected",
+        "outcome_id": "contribution_margin_eur"
+      },
+      {
+        "column": "gross_profit_eur",
+        "final_for_all_rows": true,
+        "missing_data_policy": "complete_no_missingness_expected",
+        "outcome_id": "gross_profit_eur"
+      },
+      {
+        "column": "contribution_margin_eur / customer_price_eur",
+        "final_for_all_rows": true,
+        "missing_data_policy": "complete_no_missingness_expected",
+        "outcome_id": "contribution_margin_rate"
+      },
+      {
+        "column": "cancellation",
+        "final_for_all_rows": true,
+        "missing_data_policy": "complete_no_missingness_expected",
+        "outcome_id": "cancellation"
+      },
+      {
+        "column": "refund_amount_eur",
+        "final_for_all_rows": true,
+        "missing_data_policy": "complete_no_missingness_expected",
+        "outcome_id": "refund_amount_eur"
+      },
+      {
+        "column": "support_cost_eur",
+        "final_for_all_rows": true,
+        "missing_data_policy": "complete_no_missingness_expected",
+        "outcome_id": "support_cost_eur"
+      },
+      {
+        "column": "additional_cost_eur",
+        "final_for_all_rows": true,
+        "missing_data_policy": "complete_no_missingness_expected",
+        "outcome_id": "additional_cost_eur"
+      },
+      {
+        "column": "repeat_purchase_180d",
+        "final_for_all_rows": true,
+        "missing_data_policy": "missing_not_at_random_report_bounds",
+        "outcome_id": "repeat_purchase_180d"
+      }
+    ],
+    "production_guard": "Do not reuse CLOSED_SYNTHETIC_BENCHMARK for live data. A future customer outcome contract must provide an observation cutoff and per-outcome maturation window; immature records must be marked outcomes_final=false and excluded from final-outcome estimation, never coerced to zero or treated as final."
+  },
+  "reproducibility_command": "make temporal-splits",
+  "schema_version": "travel-booking-canonical-v1.0.0",
+  "split_config_version": "travel-bookings-temporal-split-v1.0.0",
+  "splits": {
+    "development": {
+      "all_outcomes_final": true,
+      "end_inclusive": "2024-12-31",
+      "first_booking_date": "2024-01-01",
+      "last_booking_date": "2024-12-31",
+      "row_count": 4999,
+      "start_inclusive": "2024-01-01"
+    },
+    "future_holdout": {
+      "all_outcomes_final": true,
+      "end_inclusive": "2025-12-31",
+      "first_booking_date": "2025-07-01",
+      "last_booking_date": "2025-12-31",
+      "row_count": 2539,
+      "start_inclusive": "2025-07-01"
+    },
+    "validation": {
+      "all_outcomes_final": true,
+      "end_inclusive": "2025-06-30",
+      "first_booking_date": "2025-01-01",
+      "last_booking_date": "2025-06-30",
+      "row_count": 2462,
+      "start_inclusive": "2025-01-01"
+    }
+  }
+}

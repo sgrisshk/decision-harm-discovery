@@ -59,11 +59,14 @@ evaluation identity, or a previously contaminated conversation invalidates the r
 for provenance and commitment, not encryption. Hidden truth remains in the trusted checkout.
 
 The public payload is limited to the versioned analytical partitions (`features`, `outcomes`,
-`identifiers`, and `metadata`), their analytical manifest/missingness report, shared domain types,
-and the empty discovery package boundary. `generation_config.json`, `corruption_manifest.json`,
-raw/reference exports, metadata checksums, generator source, evaluator source, and all
-`evaluation/` files are absent. Discovery must still wait for the Statistics-owned TASK-013
-contract before selecting or interpreting an outcome.
+`identifiers`, and `metadata`), TASK-012's `split_manifest.json` and `split_membership.csv`, plus
+four generated, sanitized files under `public/`: schema, feature timing, approved outcome
+metadata, and run configuration. Split membership exposes only booking ID/date, split label, and
+the closed-benchmark outcome-finality flag. It contains no Python source.
+`generation_config.json`, `corruption_manifest.json`, full lineage/missingness manifests,
+raw/reference exports, private checksums, generator source, evaluator source, and all
+`evaluation/` files are absent. Outcome metadata is serialized from the Statistics-approved
+TASK-013 contract; the exporter does not invent or modify it.
 
 ## Rollback
 
@@ -83,17 +86,30 @@ audit artifacts but would no longer be accepted by the reverted evaluator.
 
 ## Run blind discovery
 
-These coordinator commands run from the trusted full checkout. The destination must be new and
-outside the repository:
+One coordinator command rebuilds the benchmark and analytical dataset, then exports the public
+artifact. It runs from the trusted full checkout; the destination must be new and outside the
+repository:
 
 ```sh
-make benchmark
-make blind-workspace destination=/tmp/policy-blind-run-001
+export BLIND_EVALUATION_KEY="$(openssl rand -hex 32)"
+make export-public-benchmark destination=/tmp/policy-blind-run-001
 ```
 
-Start ML Discovery with `/tmp/policy-blind-run-001` as its only workspace. Do not fork a context
-that has seen restricted files. Before running discovery, it may verify the bundle using a small
-independent hash checker or the coordinator may run `validate_blind_workspace` before handoff.
+Start ML Discovery as a separate OS/container identity with
+`/tmp/policy-blind-run-001` as its only mounted workspace. Merely changing the working directory in
+the full checkout is not isolation and invalidates the run. Do not fork a context that has seen
+restricted files. The coordinator signature in `BLIND_MANIFEST.json` authenticates the issued
+allowlist; candidate commitment rejects unsigned, forged, incomplete, or modified manifests.
+
+The repository provides a fail-closed container boundary for interactive execution:
+
+```sh
+make blind-shell workspace=/tmp/policy-blind-run-001
+```
+
+It mounts only the issued workspace, disables networking, and uses a read-only container root.
+The ML Discovery process/agent must be started inside that boundary; an agent already running in
+the repository cannot be made blind retroactively.
 
 Discovery writes `candidates.json` with this envelope; the candidate fields themselves are owned
 by TASK-015/TASK-017:
@@ -116,7 +132,6 @@ Use a separate evaluation actor in the trusted checkout. Generate and retain the
 blind workspace; do not commit it:
 
 ```sh
-export BLIND_EVALUATION_KEY="$(openssl rand -hex 32)"
 uv run python scripts/commit_blind_candidates.py /path/to/candidates.json \
   --manifest /path/to/issued/BLIND_MANIFEST.json \
   --receipt artifacts/blind/run-001.receipt.json

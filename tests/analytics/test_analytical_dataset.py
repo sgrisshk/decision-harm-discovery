@@ -28,8 +28,10 @@ def test_builder_separates_roles_and_blocks_leakage(tmp_path: Path) -> None:
     identifiers = pl.read_csv(root / "identifiers.csv")
     metadata = pl.read_csv(root / "metadata.csv")
 
-    assert manifest["primary_outcome"] is None
-    assert manifest["outcome_contract"]["status"] == "PENDING_TASK_013"
+    assert manifest["schema_version"] == "travel-booking-canonical-v1.0.0"
+    assert manifest["primary_outcome"] == "contribution_margin_eur"
+    assert manifest["outcome_contract"]["status"] == "ATTACHED"
+    assert manifest["outcome_contract"]["owner"] == "STATISTICS"
     assert "contribution_margin_eur" not in features.columns
     assert "support_cases" not in features.columns
     assert "contribution_margin_eur" in outcomes.columns
@@ -37,6 +39,10 @@ def test_builder_separates_roles_and_blocks_leakage(tmp_path: Path) -> None:
     assert metadata.columns == ["source_row_number", "split_label", "source_currency"]
     assert set(metadata["split_label"]) == {"development", "validation", "future_holdout"}
     assert all(frame.height == 1_000 for frame in (features, outcomes, identifiers, metadata))
+    assert (root / "feature_manifest.json").exists()
+    assert (root / "outcome_columns_manifest.json").exists()
+    assert (root / "excluded_columns_manifest.json").exists()
+    assert (root / "version_metadata.json").exists()
 
 
 @pytest.mark.analytics
@@ -67,6 +73,22 @@ def test_builder_is_reproducible_and_manifest_has_lineage(tmp_path: Path) -> Non
     )
     assert stored["source"]["sha256"]
     assert stored["clustering"]["column"] == "customer_id"
+    assert stored["partitions"]["features"]["path"] == "features.csv"
+
+    with pytest.raises(FileExistsError):
+        build_analytical_dataset(
+            benchmark / "reference/travel_bookings_clean.csv",
+            benchmark / "metadata/feature_timing.json",
+            first,
+        )
+
+    changed = build_analytical_dataset(
+        benchmark / "reference/travel_bookings_clean.csv",
+        benchmark / "metadata/feature_timing.json",
+        tmp_path / "changed",
+        AnalyticalDatasetConfig(transformation_version="1.0.1"),
+    )
+    assert changed["dataset_identity_sha256"] != first_manifest["dataset_identity_sha256"]
 
 
 @pytest.mark.analytics
