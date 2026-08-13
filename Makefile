@@ -1,6 +1,6 @@
 SHELL := /bin/sh
 
-.PHONY: setup dev test lint typecheck format db-migrate db-upgrade fixture docker-build
+.PHONY: setup dev test lint typecheck format db-migrate db-upgrade fixture benchmark blind-workspace analytical-dataset docker-build
 
 setup:
 	test -f .env || cp .env.example .env
@@ -33,6 +33,16 @@ db-upgrade:
 
 fixture:
 	uv run python scripts/generate_synthetic_fixture.py
+
+benchmark:
+	uv run python scripts/generate_synthetic_benchmark.py
+
+blind-workspace:
+	test -n "$(destination)"
+	uv run python scripts/prepare_blind_workspace.py "$(destination)"
+
+analytical-dataset: benchmark
+	uv run python scripts/build_synthetic_analytical_dataset.py
 
 docker-build:
 	docker build -f infra/docker/api.Dockerfile -t policy-api:$${GIT_SHA:-local} .

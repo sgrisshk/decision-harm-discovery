@@ -1,0 +1,426 @@
+{
+  "clustering": {
+    "column": "customer_id",
+    "partition": "identifiers"
+  },
+  "dataset_identity_sha256": "490c65655aff645ec8da845cff257f23edfccea4abe609553b576b5b800f91e8",
+  "dataset_version": "travel-bookings-analytical-v1.0.0",
+  "derived_metadata_columns": {
+    "source_currency": "Renamed from the source METADATA field currency.",
+    "source_row_number": "One-based row lineage in the clean reference CSV.",
+    "split_label": "Deterministic chronological split derived from booking_date."
+  },
+  "excluded_post_decision_columns": [
+    "refund_date",
+    "booking_changes",
+    "support_cases",
+    "last_modified_at"
+  ],
+  "feature_timing": {
+    "acquisition_channel": {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "NONE"
+    },
+    "additional_cost_eur": {
+      "classification": "OUTCOME",
+      "discovery_feature_allowed": false,
+      "leakage_risk": "HIGH"
+    },
+    "booking_changes": {
+      "classification": "POST_DECISION",
+      "discovery_feature_allowed": false,
+      "leakage_risk": "HIGH"
+    },
+    "booking_date": {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "NONE"
+    },
+    "booking_id": {
+      "classification": "IDENTIFIER",
+      "discovery_feature_allowed": false,
+      "leakage_risk": "NONE"
+    },
+    "booking_lead_days": {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "NONE"
+    },
+    "cancellation": {
+      "classification": "OUTCOME",
+      "discovery_feature_allowed": false,
+      "leakage_risk": "HIGH"
+    },
+    "contribution_margin_eur": {
+      "classification": "OUTCOME",
+      "discovery_feature_allowed": false,
+      "leakage_risk": "HIGH"
+    },
+    "currency": {
+      "classification": "METADATA",
+      "discovery_feature_allowed": false,
+      "leakage_risk": "NONE"
+    },
+    "customer_id": {
+      "classification": "IDENTIFIER",
+      "discovery_feature_allowed": false,
+      "leakage_risk": "NONE"
+    },
+    "customer_price_eur": {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "NONE"
+    },
+    "customer_segment": {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "NONE"
+    },
+    "customer_type": {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "NONE"
+    },
+    "destination": {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "NONE"
+    },
+    "discount_rate": {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "NONE"
+    },
+    "gross_profit_eur": {
+      "classification": "OUTCOME",
+      "discovery_feature_allowed": false,
+      "leakage_risk": "HIGH"
+    },
+    "installments": {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "NONE"
+    },
+    "last_modified_at": {
+      "classification": "POST_DECISION",
+      "discovery_feature_allowed": false,
+      "leakage_risk": "HIGH"
+    },
+    "manager": {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "NONE"
+    },
+    "manual_exception": {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "NONE"
+    },
+    "party_size": {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "NONE"
+    },
+    "payment_method": {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "NONE"
+    },
+    "product_category": {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "NONE"
+    },
+    "quoted_cost_eur": {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "NONE"
+    },
+    "refund_amount_eur": {
+      "classification": "OUTCOME",
+      "discovery_feature_allowed": false,
+      "leakage_risk": "HIGH"
+    },
+    "refund_date": {
+      "classification": "POST_DECISION",
+      "discovery_feature_allowed": false,
+      "leakage_risk": "HIGH"
+    },
+    "repeat_purchase_180d": {
+      "classification": "OUTCOME",
+      "discovery_feature_allowed": false,
+      "leakage_risk": "HIGH"
+    },
+    "supplier": {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "NONE"
+    },
+    "support_cases": {
+      "classification": "POST_DECISION",
+      "discovery_feature_allowed": false,
+      "leakage_risk": "HIGH"
+    },
+    "support_cost_eur": {
+      "classification": "OUTCOME",
+      "discovery_feature_allowed": false,
+      "leakage_risk": "HIGH"
+    },
+    "travel_date": {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "NONE"
+    },
+    "trip_duration_days": {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "NONE"
+    }
+  },
+  "limitations": [
+    "TASK-013 outcome definition contract is not yet available.",
+    "Candidate-specific exposure-group missingness is computed only after immutable candidate conditions exist.",
+    "This benchmark analytical layer does not replace the blocked production TASK-010 customer-input canonicalization pipeline."
+  ],
+  "outcome_contract": {
+    "available_columns": [
+      "cancellation",
+      "refund_amount_eur",
+      "support_cost_eur",
+      "additional_cost_eur",
+      "gross_profit_eur",
+      "contribution_margin_eur",
+      "repeat_purchase_180d"
+    ],
+    "status": "PENDING_TASK_013",
+    "warning": "No outcome is selected, directed, or interpreted. Statistics must attach a versioned TASK-013 contract before discovery targets an outcome."
+  },
+  "partitions": {
+    "features": {
+      "columns": [
+        "booking_date",
+        "travel_date",
+        "destination",
+        "supplier",
+        "product_category",
+        "customer_price_eur",
+        "quoted_cost_eur",
+        "discount_rate",
+        "manager",
+        "acquisition_channel",
+        "customer_segment",
+        "customer_type",
+        "party_size",
+        "trip_duration_days",
+        "booking_lead_days",
+        "payment_method",
+        "installments",
+        "manual_exception"
+      ],
+      "path": "synthetic_data/analytical/travel-bookings-analytical-v1.0.0/features.csv",
+      "schema": [
+        {
+          "dtype": "String",
+          "name": "booking_date"
+        },
+        {
+          "dtype": "String",
+          "name": "travel_date"
+        },
+        {
+          "dtype": "String",
+          "name": "destination"
+        },
+        {
+          "dtype": "String",
+          "name": "supplier"
+        },
+        {
+          "dtype": "String",
+          "name": "product_category"
+        },
+        {
+          "dtype": "Float64",
+          "name": "customer_price_eur"
+        },
+        {
+          "dtype": "Float64",
+          "name": "quoted_cost_eur"
+        },
+        {
+          "dtype": "Float64",
+          "name": "discount_rate"
+        },
+        {
+          "dtype": "String",
+          "name": "manager"
+        },
+        {
+          "dtype": "String",
+          "name": "acquisition_channel"
+        },
+        {
+          "dtype": "String",
+          "name": "customer_segment"
+        },
+        {
+          "dtype": "String",
+          "name": "customer_type"
+        },
+        {
+          "dtype": "Int64",
+          "name": "party_size"
+        },
+        {
+          "dtype": "Int64",
+          "name": "trip_duration_days"
+        },
+        {
+          "dtype": "Int64",
+          "name": "booking_lead_days"
+        },
+        {
+          "dtype": "String",
+          "name": "payment_method"
+        },
+        {
+          "dtype": "Int64",
+          "name": "installments"
+        },
+        {
+          "dtype": "Boolean",
+          "name": "manual_exception"
+        }
+      ],
+      "sha256": "7199ae40639c55cfc8bf564fa68da0d90c55fc7ad541c79d3b6bb0d1f89b8a9b"
+    },
+    "identifiers": {
+      "columns": [
+        "booking_id",
+        "customer_id"
+      ],
+      "path": "synthetic_data/analytical/travel-bookings-analytical-v1.0.0/identifiers.csv",
+      "schema": [
+        {
+          "dtype": "String",
+          "name": "booking_id"
+        },
+        {
+          "dtype": "String",
+          "name": "customer_id"
+        }
+      ],
+      "sha256": "e730e8b2c005a4b0fb3ed9d96f448dc206d9053b866a332cf63a0e673b199ec4"
+    },
+    "metadata": {
+      "columns": [
+        "source_row_number",
+        "split_label",
+        "source_currency"
+      ],
+      "path": "synthetic_data/analytical/travel-bookings-analytical-v1.0.0/metadata.csv",
+      "schema": [
+        {
+          "dtype": "Int64",
+          "name": "source_row_number"
+        },
+        {
+          "dtype": "String",
+          "name": "split_label"
+        },
+        {
+          "dtype": "String",
+          "name": "source_currency"
+        }
+      ],
+      "sha256": "37c175397f0d7cda72b30280cbffd833d21af8e561aaafe77094f3f44d9d2224"
+    },
+    "outcomes": {
+      "columns": [
+        "cancellation",
+        "refund_amount_eur",
+        "support_cost_eur",
+        "additional_cost_eur",
+        "gross_profit_eur",
+        "contribution_margin_eur",
+        "repeat_purchase_180d"
+      ],
+      "path": "synthetic_data/analytical/travel-bookings-analytical-v1.0.0/outcomes.csv",
+      "schema": [
+        {
+          "dtype": "Boolean",
+          "name": "cancellation"
+        },
+        {
+          "dtype": "Float64",
+          "name": "refund_amount_eur"
+        },
+        {
+          "dtype": "Float64",
+          "name": "support_cost_eur"
+        },
+        {
+          "dtype": "Float64",
+          "name": "additional_cost_eur"
+        },
+        {
+          "dtype": "Float64",
+          "name": "gross_profit_eur"
+        },
+        {
+          "dtype": "Float64",
+          "name": "contribution_margin_eur"
+        },
+        {
+          "dtype": "Boolean",
+          "name": "repeat_purchase_180d"
+        }
+      ],
+      "sha256": "e56b8bd6f02e135f38a21c68577fd8ce953b51e094208c190c86e73bdb58948e"
+    }
+  },
+  "primary_outcome": null,
+  "record_count": 10000,
+  "row_alignment": "All CSV partitions preserve identical source row order.",
+  "source": {
+    "feature_timing_path": "synthetic_data/metadata/feature_timing.json",
+    "feature_timing_sha256": "71a94071f7fbec5915e896f408137a9c33e39da0c3e58bfb569b63c66f5d83e0",
+    "path": "synthetic_data/reference/travel_bookings_clean.csv",
+    "sha256": "30843d955f8e8f569e7e27bc0ee9f9f202da80fa1d313845bb673884a387cf42"
+  },
+  "status": "READY_WITH_LIMITATIONS",
+  "temporal_splits": {
+    "boundaries": {
+      "development": [
+        "2024-01-01",
+        "2024-12-31"
+      ],
+      "future_holdout": [
+        "2025-07-01",
+        "2025-12-31"
+      ],
+      "validation": [
+        "2025-01-01",
+        "2025-06-30"
+      ]
+    },
+    "column": "split_label",
+    "counts": {
+      "development": 4999,
+      "future_holdout": 2539,
+      "validation": 2462
+    },
+    "partition": "metadata",
+    "strategy": "chronological; no random shuffling"
+  },
+  "transformation": {
+    "clustering_key": "customer_id",
+    "dataset_version": "travel-bookings-analytical-v1.0.0",
+    "decision_timestamp_column": "booking_date",
+    "development_end": "2024-12-31",
+    "future_holdout_end": "2025-12-31",
+    "transformation_version": "1.0.0",
+    "validation_end": "2025-06-30"
+  }
+}
