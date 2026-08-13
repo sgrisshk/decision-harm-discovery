@@ -1,0 +1,56 @@
+[project]
+name = "policy-discovery"
+version = "0.1.0"
+description = "Outcome-driven policy discovery monorepo"
+requires-python = ">=3.12"
+dependencies = [
+  "alembic==1.16.4",
+  "fastapi==0.116.1",
+  "polars==1.32.2",
+  "psycopg[binary]==3.2.9",
+  "pydantic-settings==2.10.1",
+  "sqlalchemy==2.0.43",
+  "uvicorn[standard]==0.35.0",
+]
+
+[dependency-groups]
+dev = [
+  "httpx==0.28.1",
+  "pre-commit==4.3.0",
+  "pyright==1.1.403",
+  "pytest==8.4.1",
+  "pytest-cov==6.2.1",
+  "ruff==0.12.8",
+]
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+addopts = "-ra --strict-markers"
+pythonpath = ["apps/api", "packages/analytics/src", "packages/schemas/src"]
+testpaths = ["tests"]
+markers = [
+  "integration: requires PostgreSQL",
+  "slow: excluded from fast CI",
+  "analytics: analytical validation tests",
+]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+extend-exclude = ["apps/api/migrations/versions"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM", "RUF"]
+
+[tool.ruff.lint.per-file-ignores]
+"apps/api/app/**/routes.py" = ["B008"]
+"apps/api/app/main.py" = ["B008"]
+
+[tool.pyright]
+pythonVersion = "3.12"
+typeCheckingMode = "strict"
+include = ["apps/api/app", "packages/analytics/src", "packages/schemas/src", "scripts"]
+exclude = ["apps/api/migrations"]
+extraPaths = ["apps/api", "packages/analytics/src", "packages/schemas/src"]

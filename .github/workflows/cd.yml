@@ -1,0 +1,30 @@
+name: CD interface
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Deployment environment
+        required: true
+        type: choice
+        options: [staging, production]
+      image_sha:
+        description: Existing, verified Git SHA/image tag to promote
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  deployment-contract:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    steps:
+      - name: Validate immutable image reference
+        env:
+          IMAGE_SHA: ${{ inputs.image_sha }}
+        run: test "${#IMAGE_SHA}" -eq 40 && printf '%s' "$IMAGE_SHA" | grep -Eq '^[0-9a-f]{40}$'
+      - name: Provider selection required
+        run: echo "Deployment adapter intentionally pending; see docs/deployment.md"
+
