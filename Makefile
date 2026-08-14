@@ -1,6 +1,6 @@
 SHELL := /bin/sh
 
-.PHONY: setup dev test lint typecheck format db-migrate db-upgrade fixture benchmark export-public-benchmark blind-workspace blind-prepare blind-verify blind-shell blind-freeze blind-status analytical-dataset temporal-splits check-data docker-build
+.PHONY: setup dev test lint typecheck format db-migrate db-upgrade fixture benchmark export-public-benchmark blind-workspace blind-key-init blind-image blind-issue blind-prepare blind-verify blind-shell blind-freeze blind-status analytical-dataset temporal-splits check-data docker-build
 
 setup:
 	test -f .env || cp .env.example .env
@@ -12,6 +12,7 @@ dev:
 
 test:
 	uv run pytest
+	pnpm --filter web test
 
 lint:
 	uv run ruff check .
@@ -39,30 +40,43 @@ benchmark:
 
 export-public-benchmark: temporal-splits
 	test -n "$(destination)"
-	uv run python scripts/prepare_blind_workspace.py "$(destination)"
+	uv run python scripts/prepare_blind_workspace.py "$(destination)" --key-file "$(BLIND_EVALUATOR_KEY_FILE)"
 
 blind-workspace: export-public-benchmark
 
 BLIND_RUNS_ROOT ?= /tmp/policy-blind-runs
-BLIND_AGENT_IMAGE ?= policy-blind-agent:local
+BLIND_EVALUATOR_KEY_FILE ?= /tmp/policy-blind-evaluator/signing.key
+BLIND_AGENT_IMAGE_TAG ?= policy-blind-agent:local
+BLIND_AGENT_IMAGE ?= policy-blind-agent@sha256:f42e3cdaf1e6a766e312e6a28c2a9d377b7137bb8643379dcf3588a01398cf1d
 AGENT ?= external-cli
 BLIND_NETWORK ?= none
 
+blind-key-init:
+	test -n "$(RUN)"
+	uv run python -m tools.blind_agent.cli init-key --run "$(RUN)" --runs-root "$(BLIND_RUNS_ROOT)" --key-file "$(BLIND_EVALUATOR_KEY_FILE)"
+
+blind-image:
+	docker build -f infra/docker/blind-agent.Dockerfile -t "$(BLIND_AGENT_IMAGE_TAG)" .
+
+blind-issue:
+	test -n "$(RUN)"
+	uv run python -m tools.blind_agent.cli issue --run "$(RUN)" --runs-root "$(BLIND_RUNS_ROOT)" --key-file "$(BLIND_EVALUATOR_KEY_FILE)" --image "$(BLIND_AGENT_IMAGE)"
+
 blind-prepare:
 	test -n "$(RUN)"
-	uv run python -m tools.blind_agent.cli prepare --run "$(RUN)" --runs-root "$(BLIND_RUNS_ROOT)"
+	uv run python -m tools.blind_agent.cli prepare --run "$(RUN)" --runs-root "$(BLIND_RUNS_ROOT)" --key-file "$(BLIND_EVALUATOR_KEY_FILE)" --image "$(BLIND_AGENT_IMAGE)"
 
 blind-verify:
 	test -n "$(RUN)"
-	uv run python -m tools.blind_agent.cli verify --run "$(RUN)" --runs-root "$(BLIND_RUNS_ROOT)"
+	uv run python -m tools.blind_agent.cli verify --run "$(RUN)" --runs-root "$(BLIND_RUNS_ROOT)" --key-file "$(BLIND_EVALUATOR_KEY_FILE)"
 
 blind-shell:
 	test -n "$(RUN)"
-	uv run python -m tools.blind_agent.cli launch --run "$(RUN)" --runs-root "$(BLIND_RUNS_ROOT)" --agent "$(AGENT)" --image "$(BLIND_AGENT_IMAGE)" --network "$(BLIND_NETWORK)"
+	uv run python -m tools.blind_agent.cli launch --run "$(RUN)" --runs-root "$(BLIND_RUNS_ROOT)" --key-file "$(BLIND_EVALUATOR_KEY_FILE)" --agent "$(AGENT)" --image "$(BLIND_AGENT_IMAGE)" --network "$(BLIND_NETWORK)"
 
 blind-freeze:
 	test -n "$(RUN)"
-	uv run python -m tools.blind_agent.cli freeze --run "$(RUN)" --runs-root "$(BLIND_RUNS_ROOT)"
+	uv run python -m tools.blind_agent.cli freeze --run "$(RUN)" --runs-root "$(BLIND_RUNS_ROOT)" --key-file "$(BLIND_EVALUATOR_KEY_FILE)"
 
 blind-status:
 	test -n "$(RUN)"

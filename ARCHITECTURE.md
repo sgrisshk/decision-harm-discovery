@@ -35,5 +35,6 @@ Repository knowledge has distinct sources of truth:
 - `TASKS.md` contains actionable work and ownership.
 - `agents/` defines specialist authority and mandatory handoff boundaries.
 - `memory/` contains compact durable state, experiments, validated findings, open questions, and cross-role handoffs.
+- `docs/` contains scoped specifications grouped by domain according to `docs/README.md`; scoped documents do not live in the repository root.
 
 Conversation transcripts, debugging notes, generated claims, and implementation details obvious from code do not belong in memory. Memory never overrides the source-of-truth hierarchy in `engineering rules` and must never contain secrets, PII, or customer rows.

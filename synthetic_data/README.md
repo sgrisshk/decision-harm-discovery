@@ -14,7 +14,7 @@ coordinator/evaluator scope and must never be assigned to the ML Discovery actor
   been persisted; it consumes only the generated public inputs.
 
 Blind discovery is run from a fresh allowlist-only workspace; see
-`docs/blind_benchmark_protocol.md`. The evaluator fails closed unless the exact candidate bytes
+`docs/benchmark/blind-benchmark-protocol.md`. The evaluator fails closed unless the exact candidate bytes
 match an evaluator-signed commitment receipt:
 
 ```sh

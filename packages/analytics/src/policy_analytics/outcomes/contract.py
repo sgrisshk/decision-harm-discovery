@@ -14,7 +14,7 @@ split/timing metadata in `metadata.csv`. It answers the outcome half of `HANDOFF
 `TASK-015`/`TASK-016`/`TASK-017` on that dataset. It is not the canonical real-customer outcome
 contract: `OQ-002` (which outcome a real customer actually optimizes for) stays open, and this
 contract's benchmark-specific eligibility rule (closed 24-month window, no right-censoring) will
-not carry over unmodified — see §"Interpretation limits" and `docs/outcome_contract.md`.
+not carry over unmodified — see §"Interpretation limits" and `docs/analytics/outcome-contract.md`.
 
 No estimation, search, or ranking algorithm lives here. Computing group summaries from these
 definitions is `aggregation.py`; searching for conditions is `TASK-015` (ML Discovery); adjusting,

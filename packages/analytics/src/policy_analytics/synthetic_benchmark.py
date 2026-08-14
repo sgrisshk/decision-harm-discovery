@@ -13,12 +13,70 @@ from pathlib import Path
 from typing import Any, cast
 
 from policy_analytics.blind_isolation import verify_candidate_commitment
+from policy_analytics.outcomes.contract import OUTCOME_DEFINITIONS, PRIMARY_OUTCOME_ID
 
 SEED = 20260813
 ROW_COUNT = 10_000
 START_DATE = date(2024, 1, 1)
 PUBLIC_DIRECTORIES = ("raw", "reference", "metadata")
 EVALUATION_DIRECTORY = "evaluation"
+
+PATTERN_CONFIGURED_EFFECTS: dict[str, dict[str, Any]] = {
+    "P01": {
+        "additional_cost_location_delta_eur": 410,
+        "cancellation_logit_delta": 1.05,
+        "support_case_rate_delta": 0.75,
+    },
+    "P02": {
+        "additional_cost_location_delta_eur": {
+            "intercept": 520,
+            "party_size_coefficient": 45,
+            "formula": "520 + 45 * party_size",
+        },
+        "support_case_rate_delta": 1.0,
+    },
+    "P03": {
+        "additional_cost_location_delta_eur": 240,
+        "cancellation_logit_delta": 0.72,
+    },
+    "P04": {
+        "additional_cost_location_delta_eur": 365,
+        "support_case_rate_delta": 0.55,
+    },
+    "P05": {"additional_cost_location_delta_eur": 475},
+    "P06": {
+        "additional_cost_location_delta_eur": 300,
+        "cancellation_logit_delta": 1.15,
+    },
+    "P07": {
+        "additional_cost_location_delta_eur": 390,
+        "support_case_rate_delta": 0.45,
+    },
+    "P08": {
+        "additional_cost_location_delta_eur": 440,
+        "support_case_rate_delta": 0.85,
+    },
+    "P09": {
+        "additional_cost_location_delta_eur": {
+            "by_customer_segment": {"corporate": 610, "otherwise": 230}
+        },
+        "cancellation_logit_delta": {
+            "by_customer_segment": {"corporate": 0.85, "otherwise": 0.25}
+        },
+    },
+}
+
+PATTERN_VALID_INTERVALS: dict[str, dict[str, Any]] = {
+    pattern_id: {
+        "start_inclusive": "2024-01-01",
+        "end_inclusive": "2025-12-31",
+    }
+    for pattern_id in PATTERN_CONFIGURED_EFFECTS
+}
+PATTERN_VALID_INTERVALS["P02"]["active_booking_months"] = [6, 7, 8]
+PATTERN_VALID_INTERVALS["P04"]["active_booking_months"] = [1, 2, 12]
+PATTERN_VALID_INTERVALS["P07"]["start_inclusive"] = "2025-01-01"
+PATTERN_VALID_INTERVALS["P09"]["active_booking_months"] = [9, 10, 11]
 
 
 @dataclass(frozen=True)
@@ -477,6 +535,43 @@ def _ground_truth(
     memberships: dict[str, list[str]],
     realized_effects: dict[str, dict[str, Any]],
 ) -> dict[str, Any]:
+    primary_outcome = next(
+        definition
+        for definition in OUTCOME_DEFINITIONS
+        if definition.outcome_id == PRIMARY_OUTCOME_ID
+    )
+
+    def true_effect(pattern_id: str) -> dict[str, Any]:
+        realized = realized_effects[pattern_id]["outcomes"][primary_outcome.column]
+        realized_value = realized["mean_effect"]
+        affected_n = realized_effects[pattern_id]["affected_record_count"]
+        return {
+            "pattern_id": pattern_id,
+            "configured_effect": PATTERN_CONFIGURED_EFFECTS[pattern_id],
+            "realized_effect": realized_value,
+            "direction": "decrease_is_harm",
+            "affected_n": affected_n,
+            "affected_support": round(affected_n / config.row_count, 8),
+            "realized_economic_impact": (
+                round(-realized_value * affected_n, 2) if realized_value is not None else None
+            ),
+            "valid_time_interval": PATTERN_VALID_INTERVALS[pattern_id],
+            "relevant_outcome": primary_outcome.column,
+            "units": {
+                "configured_effect": {
+                    "additional_cost_location_delta_eur": "EUR",
+                    "cancellation_logit_delta": "log-odds",
+                    "support_case_rate_delta": "expected cases per booking",
+                },
+                "realized_effect": primary_outcome.unit,
+                "affected_support": "fraction of benchmark rows",
+                "realized_economic_impact": "EUR over affected benchmark bookings",
+            },
+            "estimand": realized["estimand"],
+            "economic_impact_sign_convention": (
+                "positive means realized harm; harm_multiplier=-1 from outcome contract"
+            ),
+        }
     patterns = [
         (
             "P01",
@@ -590,6 +685,7 @@ def _ground_truth(
                 "behavior": behavior,
                 "affected_booking_ids": memberships[pattern_id],
                 "realized_counterfactual_effects": realized_effects[pattern_id],
+                "true_effect": true_effect(pattern_id),
             }
             for pattern_id, name, rule, behavior in patterns
         ],

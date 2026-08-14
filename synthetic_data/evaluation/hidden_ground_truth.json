@@ -242,7 +242,37 @@
           }
         }
       },
-      "rule": "supplier=BlueWing AND discount_rate>=0.12 AND booking_lead_days<21"
+      "rule": "supplier=BlueWing AND discount_rate>=0.12 AND booking_lead_days<21",
+      "true_effect": {
+        "affected_n": 142,
+        "affected_support": 0.0142,
+        "configured_effect": {
+          "additional_cost_location_delta_eur": 410,
+          "cancellation_logit_delta": 1.05,
+          "support_case_rate_delta": 0.75
+        },
+        "direction": "decrease_is_harm",
+        "economic_impact_sign_convention": "positive means realized harm; harm_multiplier=-1 from outcome contract",
+        "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+        "pattern_id": "P01",
+        "realized_economic_impact": 141765.41,
+        "realized_effect": -998.347958,
+        "relevant_outcome": "contribution_margin_eur",
+        "units": {
+          "affected_support": "fraction of benchmark rows",
+          "configured_effect": {
+            "additional_cost_location_delta_eur": "EUR",
+            "cancellation_logit_delta": "log-odds",
+            "support_case_rate_delta": "expected cases per booking"
+          },
+          "realized_economic_impact": "EUR over affected benchmark bookings",
+          "realized_effect": "EUR per booking (nominal; single currency; no inflation or FX adjustment)"
+        },
+        "valid_time_interval": {
+          "end_inclusive": "2025-12-31",
+          "start_inclusive": "2024-01-01"
+        }
+      }
     },
     {
       "affected_booking_ids": [
@@ -427,7 +457,45 @@
           }
         }
       },
-      "rule": "destination=Zanzibar AND customer_segment=family AND party_size>=5 AND booking_month IN [6,7,8]"
+      "rule": "destination=Zanzibar AND customer_segment=family AND party_size>=5 AND booking_month IN [6,7,8]",
+      "true_effect": {
+        "affected_n": 137,
+        "affected_support": 0.0137,
+        "configured_effect": {
+          "additional_cost_location_delta_eur": {
+            "formula": "520 + 45 * party_size",
+            "intercept": 520,
+            "party_size_coefficient": 45
+          },
+          "support_case_rate_delta": 1.0
+        },
+        "direction": "decrease_is_harm",
+        "economic_impact_sign_convention": "positive means realized harm; harm_multiplier=-1 from outcome contract",
+        "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+        "pattern_id": "P02",
+        "realized_economic_impact": 115315.4,
+        "realized_effect": -841.718248,
+        "relevant_outcome": "contribution_margin_eur",
+        "units": {
+          "affected_support": "fraction of benchmark rows",
+          "configured_effect": {
+            "additional_cost_location_delta_eur": "EUR",
+            "cancellation_logit_delta": "log-odds",
+            "support_case_rate_delta": "expected cases per booking"
+          },
+          "realized_economic_impact": "EUR over affected benchmark bookings",
+          "realized_effect": "EUR per booking (nominal; single currency; no inflation or FX adjustment)"
+        },
+        "valid_time_interval": {
+          "active_booking_months": [
+            6,
+            7,
+            8
+          ],
+          "end_inclusive": "2025-12-31",
+          "start_inclusive": "2024-01-01"
+        }
+      }
     },
     {
       "affected_booking_ids": [
@@ -808,7 +876,36 @@
           }
         }
       },
-      "rule": "installments>=3 AND customer_type=new AND acquisition_channel=paid_search"
+      "rule": "installments>=3 AND customer_type=new AND acquisition_channel=paid_search",
+      "true_effect": {
+        "affected_n": 333,
+        "affected_support": 0.0333,
+        "configured_effect": {
+          "additional_cost_location_delta_eur": 240,
+          "cancellation_logit_delta": 0.72
+        },
+        "direction": "decrease_is_harm",
+        "economic_impact_sign_convention": "positive means realized harm; harm_multiplier=-1 from outcome contract",
+        "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+        "pattern_id": "P03",
+        "realized_economic_impact": 126132.52,
+        "realized_effect": -378.776336,
+        "relevant_outcome": "contribution_margin_eur",
+        "units": {
+          "affected_support": "fraction of benchmark rows",
+          "configured_effect": {
+            "additional_cost_location_delta_eur": "EUR",
+            "cancellation_logit_delta": "log-odds",
+            "support_case_rate_delta": "expected cases per booking"
+          },
+          "realized_economic_impact": "EUR over affected benchmark bookings",
+          "realized_effect": "EUR per booking (nominal; single currency; no inflation or FX adjustment)"
+        },
+        "valid_time_interval": {
+          "end_inclusive": "2025-12-31",
+          "start_inclusive": "2024-01-01"
+        }
+      }
     },
     {
       "affected_booking_ids": [
@@ -957,7 +1054,41 @@
           }
         }
       },
-      "rule": "supplier=Atlas AND trip_duration_days>=14 AND booking_month IN [1,2,12]"
+      "rule": "supplier=Atlas AND trip_duration_days>=14 AND booking_month IN [1,2,12]",
+      "true_effect": {
+        "affected_n": 101,
+        "affected_support": 0.0101,
+        "configured_effect": {
+          "additional_cost_location_delta_eur": 365,
+          "support_case_rate_delta": 0.55
+        },
+        "direction": "decrease_is_harm",
+        "economic_impact_sign_convention": "positive means realized harm; harm_multiplier=-1 from outcome contract",
+        "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+        "pattern_id": "P04",
+        "realized_economic_impact": 39149.56,
+        "realized_effect": -387.619406,
+        "relevant_outcome": "contribution_margin_eur",
+        "units": {
+          "affected_support": "fraction of benchmark rows",
+          "configured_effect": {
+            "additional_cost_location_delta_eur": "EUR",
+            "cancellation_logit_delta": "log-odds",
+            "support_case_rate_delta": "expected cases per booking"
+          },
+          "realized_economic_impact": "EUR over affected benchmark bookings",
+          "realized_effect": "EUR per booking (nominal; single currency; no inflation or FX adjustment)"
+        },
+        "valid_time_interval": {
+          "active_booking_months": [
+            1,
+            2,
+            12
+          ],
+          "end_inclusive": "2025-12-31",
+          "start_inclusive": "2024-01-01"
+        }
+      }
     },
     {
       "affected_booking_ids": [
@@ -1028,7 +1159,35 @@
           }
         }
       },
-      "rule": "manager=Manager 4 AND manual_exception=true AND customer_price_eur>=3500"
+      "rule": "manager=Manager 4 AND manual_exception=true AND customer_price_eur>=3500",
+      "true_effect": {
+        "affected_n": 23,
+        "affected_support": 0.0023,
+        "configured_effect": {
+          "additional_cost_location_delta_eur": 475
+        },
+        "direction": "decrease_is_harm",
+        "economic_impact_sign_convention": "positive means realized harm; harm_multiplier=-1 from outcome contract",
+        "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+        "pattern_id": "P05",
+        "realized_economic_impact": 10612.65,
+        "realized_effect": -461.419565,
+        "relevant_outcome": "contribution_margin_eur",
+        "units": {
+          "affected_support": "fraction of benchmark rows",
+          "configured_effect": {
+            "additional_cost_location_delta_eur": "EUR",
+            "cancellation_logit_delta": "log-odds",
+            "support_case_rate_delta": "expected cases per booking"
+          },
+          "realized_economic_impact": "EUR over affected benchmark bookings",
+          "realized_effect": "EUR per booking (nominal; single currency; no inflation or FX adjustment)"
+        },
+        "valid_time_interval": {
+          "end_inclusive": "2025-12-31",
+          "start_inclusive": "2024-01-01"
+        }
+      }
     },
     {
       "affected_booking_ids": [
@@ -1210,7 +1369,36 @@
           }
         }
       },
-      "rule": "destination=Tokyo AND booking_lead_days<10 AND payment_method=bank_transfer"
+      "rule": "destination=Tokyo AND booking_lead_days<10 AND payment_method=bank_transfer",
+      "true_effect": {
+        "affected_n": 134,
+        "affected_support": 0.0134,
+        "configured_effect": {
+          "additional_cost_location_delta_eur": 300,
+          "cancellation_logit_delta": 1.15
+        },
+        "direction": "decrease_is_harm",
+        "economic_impact_sign_convention": "positive means realized harm; harm_multiplier=-1 from outcome contract",
+        "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+        "pattern_id": "P06",
+        "realized_economic_impact": 135891.42,
+        "realized_effect": -1014.115075,
+        "relevant_outcome": "contribution_margin_eur",
+        "units": {
+          "affected_support": "fraction of benchmark rows",
+          "configured_effect": {
+            "additional_cost_location_delta_eur": "EUR",
+            "cancellation_logit_delta": "log-odds",
+            "support_case_rate_delta": "expected cases per booking"
+          },
+          "realized_economic_impact": "EUR over affected benchmark bookings",
+          "realized_effect": "EUR per booking (nominal; single currency; no inflation or FX adjustment)"
+        },
+        "valid_time_interval": {
+          "end_inclusive": "2025-12-31",
+          "start_inclusive": "2024-01-01"
+        }
+      }
     },
     {
       "affected_booking_ids": [
@@ -1367,7 +1555,36 @@
           }
         }
       },
-      "rule": "supplier=Cedar AND acquisition_channel=partner AND customer_type=returning AND booking_date>=2025-01-01"
+      "rule": "supplier=Cedar AND acquisition_channel=partner AND customer_type=returning AND booking_date>=2025-01-01",
+      "true_effect": {
+        "affected_n": 109,
+        "affected_support": 0.0109,
+        "configured_effect": {
+          "additional_cost_location_delta_eur": 390,
+          "support_case_rate_delta": 0.45
+        },
+        "direction": "decrease_is_harm",
+        "economic_impact_sign_convention": "positive means realized harm; harm_multiplier=-1 from outcome contract",
+        "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+        "pattern_id": "P07",
+        "realized_economic_impact": 43214.06,
+        "realized_effect": -396.459266,
+        "relevant_outcome": "contribution_margin_eur",
+        "units": {
+          "affected_support": "fraction of benchmark rows",
+          "configured_effect": {
+            "additional_cost_location_delta_eur": "EUR",
+            "cancellation_logit_delta": "log-odds",
+            "support_case_rate_delta": "expected cases per booking"
+          },
+          "realized_economic_impact": "EUR over affected benchmark bookings",
+          "realized_effect": "EUR per booking (nominal; single currency; no inflation or FX adjustment)"
+        },
+        "valid_time_interval": {
+          "end_inclusive": "2025-12-31",
+          "start_inclusive": "2025-01-01"
+        }
+      }
     },
     {
       "affected_booking_ids": [
@@ -1475,7 +1692,36 @@
           }
         }
       },
-      "rule": "product_category=luxury AND party_size=1 AND booking_lead_days>=90"
+      "rule": "product_category=luxury AND party_size=1 AND booking_lead_days>=90",
+      "true_effect": {
+        "affected_n": 60,
+        "affected_support": 0.006,
+        "configured_effect": {
+          "additional_cost_location_delta_eur": 440,
+          "support_case_rate_delta": 0.85
+        },
+        "direction": "decrease_is_harm",
+        "economic_impact_sign_convention": "positive means realized harm; harm_multiplier=-1 from outcome contract",
+        "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+        "pattern_id": "P08",
+        "realized_economic_impact": 28387.08,
+        "realized_effect": -473.118,
+        "relevant_outcome": "contribution_margin_eur",
+        "units": {
+          "affected_support": "fraction of benchmark rows",
+          "configured_effect": {
+            "additional_cost_location_delta_eur": "EUR",
+            "cancellation_logit_delta": "log-odds",
+            "support_case_rate_delta": "expected cases per booking"
+          },
+          "realized_economic_impact": "EUR over affected benchmark bookings",
+          "realized_effect": "EUR per booking (nominal; single currency; no inflation or FX adjustment)"
+        },
+        "valid_time_interval": {
+          "end_inclusive": "2025-12-31",
+          "start_inclusive": "2024-01-01"
+        }
+      }
     },
     {
       "affected_booking_ids": [
@@ -1647,7 +1893,51 @@
           }
         }
       },
-      "rule": "supplier=DeltaSun AND booking_month IN [9,10,11] AND party_size>=4"
+      "rule": "supplier=DeltaSun AND booking_month IN [9,10,11] AND party_size>=4",
+      "true_effect": {
+        "affected_n": 124,
+        "affected_support": 0.0124,
+        "configured_effect": {
+          "additional_cost_location_delta_eur": {
+            "by_customer_segment": {
+              "corporate": 610,
+              "otherwise": 230
+            }
+          },
+          "cancellation_logit_delta": {
+            "by_customer_segment": {
+              "corporate": 0.85,
+              "otherwise": 0.25
+            }
+          }
+        },
+        "direction": "decrease_is_harm",
+        "economic_impact_sign_convention": "positive means realized harm; harm_multiplier=-1 from outcome contract",
+        "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+        "pattern_id": "P09",
+        "realized_economic_impact": 28053.9,
+        "realized_effect": -226.241129,
+        "relevant_outcome": "contribution_margin_eur",
+        "units": {
+          "affected_support": "fraction of benchmark rows",
+          "configured_effect": {
+            "additional_cost_location_delta_eur": "EUR",
+            "cancellation_logit_delta": "log-odds",
+            "support_case_rate_delta": "expected cases per booking"
+          },
+          "realized_economic_impact": "EUR over affected benchmark bookings",
+          "realized_effect": "EUR per booking (nominal; single currency; no inflation or FX adjustment)"
+        },
+        "valid_time_interval": {
+          "active_booking_months": [
+            9,
+            10,
+            11
+          ],
+          "end_inclusive": "2025-12-31",
+          "start_inclusive": "2024-01-01"
+        }
+      }
     }
   ],
   "seed": 20260813,

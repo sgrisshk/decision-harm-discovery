@@ -4,7 +4,9 @@
 **Task:** TASK-027 ("Finding detail screen" in `TASKS.md`; see naming-conflict note below)
 **Depends on (implementation):** TASK-025 (Findings API completion) → TASK-024 (full finding persistence model)
 **Status of this document:** UX specification only. Not implemented. Backend data required to render this screen does not exist yet (see "Data requirements" below).
-**Companion document:** `FINDING_PRODUCT_CONTRACT.md` is the field-and-wording contract this screen renders — required/optional/qualified-only field lists, the exact permitted-language ladder, and the finalized action matrix (§9, superseding this document's §7). Where the two differ, the contract is authoritative.
+**Companion document:** `docs/product/finding-product-contract.md` is the field-and-wording contract this screen renders — required/optional/qualified-only field lists, the exact permitted-language ladder, the finalized action matrix (§9), and the Finding lifecycle/title contract (§12). Where the two differ, the contract is authoritative. See also `docs/product/findings-list-screen.md` (`TASK-026`), the triage view that links into this one.
+
+**No validated Finding has been produced yet** — `TASK-015` discovery is `DONE` (15 candidates persisted), but Statistics validation (`HANDOFF-016`) is still `Pending`, so `TASK-019`–`TASK-025` remain `BLOCKED`. This document, like `docs/product/finding-product-contract.md`, is written against the concrete persistence contract (`docs/architecture/finding-persistence-contract.md`, `apps/api/app/findings/contracts.py`) and never against `synthetic_data/evaluation/hidden_ground_truth.json` or any other hidden-truth artifact.
 
 ## Naming conflict with the request
 
@@ -98,7 +100,7 @@ The screen must never say "AI says this is true," never hide uncertainty, and ne
   - `adjusted_observational_association` → "Holds after adjustment"
   - `quasi_causal_evidence` → "Quasi-causal"
   - `experimental_evidence` → "Experimentally confirmed"
-- **Readiness pill**: separate from evidence level, driven by `policy_readiness` (`NOT_READY` / `EXPERIMENT_ONLY` / `SHADOW_POLICY` / `HIGH_CONFIDENCE`). `OQ-003` is now resolved (`docs/validation_contract.md` §7) — this pill is no longer provisional. `HIGH_CONFIDENCE` is currently unreachable system-wide (no policy backtest exists) and must not be treated as an imminent state.
+- **Readiness pill**: separate from evidence level, driven by `policy_readiness` (`NOT_READY` / `EXPERIMENT_ONLY` / `SHADOW_POLICY` / `HIGH_CONFIDENCE`). `OQ-003` is now resolved (`docs/analytics/validation-contract.md` §7) — this pill is no longer provisional. `HIGH_CONFIDENCE` is currently unreachable system-wide (no policy backtest exists) and must not be treated as an imminent state.
 - Warning count badge is always visible in the header if `warnings` is non-empty — never buried behind a click.
 
 ### 1. What we found
@@ -139,9 +141,9 @@ The screen must never say "AI says this is true," never hide uncertainty, and ne
 
 ### 7. What you can do next — action matrix
 
-**Finalized in `FINDING_PRODUCT_CONTRACT.md` §9** (`OQ-003` is resolved). Actions are gated by `policy_readiness`, not evidence level directly — `policy_readiness` already encodes "what may the business do about it" (`docs/validation_contract.md` §7), so gating on evidence level separately, as this section originally proposed, was redundant. See the contract for the current table and the `NOT_READY`-must-distinguish-rejected-from-immaterial rule.
+**Finalized in `docs/product/finding-product-contract.md` §9** (`OQ-003` is resolved). Actions are gated by `policy_readiness`, not evidence level directly — `policy_readiness` already encodes "what may the business do about it" (`docs/analytics/validation-contract.md` §7), so gating on evidence level separately, as this section originally proposed, was redundant. See the contract for the current table and the `NOT_READY`-must-distinguish-rejected-from-immaterial rule.
 
-- A lightweight reaction capture (`Known already / New to us / Doesn't look right / Not actionable / Interesting / Actionable`) is teased on this screen as the entry point for TASK-035/TASK-036, which are downstream Product tasks blocked on this screen shipping. This spec does not fully design the feedback workflow — only reserves the UI slot — to keep TASK-027 scoped.
+- A lightweight reaction capture (`Known already / New to us / Doesn't look right / Not actionable / Interesting / Actionable`) is teased on this screen as the entry point for TASK-035/TASK-036, which are downstream Product tasks blocked on this screen shipping. This spec does not fully design the feedback workflow — only reserves the UI slot — to keep TASK-027 scoped. The full semantic contract for what each reaction actually captures (dimensions, valid combinations, additional fields, what it must never be read as) is now formalized in `docs/product/finding-feedback-contract.md`.
 
 ### Provenance strip
 
@@ -162,25 +164,70 @@ The screen must never say "AI says this is true," never hide uncertainty, and ne
 - Does not implement policy backtesting UI (TASK-034, separate task).
 - Does not fully design the feedback workflow (TASK-035/036, separate tasks) — only reserves a UI slot.
 
-## Run-status gating (uses existing `ResourceStatus`)
+## Lifecycle-status gating (supersedes the old `ResourceStatus`-based section)
 
-The current `ResourceStatus` enum (`pending/running/completed/failed/draft`) describes the underlying run/generation state, not the finding's evidence lifecycle — these are two different concepts and must not be conflated in the UI:
+Resolved by `docs/product/finding-product-contract.md` §12.1 (`HANDOFF-024`). A promoted Finding is never partial — `FindingPromotion` only creates one after validation has a non-null evidence level and impact is computed — so the old `pending`/`running`/`failed` gating this section previously described **cannot occur** on a real Finding row and has been removed. The job-oriented `ResourceStatus` enum still exists for `AnalysisRun`/`Dataset`, but a Finding's own status is `FindingLifecycleStatus`:
 
-- `completed` → full detail screen as specified above.
-- `pending` / `running` → "Still being analyzed" state, no partial numbers rendered.
-- `failed` → explicit error state, no finding content rendered.
-- `draft` → not shown to business users; internal-only state if it reaches the UI at all.
+- `ACTIVE` → full detail screen as specified above.
+- `SUPERSEDED` → the normal content is replaced by a prominent banner: "This finding has been superseded by a newer analysis," linking to `superseded_by_finding_id` when set. Reachable only by direct link (never listed, per `docs/product/findings-list-screen.md`).
+- `WITHDRAWN` → same banner treatment, showing the required `withdrawal_reason` instead of a replacement link.
+- Stale (graded under an older `validation_contract_version` than the live one) is not a status — it's computed at read time. When stale, show a small "graded under an earlier validation standard" note alongside the normal content; never hide it, never auto-upgrade the evidence level.
 
-## Data requirements this spec implies for TASK-024 (handed off, not decided here)
+## Field-to-copy mapping
 
-To render this screen, the finding persistence model needs, beyond the current `FindingRead` skeleton:
+Consolidates the pill/wording rules already stated inline above into one table. Source fields are `ValidationMetadataPersistence`/`EconomicImpactPersistence`/the persisted `Finding` (`apps/api/app/findings/contracts.py`, `docs/architecture/finding-persistence-contract.md`).
 
-- plain-language pattern summary (templated, not raw condition dict) or enough structure for the frontend to template it deterministically;
-- raw effect and adjusted effect as separate values with uncertainty ranges;
-- list of confounders/alternatives checked, each with an outcome label (ruled out / partially explains / inconclusive);
-- stability broken down by segment/time period, not a single flag;
-- estimated impact as a range, plus an explicit boolean/flag for whether annualization is statistically justified;
-- outcome metric name/unit as data, not an assumed constant;
-- a finding-lifecycle status distinct from `ResourceStatus` (candidate awaiting review / validated / rejected / superseded) is implied by "what happens next" but does not yet exist anywhere in the schema — flagged to Architect/Statistics rather than assumed here.
+| Field | Detail-screen element | Copy rule |
+|---|---|---|
+| `title` | H1 | Verbatim deterministic snapshot (`docs/product/finding-product-contract.md` §12.2) |
+| `summary` | "What we found" paragraph | Verbatim deterministic snapshot, same template family as `title` |
+| `pattern_definition` / `CandidatePattern.conditions` | Collapsed "view technical rule definition" | Raw, only behind disclosure |
+| `validation.evidence_level` | Evidence pill | 5-way mapping: `descriptive_observation`→"Observed pattern", `predictive_association`→"Predicts outcome", `adjusted_observational_association`→"Holds after adjustment", `quasi_causal_evidence`→"Quasi-causal", `experimental_evidence`→"Experimentally confirmed" |
+| `validation.permitted_language` | Evidence section subtext | Render this stored sentence **verbatim** — it is now a persisted field (server-selected from `LANGUAGE_RULES`), not something the client re-derives from the evidence level |
+| `validation.policy_readiness` | Readiness pill | 4-way mapping, see `docs/product/finding-product-contract.md` §9 |
+| `validation.raw_effect` | "Raw effect" | Value with "descriptive, unadjusted, no interval — not a validated estimate" directly beside it |
+| `validation.adjusted_effect` | "Adjusted effect" | Value + `ci_low`/`ci_high`/`confidence_level`/`method`, always all four together; absent below `adjusted_observational_association` — show "not yet adjusted," not a blank |
+| `validation.controlled_variables` + `validation.potential_confounders` | "Alternative explanations checked" list | Two source lists, one narrative: "adjusted for" vs. "considered and still possible" |
+| `validation.temporal_stability` | Stability breakdown | Rendered as the summary string it is; not decomposed further in v0 (full per-segment table is Optional later, `docs/product/finding-product-contract.md` §2) |
+| `validation.warnings` | Warnings & limitations | Verbatim list; "No caveats flagged" when empty |
+| `validation.failure_modes` + `validation.recommended_validation` | "What could change" | Shown together, sourced directly, never invented |
+| `impact.historical_impact` | "Money at stake" headline | Range; "exposure" label (see List spec's same rule) |
+| `impact.annualized_impact` | Annualized line | Shown only when non-null (structurally tied to `annualization_justified=true` by the schema's own validator); otherwise "Not enough history to project forward" |
+| `impact.outcome_name` / `impact.outcome_unit` | Outcome label | Rendered from data, never hardcoded |
+| `status` (`FindingLifecycleStatus`) | Header banner (non-`ACTIVE` only) | See lifecycle-status gating above |
+| lineage fields (`dataset_version`, `analysis_run_id`, `contract_version`, `generated_at`) | Provenance strip | Collapsed by default |
 
-This list is the basis for `HANDOFF-008` in `memory/HANDOFFS.md`.
+## Edge cases
+
+- **Directly linking a `SUPERSEDED`/`WITHDRAWN` finding** — banner replaces content (see lifecycle-status gating).
+- **Stale contract version** — informational note, content still renders in full.
+- **Finding ID that doesn't exist / was never promoted** — standard 404 handling via `ErrorState` (see states below), not a blank page.
+- **`adjusted_effect` absent** (evidence below `adjusted_observational_association`) — "not yet adjusted," never a missing/blank field.
+- **`impact.annualized_impact` null** — "Not enough history to project forward," never a silently omitted line.
+- **Impact interval crosses zero** — "no measurable economic effect," never a number with a footnote (`docs/product/finding-product-contract.md` §3).
+- **`warnings` empty** — explicit "No caveats flagged," not an omitted section.
+- **`controlled_variables`/`potential_confounders` both empty** (e.g. a `descriptive_observation`-level finding, pre-adjustment) — explicit "Not yet tested against alternative explanations," never an omitted section (existing rule, retained).
+- **Very small `impact.affected_records`** near the `G03` power floor — visible qualifier regardless of evidence level.
+- **Many `pattern_definition` conditions** — same truncation contract as the title template; the technical disclosure always shows the full untruncated list even when the title/summary truncate.
+
+## Loading, empty, and error states
+
+Reuse `apps/web/components/states/` — no new primitives:
+
+- **Loading:** `LoadingState` with `label="Loading finding…"`. Not yet implemented — `apps/web/app/(app)/findings/[id]/` does not exist yet (only the list route does); flagged in `HANDOFF-029`.
+- **Error (finding not found, or API failure):** `ErrorState` with `title="Could not load this finding"`, `message`/`requestId` from `toErrorDisplay(error)`, `retryHref` pointing back to the same finding URL. A 404 (finding never existed or ID is wrong) and a genuine API/network failure both go through the same `ApiError`-based path already established in `apps/web/lib/api/errors.ts` — no special-cased "not found" page distinct from the standard error state, consistent with how `/datasets` and `/findings` already handle errors.
+- **Empty:** not applicable to a single-item detail page — a detail screen either resolves to content (including the `SUPERSEDED`/`WITHDRAWN` banner variants, which are not "empty," just non-default) or resolves to the error state above. There is no zero-items case for a single ID lookup.
+
+## Data requirements this spec implies for TASK-024 — status
+
+Originally an open list handed to Architect (`HANDOFF-008`). Now substantially resolved:
+
+- Plain-language pattern summary → resolved, `docs/product/finding-product-contract.md` §12.2 (`title`/`summary`, stored/versioned).
+- Raw/adjusted effect with uncertainty → resolved, `ValidationMetadataPersistence.raw_effect`/`adjusted_effect`.
+- Confounders/alternatives checked → resolved, `controlled_variables`/`potential_confounders`.
+- Stability → resolved as a summary string (`temporal_stability`); full per-segment breakdown remains Optional later.
+- Impact as a range + annualization-justified flag → resolved, `EconomicImpactPersistence`.
+- Outcome name/unit as data → resolved, `EconomicImpactPersistence.outcome_name`/`outcome_unit`.
+- Finding-lifecycle status → resolved, `docs/product/finding-product-contract.md` §12.1 (`HANDOFF-024`).
+
+Remaining, non-blocking: feature `display_label` for readable titles (`HANDOFF-028`), and the `/findings/[id]` route itself, which still needs to be built (`HANDOFF-029`).

@@ -58,7 +58,7 @@ agents         specialist role contracts and authority boundaries
 memory         durable state, handoffs, experiments, findings, open questions
 infra/docker   production-capable images
 tests          backend tests and synthetic fixtures
-docs           deployment and operational decisions
+docs           domain-grouped architecture, analytics, benchmark, customer, product, strategy, and operations documents
 scripts        reproducible developer utilities
 data           ignored local data (never customer data in Git)
 ```

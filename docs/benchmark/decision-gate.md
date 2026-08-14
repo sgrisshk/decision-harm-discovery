@@ -6,7 +6,7 @@
 
 ## Why this exists, and why now
 
-`docs/validation_contract.md` §10 already fixes a qualitative acceptance test for the validation methodology. This document is the founder-level companion to it: a business decision gate, using the six metrics `TASK-028` is scoped to compute, that turns those numbers into one of four verdicts — **STRONG / PROMISING / WEAK / FAILED** — and a bound action. It does not change discovery methodology, validation gates, or thresholds owned by `docs/validation_contract.md`; it interprets their output for a go/no-go call that is properly Founder's to make (`agents/FOUNDER_STRATEGY.md`: "go/no-go decisions", "prioritization").
+`docs/analytics/validation-contract.md` §10 already fixes a qualitative acceptance test for the validation methodology. This document is the founder-level companion to it: a business decision gate, using the six metrics `TASK-028` is scoped to compute, that turns those numbers into one of four verdicts — **STRONG / PROMISING / WEAK / FAILED** — and a bound action. It does not change discovery methodology, validation gates, or thresholds owned by `docs/analytics/validation-contract.md`; it interprets their output for a go/no-go call that is properly Founder's to make (`agents/FOUNDER_STRATEGY.md`: "go/no-go decisions", "prioritization").
 
 **Confirmed pre-registration condition, checked before writing this document:** `TASK-017` (blind discovery test) is `BLOCKED`; `TASK-028` (ground-truth evaluator) is `BLOCKED`, depending on `TASK-022`/`TASK-023`, both `BLOCKED`. `TASK-015` itself was reverted to `BLOCKED` on 2026-08-13 because its existing candidate artifact predates the current pinned dataset identity and the formal `TASK-012` temporal-split contract, and must be rerun before it counts. No evaluation of `synthetic_data/evaluation/hidden_ground_truth.json` has occurred. These criteria are therefore genuinely fixed before anyone — including this agent — has seen a result.
 
@@ -19,8 +19,8 @@ Applies to the first completed `TASK-017` blind run (run under the `ADR-008` all
 From `synthetic_data/evaluation/hidden_ground_truth.json` (restricted; read only to write this pre-registration, not to shape it — these are counts, not directions or effect sizes):
 
 - **9 true harmful patterns** exist: P01–P09.
-- **7 are "scoreable"** for recall purposes: P01, P02, P03, P04, P06, P08, P09. **P05 and P07 are excluded from recall scoring**, matching `docs/validation_contract.md` §11's own preregistered position: P05 (n=23) is below any defensible power floor and a structural false negative "by construction, not analytical failure"; P07 has zero development-split rows and is undiscoverable under the mandated development-only fit split. Missing P05/P07 is not counted against the run. Wrongly *validating* either (if a candidate happens to touch them) is still subject to every other gate.
-- **5 confounding traps** exist: T01–T05 (manager/supplier assignment artifacts, paid-search and payment-method composition artifacts, and the manual-exception main effect, per `docs/validation_contract.md` §10).
+- **7 are "scoreable"** for recall purposes: P01, P02, P03, P04, P06, P08, P09. **P05 and P07 are excluded from recall scoring**, matching `docs/analytics/validation-contract.md` §11's own preregistered position: P05 (n=23) is below any defensible power floor and a structural false negative "by construction, not analytical failure"; P07 has zero development-split rows and is undiscoverable under the mandated development-only fit split. Missing P05/P07 is not counted against the run. Wrongly *validating* either (if a candidate happens to touch them) is still subject to every other gate.
+- **5 confounding traps** exist: T01–T05 (manager/supplier assignment artifacts, paid-search and payment-method composition artifacts, and the manual-exception main effect, per `docs/analytics/validation-contract.md` §10).
 
 **K for Top-K precision = 10** — the floor of `TASK-015`'s own target range ("10–20 harmful candidate patterns") and the minimum plausible ranked set `TASK-016` would carry forward. If the run legitimately produces fewer than 10 candidates, precision is computed over however many exist, and that shortfall is itself reported alongside the metric, not hidden by a smaller denominator.
 
@@ -28,7 +28,7 @@ From `synthetic_data/evaluation/hidden_ground_truth.json` (restricted; read only
 
 ## Hard disqualifiers (override every band below)
 
-These mirror `docs/validation_contract.md` §10's own weighting ("a false-positive trap is weighted more heavily than a missed pattern") and are binary, not graded:
+These mirror `docs/analytics/validation-contract.md` §10's own weighting ("a false-positive trap is weighted more heavily than a missed pattern") and are binary, not graded:
 
 1. **Any leakage violation** (`TASK-028`'s leakage-violation count > 0) → overall verdict is **FAILED**, regardless of every other metric.
 2. **Any confounding trap (T01–T05) reaches `SHADOW_POLICY` or `HIGH_CONFIDENCE` policy readiness**, i.e. is promoted rather than rejected/downgraded → overall verdict is **FAILED**, regardless of every other metric. A run that finds real patterns but also promotes a trap has failed, per the contract's own standing rule.
@@ -106,7 +106,7 @@ When both hold, Founder convenes a mandatory review with ML_DISCOVERY, STATISTIC
 
 ## Ownership note
 
-The tier thresholds above are a founder-level business judgment about how much evidence justifies risking a real customer relationship on this mechanism — not a statistical methodology decision. The exact matching statistic for "true pattern match" (K's implementation), and confirmation that these numeric bands don't conflict with anything in `docs/validation_contract.md`, are Statistics' call. A handoff requesting that confirmation is recorded in `memory/HANDOFFS.md` (`HANDOFF-027`) and should resolve before `TASK-028` runs, so the bands are jointly owned by the time ground truth is opened — not just Founder-imposed after the fact.
+The tier thresholds above are a founder-level business judgment about how much evidence justifies risking a real customer relationship on this mechanism — not a statistical methodology decision. The exact matching statistic for "true pattern match" (K's implementation), and confirmation that these numeric bands don't conflict with anything in `docs/analytics/validation-contract.md`, are Statistics' call. A handoff requesting that confirmation is recorded in `memory/HANDOFFS.md` (`HANDOFF-027`) and should resolve before `TASK-028` runs, so the bands are jointly owned by the time ground truth is opened — not just Founder-imposed after the fact.
 
 ## Post-benchmark comparison
 

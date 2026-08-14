@@ -5,7 +5,15 @@ import json
 import tempfile
 from pathlib import Path
 
-from .core import freeze, launch, prepare, verify
+from .core import (
+    create_signing_key,
+    freeze,
+    launch,
+    load_signing_key,
+    prepare,
+    resolve_image,
+    verify,
+)
 
 REPOSITORY = Path(__file__).resolve().parents[2]
 
@@ -13,11 +21,17 @@ REPOSITORY = Path(__file__).resolve().parents[2]
 def main() -> None:
     parser = argparse.ArgumentParser(prog="blind-agent")
     parser.add_argument(
-        "command", choices=("prepare", "verify", "launch", "shell", "freeze", "status")
+        "command",
+        choices=("init-key", "issue", "prepare", "verify", "launch", "shell", "freeze", "status"),
     )
     parser.add_argument("--run", required=True)
     parser.add_argument(
         "--runs-root", type=Path, default=Path(tempfile.gettempdir()) / "policy-blind-runs"
+    )
+    parser.add_argument(
+        "--key-file",
+        type=Path,
+        default=Path(tempfile.gettempdir()) / "policy-blind-evaluator/signing.key",
     )
     parser.add_argument("--allowlist", type=Path, default=REPOSITORY / "blind/allowlist.yaml")
     parser.add_argument("--seed", type=int, default=1729)
@@ -26,23 +40,50 @@ def main() -> None:
     parser.add_argument("--network", choices=("none", "provider"), default="none")
     args = parser.parse_args()
     run_root = args.runs_root.resolve() / args.run
-    if args.command == "prepare":
-        print(prepare(REPOSITORY, args.runs_root, args.run, args.allowlist, args.seed))
+    if args.command == "init-key":
+        print(create_signing_key(args.key_file, REPOSITORY, args.runs_root))
+        return
+    if args.command == "status":
+        print(json.dumps(json.loads((run_root / "state.json").read_text()), indent=2))
+        return
+    signing_key = load_signing_key(args.key_file, REPOSITORY, args.runs_root)
+    if args.command in {"issue", "prepare"}:
+        print(
+            prepare(
+                REPOSITORY,
+                args.runs_root,
+                args.run,
+                args.allowlist,
+                args.seed,
+                signing_key,
+                resolve_image(args.image),
+            )
+        )
     elif args.command == "verify":
-        verify(run_root)
+        verify(
+            run_root,
+            signing_key,
+            repository=REPOSITORY,
+            allowlist=args.allowlist,
+            check_source=True,
+        )
         print("BLIND_WORKSPACE_VALID")
     elif args.command in {"launch", "shell"}:
         launch(
             run_root,
+            signing_key,
             "shell" if args.command == "shell" else args.agent,
             args.image,
             provider_network=args.network == "provider",
+            repository=REPOSITORY,
+            allowlist=args.allowlist,
         )
     elif args.command == "freeze":
-        print(freeze(run_root))
-    else:
-        print(json.dumps(json.loads((run_root / "state.json").read_text()), indent=2))
+        print(freeze(run_root, signing_key))
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except (FileExistsError, FileNotFoundError, ValueError) as exc:
+        raise SystemExit(f"BLIND_RUN_ERROR: {exc}") from None

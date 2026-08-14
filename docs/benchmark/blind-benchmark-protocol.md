@@ -91,37 +91,54 @@ artifact. It runs from the trusted full checkout; the destination must be new an
 repository:
 
 ```sh
-export BLIND_EVALUATION_KEY="$(openssl rand -hex 32)"
-make export-public-benchmark destination=/tmp/policy-blind-run-001
+make blind-key-init RUN=run-001
+make blind-image
+make blind-issue RUN=run-001
+make blind-verify RUN=run-001
 ```
 
 Start ML Discovery as a separate OS/container identity with
-`/tmp/policy-blind-run-001` as its only mounted workspace. Merely changing the working directory in
+`/tmp/policy-blind-runs/run-001/workspace` as its only mounted workspace. Merely changing the working directory in
 the full checkout is not isolation and invalidates the run. Do not fork a context that has seen
 restricted files. The coordinator signature in `BLIND_MANIFEST.json` authenticates the issued
-allowlist; candidate commitment rejects unsigned, forged, incomplete, or modified manifests.
+allowlist, output acceptance contract, and immutable runtime digest. Verification/launch also
+compare the current allowlist and source hashes to the issued snapshot; any drift requires a new
+run ID. Candidate commitment rejects unsigned, forged, incomplete, or modified manifests.
 
 The repository provides a fail-closed container boundary for interactive execution:
 
 ```sh
-make blind-shell workspace=/tmp/policy-blind-run-001
+make blind-shell RUN=run-001 AGENT=external-cli BLIND_NETWORK=provider
 ```
 
-It mounts only the issued workspace, disables networking, and uses a read-only container root.
+The coordinator owns `/tmp/policy-blind-evaluator/signing.key` (mode `0600`) and invokes the
+launcher after signature verification. The key path and bytes are not mounted or passed as an
+environment variable. The launcher mounts only the issued workspace, uses a read-only container
+root, drops all capabilities, and sets `no-new-privileges`. Network is disabled unless the
+coordinator explicitly selects provider mode; that mode has the local-runner egress limitation
+documented in `blind/README.md`.
 The ML Discovery process/agent must be started inside that boundary; an agent already running in
 the repository cannot be made blind retroactively.
 
-Discovery writes `candidates.json` with this envelope; the candidate fields themselves are owned
-by TASK-015/TASK-017:
+Discovery writes schema v1.1.0 outputs defined in `tools/blind_agent/models.py`. The signed
+`BLIND_MANIFEST.json.acceptance_contract` supplies exact expected values. In particular,
+`candidates.json` binds:
 
 ```json
 {
+  "schema_version": "1.1.0",
   "status": "PERSISTED",
   "blind_bundle_id": "<BLIND_MANIFEST.json bundle_id>",
-  "search": {"seed": 123, "evaluated_hypotheses": 500},
-  "candidates": []
+  "dataset_identity_sha256": "<signed dataset identity>",
+  "input_provenance_hashes": {"<allowlisted path>": "<sha256>"},
+  "selection_used_only_fit_split": true,
+  "candidates": ["10-20 typed candidates"]
 }
 ```
+
+Fewer than 10 candidates are accepted only with `status=INSUFFICIENT_CANDIDATES` and a non-empty
+reason. Freeze rejects contract/version/provenance drift, non-`DECISION_TIME` condition features,
+unapproved outcomes/methods, incorrect split declarations, and prohibited causal language.
 
 Discovery then returns only `candidates.json`. It must not receive any later messages or files from
 the evaluation workspace until the receipt has been created.
@@ -134,10 +151,12 @@ blind workspace; do not commit it:
 ```sh
 uv run python scripts/commit_blind_candidates.py /path/to/candidates.json \
   --manifest /path/to/issued/BLIND_MANIFEST.json \
-  --receipt artifacts/blind/run-001.receipt.json
+  --receipt artifacts/blind/run-001.receipt.json \
+  --key-file /tmp/policy-blind-evaluator/signing.key
 uv run python scripts/evaluate_synthetic_benchmark.py /path/to/candidates.json \
   --receipt artifacts/blind/run-001.receipt.json \
-  --ground-truth synthetic_data/evaluation/hidden_ground_truth.json
+  --ground-truth synthetic_data/evaluation/hidden_ground_truth.json \
+  --key-file /tmp/policy-blind-evaluator/signing.key
 ```
 
 The commitment command accepts only a `PERSISTED` envelope tied to the issued blind manifest and

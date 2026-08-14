@@ -1,4 +1,4 @@
-# Validation and Evidence Contract v1.0.0
+# Validation and Evidence Contract v1.1.0
 
 **Owner:** Statistics · **Task:** TASK-018 · **Status:** approved for use by TASK-019 onward
 
@@ -9,6 +9,14 @@ format). Prose and code must agree; the code is authoritative for grading, this 
 authoritative for intent.
 
 Nothing here estimates anything. Applying these rules to persisted candidates is TASK-019.
+
+**v1.1.0 change note (2026-08-14, ADR-014/ADR-015).** Gate G05's p-value source changed; see §4a.
+Nothing else in this contract changed — same gates, same thresholds (including `fdr_alpha = 0.10`),
+same evidence-level and readiness rules. The one 2026-08-14 dry run graded under v1.0.0
+(`artifacts/validation/task-019-validation-report.json`) keeps that grading; it is not re-graded
+here. §2's rule against post-hoc threshold tuning still applies — this is a versioned estimator
+fix for a defect proven independent of any candidate's data, not a threshold adjusted because a
+result was inconvenient. See §4a for the full account.
 
 ## 1. Purpose and standing assumption
 
@@ -58,8 +66,12 @@ replicates, run seed recorded, percentile interval at 95%. Booking-level i.i.d. 
 prohibited: bookings share managers, suppliers, and customers, and independence assumptions
 manufacture significance. A point estimate without an interval is not reportable.
 
-**p-values.** Derived by inverting the bootstrap distribution
-(`bootstrap_two_sided_p`), floored at `1 / (B + 1)`.
+**p-values (CONTRACT_VERSION >= 1.1.0).** The p-value gate G05 corrects is
+`normal_approx_two_sided_p(point_estimate, standard_error)` — a Wald-type p-value using the
+cluster-bootstrap standard error (`bootstrap_standard_error` on the same replicates used for the
+confidence interval) as the reference scale. See §4a for why this replaced the empirical
+`bootstrap_two_sided_p` inversion as G05's source. `bootstrap_two_sided_p` remains available and
+correct for small-family or purely diagnostic use; it is simply no longer what G05 corrects.
 
 **Multiple comparisons.** Benjamini–Hochberg control of the false discovery rate at
 `fdr_alpha = 0.10` across the family. **The family is the number of hypotheses discovery
@@ -75,6 +87,123 @@ prohibited.
 **Unmeasured confounding.** Every adjusted estimate reports an E-value. The E-value must be at
 least `min_e_value = 1.5` and must exceed the strongest measured confounder–outcome association;
 otherwise a confounder no stronger than one already in the data could explain the whole effect.
+
+## 4a. The G05 p-value defect and its fix (v1.1.0, ADR-014/ADR-015)
+
+### The defect
+
+Contract v1.0.0 computed G05's p-value by inverting the empirical bootstrap distribution
+(`bootstrap_two_sided_p`): count what fraction of `B` cluster-bootstrap replicates fall on the
+opposite side of zero from the point estimate, and floor the result at `1 / (B + 1)` because a
+resampling procedure with `B` replicates cannot report finer resolution than that.
+
+The first real application of this contract — the 2026-08-14 `TASK-019` dry run against 15 frozen
+`TASK-015` candidates — found this floor structurally incompatible with the family sizes this
+system actually produces. At `B = bootstrap_resamples = 2000`, the floor is `1/2001 ≈ 0.0005`.
+Benjamini-Hochberg requires, at minimum, a raw p-value at or below `alpha · rank / family_size`
+to survive; the most lenient case (`rank = 1`) requires `p ≤ alpha / family_size`. Setting the
+floor equal to that bound and solving for `family_size` gives the crossover:
+
+```
+floor > alpha / family_size
+family_size > alpha / floor = alpha · (B + 1)
+            = 0.10 × 2001 ≈ 200
+```
+
+**Once `family_size` exceeds roughly 200, no candidate can pass G05 under contract v1.0.0, no
+matter how large its true effect is** — because every candidate whose replicates unanimously
+agree in sign (the case for a genuinely strong effect) hits the exact same floor, and the floor
+itself is already too coarse. The dry run's `family_size` was 6,945 — about 35× past that
+crossover. All 15 candidates landed exactly at the floor and all 15 failed G05, capping every one
+at `LEVEL_1_DESCRIPTIVE` regardless of effect size. A diagnostic normal-approximation p-value
+computed alongside (same bootstrap standard error) put every candidate below `1e-6` — several
+orders of magnitude past what BH would have required — strongly indicating the G05 failures were
+an artifact of estimator resolution, not weak evidence. `tests/analytics/test_g05_multiplicity_fix.py`
+reproduces this mechanism directly: two synthetic replicate sets, one "modest" and one
+astronomically larger, produce the *identical* p-value under the old method, and a floored p-value
+tied across 15 synthetic candidates fails BH at `family_size = 6945` exactly as observed.
+
+This defect is a property of the estimator and the family-size regime, not of any candidate's
+data. It was found and fixed without opening `hidden_ground_truth.json` or
+`synthetic_benchmark.py`, and the fix does not reference or depend on any specific candidate's
+pattern.
+
+### The replacement method
+
+**G05's p-value is now `normal_approx_two_sided_p(point_estimate, standard_error)`**
+(`packages/analytics/src/policy_analytics/validation/grading.py`): a two-sided Wald test using the
+cluster bootstrap's *standard error* (`bootstrap_standard_error`, the sample standard deviation of
+the same replicate set) rather than an empirical tail count. Concretely:
+
+```
+z = |point_estimate| / standard_error
+p = erfc(z / sqrt(2))          # via math.erfc, not 1 - math.erf(...) — see precision note below
+```
+
+This is the simplest defensible fix, preferred over the alternatives considered:
+
+- **Increase `bootstrap_resamples` until the floor clears the requirement empirically.** Rejected:
+  clearing even the 2026-08-14 dry run's `family_size = 6945` at `rank = 1` needs
+  `B > (2001 × alpha⁻¹ × family_size⁻¹)⁻¹`-scale replicate counts — on the order of 50,000+ per
+  candidate per split — expensive without deeper optimization, and it does not fix the underlying
+  problem for a larger future search; the crossover simply moves.
+- **A more sophisticated resampling-based tail estimate** (importance-sampled bootstrap,
+  Edgeworth-corrected bootstrap, saddlepoint approximation). Rejected as unnecessary complexity:
+  the sample sizes this system operates at (hundreds to thousands of exposed records per
+  candidate) are exactly the regime the central limit theorem is built for, so a plain normal
+  approximation on the bootstrap's own standard error is already well justified, auditable in a
+  few lines, and requires no new dependency.
+- **The normal approximation, as implemented.** Chosen: simplest option that is mathematically
+  sufficient (next section), keeps the bootstrap itself — clustering, replicate count, seed — as
+  the sole source of uncertainty quantification, and only changes how a replicate set becomes a
+  p-value.
+
+**Precision note.** The tail probability is computed via `math.erfc(z / sqrt(2))`, not
+`1 - math.erf(...)` — this matters. The naive `2·(1 - 0.5·(1+erf(x)))` form suffers catastrophic
+cancellation once `erf(x)` rounds to exactly `1.0` in double precision, which happens already
+around `z ≈ 8.3`, giving a *false* floor barely better than the defect being fixed.
+`math.erfc(x) = 1 - erf(x)`, computed directly without the cancellation, remains accurate down to
+underflow at roughly `z ≈ 38` (`p ≈ 1e-315`) — see the resolution proof below and
+`tests/analytics/test_g05_multiplicity_fix.py::test_normal_approximation_has_no_resolution_floor`,
+which pins that the two formulations diverge exactly where expected.
+
+### Mathematical sufficiency of the resolution
+
+The replacement must resolve p-values well below whatever any realistic future `family_size`
+requires. Requiring a comfortable safety margin, take `family_size = 100,000` — roughly 15× the
+dry run's search size — as a generous upper bound on how large a discovery search this system
+might plausibly run. The most lenient BH threshold (`rank = 1`) at that scale is:
+
+```
+p_required = alpha / family_size = 0.10 / 100,000 = 1e-6
+```
+
+Solving `erfc(z/√2) = 1e-6` gives `z ≈ 4.89` — under five standard errors, comfortably within
+what a several-hundred-to-several-thousand-record cluster bootstrap on a real effect produces (the
+dry run's diagnostic p-values corresponded to `z` in the 8–20+ range). `math.erfc` stays accurate
+and strictly decreasing out to roughly `z ≈ 38` before underflowing to exactly `0.0` — which is
+still the *correct* answer for a pass/fail comparison against any positive threshold, not a wrong
+value. That leaves roughly **33 standard errors, and on the order of 300 decades of p-value
+resolution, of headroom** beyond what a `family_size = 100,000` search would ever require at
+`rank = 1`. `tests/analytics/test_g05_multiplicity_fix.py::test_normal_approximation_resolves_far_below_bh_requirements_at_any_realistic_family_size`
+pins this derivation as an executable check, not just prose.
+
+### Migration from v1.0.0
+
+- Findings graded under `CONTRACT_VERSION = "1.0.0"` (the 2026-08-14 dry run) keep that grading.
+  They are not, and must not be, retroactively re-graded to v1.1.0; the frozen artifact's own
+  `validation_contract_version` field records which version produced it, permanently.
+- Any *new* validation run automatically uses v1.1.0 (`CONTRACT_VERSION` is a single source of
+  truth in `contract.py`) and must be labeled as such. Comparing a v1.0.0 result to a v1.1.0
+  result — e.g. claiming a candidate "now passes" — must say explicitly that the contract version
+  changed, not just that the candidate did.
+- No other gate, threshold, or evidence/readiness rule changed in this version. A candidate that
+  failed a gate other than G05 under v1.0.0 will still fail it under v1.1.0.
+- Applying v1.1.0 to the same (still not blind-protocol-compliant, still founder-blocked)
+  `TASK-015` candidate artifact is a live capability of the code as of this fix, but doing so does
+  not manufacture validated findings: `TASK-017`/ADR-008 compliance and the founder readiness
+  block on `TASK-015`/`TASK-016` are unrelated prerequisites this fix does not touch. `TASK-019`
+  stays `IN_PROGRESS` until a genuinely compliant `TASK-017` artifact exists.
 
 ## 5. Gate sequence
 

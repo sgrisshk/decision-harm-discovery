@@ -1,11 +1,23 @@
 """Preregistered validation and evidence contract (TASK-018).
 
-This module is the executable half of ``docs/validation_contract.md``: the vocabulary, the
+This module is the executable half of ``docs/analytics/validation-contract.md``: the vocabulary, the
 preregistered thresholds, and the ordered gate specification that every candidate pattern must
 survive before a finding may be published.
 
 It deliberately contains no estimation code. Computing effects, intervals, and gate outcomes for
 persisted candidates is TASK-019; this module only fixes the rules *before* any candidate is seen.
+
+**v1.1.0 (ADR-014/ADR-015).** Gate G05's p-value source changed from the empirical bootstrap
+tail-count inversion (``bootstrap_two_sided_p``, floored at ``1/(B+1)``) to a normal
+approximation on the bootstrap standard error (``normal_approx_two_sided_p`` in ``grading.py``).
+The first TASK-019 dry run found the empirical method structurally unable to pass BH correction
+at family sizes in the low thousands, regardless of true effect size — the floor exceeds
+``alpha*rank/family_size`` for
+every achievable rank once family_size exceeds roughly ``alpha/floor`` (~200 at B=2000). No other
+gate, threshold, or evidence rule changed. Findings graded under v1.0.0 (before this fix existed)
+keep their v1.0.0 grading; they are not, and must not be, retroactively re-graded under v1.1.0. See
+``docs/analytics/validation-contract.md`` §4a for the full defect description, the replacement
+method, and its precision proof.
 """
 
 from __future__ import annotations
@@ -15,7 +27,7 @@ from enum import StrEnum
 
 from policy_schemas.domain import EvidenceLevel
 
-CONTRACT_VERSION = "1.0.0"
+CONTRACT_VERSION = "1.1.0"
 
 
 class BiasClass(StrEnum):
@@ -273,7 +285,15 @@ GATE_SPECS: tuple[GateSpec, ...] = (
             "Benjamini-Hochberg control at fdr_alpha over a family whose size is the number of "
             "hypotheses discovery actually evaluated, not the number it reported. The evaluated "
             "count comes from the discovery run manifest; when it is missing, the candidate "
-            "cannot pass this gate."
+            "cannot pass this gate. The p-value BH corrects is normal_approx_two_sided_p(point "
+            "estimate, cluster-bootstrap standard error) (CONTRACT_VERSION >= 1.1.0) — a Wald-type "
+            "p-value from the bootstrap's estimated sampling distribution, not an empirical count "
+            "over the replicates. The bootstrap itself is unchanged (same clustering, same "
+            "bootstrap_resamples, same seed); only how a replicate set becomes a p-value changed, "
+            "because the empirical count method's resolution floor of "
+            "1/(bootstrap_resamples+1) is structurally incapable of passing correction once "
+            "family_size is in the low thousands, regardless of true effect size (ADR-014). See "
+            "docs/analytics/validation-contract.md §4a."
         ),
         on_failure=FailureAction.CAP_EVIDENCE,
         max_level_on_failure=EvidenceLevel.DESCRIPTIVE,

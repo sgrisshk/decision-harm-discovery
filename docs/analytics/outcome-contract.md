@@ -7,7 +7,7 @@ This contract fixes what "harm" means for `TASK-015`/`TASK-016`/`TASK-017` on th
 analytical dataset `travel-bookings-analytical-v1.0.0`
 (`synthetic_data/analytical/travel-bookings-analytical-v1.0.0/`, dataset identity
 `98ad4e7e08e63ee9e31f9317ca408f2895da8bece49324482915e24df0aee04c`, resolving `HANDOFF-002`). It is
-preregistered the same way the validation contract is (`docs/validation_contract.md`, ADR-007):
+preregistered the same way the validation contract is (`docs/analytics/validation-contract.md`, ADR-007):
 fixed before any candidate exists, versioned, and not renegotiable per finding. Its executable form
 is `packages/analytics/src/policy_analytics/outcomes/` (`contract.py` = definitions and the
 machine-readable `DISCOVERY_CONTRACT`, `aggregation.py` = pure group-summary arithmetic).
@@ -152,7 +152,7 @@ exposed as `aggregation.historical_exposure(...)`. This is **raw, unadjusted, un
 exposure over the observed window only — descriptive, not a validated estimate. Confidence
 intervals, adjustment for confounding, and annualization belong to `TASK-021`/`TASK-023`
 (Statistics), applied only after a candidate survives the validation gates in
-`docs/validation_contract.md`.
+`docs/analytics/validation-contract.md`.
 
 ### Worked example, from the actual benchmark
 
@@ -252,7 +252,7 @@ second, independently chosen number. The reasoning is the same in both places: a
 this floor cannot be analysed at all, so proposing one only spends multiple-comparison budget
 (gate G05) on something that can never survive validation. This is a floor, not a target — most
 candidates should sit well above it; see the validation contract's own power-based reasoning
-(`docs/validation_contract.md` §5, gate G03) for why a flat headcount alone is not the real
+(`docs/analytics/validation-contract.md` §5, gate G03) for why a flat headcount alone is not the real
 adequacy criterion once a candidate does reach validation.
 
 ### 9.3 Temporal comparison rules
@@ -281,7 +281,7 @@ grade it. Candidate names, descriptions, and warnings must therefore stay at
 `descriptive_observation` phrasing: "bookings where X are observed with lower margin," never "X
 reduces margin," "X causes," "X drives," or "X leads to." This is the same prohibition
 `LANGUAGE_RULES` enforces at every evidence level in the validation contract
-(`docs/validation_contract.md` §6) — restated here because discovery writes candidate language
+(`docs/analytics/validation-contract.md` §6) — restated here because discovery writes candidate language
 *before* that contract ever runs, so it cannot inherit the restriction automatically.
 
 ### 9.5 Explanatory variables discovery may never use

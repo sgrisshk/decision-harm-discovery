@@ -1,7 +1,7 @@
 """Outcome definition contract for the first blind benchmark.
 
 Vocabulary and versioned definitions live in `contract`; pure group-summary arithmetic lives in
-`aggregation`. Prose methodology: `docs/outcome_contract.md`.
+`aggregation`. Prose methodology: `docs/analytics/outcome-contract.md`.
 """
 
 from policy_analytics.outcomes.aggregation import (

@@ -1,7 +1,7 @@
 """Statistical validation, evidence grading, and stability checks.
 
 The preregistered rules live in `contract`, the deterministic decision functions in `grading`, and
-the mandatory output format in `report`. Prose methodology: `docs/validation_contract.md`.
+the mandatory output format in `report`. Prose methodology: `docs/analytics/validation-contract.md`.
 """
 
 from policy_analytics.validation.contract import (

@@ -15,6 +15,7 @@ import polars as pl
 from policy_analytics.outcomes import OutcomeDefinition
 
 Operator = Literal["eq", "ge", "lt"]
+DISCOVERY_METHOD_VERSION = "discovery-engine-v0.1.0"
 
 
 @dataclass(frozen=True, slots=True, order=True)

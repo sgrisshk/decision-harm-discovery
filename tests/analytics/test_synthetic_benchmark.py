@@ -71,6 +71,21 @@ def test_expected_rows_patterns_dirty_layer_and_temporal_coverage(tmp_path: Path
         is not None
         for pattern in truth["patterns"]
     )
+    for pattern in truth["patterns"]:
+        effect = pattern["true_effect"]
+        assert effect["pattern_id"] == pattern["id"]
+        assert effect["configured_effect"]
+        assert effect["realized_effect"] < 0
+        assert effect["direction"] == "decrease_is_harm"
+        assert effect["affected_n"] == len(pattern["affected_booking_ids"])
+        assert effect["affected_support"] == pytest.approx(effect["affected_n"] / 2_000)
+        assert effect["realized_economic_impact"] == pytest.approx(
+            -effect["realized_effect"] * effect["affected_n"], abs=0.01
+        )
+        assert effect["valid_time_interval"]["start_inclusive"] >= "2024-01-01"
+        assert effect["valid_time_interval"]["end_inclusive"] == "2025-12-31"
+        assert effect["relevant_outcome"] == "contribution_margin_eur"
+        assert effect["units"]["realized_effect"].startswith("EUR per booking")
     classes = {column["name"]: column for column in timing["columns"]}
     assert classes["booking_date"]["classification"] == "DECISION_TIME"
     assert classes["support_cases"]["discovery_feature_allowed"] is False
@@ -126,6 +141,9 @@ def test_blind_workspace_is_allowlisted_and_rejects_restricted_files(tmp_path: P
         "hidden_ground_truth",
         "ground_truth.yaml",
         "true_effect",
+        "configured_effect",
+        "realized_effect",
+        "realized_economic_impact",
     ):
         assert private_marker not in public_text
     assert validate_blind_workspace(workspace, key) == manifest

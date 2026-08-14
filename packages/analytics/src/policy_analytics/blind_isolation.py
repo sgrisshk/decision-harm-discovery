@@ -5,7 +5,9 @@ from __future__ import annotations
 import hashlib
 import hmac
 import json
+import os
 import shutil
+import stat
 from dataclasses import asdict
 from datetime import UTC, datetime
 from pathlib import Path
@@ -50,6 +52,22 @@ FORBIDDEN_NAMES = {
 }
 
 
+def read_evaluator_key(key_file: Path) -> bytes:
+    """Read evaluator key material without putting the secret in argv or child environments."""
+    key_file = key_file.resolve()
+    if key_file.is_symlink() or not key_file.is_file():
+        raise ValueError("evaluator key must be a regular non-symlink file")
+    key_stat = key_file.stat()
+    if key_stat.st_uid != os.getuid() or stat.S_IMODE(key_stat.st_mode) != 0o600:
+        raise ValueError("evaluator key must be owned by this identity with mode 0600")
+    try:
+        key = bytes.fromhex(key_file.read_text(encoding="ascii").strip())
+    except ValueError as exc:
+        raise ValueError("evaluator key must be hex-encoded") from exc
+    _require_signing_key(key)
+    return key
+
+
 def sha256_file(path: Path) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as source:
@@ -73,6 +91,31 @@ def _signature(payload: dict[str, Any], signing_key: bytes, domain: bytes) -> st
 
 
 def _verify_issued_manifest(manifest: dict[str, Any], signing_key: bytes) -> dict[str, Any]:
+    runner_signature = manifest.get("evaluator_signature")
+    if runner_signature is not None:
+        unsigned_runner = {
+            key: value for key, value in manifest.items() if key != "evaluator_signature"
+        }
+        expected_runner = _signature(
+            unsigned_runner, signing_key, b"blind-agent-manifest-v1\0"
+        )
+        if not isinstance(runner_signature, str) or not hmac.compare_digest(
+            runner_signature, expected_runner
+        ):
+            raise ValueError("blind manifest evaluator signature is invalid")
+        raw_files: object = unsigned_runner.get("allowed_files")
+        if not isinstance(raw_files, dict) or not raw_files:
+            raise ValueError("blind runner manifest allowed_files must be a non-empty object")
+        runner_files = cast(dict[object, object], raw_files)
+        copied = {str(key): str(value) for key, value in runner_files.items()}
+        bundle_id = hashlib.sha256(
+            json.dumps(copied, sort_keys=True).encode("utf-8")
+        ).hexdigest()
+        if unsigned_runner.get("bundle_id") != bundle_id:
+            raise ValueError("blind runner manifest bundle_id is invalid")
+        if unsigned_runner.get("protocol_version") != BLIND_PROTOCOL_VERSION:
+            raise ValueError("blind manifest protocol version is unsupported")
+        return unsigned_runner
     signature = manifest.get("coordinator_signature")
     unsigned = {key: value for key, value in manifest.items() if key != "coordinator_signature"}
     expected = _signature(unsigned, signing_key, b"blind-manifest-v1\0")

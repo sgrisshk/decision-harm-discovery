@@ -2,11 +2,30 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
+from policy_analytics.blind_isolation import commit_candidates
 
-from tools.blind_agent.core import freeze, launch, prepare, safe_relative, transition, verify
+from tools.blind_agent.core import (
+    create_signing_key,
+    freeze,
+    launch,
+    load_signing_key,
+    prepare,
+    safe_relative,
+    transition,
+    verify,
+)
 from tools.blind_agent.models import RunState
+
+SIGNING_KEY = b"test-evaluator-owned-signing-key!"
+TEST_IMAGE = "test-image@sha256:" + "a" * 64
+TEST_RUNTIME = {
+    "requested_reference": TEST_IMAGE,
+    "resolved_image_id": "sha256:" + "a" * 64,
+    "resolved_repo_digest": TEST_IMAGE,
+}
 
 
 def fixture_repo(tmp_path: Path) -> tuple[Path, Path]:
@@ -15,17 +34,112 @@ def fixture_repo(tmp_path: Path) -> tuple[Path, Path]:
     (repository / "input.txt").write_text("public", encoding="utf-8")
     allowlist = repository / "allowlist.json"
     allowlist.write_text(json.dumps({"allowed": ["input.txt"]}), encoding="utf-8")
+    dataset = repository / "synthetic_data/analytical/travel-bookings-analytical-v1.0.0"
+    dataset.mkdir(parents=True)
+    (dataset / "manifest.json").write_text(
+        json.dumps(
+            {
+                "dataset_version": "test-dataset-v1",
+                "dataset_identity_sha256": "d" * 64,
+                "outcome_contract": {
+                    "version": "1.1.0",
+                    "primary_outcome_id": "margin",
+                },
+                "feature_timing": {
+                    "feature_a": {"classification": "DECISION_TIME"},
+                    "outcome_a": {"classification": "OUTCOME"},
+                },
+            }
+        )
+    )
+    (dataset / "split_manifest.json").write_text(
+        json.dumps(
+            {
+                "discovery_usage": {
+                    "search_fit_split": "development",
+                    "diagnostic_only_splits": ["validation", "future_holdout"],
+                }
+            }
+        )
+    )
+    engine = repository / "packages/analytics/src/policy_analytics/discovery/engine.py"
+    engine.parent.mkdir(parents=True)
+    engine.write_text('DISCOVERY_METHOD_VERSION = "discovery-engine-v0.1.0"\n')
     return repository, allowlist
+
+
+def write_valid_outputs(run: Path) -> None:
+    manifest = json.loads((run / "workspace/BLIND_MANIFEST.json").read_text())
+    contract = manifest["acceptance_contract"]
+    candidates = [
+        {
+            "candidate_id": f"C{index:03d}",
+            "conditions": [{"feature": "feature_a", "operator": "eq", "value": str(index)}],
+            "outcome": "margin",
+            "sample_size": 4,
+            "support": 0.2,
+            "raw_effect": -1.0,
+            "economic_exposure": -4.0,
+            "discovery_method": contract["discovery_method_version"],
+            "description": "associated with lower margin",
+            "warnings": ["awaiting statistical validation"],
+        }
+        for index in range(10)
+    ]
+    output = run / "workspace/output"
+    (output / "candidates.json").write_text(
+        json.dumps(
+            {
+                "schema_version": contract["output_schema_version"],
+                "run_id": manifest["run_id"],
+                "status": "PERSISTED",
+                "blind_bundle_id": manifest["bundle_id"],
+                "run_contract_version": contract["run_contract_version"],
+                "dataset_version": contract["dataset_version"],
+                "dataset_identity_sha256": contract["dataset_identity_sha256"],
+                "outcome_contract_version": contract["outcome_contract_version"],
+                "discovery_contract_version": contract["discovery_contract_version"],
+                "discovery_method_version": contract["discovery_method_version"],
+                "search_fit_split": contract["search_fit_split"],
+                "diagnostic_only_splits": contract["diagnostic_only_splits"],
+                "selection_used_only_fit_split": True,
+                "input_provenance_hashes": manifest["allowed_files"],
+                "feature_timing_classes": contract["feature_timing_classes"],
+                "candidates": candidates,
+            }
+        )
+    )
+    (output / "discovery_metrics.json").write_text(
+        json.dumps(
+            {
+                "schema_version": contract["output_schema_version"],
+                "run_id": manifest["run_id"],
+                "evaluated_hypotheses": 10,
+                "random_seed": manifest["random_seed"],
+                "run_contract_version": contract["run_contract_version"],
+                "dataset_identity_sha256": contract["dataset_identity_sha256"],
+                "discovery_method_version": contract["discovery_method_version"],
+                "search_fit_split": contract["search_fit_split"],
+                "selection_used_only_fit_split": True,
+            }
+        )
+    )
+    (output / "run_report.md").write_text("Observed candidate associations.")
 
 
 def test_prepare_copies_only_allowlist_and_is_verified(tmp_path: Path) -> None:
     repository, allowlist = fixture_repo(tmp_path)
     (repository / "secret.txt").write_text("private", encoding="utf-8")
-    run = prepare(repository, tmp_path / "runs", "run-001", allowlist, 7)
+    run = prepare(
+        repository, tmp_path / "runs", "run-001", allowlist, 7, SIGNING_KEY, TEST_RUNTIME
+    )
     assert (run / "workspace/input.txt").read_text() == "public"
     assert not (run / "workspace/secret.txt").exists()
     assert json.loads((run / "state.json").read_text())["state"] == "VERIFIED"
-    verify(run)
+    verify(run, SIGNING_KEY)
+    assert json.loads((run / "workspace/BLIND_MANIFEST.json").read_text())[
+        "evaluator_signature"
+    ]
 
 
 @pytest.mark.parametrize(
@@ -40,11 +154,15 @@ def test_prepare_rejects_missing_and_symlink(tmp_path: Path) -> None:
     repository, allowlist = fixture_repo(tmp_path)
     allowlist.write_text(json.dumps({"allowed": ["missing.txt"]}))
     with pytest.raises(FileNotFoundError):
-        prepare(repository, tmp_path / "runs-a", "missing", allowlist, 1)
+        prepare(
+            repository, tmp_path / "runs-a", "missing", allowlist, 1, SIGNING_KEY, TEST_RUNTIME
+        )
     allowlist.write_text(json.dumps({"allowed": ["link.txt"]}))
     (repository / "link.txt").symlink_to(repository / "input.txt")
     with pytest.raises(ValueError, match="symlink"):
-        prepare(repository, tmp_path / "runs-b", "link", allowlist, 1)
+        prepare(
+            repository, tmp_path / "runs-b", "link", allowlist, 1, SIGNING_KEY, TEST_RUNTIME
+        )
 
 
 def test_verify_detects_extra_changed_deleted_hidden_and_git(tmp_path: Path) -> None:
@@ -52,58 +170,51 @@ def test_verify_detects_extra_changed_deleted_hidden_and_git(tmp_path: Path) -> 
     for index, (name, content) in enumerate(
         (("extra.txt", "x"), ("input.txt", "changed"), (".private", "x"), (".git/config", "x"))
     ):
-        run = prepare(repository, tmp_path / f"runs-{index}", f"run-{index}", allowlist, 1)
+        run = prepare(
+            repository,
+            tmp_path / f"runs-{index}",
+            f"run-{index}",
+            allowlist,
+            1,
+            SIGNING_KEY,
+            TEST_RUNTIME,
+        )
         target = run / "workspace" / name
         target.parent.mkdir(exist_ok=True)
         target.write_text(content)
         with pytest.raises(ValueError):
-            verify(run)
-    run = prepare(repository, tmp_path / "runs-delete", "delete", allowlist, 1)
+            verify(run, SIGNING_KEY)
+    run = prepare(
+        repository, tmp_path / "runs-delete", "delete", allowlist, 1, SIGNING_KEY, TEST_RUNTIME
+    )
     (run / "workspace/input.txt").unlink()
     with pytest.raises(ValueError, match="missing"):
-        verify(run)
+        verify(run, SIGNING_KEY)
 
 
 def test_freeze_validates_and_closes_run(tmp_path: Path) -> None:
     repository, allowlist = fixture_repo(tmp_path)
-    run = prepare(repository, tmp_path / "runs", "run-001", allowlist, 1)
-    command = launch(run, "external-cli", "test-image", execute=False)
+    run = prepare(
+        repository, tmp_path / "runs", "run-001", allowlist, 1, SIGNING_KEY, TEST_RUNTIME
+    )
+    command = launch(
+        run,
+        SIGNING_KEY,
+        "external-cli",
+        TEST_IMAGE,
+        execute=False,
+        repository=repository,
+        allowlist=allowlist,
+    )
     assert command[0:2] == ["docker", "run"]
+    assert "--full-auto" not in command
+    assert "--dangerously-bypass-approvals-and-sandbox" in command
+    assert "--ephemeral" in command
+    assert "--ignore-user-config" in command
+    assert "--skip-git-repo-check" in command
     transition(run, RunState.RUNNING)
-    output = run / "workspace/output"
-    (output / "candidates.json").write_text(
-        json.dumps(
-            {
-                "schema_version": "1.0.0",
-                "run_id": "run-001",
-                "candidates": [
-                    {
-                        "candidate_id": "C001",
-                        "conditions": [],
-                        "outcome": "margin",
-                        "sample_size": 4,
-                        "support": 0.2,
-                        "raw_effect": -1.0,
-                        "economic_exposure": -4.0,
-                        "discovery_method": "test",
-                        "warnings": [],
-                    }
-                ],
-            }
-        )
-    )
-    (output / "discovery_metrics.json").write_text(
-        json.dumps(
-            {
-                "schema_version": "1.0.0",
-                "run_id": "run-001",
-                "evaluated_hypotheses": 1,
-                "random_seed": 1,
-            }
-        )
-    )
-    (output / "run_report.md").write_text("done")
-    frozen = freeze(run)
+    write_valid_outputs(run)
+    frozen = freeze(run, SIGNING_KEY)
     assert (frozen / "hashes.json").is_file()
     assert json.loads((run / "state.json").read_text())["state"] == "FROZEN"
     with pytest.raises(ValueError, match="FROZEN"):
@@ -112,11 +223,171 @@ def test_freeze_validates_and_closes_run(tmp_path: Path) -> None:
 
 def test_malformed_candidates_are_rejected(tmp_path: Path) -> None:
     repository, allowlist = fixture_repo(tmp_path)
-    run = prepare(repository, tmp_path / "runs", "bad", allowlist, 1)
+    run = prepare(
+        repository, tmp_path / "runs", "bad", allowlist, 1, SIGNING_KEY, TEST_RUNTIME
+    )
     transition(run, RunState.RUNNING)
     output = run / "workspace/output"
     (output / "candidates.json").write_text("{}")
     (output / "discovery_metrics.json").write_text("{}")
     (output / "run_report.md").write_text("bad")
     with pytest.raises(ValueError, match="schema"):
-        freeze(run)
+        freeze(run, SIGNING_KEY)
+
+
+def test_verify_rejects_forged_manifest_and_wrong_key(tmp_path: Path) -> None:
+    repository, allowlist = fixture_repo(tmp_path)
+    run = prepare(
+        repository, tmp_path / "runs", "signed", allowlist, 1, SIGNING_KEY, TEST_RUNTIME
+    )
+    with pytest.raises(ValueError, match="signature"):
+        verify(run, b"another-evaluator-owned-key!!!!!")
+    public_manifest = run / "workspace/BLIND_MANIFEST.json"
+    payload = json.loads(public_manifest.read_text())
+    payload["random_seed"] = 2
+    public_manifest.write_text(json.dumps(payload))
+    with pytest.raises(ValueError, match="differs"):
+        verify(run, SIGNING_KEY)
+
+
+def test_launch_rejects_source_drift_and_mutable_image(tmp_path: Path) -> None:
+    repository, allowlist = fixture_repo(tmp_path)
+    run = prepare(
+        repository, tmp_path / "runs", "drift", allowlist, 1, SIGNING_KEY, TEST_RUNTIME
+    )
+    with pytest.raises(ValueError, match="immutable image"):
+        launch(
+            run,
+            SIGNING_KEY,
+            "external-cli",
+            "test-image:latest",
+            execute=False,
+            repository=repository,
+            allowlist=allowlist,
+        )
+    (repository / "input.txt").write_text("changed after issuance")
+    with pytest.raises(ValueError, match="source drift"):
+        launch(
+            run,
+            SIGNING_KEY,
+            "external-cli",
+            TEST_IMAGE,
+            execute=False,
+            repository=repository,
+            allowlist=allowlist,
+        )
+
+
+def test_launch_records_resolved_image_before_running(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repository, allowlist = fixture_repo(tmp_path)
+    run = prepare(
+        repository, tmp_path / "runs", "image", allowlist, 1, SIGNING_KEY, TEST_RUNTIME
+    )
+
+    def fake_run(command: list[str], **_kwargs: object) -> SimpleNamespace:
+        if command[:3] == ["docker", "image", "inspect"]:
+            return SimpleNamespace(
+                returncode=0,
+                stdout=json.dumps(
+                    [{"Id": "sha256:" + "a" * 64, "RepoDigests": [TEST_IMAGE]}]
+                ),
+            )
+        return SimpleNamespace(returncode=0)
+
+    monkeypatch.setattr("tools.blind_agent.core.subprocess.run", fake_run)
+    launch(
+        run,
+        SIGNING_KEY,
+        "external-cli",
+        TEST_IMAGE,
+        repository=repository,
+        allowlist=allowlist,
+    )
+    provenance = json.loads((run / "provenance.json").read_text())
+    assert provenance["image"] == {
+        "requested_reference": TEST_IMAGE,
+        "resolved_image_id": "sha256:" + "a" * 64,
+        "resolved_repo_digest": TEST_IMAGE,
+    }
+
+
+def test_evaluator_key_is_external_private_and_never_mounted(tmp_path: Path) -> None:
+    repository, allowlist = fixture_repo(tmp_path)
+    runs_root = tmp_path / "runs"
+    key_file = tmp_path / "evaluator/signing.key"
+    create_signing_key(key_file, repository, runs_root)
+    key = load_signing_key(key_file, repository, runs_root)
+    assert len(key) == 32
+    assert key_file.stat().st_mode & 0o777 == 0o600
+    run = prepare(repository, runs_root, "isolated", allowlist, 1, key, TEST_RUNTIME)
+    command = launch(
+        run,
+        key,
+        "external-cli",
+        TEST_IMAGE,
+        execute=False,
+        repository=repository,
+        allowlist=allowlist,
+    )
+    assert str(key_file) not in " ".join(command)
+    mounts = [command[index + 1] for index, item in enumerate(command) if item == "-v"]
+    assert mounts == [f"{(run / 'workspace').resolve()}:/workspace:rw"]
+    assert not any(path.name == "signing.key" for path in (run / "workspace").rglob("*"))
+
+
+def test_runner_manifest_is_accepted_by_posthoc_commitment(tmp_path: Path) -> None:
+    repository, allowlist = fixture_repo(tmp_path)
+    run = prepare(
+        repository, tmp_path / "runs", "posthoc", allowlist, 1, SIGNING_KEY, TEST_RUNTIME
+    )
+    manifest = json.loads((run / "workspace/BLIND_MANIFEST.json").read_text())
+    candidates = tmp_path / "candidates.json"
+    candidates.write_text(
+        json.dumps(
+            {
+                "status": "PERSISTED",
+                "blind_bundle_id": manifest["bundle_id"],
+                "candidates": [],
+            }
+        )
+    )
+    receipt = tmp_path / "receipt.json"
+    committed = commit_candidates(
+        candidates, run / "workspace/BLIND_MANIFEST.json", receipt, SIGNING_KEY
+    )
+    assert committed["blind_bundle_id"] == manifest["bundle_id"]
+
+
+def test_freeze_rejects_contract_drift_and_causal_language(tmp_path: Path) -> None:
+    repository, allowlist = fixture_repo(tmp_path)
+    run = prepare(
+        repository, tmp_path / "runs", "contract", allowlist, 1, SIGNING_KEY, TEST_RUNTIME
+    )
+    transition(run, RunState.RUNNING)
+    write_valid_outputs(run)
+    candidates_path = run / "workspace/output/candidates.json"
+    candidates = json.loads(candidates_path.read_text())
+    candidates["dataset_identity_sha256"] = "0" * 64
+    candidates_path.write_text(json.dumps(candidates))
+    with pytest.raises(ValueError, match="contract mismatch"):
+        freeze(run, SIGNING_KEY)
+    write_valid_outputs(run)
+    candidates = json.loads(candidates_path.read_text())
+    candidates["candidates"][0]["description"] = "This condition causes lower margin"
+    candidates_path.write_text(json.dumps(candidates))
+    with pytest.raises(ValueError, match="causal language"):
+        freeze(run, SIGNING_KEY)
+    write_valid_outputs(run)
+    candidates = json.loads(candidates_path.read_text())
+    candidates["candidates"].pop()
+    candidates_path.write_text(json.dumps(candidates))
+    with pytest.raises(ValueError, match="10-20 candidates"):
+        freeze(run, SIGNING_KEY)
+    write_valid_outputs(run)
+    candidates = json.loads(candidates_path.read_text())
+    candidates["candidates"][0]["conditions"][0]["feature"] = "outcome_a"
+    candidates_path.write_text(json.dumps(candidates))
+    with pytest.raises(ValueError, match="non-decision-time"):
+        freeze(run, SIGNING_KEY)
