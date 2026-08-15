@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
 from pathlib import Path
 from types import SimpleNamespace
+from typing import Any
 
 import pytest
 from policy_analytics.blind_isolation import commit_candidates
@@ -26,6 +28,7 @@ TEST_RUNTIME = {
     "resolved_image_id": "sha256:" + "a" * 64,
     "resolved_repo_digest": TEST_IMAGE,
 }
+TEST_MODEL = "provider/test-model"
 
 
 def fixture_repo(tmp_path: Path) -> tuple[Path, Path]:
@@ -131,15 +134,21 @@ def test_prepare_copies_only_allowlist_and_is_verified(tmp_path: Path) -> None:
     repository, allowlist = fixture_repo(tmp_path)
     (repository / "secret.txt").write_text("private", encoding="utf-8")
     run = prepare(
-        repository, tmp_path / "runs", "run-001", allowlist, 7, SIGNING_KEY, TEST_RUNTIME
+        repository,
+        tmp_path / "runs",
+        "run-001",
+        allowlist,
+        7,
+        SIGNING_KEY,
+        TEST_RUNTIME,
+        "provider",
+        TEST_MODEL,
     )
     assert (run / "workspace/input.txt").read_text() == "public"
     assert not (run / "workspace/secret.txt").exists()
     assert json.loads((run / "state.json").read_text())["state"] == "VERIFIED"
     verify(run, SIGNING_KEY)
-    assert json.loads((run / "workspace/BLIND_MANIFEST.json").read_text())[
-        "evaluator_signature"
-    ]
+    assert json.loads((run / "workspace/BLIND_MANIFEST.json").read_text())["evaluator_signature"]
 
 
 @pytest.mark.parametrize(
@@ -155,13 +164,29 @@ def test_prepare_rejects_missing_and_symlink(tmp_path: Path) -> None:
     allowlist.write_text(json.dumps({"allowed": ["missing.txt"]}))
     with pytest.raises(FileNotFoundError):
         prepare(
-            repository, tmp_path / "runs-a", "missing", allowlist, 1, SIGNING_KEY, TEST_RUNTIME
+            repository,
+            tmp_path / "runs-a",
+            "missing",
+            allowlist,
+            1,
+            SIGNING_KEY,
+            TEST_RUNTIME,
+            "provider",
+            TEST_MODEL,
         )
     allowlist.write_text(json.dumps({"allowed": ["link.txt"]}))
     (repository / "link.txt").symlink_to(repository / "input.txt")
     with pytest.raises(ValueError, match="symlink"):
         prepare(
-            repository, tmp_path / "runs-b", "link", allowlist, 1, SIGNING_KEY, TEST_RUNTIME
+            repository,
+            tmp_path / "runs-b",
+            "link",
+            allowlist,
+            1,
+            SIGNING_KEY,
+            TEST_RUNTIME,
+            "provider",
+            TEST_MODEL,
         )
 
 
@@ -178,6 +203,8 @@ def test_verify_detects_extra_changed_deleted_hidden_and_git(tmp_path: Path) -> 
             1,
             SIGNING_KEY,
             TEST_RUNTIME,
+            "provider",
+            TEST_MODEL,
         )
         target = run / "workspace" / name
         target.parent.mkdir(exist_ok=True)
@@ -185,7 +212,15 @@ def test_verify_detects_extra_changed_deleted_hidden_and_git(tmp_path: Path) -> 
         with pytest.raises(ValueError):
             verify(run, SIGNING_KEY)
     run = prepare(
-        repository, tmp_path / "runs-delete", "delete", allowlist, 1, SIGNING_KEY, TEST_RUNTIME
+        repository,
+        tmp_path / "runs-delete",
+        "delete",
+        allowlist,
+        1,
+        SIGNING_KEY,
+        TEST_RUNTIME,
+        "provider",
+        TEST_MODEL,
     )
     (run / "workspace/input.txt").unlink()
     with pytest.raises(ValueError, match="missing"):
@@ -195,23 +230,35 @@ def test_verify_detects_extra_changed_deleted_hidden_and_git(tmp_path: Path) -> 
 def test_freeze_validates_and_closes_run(tmp_path: Path) -> None:
     repository, allowlist = fixture_repo(tmp_path)
     run = prepare(
-        repository, tmp_path / "runs", "run-001", allowlist, 1, SIGNING_KEY, TEST_RUNTIME
+        repository,
+        tmp_path / "runs",
+        "run-001",
+        allowlist,
+        1,
+        SIGNING_KEY,
+        TEST_RUNTIME,
+        "provider",
+        TEST_MODEL,
     )
     command = launch(
         run,
         SIGNING_KEY,
-        "external-cli",
+        "provider",
         TEST_IMAGE,
+        model=TEST_MODEL,
         execute=False,
         repository=repository,
         allowlist=allowlist,
     )
     assert command[0:2] == ["docker", "run"]
     assert "--full-auto" not in command
-    assert "--dangerously-bypass-approvals-and-sandbox" in command
-    assert "--ephemeral" in command
-    assert "--ignore-user-config" in command
-    assert "--skip-git-repo-check" in command
+    assert "/opt/blind/provider_actor.py" in command
+    assert TEST_MODEL in command
+    mounts = [command[index + 1] for index, item in enumerate(command) if item == "-v"]
+    assert mounts == [
+        f"{(run / 'workspace').resolve()}:/workspace:ro",
+        f"{(run / 'workspace/output').resolve()}:/workspace/output:rw",
+    ]
     transition(run, RunState.RUNNING)
     write_valid_outputs(run)
     frozen = freeze(run, SIGNING_KEY)
@@ -224,7 +271,15 @@ def test_freeze_validates_and_closes_run(tmp_path: Path) -> None:
 def test_malformed_candidates_are_rejected(tmp_path: Path) -> None:
     repository, allowlist = fixture_repo(tmp_path)
     run = prepare(
-        repository, tmp_path / "runs", "bad", allowlist, 1, SIGNING_KEY, TEST_RUNTIME
+        repository,
+        tmp_path / "runs",
+        "bad",
+        allowlist,
+        1,
+        SIGNING_KEY,
+        TEST_RUNTIME,
+        "provider",
+        TEST_MODEL,
     )
     transition(run, RunState.RUNNING)
     output = run / "workspace/output"
@@ -233,12 +288,41 @@ def test_malformed_candidates_are_rejected(tmp_path: Path) -> None:
     (output / "run_report.md").write_text("bad")
     with pytest.raises(ValueError, match="schema"):
         freeze(run, SIGNING_KEY)
+    assert json.loads((run / "state.json").read_text())["state"] == "FAILED"
+
+
+def test_missing_outputs_atomically_fail_completed_run(tmp_path: Path) -> None:
+    repository, allowlist = fixture_repo(tmp_path)
+    run = prepare(
+        repository,
+        tmp_path / "runs",
+        "missing-output",
+        allowlist,
+        1,
+        SIGNING_KEY,
+        TEST_RUNTIME,
+        "provider",
+        TEST_MODEL,
+    )
+    transition(run, RunState.RUNNING)
+    transition(run, RunState.COMPLETED)
+    with pytest.raises(FileNotFoundError, match="required outputs missing"):
+        freeze(run, SIGNING_KEY)
+    assert json.loads((run / "state.json").read_text())["state"] == "FAILED"
 
 
 def test_verify_rejects_forged_manifest_and_wrong_key(tmp_path: Path) -> None:
     repository, allowlist = fixture_repo(tmp_path)
     run = prepare(
-        repository, tmp_path / "runs", "signed", allowlist, 1, SIGNING_KEY, TEST_RUNTIME
+        repository,
+        tmp_path / "runs",
+        "signed",
+        allowlist,
+        1,
+        SIGNING_KEY,
+        TEST_RUNTIME,
+        "provider",
+        TEST_MODEL,
     )
     with pytest.raises(ValueError, match="signature"):
         verify(run, b"another-evaluator-owned-key!!!!!")
@@ -253,14 +337,34 @@ def test_verify_rejects_forged_manifest_and_wrong_key(tmp_path: Path) -> None:
 def test_launch_rejects_source_drift_and_mutable_image(tmp_path: Path) -> None:
     repository, allowlist = fixture_repo(tmp_path)
     run = prepare(
-        repository, tmp_path / "runs", "drift", allowlist, 1, SIGNING_KEY, TEST_RUNTIME
+        repository,
+        tmp_path / "runs",
+        "drift",
+        allowlist,
+        1,
+        SIGNING_KEY,
+        TEST_RUNTIME,
+        "provider",
+        TEST_MODEL,
     )
     with pytest.raises(ValueError, match="immutable image"):
         launch(
             run,
             SIGNING_KEY,
-            "external-cli",
+            "provider",
             "test-image:latest",
+            model=TEST_MODEL,
+            execute=False,
+            repository=repository,
+            allowlist=allowlist,
+        )
+    with pytest.raises(ValueError, match="model does not match"):
+        launch(
+            run,
+            SIGNING_KEY,
+            "provider",
+            TEST_IMAGE,
+            model="different-model",
             execute=False,
             repository=repository,
             allowlist=allowlist,
@@ -270,8 +374,9 @@ def test_launch_rejects_source_drift_and_mutable_image(tmp_path: Path) -> None:
         launch(
             run,
             SIGNING_KEY,
-            "external-cli",
+            "provider",
             TEST_IMAGE,
+            model=TEST_MODEL,
             execute=False,
             repository=repository,
             allowlist=allowlist,
@@ -283,16 +388,22 @@ def test_launch_records_resolved_image_before_running(
 ) -> None:
     repository, allowlist = fixture_repo(tmp_path)
     run = prepare(
-        repository, tmp_path / "runs", "image", allowlist, 1, SIGNING_KEY, TEST_RUNTIME
+        repository,
+        tmp_path / "runs",
+        "image",
+        allowlist,
+        1,
+        SIGNING_KEY,
+        TEST_RUNTIME,
+        "provider",
+        TEST_MODEL,
     )
 
     def fake_run(command: list[str], **_kwargs: object) -> SimpleNamespace:
         if command[:3] == ["docker", "image", "inspect"]:
             return SimpleNamespace(
                 returncode=0,
-                stdout=json.dumps(
-                    [{"Id": "sha256:" + "a" * 64, "RepoDigests": [TEST_IMAGE]}]
-                ),
+                stdout=json.dumps([{"Id": "sha256:" + "a" * 64, "RepoDigests": [TEST_IMAGE]}]),
             )
         return SimpleNamespace(returncode=0)
 
@@ -300,8 +411,9 @@ def test_launch_records_resolved_image_before_running(
     launch(
         run,
         SIGNING_KEY,
-        "external-cli",
+        "provider",
         TEST_IMAGE,
+        model=TEST_MODEL,
         repository=repository,
         allowlist=allowlist,
     )
@@ -321,26 +433,40 @@ def test_evaluator_key_is_external_private_and_never_mounted(tmp_path: Path) -> 
     key = load_signing_key(key_file, repository, runs_root)
     assert len(key) == 32
     assert key_file.stat().st_mode & 0o777 == 0o600
-    run = prepare(repository, runs_root, "isolated", allowlist, 1, key, TEST_RUNTIME)
+    run = prepare(
+        repository, runs_root, "isolated", allowlist, 1, key, TEST_RUNTIME, "provider", TEST_MODEL
+    )
     command = launch(
         run,
         key,
-        "external-cli",
+        "provider",
         TEST_IMAGE,
+        model=TEST_MODEL,
         execute=False,
         repository=repository,
         allowlist=allowlist,
     )
     assert str(key_file) not in " ".join(command)
     mounts = [command[index + 1] for index, item in enumerate(command) if item == "-v"]
-    assert mounts == [f"{(run / 'workspace').resolve()}:/workspace:rw"]
+    assert mounts == [
+        f"{(run / 'workspace').resolve()}:/workspace:ro",
+        f"{(run / 'workspace/output').resolve()}:/workspace/output:rw",
+    ]
     assert not any(path.name == "signing.key" for path in (run / "workspace").rglob("*"))
 
 
 def test_runner_manifest_is_accepted_by_posthoc_commitment(tmp_path: Path) -> None:
     repository, allowlist = fixture_repo(tmp_path)
     run = prepare(
-        repository, tmp_path / "runs", "posthoc", allowlist, 1, SIGNING_KEY, TEST_RUNTIME
+        repository,
+        tmp_path / "runs",
+        "posthoc",
+        allowlist,
+        1,
+        SIGNING_KEY,
+        TEST_RUNTIME,
+        "provider",
+        TEST_MODEL,
     )
     manifest = json.loads((run / "workspace/BLIND_MANIFEST.json").read_text())
     candidates = tmp_path / "candidates.json"
@@ -362,32 +488,55 @@ def test_runner_manifest_is_accepted_by_posthoc_commitment(tmp_path: Path) -> No
 
 def test_freeze_rejects_contract_drift_and_causal_language(tmp_path: Path) -> None:
     repository, allowlist = fixture_repo(tmp_path)
-    run = prepare(
-        repository, tmp_path / "runs", "contract", allowlist, 1, SIGNING_KEY, TEST_RUNTIME
+
+    def contract_drift(value: dict[str, Any]) -> None:
+        value["dataset_identity_sha256"] = "0" * 64
+
+    def causal_language(value: dict[str, Any]) -> None:
+        value["candidates"][0]["description"] = "This condition causes lower margin"
+
+    def candidate_count(value: dict[str, Any]) -> None:
+        value["candidates"].pop()
+
+    def timing_drift(value: dict[str, Any]) -> None:
+        value["candidates"][0]["conditions"][0]["feature"] = "outcome_a"
+
+    cases: tuple[tuple[str, str, Callable[[dict[str, Any]], None]], ...] = (
+        (
+            "contract",
+            "contract mismatch",
+            contract_drift,
+        ),
+        (
+            "causal",
+            "causal language",
+            causal_language,
+        ),
+        ("count", "10-20 candidates", candidate_count),
+        (
+            "timing",
+            "non-decision-time",
+            timing_drift,
+        ),
     )
-    transition(run, RunState.RUNNING)
-    write_valid_outputs(run)
-    candidates_path = run / "workspace/output/candidates.json"
-    candidates = json.loads(candidates_path.read_text())
-    candidates["dataset_identity_sha256"] = "0" * 64
-    candidates_path.write_text(json.dumps(candidates))
-    with pytest.raises(ValueError, match="contract mismatch"):
-        freeze(run, SIGNING_KEY)
-    write_valid_outputs(run)
-    candidates = json.loads(candidates_path.read_text())
-    candidates["candidates"][0]["description"] = "This condition causes lower margin"
-    candidates_path.write_text(json.dumps(candidates))
-    with pytest.raises(ValueError, match="causal language"):
-        freeze(run, SIGNING_KEY)
-    write_valid_outputs(run)
-    candidates = json.loads(candidates_path.read_text())
-    candidates["candidates"].pop()
-    candidates_path.write_text(json.dumps(candidates))
-    with pytest.raises(ValueError, match="10-20 candidates"):
-        freeze(run, SIGNING_KEY)
-    write_valid_outputs(run)
-    candidates = json.loads(candidates_path.read_text())
-    candidates["candidates"][0]["conditions"][0]["feature"] = "outcome_a"
-    candidates_path.write_text(json.dumps(candidates))
-    with pytest.raises(ValueError, match="non-decision-time"):
-        freeze(run, SIGNING_KEY)
+    for run_id, error, mutate in cases:
+        run = prepare(
+            repository,
+            tmp_path / "runs",
+            run_id,
+            allowlist,
+            1,
+            SIGNING_KEY,
+            TEST_RUNTIME,
+            "provider",
+            TEST_MODEL,
+        )
+        transition(run, RunState.RUNNING)
+        write_valid_outputs(run)
+        candidates_path = run / "workspace/output/candidates.json"
+        candidates = json.loads(candidates_path.read_text())
+        mutate(candidates)
+        candidates_path.write_text(json.dumps(candidates))
+        with pytest.raises(ValueError, match=error):
+            freeze(run, SIGNING_KEY)
+        assert json.loads((run / "state.json").read_text())["state"] == "FAILED"

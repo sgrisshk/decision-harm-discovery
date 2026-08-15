@@ -716,6 +716,29 @@ def verdict_for(report: ValidationReport) -> str:
     return Verdict.DOWNGRADE
 
 
+def _evaluated_hypotheses(payload: dict[str, Any], metrics_path: Path | None) -> int:
+    """Locate the search's evaluated-hypothesis count across the two candidate schemas in use.
+
+    The original discovery engine (`policy_analytics.discovery.engine`) nests it at
+    ``payload["search"]["evaluated_hypotheses"]``. The blind-agent output schema
+    (`tools.blind_agent.models.CandidatesDocument`, schema_version 1.1.0) does not carry it at
+    all — it lives in a sibling ``discovery_metrics.json`` (`MetricsDocument.evaluated_hypotheses`)
+    written by the same frozen run, because a blind actor's own count is not something the
+    candidates document format allows it to assert about itself.
+    """
+    search = payload.get("search")
+    if isinstance(search, dict) and "evaluated_hypotheses" in search:
+        return int(cast(str, search["evaluated_hypotheses"]))
+    if metrics_path is not None:
+        metrics = cast(dict[str, Any], json.loads(metrics_path.read_text(encoding="utf-8")))
+        return int(cast(str, metrics["evaluated_hypotheses"]))
+    raise ValueError(
+        "candidates payload has no search.evaluated_hypotheses and no metrics_path was given; "
+        "gate G05 cannot run without the evaluated-hypothesis count (see the blind-agent schema's "
+        "discovery_metrics.json)"
+    )
+
+
 def run_validation(
     dataset_root: Path,
     candidates_path: Path,
@@ -724,14 +747,53 @@ def run_validation(
     outcome_definition_version: str,
     analysis_run_id: str,
     bootstrap_seed: int = BOOTSTRAP_SEED,
+    metrics_path: Path | None = None,
 ) -> tuple[list[CandidateValidation], dict[str, Any]]:
-    frame = load_analytical_frame(dataset_root)
+    """Grade a persisted candidate document under the validation contract.
+
+    Accepts either candidate-artifact shape in current use: the original discovery engine's
+    output (`search.evaluated_hypotheses` nested inline) or the blind-agent output schema
+    (`tools.blind_agent.models.CandidatesDocument`, `evaluated_hypotheses` in a sibling
+    ``discovery_metrics.json`` passed as ``metrics_path``). Both put `candidate_id` and
+    `conditions` in the same shape, which is all this function reads from each candidate — every
+    other quantity (support, effect, per-split stability) is independently recomputed from the
+    analytical dataset, never trusted from either document.
+    """
     payload = json.loads(candidates_path.read_text(encoding="utf-8"))
-    if payload.get("status") != "PERSISTED":
-        raise ValueError("candidates must have status=PERSISTED to be validated")
-    family_size = payload["search"]["evaluated_hypotheses"]
+    status = payload.get("status")
+    if status == "INSUFFICIENT_CANDIDATES":
+        reason = payload.get("insufficiency_reason", "no reason recorded")
+        raise ValueError(f"candidates run reported INSUFFICIENT_CANDIDATES: {reason}")
+    if status != "PERSISTED":
+        raise ValueError(f"candidates must have status=PERSISTED to be validated, got {status!r}")
+    family_size = _evaluated_hypotheses(payload, metrics_path)
     candidates = payload["candidates"]
 
+    payload_outcome_id = (
+        payload.get("outcome", {}).get("outcome_id")
+        if isinstance(payload.get("outcome"), dict)
+        else None
+    )
+    mismatched_outcomes = sorted(
+        {
+            candidate["outcome"]
+            for candidate in candidates
+            if isinstance(candidate.get("outcome"), str)
+            and candidate["outcome"] != outcome.outcome_id
+        }
+    )
+    if mismatched_outcomes:
+        raise ValueError(
+            f"candidate(s) target outcome(s) {mismatched_outcomes}, expected only "
+            f"{outcome.outcome_id!r} — refusing to grade a mixed-outcome candidate set"
+        )
+    if payload_outcome_id is not None and payload_outcome_id != outcome.outcome_id:
+        raise ValueError(
+            f"candidates payload declares outcome {payload_outcome_id!r}, "
+            f"expected {outcome.outcome_id!r}"
+        )
+
+    frame = load_analytical_frame(dataset_root)
     rng = random.Random(bootstrap_seed)
     interims: list[CandidateInterim | None] = [
         _validate_one(frame, candidate, outcome, rng) for candidate in candidates
@@ -849,6 +911,9 @@ def run_validation(
 
     manifest = {
         "family_size": family_size,
+        "family_size_source": "candidates.search" if "search" in payload else "metrics_path",
+        "candidates_schema_version": payload.get("schema_version"),
+        "candidates_payload_dataset_identity_sha256": payload.get("dataset_identity_sha256"),
         "fdr_alpha": DEFAULT_THRESHOLDS.fdr_alpha,
         "bootstrap_seed": bootstrap_seed,
         "development_bootstrap_reps": DEV_BOOTSTRAP_REPS,

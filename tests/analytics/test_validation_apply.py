@@ -10,6 +10,7 @@ from policy_analytics.validation.apply import (
     ClusterCell,
     Condition,
     Verdict,
+    _evaluated_hypotheses,
     _stratified_two_way_adjustment,
     cluster_bootstrap_replicates,
     cluster_cells,
@@ -219,3 +220,194 @@ def test_run_validation_against_the_real_frozen_candidates() -> None:
     # At least one real candidate's G05 must actually pass under the fixed method, given effects
     # this large and consistent — otherwise the "fix" would be untested against real data.
     assert passing_candidates > 0
+
+
+# --- Blind-agent output schema compatibility (TASK-019 closing-run readiness) --------------------
+#
+# The blind pipeline (`blind/`, `tools/blind_agent/`) produces a materially different candidate
+# document shape than the original discovery engine's `artifacts/discovery/task-015-candidates.json`
+# (schema in `tools/blind_agent/models.py`, `OUTPUT_SCHEMA_VERSION = "1.1.0"`): no per-split
+# breakdown on each candidate, and `evaluated_hypotheses` lives in a sibling
+# `discovery_metrics.json`, not inline. These tests build a schema-*valid* document using the real
+# Pydantic models (not a hand-typed guess at the shape) and run it through the same
+# `run_validation` a closing run will use, so schema compatibility is verified before a real blind
+# artifact exists, not discovered for the first time against one.
+
+
+def _blind_schema_models():
+    from tools.blind_agent.models import Candidate as BlindCandidate
+    from tools.blind_agent.models import CandidatesDocument, MetricsDocument
+    from tools.blind_agent.models import Condition as BlindCondition
+
+    return BlindCandidate, CandidatesDocument, BlindCondition, MetricsDocument
+
+
+def test_evaluated_hypotheses_reads_the_old_inline_shape() -> None:
+    payload = {"search": {"evaluated_hypotheses": 6945}}
+    assert _evaluated_hypotheses(payload, metrics_path=None) == 6945
+
+
+def test_evaluated_hypotheses_reads_the_new_sibling_metrics_file(tmp_path: Path) -> None:
+    metrics_path = tmp_path / "discovery_metrics.json"
+    metrics_path.write_text(json.dumps({"evaluated_hypotheses": 4321}), encoding="utf-8")
+    assert _evaluated_hypotheses({}, metrics_path=metrics_path) == 4321
+
+
+def test_evaluated_hypotheses_raises_without_either_source() -> None:
+    with pytest.raises(ValueError, match="evaluated_hypotheses"):
+        _evaluated_hypotheses({}, metrics_path=None)
+
+
+@pytest.mark.skipif(not REAL_DATASET.exists(), reason="delivered analytical dataset not present")
+def test_run_validation_accepts_a_schema_valid_blind_agent_candidates_document(
+    tmp_path: Path,
+) -> None:
+    """A schema-valid `CandidatesDocument` + `MetricsDocument`, built from the real Pydantic
+    models the blind agent must satisfy, must parse and grade cleanly through `run_validation` —
+    the same function a genuine closing run will use. This is a readiness check, not evidence:
+    the candidate itself is synthetic and invented for this test, unrelated to any real pattern."""
+    Candidate, CandidatesDocument, BlindCondition, MetricsDocument = _blind_schema_models()
+    outcome = primary_outcome()
+
+    manifest = json.loads((REAL_DATASET / "manifest.json").read_text(encoding="utf-8"))
+    identity = manifest["dataset_identity_sha256"]
+
+    condition = BlindCondition(feature="discount_rate", operator="ge", value=0.12)
+    candidates = [
+        Candidate(
+            candidate_id=f"BLIND-{index:03d}",
+            conditions=[condition],
+            outcome=outcome.outcome_id,
+            sample_size=1,  # not trusted by run_validation; recomputed from the dataset
+            support=0.01,
+            raw_effect=0.0,
+            economic_exposure=0.0,
+            discovery_method="test-fixture",
+            description="synthetic test candidate; not a real discovery result",
+        )
+        for index in range(1, 11)  # CandidatesDocument requires 10-20 for PERSISTED
+    ]
+    document = CandidatesDocument(
+        schema_version="1.1.0",
+        run_id="test-run",
+        status="PERSISTED",
+        blind_bundle_id="a" * 64,
+        run_contract_version="1.0.0",
+        dataset_version=manifest["dataset_version"],
+        dataset_identity_sha256=identity,
+        outcome_contract_version="1.1.0",
+        discovery_contract_version="1.1.0",
+        discovery_method_version="test-fixture-1.0.0",
+        search_fit_split="development",
+        diagnostic_only_splits=["validation", "future_holdout"],
+        selection_used_only_fit_split=True,
+        input_provenance_hashes={},
+        feature_timing_classes={},
+        candidates=candidates,
+    )
+    candidates_path = tmp_path / "candidates.json"
+    candidates_path.write_text(document.model_dump_json(), encoding="utf-8")
+
+    metrics = MetricsDocument(
+        schema_version="1.1.0",
+        run_id="test-run",
+        evaluated_hypotheses=500,
+        random_seed=1,
+        run_contract_version="1.0.0",
+        dataset_identity_sha256=identity,
+        discovery_method_version="test-fixture-1.0.0",
+        search_fit_split="development",
+        selection_used_only_fit_split=True,
+    )
+    metrics_path = tmp_path / "discovery_metrics.json"
+    metrics_path.write_text(metrics.model_dump_json(), encoding="utf-8")
+
+    results, run_manifest = run_validation(
+        dataset_root=REAL_DATASET,
+        candidates_path=candidates_path,
+        outcome=outcome,
+        dataset_version=manifest["dataset_version"],
+        outcome_definition_version="1.1.0",
+        analysis_run_id="schema-compat-test",
+        metrics_path=metrics_path,
+    )
+
+    assert run_manifest["family_size"] == 500
+    assert run_manifest["family_size_source"] == "metrics_path"
+    assert len(results) == 10
+    for result in results:
+        assert result.verdict in (Verdict.PASS, Verdict.DOWNGRADE, Verdict.REJECT)
+        assert {g.gate_id for g in result.report.gate_results} == set(GateId)
+
+
+@pytest.mark.skipif(not REAL_DATASET.exists(), reason="delivered analytical dataset not present")
+def test_run_validation_rejects_a_candidate_targeting_a_different_outcome(tmp_path: Path) -> None:
+    Candidate, CandidatesDocument, BlindCondition, MetricsDocument = _blind_schema_models()
+    outcome = primary_outcome()
+    manifest = json.loads((REAL_DATASET / "manifest.json").read_text(encoding="utf-8"))
+
+    wrong_outcome_candidate = Candidate(
+        candidate_id="BLIND-999",
+        conditions=[BlindCondition(feature="discount_rate", operator="ge", value=0.12)],
+        outcome="gross_profit_eur",  # not the primary outcome this run is grading
+        sample_size=1,
+        support=0.01,
+        raw_effect=0.0,
+        economic_exposure=0.0,
+        discovery_method="test-fixture",
+        description="synthetic test candidate",
+    )
+    candidates = [wrong_outcome_candidate] * 10
+    document = CandidatesDocument(
+        schema_version="1.1.0",
+        run_id="test-run",
+        status="PERSISTED",
+        blind_bundle_id="a" * 64,
+        run_contract_version="1.0.0",
+        dataset_version=manifest["dataset_version"],
+        dataset_identity_sha256=manifest["dataset_identity_sha256"],
+        outcome_contract_version="1.1.0",
+        discovery_contract_version="1.1.0",
+        discovery_method_version="test-fixture-1.0.0",
+        search_fit_split="development",
+        diagnostic_only_splits=["validation", "future_holdout"],
+        selection_used_only_fit_split=True,
+        input_provenance_hashes={},
+        feature_timing_classes={},
+        candidates=candidates,
+    )
+    candidates_path = tmp_path / "candidates.json"
+    candidates_path.write_text(document.model_dump_json(), encoding="utf-8")
+    metrics_path = tmp_path / "discovery_metrics.json"
+    metrics_path.write_text(json.dumps({"evaluated_hypotheses": 500}), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="gross_profit_eur"):
+        run_validation(
+            dataset_root=REAL_DATASET,
+            candidates_path=candidates_path,
+            outcome=outcome,
+            dataset_version=manifest["dataset_version"],
+            outcome_definition_version="1.1.0",
+            analysis_run_id="schema-compat-test",
+            metrics_path=metrics_path,
+        )
+
+
+def test_run_validation_raises_a_clear_error_for_insufficient_candidates(tmp_path: Path) -> None:
+    payload = {
+        "status": "INSUFFICIENT_CANDIDATES",
+        "insufficiency_reason": "fewer than 10 candidates qualified",
+        "candidates": [],
+    }
+    candidates_path = tmp_path / "candidates.json"
+    candidates_path.write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="INSUFFICIENT_CANDIDATES"):
+        run_validation(
+            dataset_root=REAL_DATASET,
+            candidates_path=candidates_path,
+            outcome=primary_outcome(),
+            dataset_version="x",
+            outcome_definition_version="1.1.0",
+            analysis_run_id="x",
+        )

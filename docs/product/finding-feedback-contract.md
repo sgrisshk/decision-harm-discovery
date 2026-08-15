@@ -3,7 +3,7 @@
 **Owner:** PRODUCT
 **Task:** TASK-035 ("Finding feedback model"), preparing `TASK-036` ("Customer review workflow")
 **Depends on (implementation):** `TASK-027` (finding detail screen — reserves the UI slot this feeds) and `TASK-035` itself, both `BLOCKED`. `TASK-036` additionally depends on `TASK-035`.
-**Status of this document:** Semantic/field contract only. No persistence, no UI, no statistical method is implemented or proposed here.
+**Status:** **FROZEN v0 (2026-08-14).** Semantic/field contract only — no persistence, no UI, no statistical method is implemented or proposed here. Freezing means the six values, the novelty/actionability split, the qualifier tags, and §7's validation boundary are the fixed contract `HANDOFF-031` and any future `TASK-035` implementation build against; a change to any of §2–§7 is a new version, not a silent edit, mirroring how `docs/analytics/validation-contract.md` and `docs/analytics/outcome-contract.md` treat their own preregistered rules.
 
 ## No customer feedback has been captured, and none can be yet
 

@@ -93,7 +93,9 @@ repository:
 ```sh
 make blind-key-init RUN=run-001
 make blind-image
-make blind-issue RUN=run-001
+PROVIDER_API_KEY=<secret> BLIND_AGENT_MODEL=<approved-provider-model-id> make blind-provider-preflight
+PROVIDER_API_KEY=<secret> BLIND_AGENT_MODEL=<approved-provider-model-id> make blind-rehearsal
+make blind-issue RUN=run-001 BLIND_AGENT_MODEL=<approved-provider-model-id>
 make blind-verify RUN=run-001
 ```
 
@@ -108,15 +110,25 @@ run ID. Candidate commitment rejects unsigned, forged, incomplete, or modified m
 The repository provides a fail-closed container boundary for interactive execution:
 
 ```sh
-make blind-shell RUN=run-001 AGENT=external-cli BLIND_NETWORK=provider
+PROVIDER_API_KEY=<secret> make blind-shell RUN=run-001 \
+  BLIND_AGENT_MODEL=<approved-provider-model-id> BLIND_NETWORK=provider
 ```
 
 The coordinator owns `/tmp/policy-blind-evaluator/signing.key` (mode `0600`) and invokes the
 launcher after signature verification. The key path and bytes are not mounted or passed as an
-environment variable. The launcher mounts only the issued workspace, uses a read-only container
+environment variable. The signed manifest also fixes the provider actor and explicit model;
+launch fails if either drifts. The launcher mounts only the issued workspace, uses a read-only container
 root, drops all capabilities, and sets `no-new-privileges`. Network is disabled unless the
 coordinator explicitly selects provider mode; that mode has the local-runner egress limitation
 documented in `blind/README.md`.
+The pinned actor applies explicit completion, context, tool-output, and capped 429 retry budgets.
+Source reads use 1-based inclusive pages of at most 250 lines; preflight exercises two sequential
+paginated `read_file` turns under the same limits.
+Issuance additionally requires a successful authenticated `blind-rehearsal` against the same
+digest and model. The rehearsal uses a temporary truth-free workspace and production container
+isolation to require listing, paginated reads, bounded literal search, Python execution, three
+schema-valid dummy outputs, and bounded recovery from an injected `tool_use_failed`. It does not
+allocate or mutate an official run ID.
 The ML Discovery process/agent must be started inside that boundary; an agent already running in
 the repository cannot be made blind retroactively.
 

@@ -35,7 +35,8 @@ def main() -> None:
     )
     parser.add_argument("--allowlist", type=Path, default=REPOSITORY / "blind/allowlist.yaml")
     parser.add_argument("--seed", type=int, default=1729)
-    parser.add_argument("--agent", choices=("external-cli", "assistant-cli", "shell"), default="external-cli")
+    parser.add_argument("--agent", choices=("provider", "shell"), default="provider")
+    parser.add_argument("--model")
     parser.add_argument("--image", default="policy-blind-agent:local")
     parser.add_argument("--network", choices=("none", "provider"), default="none")
     args = parser.parse_args()
@@ -48,6 +49,8 @@ def main() -> None:
         return
     signing_key = load_signing_key(args.key_file, REPOSITORY, args.runs_root)
     if args.command in {"issue", "prepare"}:
+        if args.agent == "provider" and not args.model:
+            parser.error("--model is required when issuing a provider blind run")
         print(
             prepare(
                 REPOSITORY,
@@ -57,6 +60,8 @@ def main() -> None:
                 args.seed,
                 signing_key,
                 resolve_image(args.image),
+                args.agent,
+                args.model,
             )
         )
     elif args.command == "verify":
@@ -74,6 +79,7 @@ def main() -> None:
             signing_key,
             "shell" if args.command == "shell" else args.agent,
             args.image,
+            model=args.model,
             provider_network=args.network == "provider",
             repository=REPOSITORY,
             allowlist=args.allowlist,

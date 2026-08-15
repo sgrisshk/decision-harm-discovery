@@ -176,8 +176,7 @@ def _paths(repository: Path, patterns: list[str]) -> list[tuple[Path, Path]]:
 
 def _acceptance_contract(repository: Path) -> dict[str, Any] | None:
     analytical_manifest_path = (
-        repository
-        / "synthetic_data/analytical/travel-bookings-analytical-v1.0.0/manifest.json"
+        repository / "synthetic_data/analytical/travel-bookings-analytical-v1.0.0/manifest.json"
     )
     split_manifest_path = (
         repository
@@ -214,9 +213,7 @@ def _acceptance_contract(repository: Path) -> dict[str, Any] | None:
     }
 
 
-def _verify_source_snapshot(
-    repository: Path, allowlist: Path, expected: dict[str, str]
-) -> None:
+def _verify_source_snapshot(repository: Path, allowlist: Path, expected: dict[str, str]) -> None:
     current = {
         relative.as_posix(): sha256(source)
         for source, relative in _paths(repository.resolve(), load_allowlist(allowlist))
@@ -281,10 +278,16 @@ def prepare(
     seed: int,
     signing_key: bytes,
     runtime_image: dict[str, str],
+    runtime_agent: str = "provider",
+    runtime_model: str | None = None,
 ) -> Path:
     validate_run_id(run_id)
     if not IMMUTABLE_IMAGE.fullmatch(runtime_image.get("requested_reference", "")):
         raise ValueError("issuance requires immutable resolved image provenance")
+    if runtime_agent not in {"provider", "shell"}:
+        raise ValueError("unsupported blind runtime agent")
+    if runtime_agent == "provider" and not runtime_model:
+        raise ValueError("provider issuance requires an explicit model")
     repository, runs_root = repository.resolve(), runs_root.resolve()
     if runs_root == repository or repository in runs_root.parents:
         raise ValueError("blind runs root must be outside the repository checkout")
@@ -303,9 +306,7 @@ def prepare(
             shutil.copy2(source, target, follow_symlinks=False)
             copied[relative.as_posix()] = sha256(target)
         (workspace / "output").mkdir()
-        workspace_sha256 = hashlib.sha256(
-            json.dumps(copied, sort_keys=True).encode()
-        ).hexdigest()
+        workspace_sha256 = hashlib.sha256(json.dumps(copied, sort_keys=True).encode()).hexdigest()
         unsigned_manifest = {
             "schema_version": "1.0.0",
             "protocol_version": "1.0.0",
@@ -320,6 +321,8 @@ def prepare(
             "allowlist_sha256": sha256(allowlist),
             "acceptance_contract": _acceptance_contract(repository),
             "runtime_image": runtime_image,
+            "runtime_agent": runtime_agent,
+            "runtime_model": runtime_model,
         }
         manifest = {
             **unsigned_manifest,
@@ -428,6 +431,7 @@ def launch(
     signing_key: bytes,
     agent: str,
     image: str,
+    model: str | None = None,
     execute: bool = True,
     provider_network: bool = False,
     repository: Path | None = None,
@@ -447,24 +451,19 @@ def launch(
     manifest = json.loads((run_root / "manifest.json").read_text(encoding="utf-8"))
     if image != manifest.get("runtime_image", {}).get("requested_reference"):
         raise ValueError("launch image reference does not match the signed issued runtime")
+    if agent != manifest.get("runtime_agent"):
+        raise ValueError("launch agent does not match the signed issued runtime")
+    if model != manifest.get("runtime_model"):
+        raise ValueError("launch model does not match the signed issued runtime")
     workspace = (run_root / "workspace").resolve()
-    prompt = (
-        "Read agents/ML_DISCOVERY_BLIND.md, execute the frozen discovery method, "
-        "and write only approved output files."
-    )
     inner = (
         ["/bin/sh"]
         if agent == "shell"
         else [
-            agent,
-            "exec",
-            "--dangerously-bypass-approvals-and-sandbox",
-            "--ephemeral",
-            "--ignore-user-config",
-            "--skip-git-repo-check",
-            "--cd",
-            "/workspace",
-            prompt,
+            "python",
+            "/opt/blind/provider_actor.py",
+            "--model",
+            cast(str, model),
         ]
     )
     network = "bridge" if provider_network else "none"
@@ -472,7 +471,6 @@ def launch(
         "docker",
         "run",
         "--rm",
-        "-it",
         f"--network={network}",
         "--read-only",
         "--cap-drop=ALL",
@@ -480,7 +478,9 @@ def launch(
         "--tmpfs",
         "/tmp:rw,noexec,nosuid,size=64m",
         "-v",
-        f"{workspace}:/workspace:rw",
+        f"{workspace}:/workspace:ro",
+        "-v",
+        f"{workspace / 'output'}:/workspace/output:rw",
         "-w",
         "/workspace",
         "-e",
@@ -489,7 +489,7 @@ def launch(
         *inner,
     ]
     if provider_network and agent != "shell":
-        credential = "PROVIDER_A_API_KEY" if agent == "external-cli" else "PROVIDER_B_API_KEY"
+        credential = "PROVIDER_API_KEY"
         if not os.environ.get(credential):
             raise ValueError(f"{credential} is required for provider-network launch")
         image_index = command.index(image)
@@ -512,7 +512,7 @@ def launch(
     return command
 
 
-def freeze(run_root: Path, signing_key: bytes) -> Path:
+def _validated_freeze(run_root: Path, signing_key: bytes) -> Path:
     if _state(run_root) not in {RunState.RUNNING, RunState.COMPLETED}:
         raise ValueError("only RUNNING or COMPLETED output may be frozen")
     verify(run_root, signing_key)
@@ -612,3 +612,14 @@ def freeze(run_root: Path, signing_key: bytes) -> Path:
         transition(run_root, RunState.COMPLETED)
     transition(run_root, RunState.FROZEN)
     return frozen
+
+
+def freeze(run_root: Path, signing_key: bytes) -> Path:
+    if _state(run_root) not in {RunState.RUNNING, RunState.COMPLETED}:
+        raise ValueError("only RUNNING or COMPLETED output may be frozen")
+    try:
+        return _validated_freeze(run_root, signing_key)
+    except Exception:
+        if _state(run_root) in {RunState.RUNNING, RunState.COMPLETED}:
+            transition(run_root, RunState.FAILED)
+        raise
