@@ -7,9 +7,8 @@ RUN apt-get update \
     && /opt/blind-venv/bin/pip install --no-cache-dir \
         polars==1.32.2 pydantic==2.13.4
 
-COPY --chown=65532:65532 tools/blind_agent/provider_actor.py /opt/blind/provider_actor.py
-
-ENV PATH="/opt/blind-venv/bin:${PATH}"
+ENV PATH="/opt/blind-venv/bin:${PATH}" \
+    PYTHONDONTWRITEBYTECODE=1
 
 USER 65532:65532
 WORKDIR /workspace

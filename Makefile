@@ -1,6 +1,6 @@
 SHELL := /bin/sh
 
-.PHONY: setup dev test lint typecheck format db-migrate db-upgrade fixture benchmark export-public-benchmark blind-workspace blind-key-init blind-image blind-provider-preflight blind-rehearsal blind-issue blind-prepare blind-verify blind-shell blind-freeze blind-status analytical-dataset temporal-splits check-data docker-build
+.PHONY: setup dev test lint typecheck format db-migrate db-upgrade fixture benchmark export-public-benchmark blind-workspace blind-key-init blind-image blind-rehearsal blind-issue blind-prepare blind-verify blind-shell blind-freeze blind-status analytical-dataset temporal-splits check-data docker-build
 
 setup:
 	test -f .env || cp .env.example .env
@@ -46,10 +46,9 @@ blind-workspace: export-public-benchmark
 
 BLIND_RUNS_ROOT ?= /tmp/policy-blind-runs
 BLIND_EVALUATOR_KEY_FILE ?= /tmp/policy-blind-evaluator/signing.key
-BLIND_AGENT_IMAGE_TAG ?= policy-blind-agent:provider-local
-BLIND_AGENT_IMAGE ?= policy-blind-agent@sha256:0d64b3acd49008577216fd79e14c9c242e6c99b52712931ee7ef2392ecae98a2
-AGENT ?= provider
-BLIND_AGENT_MODEL ?=
+BLIND_AGENT_IMAGE_TAG ?= policy-blind-agent:deterministic-local
+BLIND_AGENT_IMAGE ?= policy-blind-agent@sha256:5632ca11139272623e95a82a9fa24c52f19c16d8edc236dfa500e02cbc9570c0
+AGENT ?= deterministic
 BLIND_NETWORK ?= none
 
 blind-key-init:
@@ -57,29 +56,19 @@ blind-key-init:
 	uv run python -m tools.blind_agent.cli init-key --run "$(RUN)" --runs-root "$(BLIND_RUNS_ROOT)" --key-file "$(BLIND_EVALUATOR_KEY_FILE)"
 
 blind-image:
-	docker build -f infra/docker/blind-agent.Dockerfile -t "$(BLIND_AGENT_IMAGE_TAG)" .
-
-blind-provider-preflight:
-	@test -n "$$PROVIDER_API_KEY"
-	@test -n "$(BLIND_AGENT_MODEL)"
-	@test -n "$(BLIND_AGENT_IMAGE)"
-	@docker run --rm --network=bridge --read-only --cap-drop=ALL --security-opt=no-new-privileges --tmpfs /tmp:rw,noexec,nosuid,size=64m -e HOME=/tmp -e PROVIDER_API_KEY "$(BLIND_AGENT_IMAGE)" python /opt/blind/provider_actor.py --model "$(BLIND_AGENT_MODEL)" --preflight >/dev/null
+	docker build --provenance=false --sbom=false -f infra/docker/blind-agent.Dockerfile -t "$(BLIND_AGENT_IMAGE_TAG)" .
 
 blind-rehearsal:
-	@test -n "$$PROVIDER_API_KEY"
-	@test -n "$(BLIND_AGENT_MODEL)"
 	@test -n "$(BLIND_AGENT_IMAGE)"
-	uv run python -m tools.blind_agent.rehearsal --image "$(BLIND_AGENT_IMAGE)" --model "$(BLIND_AGENT_MODEL)"
+	uv run python -m tools.blind_agent.rehearsal --image "$(BLIND_AGENT_IMAGE)"
 
 blind-issue:
 	test -n "$(RUN)"
-	test -n "$(BLIND_AGENT_MODEL)"
-	uv run python -m tools.blind_agent.cli issue --run "$(RUN)" --runs-root "$(BLIND_RUNS_ROOT)" --key-file "$(BLIND_EVALUATOR_KEY_FILE)" --agent "$(AGENT)" --model "$(BLIND_AGENT_MODEL)" --image "$(BLIND_AGENT_IMAGE)"
+	uv run python -m tools.blind_agent.cli issue --run "$(RUN)" --runs-root "$(BLIND_RUNS_ROOT)" --key-file "$(BLIND_EVALUATOR_KEY_FILE)" --agent "$(AGENT)" --image "$(BLIND_AGENT_IMAGE)"
 
 blind-prepare:
 	test -n "$(RUN)"
-	test -n "$(BLIND_AGENT_MODEL)"
-	uv run python -m tools.blind_agent.cli prepare --run "$(RUN)" --runs-root "$(BLIND_RUNS_ROOT)" --key-file "$(BLIND_EVALUATOR_KEY_FILE)" --agent "$(AGENT)" --model "$(BLIND_AGENT_MODEL)" --image "$(BLIND_AGENT_IMAGE)"
+	uv run python -m tools.blind_agent.cli prepare --run "$(RUN)" --runs-root "$(BLIND_RUNS_ROOT)" --key-file "$(BLIND_EVALUATOR_KEY_FILE)" --agent "$(AGENT)" --image "$(BLIND_AGENT_IMAGE)"
 
 blind-verify:
 	test -n "$(RUN)"
@@ -87,8 +76,7 @@ blind-verify:
 
 blind-shell:
 	test -n "$(RUN)"
-	test -n "$(BLIND_AGENT_MODEL)"
-	uv run python -m tools.blind_agent.cli launch --run "$(RUN)" --runs-root "$(BLIND_RUNS_ROOT)" --key-file "$(BLIND_EVALUATOR_KEY_FILE)" --agent "$(AGENT)" --model "$(BLIND_AGENT_MODEL)" --image "$(BLIND_AGENT_IMAGE)" --network "$(BLIND_NETWORK)"
+	uv run python -m tools.blind_agent.cli launch --run "$(RUN)" --runs-root "$(BLIND_RUNS_ROOT)" --key-file "$(BLIND_EVALUATOR_KEY_FILE)" --agent "$(AGENT)" --image "$(BLIND_AGENT_IMAGE)" --network "$(BLIND_NETWORK)"
 
 blind-freeze:
 	test -n "$(RUN)"

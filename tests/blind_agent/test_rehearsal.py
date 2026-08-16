@@ -1,23 +1,43 @@
 from __future__ import annotations
 
-import json
-import runpy
 from pathlib import Path
+from typing import Any
 
 import pytest
 
 from tools.blind_agent import rehearsal
 
 
-def test_rehearsal_fixture_creates_schema_valid_outputs(
+def test_rehearsal_uses_deterministic_networkless_runtime(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    rehearsal.prepare_fixture(tmp_path)
-    monkeypatch.chdir(tmp_path)
+    run_root = tmp_path / "run"
+    calls: list[tuple[str, tuple[Any, ...], dict[str, Any]]] = []
 
-    runpy.run_path(str(tmp_path / "public" / "rehearsal.py"))
+    def fake_resolve_image(image: str) -> dict[str, str]:
+        return {"image": image}
 
-    rehearsal.validate_outputs(tmp_path / "output")
-    candidates = json.loads((tmp_path / "output" / "candidates.json").read_text())
-    assert len(candidates["candidates"]) == 10
-    assert "CREATE_REHEARSAL_OUTPUTS" in (tmp_path / "public" / "rehearsal.py").read_text()
+    monkeypatch.setattr(rehearsal, "resolve_image", fake_resolve_image)
+
+    def fake_prepare(*args: Any, **kwargs: Any) -> Path:
+        calls.append(("prepare", args, kwargs))
+        return run_root
+
+    def fake_launch(*args: Any, **kwargs: Any) -> list[str]:
+        calls.append(("launch", args, kwargs))
+        return []
+
+    def fake_freeze(*args: Any, **kwargs: Any) -> Path:
+        calls.append(("freeze", args, kwargs))
+        return run_root / "frozen"
+
+    monkeypatch.setattr(rehearsal, "prepare", fake_prepare)
+    monkeypatch.setattr(rehearsal, "launch", fake_launch)
+    monkeypatch.setattr(rehearsal, "freeze", fake_freeze)
+
+    rehearsal.rehearse("actor@sha256:" + "a" * 64)
+
+    assert [name for name, _, _ in calls] == ["prepare", "launch", "freeze"]
+    assert calls[0][1][-2:] == ("deterministic", None)
+    assert calls[1][1][2] == "deterministic"
+    assert calls[1][2]["provider_network"] is False

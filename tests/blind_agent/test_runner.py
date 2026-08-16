@@ -28,7 +28,6 @@ TEST_RUNTIME = {
     "resolved_image_id": "sha256:" + "a" * 64,
     "resolved_repo_digest": TEST_IMAGE,
 }
-TEST_MODEL = "provider/test-model"
 
 
 def fixture_repo(tmp_path: Path) -> tuple[Path, Path]:
@@ -47,6 +46,14 @@ def fixture_repo(tmp_path: Path) -> tuple[Path, Path]:
                 "outcome_contract": {
                     "version": "1.1.0",
                     "primary_outcome_id": "margin",
+                    "definitions": [
+                        {
+                            "outcome_id": "margin",
+                            "column": "margin",
+                            "unit": "EUR",
+                            "higher_is_worse": False,
+                        }
+                    ],
                 },
                 "feature_timing": {
                     "feature_a": {"classification": "DECISION_TIME"},
@@ -141,8 +148,8 @@ def test_prepare_copies_only_allowlist_and_is_verified(tmp_path: Path) -> None:
         7,
         SIGNING_KEY,
         TEST_RUNTIME,
-        "provider",
-        TEST_MODEL,
+        "deterministic",
+        None,
     )
     assert (run / "workspace/input.txt").read_text() == "public"
     assert not (run / "workspace/secret.txt").exists()
@@ -171,8 +178,8 @@ def test_prepare_rejects_missing_and_symlink(tmp_path: Path) -> None:
             1,
             SIGNING_KEY,
             TEST_RUNTIME,
-            "provider",
-            TEST_MODEL,
+            "deterministic",
+            None,
         )
     allowlist.write_text(json.dumps({"allowed": ["link.txt"]}))
     (repository / "link.txt").symlink_to(repository / "input.txt")
@@ -185,8 +192,8 @@ def test_prepare_rejects_missing_and_symlink(tmp_path: Path) -> None:
             1,
             SIGNING_KEY,
             TEST_RUNTIME,
-            "provider",
-            TEST_MODEL,
+            "deterministic",
+            None,
         )
 
 
@@ -203,8 +210,8 @@ def test_verify_detects_extra_changed_deleted_hidden_and_git(tmp_path: Path) -> 
             1,
             SIGNING_KEY,
             TEST_RUNTIME,
-            "provider",
-            TEST_MODEL,
+            "deterministic",
+            None,
         )
         target = run / "workspace" / name
         target.parent.mkdir(exist_ok=True)
@@ -219,8 +226,8 @@ def test_verify_detects_extra_changed_deleted_hidden_and_git(tmp_path: Path) -> 
         1,
         SIGNING_KEY,
         TEST_RUNTIME,
-        "provider",
-        TEST_MODEL,
+        "deterministic",
+        None,
     )
     (run / "workspace/input.txt").unlink()
     with pytest.raises(ValueError, match="missing"):
@@ -237,23 +244,23 @@ def test_freeze_validates_and_closes_run(tmp_path: Path) -> None:
         1,
         SIGNING_KEY,
         TEST_RUNTIME,
-        "provider",
-        TEST_MODEL,
+        "deterministic",
+        None,
     )
     command = launch(
         run,
         SIGNING_KEY,
-        "provider",
+        "deterministic",
         TEST_IMAGE,
-        model=TEST_MODEL,
+        model=None,
         execute=False,
         repository=repository,
         allowlist=allowlist,
     )
     assert command[0:2] == ["docker", "run"]
     assert "--full-auto" not in command
-    assert "/opt/blind/provider_actor.py" in command
-    assert TEST_MODEL in command
+    assert "/workspace/scripts/run_discovery.py" in command
+    assert "--network=none" in command
     mounts = [command[index + 1] for index, item in enumerate(command) if item == "-v"]
     assert mounts == [
         f"{(run / 'workspace').resolve()}:/workspace:ro",
@@ -278,8 +285,8 @@ def test_malformed_candidates_are_rejected(tmp_path: Path) -> None:
         1,
         SIGNING_KEY,
         TEST_RUNTIME,
-        "provider",
-        TEST_MODEL,
+        "deterministic",
+        None,
     )
     transition(run, RunState.RUNNING)
     output = run / "workspace/output"
@@ -301,8 +308,8 @@ def test_missing_outputs_atomically_fail_completed_run(tmp_path: Path) -> None:
         1,
         SIGNING_KEY,
         TEST_RUNTIME,
-        "provider",
-        TEST_MODEL,
+        "deterministic",
+        None,
     )
     transition(run, RunState.RUNNING)
     transition(run, RunState.COMPLETED)
@@ -321,8 +328,8 @@ def test_verify_rejects_forged_manifest_and_wrong_key(tmp_path: Path) -> None:
         1,
         SIGNING_KEY,
         TEST_RUNTIME,
-        "provider",
-        TEST_MODEL,
+        "deterministic",
+        None,
     )
     with pytest.raises(ValueError, match="signature"):
         verify(run, b"another-evaluator-owned-key!!!!!")
@@ -344,16 +351,16 @@ def test_launch_rejects_source_drift_and_mutable_image(tmp_path: Path) -> None:
         1,
         SIGNING_KEY,
         TEST_RUNTIME,
-        "provider",
-        TEST_MODEL,
+        "deterministic",
+        None,
     )
     with pytest.raises(ValueError, match="immutable image"):
         launch(
             run,
             SIGNING_KEY,
-            "provider",
+            "deterministic",
             "test-image:latest",
-            model=TEST_MODEL,
+            model=None,
             execute=False,
             repository=repository,
             allowlist=allowlist,
@@ -362,7 +369,7 @@ def test_launch_rejects_source_drift_and_mutable_image(tmp_path: Path) -> None:
         launch(
             run,
             SIGNING_KEY,
-            "provider",
+            "deterministic",
             TEST_IMAGE,
             model="different-model",
             execute=False,
@@ -374,9 +381,9 @@ def test_launch_rejects_source_drift_and_mutable_image(tmp_path: Path) -> None:
         launch(
             run,
             SIGNING_KEY,
-            "provider",
+            "deterministic",
             TEST_IMAGE,
-            model=TEST_MODEL,
+            model=None,
             execute=False,
             repository=repository,
             allowlist=allowlist,
@@ -395,8 +402,8 @@ def test_launch_records_resolved_image_before_running(
         1,
         SIGNING_KEY,
         TEST_RUNTIME,
-        "provider",
-        TEST_MODEL,
+        "deterministic",
+        None,
     )
 
     def fake_run(command: list[str], **_kwargs: object) -> SimpleNamespace:
@@ -411,9 +418,9 @@ def test_launch_records_resolved_image_before_running(
     launch(
         run,
         SIGNING_KEY,
-        "provider",
+        "deterministic",
         TEST_IMAGE,
-        model=TEST_MODEL,
+        model=None,
         repository=repository,
         allowlist=allowlist,
     )
@@ -434,14 +441,14 @@ def test_evaluator_key_is_external_private_and_never_mounted(tmp_path: Path) -> 
     assert len(key) == 32
     assert key_file.stat().st_mode & 0o777 == 0o600
     run = prepare(
-        repository, runs_root, "isolated", allowlist, 1, key, TEST_RUNTIME, "provider", TEST_MODEL
+        repository, runs_root, "isolated", allowlist, 1, key, TEST_RUNTIME, "deterministic", None
     )
     command = launch(
         run,
         key,
-        "provider",
+        "deterministic",
         TEST_IMAGE,
-        model=TEST_MODEL,
+        model=None,
         execute=False,
         repository=repository,
         allowlist=allowlist,
@@ -465,8 +472,8 @@ def test_runner_manifest_is_accepted_by_posthoc_commitment(tmp_path: Path) -> No
         1,
         SIGNING_KEY,
         TEST_RUNTIME,
-        "provider",
-        TEST_MODEL,
+        "deterministic",
+        None,
     )
     manifest = json.loads((run / "workspace/BLIND_MANIFEST.json").read_text())
     candidates = tmp_path / "candidates.json"
@@ -528,8 +535,8 @@ def test_freeze_rejects_contract_drift_and_causal_language(tmp_path: Path) -> No
             1,
             SIGNING_KEY,
             TEST_RUNTIME,
-            "provider",
-            TEST_MODEL,
+            "deterministic",
+            None,
         )
         transition(run, RunState.RUNNING)
         write_valid_outputs(run)

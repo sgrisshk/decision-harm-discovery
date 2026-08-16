@@ -8,11 +8,26 @@ makes no causal claim.
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
-from typing import Any, Literal, cast
+from typing import Any, Literal, Protocol, cast
 
 import polars as pl
 
-from policy_analytics.outcomes import OutcomeDefinition
+
+class OutcomeDefinition(Protocol):
+    @property
+    def outcome_id(self) -> str: ...
+
+    @property
+    def column(self) -> str: ...
+
+    @property
+    def unit(self) -> str: ...
+
+    @property
+    def higher_is_worse(self) -> bool: ...
+
+    @property
+    def harm_multiplier(self) -> int: ...
 
 Operator = Literal["eq", "ge", "lt"]
 DISCOVERY_METHOD_VERSION = "discovery-engine-v0.1.0"

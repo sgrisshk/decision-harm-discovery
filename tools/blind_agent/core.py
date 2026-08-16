@@ -189,6 +189,13 @@ def _acceptance_contract(repository: Path) -> dict[str, Any] | None:
     )
     split = cast(dict[str, Any], json.loads(split_manifest_path.read_text(encoding="utf-8")))
     timing = cast(dict[str, dict[str, Any]], analytical["feature_timing"])
+    outcome_definitions = cast(list[dict[str, Any]], analytical["outcome_contract"]["definitions"])
+    primary_outcome_id = analytical["outcome_contract"]["primary_outcome_id"]
+    primary_outcome_metadata = next(
+        definition
+        for definition in outcome_definitions
+        if definition["outcome_id"] == primary_outcome_id
+    )
     engine_source = (
         repository / "packages/analytics/src/policy_analytics/discovery/engine.py"
     ).read_text(encoding="utf-8")
@@ -204,7 +211,8 @@ def _acceptance_contract(repository: Path) -> dict[str, Any] | None:
         "outcome_contract_version": analytical["outcome_contract"]["version"],
         "discovery_contract_version": contract_version,
         "discovery_method_version": method_match.group(1),
-        "primary_outcome": analytical["outcome_contract"]["primary_outcome_id"],
+        "primary_outcome": primary_outcome_id,
+        "primary_outcome_metadata": primary_outcome_metadata,
         "search_fit_split": split["discovery_usage"]["search_fit_split"],
         "diagnostic_only_splits": split["discovery_usage"]["diagnostic_only_splits"],
         "feature_timing_classes": {
@@ -278,16 +286,16 @@ def prepare(
     seed: int,
     signing_key: bytes,
     runtime_image: dict[str, str],
-    runtime_agent: str = "provider",
+    runtime_agent: str = "deterministic",
     runtime_model: str | None = None,
 ) -> Path:
     validate_run_id(run_id)
     if not IMMUTABLE_IMAGE.fullmatch(runtime_image.get("requested_reference", "")):
         raise ValueError("issuance requires immutable resolved image provenance")
-    if runtime_agent not in {"provider", "shell"}:
+    if runtime_agent not in {"deterministic", "shell"}:
         raise ValueError("unsupported blind runtime agent")
-    if runtime_agent == "provider" and not runtime_model:
-        raise ValueError("provider issuance requires an explicit model")
+    if runtime_agent == "deterministic" and runtime_model is not None:
+        raise ValueError("deterministic issuance does not accept a provider model")
     repository, runs_root = repository.resolve(), runs_root.resolve()
     if runs_root == repository or repository in runs_root.parents:
         raise ValueError("blind runs root must be outside the repository checkout")
@@ -456,17 +464,14 @@ def launch(
     if model != manifest.get("runtime_model"):
         raise ValueError("launch model does not match the signed issued runtime")
     workspace = (run_root / "workspace").resolve()
+    if provider_network:
+        raise ValueError("deterministic blind launch forbids provider network")
     inner = (
         ["/bin/sh"]
         if agent == "shell"
-        else [
-            "python",
-            "/opt/blind/provider_actor.py",
-            "--model",
-            cast(str, model),
-        ]
+        else ["python", "/workspace/scripts/run_discovery.py"]
     )
-    network = "bridge" if provider_network else "none"
+    network = "none"
     command = [
         "docker",
         "run",
@@ -488,12 +493,6 @@ def launch(
         image,
         *inner,
     ]
-    if provider_network and agent != "shell":
-        credential = "PROVIDER_API_KEY"
-        if not os.environ.get(credential):
-            raise ValueError(f"{credential} is required for provider-network launch")
-        image_index = command.index(image)
-        command[image_index:image_index] = ["-e", credential]
     if execute:
         image_provenance = resolve_image(image)
         if image_provenance != manifest.get("runtime_image"):
