@@ -46,7 +46,9 @@ For each split, deterministic code reports population N, exposed N, support, exp
 means, raw difference, sign-normalized harm per booking, and raw historical exposure. Historical
 exposure is `harm_per_booking × exposed N`; it is unadjusted, unannualized value at stake over the
 observed window, not savings. Preliminary order is development historical exposure with a mild
-complexity penalty. Full multi-factor ranking is TASK-016.
+complexity penalty. Full multi-factor ranking (economic impact, support, stability, actionability,
+novelty) is implemented separately in `docs/analytics/candidate-ranking-v0.md` (`TASK-016`) and
+never edits the search's own output.
 
 Temporal direction consistency is the share of available later chronological splits whose raw
 difference remains harmful. Actionability is a coarse discovery label: conditions involving a

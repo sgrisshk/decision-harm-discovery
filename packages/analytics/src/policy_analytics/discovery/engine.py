@@ -12,6 +12,8 @@ from typing import Any, Literal, Protocol, cast
 
 import polars as pl
 
+from policy_analytics.discovery.actionability import actionability_label
+
 
 class OutcomeDefinition(Protocol):
     @property
@@ -170,21 +172,6 @@ def _jaccard(left: frozenset[int], right: frozenset[int]) -> float:
     return len(left & right) / len(union) if union else 1.0
 
 
-def _actionability(rule: tuple[Condition, ...]) -> str:
-    directly_controllable = {
-        "supplier",
-        "discount_rate",
-        "manager",
-        "manual_exception",
-        "payment_method",
-        "installments",
-        "acquisition_channel",
-        "quoted_cost_eur",
-        "customer_price_eur",
-    }
-    return "HIGH" if any(c.feature in directly_controllable for c in rule) else "REVIEW_REQUIRED"
-
-
 def discover_candidates(
     frame: pl.DataFrame,
     feature_columns: tuple[str, ...],
@@ -281,7 +268,7 @@ def discover_candidates(
         warnings = ["Raw descriptive association; not adjusted and not causal."]
         if consistency < 1.0:
             warnings.append("Harm direction is not stable across all later chronological splits.")
-        if _actionability(rule) != "HIGH":
+        if actionability_label(rule) != "HIGH":
             warnings.append(
                 "Actionability requires business review; condition may not be controllable."
             )
@@ -294,7 +281,7 @@ def discover_candidates(
                 validation=validation,
                 future_holdout=future,
                 temporal_direction_consistency=consistency,
-                actionability=_actionability(rule),
+                actionability=actionability_label(rule),
                 rank_score=score,
                 warnings=tuple(warnings),
             )
