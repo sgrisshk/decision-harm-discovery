@@ -25,10 +25,12 @@ services:
       DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://policy:policy@postgres:5432/policy}
       CORS_ORIGINS: ${CORS_ORIGINS:-["http://localhost:3000"]}
       MAX_UPLOAD_BYTES: ${MAX_UPLOAD_BYTES:-10485760}
+      INGESTION_STORAGE_ROOT: ${INGESTION_STORAGE_ROOT:-data/raw}
     command: ["sh", "-c", "cd apps/api && alembic upgrade head && cd /app && uvicorn app.main:app --app-dir apps/api --host 0.0.0.0 --port 8000 --reload"]
     volumes:
       - ./apps/api:/app/apps/api
       - ./packages:/app/packages
+      - ./data:/app/data
     ports:
       - "${API_PORT:-8000}:8000"
     depends_on:

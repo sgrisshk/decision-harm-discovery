@@ -1,21 +1,82 @@
 from uuid import UUID
 
-from fastapi import HTTPException, status
+from fastapi import HTTPException, UploadFile, status
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.api.schemas import DatasetCreate
+from app.core.config import Settings
 from app.db.models import DatasetModel
+from app.ingestion.storage import UploadTooLargeError, read_bounded, store_immutable_csv
+from app.ingestion.validation import (
+    IngestionValidationError,
+    sanitize_filename,
+    validate_csv_content,
+)
+
+SOURCE_TYPE_CSV_UPLOAD = "csv_upload"
+_DEFAULT_CONTENT_TYPE = "text/csv"
 
 
-def create_dataset(session: Session, payload: DatasetCreate) -> DatasetModel:
+def create_dataset_from_upload(
+    session: Session, name: str, file: UploadFile, settings: Settings
+) -> DatasetModel:
+    """Validate, content-address, and immutably persist an uploaded CSV.
+
+    Raises `HTTPException` (400/413/409) on any validation, size, or identity conflict.
+    See `docs/architecture/ingestion-contract.md` for the full contract.
+    """
+    try:
+        safe_filename = sanitize_filename(file.filename or "")
+    except IngestionValidationError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+    try:
+        raw = read_bounded(file.file, settings.max_upload_bytes)
+    except UploadTooLargeError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail=str(exc)
+        ) from exc
+
+    try:
+        validate_csv_content(raw)
+    except IngestionValidationError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+    stored = store_immutable_csv(settings.ingestion_storage_root, raw)
+
+    latest = session.scalars(
+        select(DatasetModel)
+        .where(DatasetModel.name == name)
+        .order_by(DatasetModel.version.desc())
+        .limit(1)
+    ).first()
+
+    if latest is not None and latest.checksum_sha256 == stored.sha256:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"identical content already exists as version {latest.version}",
+        )
+
     dataset = DatasetModel(
-        name=payload.name,
-        source_filename=payload.source_filename,
-        columns=[column.model_dump(mode="json") for column in payload.columns],
+        name=name,
+        source_filename=safe_filename,
+        version=(latest.version + 1) if latest is not None else 1,
+        checksum_sha256=stored.sha256,
+        size_bytes=stored.size_bytes,
+        content_type=file.content_type or _DEFAULT_CONTENT_TYPE,
+        source_type=SOURCE_TYPE_CSV_UPLOAD,
+        storage_path=stored.storage_path,
     )
     session.add(dataset)
-    session.commit()
+    try:
+        session.commit()
+    except IntegrityError as exc:
+        session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="concurrent upload for this dataset name, retry",
+        ) from exc
     session.refresh(dataset)
     return dataset
 

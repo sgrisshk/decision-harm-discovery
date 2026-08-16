@@ -6,10 +6,6 @@ from policy_schemas.domain import DatasetColumn, EvidenceLevel, ResourceStatus
 from pydantic import BaseModel, ConfigDict, Field
 
 
-def empty_dataset_columns() -> list[DatasetColumn]:
-    return []
-
-
 class ApiModel(BaseModel):
     model_config = ConfigDict(from_attributes=True, extra="forbid")
 
@@ -18,18 +14,16 @@ class HealthResponse(ApiModel):
     status: str
 
 
-class DatasetCreate(ApiModel):
-    name: str = Field(min_length=1, max_length=200)
-    source_filename: str = Field(min_length=1, max_length=255, pattern=r"^[^/\\]+$")
-    columns: list[DatasetColumn] = Field(default_factory=empty_dataset_columns)
-
-
 class DatasetRead(ApiModel):
     id: UUID
     name: str
     source_filename: str
     version: int
     status: ResourceStatus
+    checksum_sha256: str
+    size_bytes: int
+    content_type: str
+    source_type: str
     columns: list[DatasetColumn]
     created_at: datetime
     updated_at: datetime

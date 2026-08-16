@@ -110,15 +110,29 @@ The tier thresholds above are a founder-level business judgment about how much e
 
 ## Post-benchmark comparison
 
-**PENDING — not filled in.** `TASK-017`/`TASK-028`/`TASK-029` have not run. Once `TASK-029`'s benchmark report exists, append (do not edit the sections above) a dated comparison here:
+**2026-08-16, Statistics.** `task-015-official-20260816-015` (the first `TASK-017`-compliant blind
+run) scored by `TASK-028` (`scripts/evaluate_benchmark.py`,
+`artifacts/evaluation/task-028-benchmark-evaluation.json`), validated under contract v1.1.0. Full
+detail: `docs/benchmark/task-029-benchmark-report-v1.md`.
 
 | Metric | Pre-registered band met | Actual result | Notes |
 |---|---|---|---|
-| Top-K precision | — | — | — |
-| Economic-weighted recall | — | — | — |
-| Confounder trap rejection | — | — | — |
-| Leakage violations | — | — | — |
-| Effect direction accuracy | — | — | — |
-| Economic impact estimation error | — | — | — |
-| **Overall verdict** | — | — | — |
-| **Action taken** | — | — | — |
+| Top-K precision | STRONG (≥60%) | 90% (9/10) | 1 of top 10 (`CAND-007`) below the 50% match-recall threshold |
+| Economic-weighted recall | PROMISING (25–49%) | 45.2% | Only P01, P06 recovered of 7 scoreable patterns |
+| Confounder trap rejection | PROMISING, not STRONG | 0/5 promoted | No trap appeared as a candidate at all — non-promotion by absence, not demonstrated active rejection with a stated caveat; see report §3.3 |
+| Leakage violations | passes | 0 | Hard disqualifier 1 did not fire |
+| Effect direction accuracy | STRONG (100%) | 100% (3/3) | Only validated+matched candidates counted, per spec |
+| Economic impact estimation error | **FAILED (>100%)** | median 204% (69–380% range) | Diagnosed cause: candidate rules ~15–16× broader than the exact injected pattern population; see report §3.6 |
+| **Overall verdict** | — | **FAILED** | Driven by metric 6 alone (weakest-graded-metric rule); no hard disqualifier fired |
+| **Action taken** | — | Do not proceed to real customer data yet | Statistics attributes the failure to a fixable estimation-granularity defect (report §4), pending ML_DISCOVERY concurrence (`HANDOFF-043`) before authorizing a single remediation rerun under decision-gate's FAILED action |
+
+**Document-quality note (Statistics, resolving `HANDOFF-027`):** this document's own text is
+internally inconsistent about how many metrics are graded — it lists six numbered "Graded metrics"
+subsections but the overall-verdict rule says "grade the four metrics below and take the weakest
+of the four bands." Metrics 3 and 4 are each partially gating (a hard disqualifier can fire from
+either), which may be the intended distinction, but the wording should say so explicitly rather
+than leave "four" unreconciled with six numbered subsections. Recommend a future edit (by
+FOUNDER_STRATEGY, this document's owner) clarify that the weakest-band rule applies across metrics
+1, 2, 3 (when not disqualified), 5, and 6 — five bands — with metric 4 remaining purely a binary
+disqualifier gate, never itself contributing a "band." This did not change this run's verdict:
+FAILED is the floor under every reading, since metric 6 alone is FAILED.

@@ -1,4 +1,5 @@
 from functools import lru_cache
+from pathlib import Path
 from typing import Literal
 
 from pydantic import field_validator, model_validator
@@ -15,6 +16,7 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+psycopg://policy:policy@localhost:5432/policy"
     cors_origins: list[str] = ["http://localhost:3000"]
     max_upload_bytes: int = 10 * 1024 * 1024
+    ingestion_storage_root: Path = Path("data/raw")
 
     @field_validator("database_url")
     @classmethod

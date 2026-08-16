@@ -42,6 +42,7 @@ When moving or renaming a document, update all code, task, decision, handoff, me
 ### Architecture
 
 - `docs/architecture/finding-persistence-contract.md`
+- `docs/architecture/ingestion-contract.md`
 
 ### Analytics
 

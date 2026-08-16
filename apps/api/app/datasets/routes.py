@@ -1,9 +1,11 @@
+from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Form, UploadFile, status
 from sqlalchemy.orm import Session
 
-from app.api.schemas import DatasetCreate, DatasetRead
+from app.api.schemas import DatasetRead
+from app.core.config import Settings, get_settings
 from app.datasets import service
 from app.db.session import get_db
 
@@ -11,8 +13,15 @@ router = APIRouter(prefix="/datasets", tags=["datasets"])
 
 
 @router.post("", response_model=DatasetRead, status_code=status.HTTP_201_CREATED)
-def create_dataset(payload: DatasetCreate, session: Session = Depends(get_db)) -> DatasetRead:
-    return DatasetRead.model_validate(service.create_dataset(session, payload))
+def create_dataset(
+    name: Annotated[str, Form(min_length=1, max_length=200)],
+    file: UploadFile,
+    session: Session = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+) -> DatasetRead:
+    return DatasetRead.model_validate(
+        service.create_dataset_from_upload(session, name, file, settings)
+    )
 
 
 @router.get("", response_model=list[DatasetRead])
