@@ -96,6 +96,14 @@ class OutcomeDefinition:
     description: str
     valid_range: tuple[float, float]
     aggregation_rule: str
+    #: Short present-tense phrase naming the harmful direction of this outcome, e.g.
+    #: "Contribution margin drops" — sourced here (data), never authored per finding
+    #: (`docs/product/finding-product-contract.md` §12.2). Only `contribution_margin_eur`'s wording
+    #: is Product-reviewed today; every other outcome's is a mechanical placeholder
+    #: (Title-Case outcome name + "increases"/"decreases" from `higher_is_worse`) since none of
+    #: them are customer-facing yet — same disclosed-simplification posture §12.2 already takes for
+    #: feature names.
+    harm_direction_phrase: str
     decomposition_of: str | None = None
     winsorization_allowed_at_discovery: bool = False
 
@@ -104,6 +112,8 @@ class OutcomeDefinition:
             raise ValueError("outcome definitions require id, column, unit, and description")
         if not self.aggregation_rule:
             raise ValueError(f"{self.outcome_id} requires an aggregation_rule")
+        if not self.harm_direction_phrase:
+            raise ValueError(f"{self.outcome_id} requires a harm_direction_phrase")
         low, high = self.valid_range
         if low > high:
             raise ValueError(f"{self.outcome_id} has an invalid valid_range: {self.valid_range}")
@@ -152,6 +162,7 @@ OUTCOME_DEFINITIONS: tuple[OutcomeDefinition, ...] = (
         ),
         valid_range=(-5777.45, 2519.42),
         aggregation_rule="arithmetic_mean_of_present_values",
+        harm_direction_phrase="Contribution margin drops",
     ),
     OutcomeDefinition(
         outcome_id="gross_profit_eur",
@@ -170,6 +181,7 @@ OUTCOME_DEFINITIONS: tuple[OutcomeDefinition, ...] = (
         ),
         valid_range=(-5623.99, 2709.10),
         aggregation_rule="arithmetic_mean_of_present_values",
+        harm_direction_phrase="Gross Profit Eur decreases",
         decomposition_of="contribution_margin_eur",
     ),
     OutcomeDefinition(
@@ -194,6 +206,7 @@ OUTCOME_DEFINITIONS: tuple[OutcomeDefinition, ...] = (
             "price and margin-per-euro-of-price are correlated, which they are in this benchmark "
             "(higher-tier bookings both cost more and carry different margin rates)."
         ),
+        harm_direction_phrase="Contribution Margin Rate decreases",
         decomposition_of="contribution_margin_eur",
     ),
     OutcomeDefinition(
@@ -213,6 +226,7 @@ OUTCOME_DEFINITIONS: tuple[OutcomeDefinition, ...] = (
         aggregation_rule=(
             "arithmetic_mean_of_present_values (equals the observed rate for a 0/1 outcome)"
         ),
+        harm_direction_phrase="Cancellation increases",
     ),
     OutcomeDefinition(
         outcome_id="refund_amount_eur",
@@ -227,6 +241,7 @@ OUTCOME_DEFINITIONS: tuple[OutcomeDefinition, ...] = (
         ),
         valid_range=(0.0, 6871.55),
         aggregation_rule="arithmetic_mean_of_present_values",
+        harm_direction_phrase="Refund Amount Eur increases",
         decomposition_of="contribution_margin_eur",
     ),
     OutcomeDefinition(
@@ -242,6 +257,7 @@ OUTCOME_DEFINITIONS: tuple[OutcomeDefinition, ...] = (
         ),
         valid_range=(0.0, 393.27),
         aggregation_rule="arithmetic_mean_of_present_values",
+        harm_direction_phrase="Support Cost Eur increases",
         decomposition_of="contribution_margin_eur",
     ),
     OutcomeDefinition(
@@ -257,6 +273,7 @@ OUTCOME_DEFINITIONS: tuple[OutcomeDefinition, ...] = (
         ),
         valid_range=(0.0, 1523.05),
         aggregation_rule="arithmetic_mean_of_present_values",
+        harm_direction_phrase="Additional Cost Eur increases",
         decomposition_of="contribution_margin_eur",
     ),
     OutcomeDefinition(
@@ -281,6 +298,7 @@ OUTCOME_DEFINITIONS: tuple[OutcomeDefinition, ...] = (
             "arithmetic_mean_of_present_values only — never impute a missing value before "
             "averaging; use mnar_bounds() for the observed-plus-worst-case range instead"
         ),
+        harm_direction_phrase="Repeat Purchase 180D decreases",
     ),
 )
 

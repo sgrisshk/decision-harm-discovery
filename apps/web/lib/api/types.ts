@@ -31,6 +31,19 @@ export type EvidenceLevel =
 // packages/schemas/src/policy_schemas/domain.py: ResourceStatus
 export type ResourceStatus = "pending" | "running" | "completed" | "failed" | "draft";
 
+// packages/schemas/src/policy_schemas/domain.py: FindingLifecycleStatus
+// Forward-only: ACTIVE -> SUPERSEDED, ACTIVE -> WITHDRAWN. Resolves HANDOFF-024.
+export type FindingLifecycleStatus = "ACTIVE" | "SUPERSEDED" | "WITHDRAWN";
+
+// packages/analytics/.../validation/contract.py: IdentificationDesign
+export type IdentificationDesign =
+  | "observational"
+  | "quasi_experimental"
+  | "randomized_prospective";
+
+// packages/analytics/.../validation/contract.py: PolicyReadiness
+export type PolicyReadiness = "not_ready" | "experiment_only" | "shadow_policy" | "high_confidence";
+
 // packages/schemas/src/policy_schemas/domain.py: DatasetColumn
 export type DatasetColumn = {
   name: string;
@@ -55,21 +68,80 @@ export type Dataset = {
   updated_at: string;
 };
 
+// apps/api/app/api/schemas.py: EffectEstimateRead
+// The four fields must never be displayed apart from each other — see
+// docs/product/finding-product-contract.md §3/§5.
+export type EffectEstimate = {
+  value: number;
+  ci_low: number;
+  ci_high: number;
+  confidence_level: number;
+  method: string;
+  unit: string;
+};
+
+// apps/api/app/api/schemas.py: FindingPatternRead
+export type FindingPattern = {
+  candidate_key: string;
+  conditions: Record<string, unknown>[];
+  fit_split: string;
+  rank: number;
+  rank_score: number;
+  actionability: string;
+};
+
+// apps/api/app/api/schemas.py: FindingEvidenceRead
+// raw_effect has no interval by construction — must always render with its
+// "descriptive, unadjusted, no interval" qualifier, never styled as validated.
+export type FindingEvidence = {
+  raw_effect: EffectEstimate;
+  adjusted_effect: EffectEstimate | null;
+  controlled_variables: string[];
+  potential_confounders: string[];
+  robustness_tests: string[];
+  temporal_stability: string;
+  warnings: string[];
+  failure_modes: string[];
+  recommended_validation: string;
+  permitted_language: string;
+};
+
+// apps/api/app/api/schemas.py: FindingImpactRead
+// materiality_pass is pass/fail only — the underlying threshold is never
+// exposed (still a Statistics/Customer-Discovery-owned placeholder, §3).
+export type FindingImpact = {
+  impact_contract_version: string;
+  outcome_name: string;
+  outcome_unit: string;
+  affected_records: number;
+  per_record_effect: EffectEstimate;
+  historical_impact: EffectEstimate;
+  annualized_impact: EffectEstimate | null;
+  annualization_justified: boolean;
+  materiality_pass: boolean;
+};
+
 // apps/api/app/api/schemas.py: FindingRead
-// This is intentionally the current minimal skeleton (TASK-002). Raw/adjusted
-// effect, uncertainty, impact, stability, and confounder-check fields do not
-// exist on the API yet (tracked by TASK-024/TASK-025); do not add them here
-// ahead of the backend.
 export type Finding = {
   id: string;
   dataset_id: string;
   analysis_run_id: string;
+  candidate_pattern_id: string;
+  validation_report_id: string;
   title: string;
-  pattern_definition: Record<string, unknown>;
-  sample_size: number;
+  summary: string;
+  title_template_version: string;
+  generated_at: string;
+  pattern: FindingPattern;
+  exposed_records: number;
+  comparison_records: number;
+  clustering_key: string;
   evidence_level: EvidenceLevel;
-  status: ResourceStatus;
-  warnings: string[];
+  identification_design: IdentificationDesign;
+  evidence: FindingEvidence;
+  impact: FindingImpact;
+  policy_readiness: PolicyReadiness;
+  lifecycle_status: FindingLifecycleStatus;
   created_at: string;
   updated_at: string;
 };

@@ -74,7 +74,7 @@ through the production Docker boundary, and runs normal freeze validation. It mu
 All earlier provider-backed runs, including verified but unlaunched `…-014`, are immutable
 audit-only artifacts and must not be reused after runtime/source drift. The deterministic runtime
 is pinned as
-`policy-blind-agent@sha256:5632ca11139272623e95a82a9fa24c52f19c16d8edc236dfa500e02cbc9570c0`.
+`policy-blind-agent@sha256:9ad6e1a78ca41a7c04895d1d99c7775e77fc2c8fbb4f23cee268ed04534c7c9b`.
 After `make blind-rehearsal` succeeds, the evaluator issues a new unique run and launches:
 
 ```sh
@@ -84,5 +84,30 @@ make blind-shell RUN=<new-run-id>
 The coordinator supplies neither `BLIND_EVALUATOR_KEY_FILE` nor any provider credential to the
 container. A failed launch permanently closes that run ID; issue a new run rather than retrying it.
 
-This is credible, reproducible local-development isolation, not absolute security against a host
-administrator. Keep the run directory and evaluator-owned ADR-008 receipt together for audit.
+This is credible local-development isolation, not absolute security against a host administrator
+or a co-resident same-user process (see the CODE_REVIEWER note below), and not a claim of
+bit-for-bit reproducible builds: `docker build` is only stable when reusing a warm local cache
+(what `make blind-image` normally does back-to-back with `make blind-rehearsal`); a genuinely
+fresh `--no-cache` build of the identical Dockerfile has been observed to produce a different
+image digest (apt/pip layers are not pinned to snapshot-exact versions, and RUN-layer output
+isn't reproducibility-normalized). `make blind-image` now fails closed instead of silently
+accepting that drift: it rebuilds, compares the result against the pinned `BLIND_AGENT_IMAGE`
+digest above, and errors out with the actual new digest if they differ, so re-pinning is always a
+deliberate, reviewed step rather than an easily-skipped manual one. Keep the run directory and
+evaluator-owned ADR-008 receipt together for audit.
+
+**CODE_REVIEWER note (2026-08-17):** independent adversarial review of `HANDOFF-042` found and
+fixed: (1) `docker` CLI subprocess calls in `tools/blind_agent/core.py` inherited the ambient
+environment, so `DOCKER_HOST`/`DOCKER_CONTEXT` could silently redirect every isolation guarantee
+here (`--network=none`, digest pinning, `resolve_image`) to a different daemon — calls now pin to
+the local default daemon explicitly; (2) `agent="shell"` runs could reach `freeze()` with
+hand-written outputs and pass the same contract checks as a real deterministic run — `freeze()`
+now rejects any run not issued with `runtime_agent=deterministic`; (3) the reproducibility claim
+above was corrected as described; (4) a workspace-integrity re-check was added immediately before
+the container starts, narrowing (not eliminating) the same-user TOCTOU window between `verify()`
+and `docker run`; (5) `tools/blind_agent/provider_actor.py`'s credential stripping (dead code today,
+not shipped in the image) now matches a credential-name pattern instead of a fixed 4-name list.
+Not fixed, and still open: `resolve_image()` trusts whichever local digest is asked of it — there
+is no independently-audited "known good" reference beyond the pinned Makefile/doc values above,
+so an attacker able to set `BLIND_AGENT_IMAGE` (or build their own image and get it accepted by
+digest) is not caught by this layer alone.

@@ -85,6 +85,7 @@ def test_definition_requires_core_fields() -> None:
             description="x",
             valid_range=(0.0, 1.0),
             aggregation_rule="arithmetic_mean_of_present_values",
+            harm_direction_phrase="x",
         )
     with pytest.raises(ValueError, match="aggregation_rule"):
         OUTCOME_BY_ID["contribution_margin_eur"].__class__(
@@ -97,6 +98,7 @@ def test_definition_requires_core_fields() -> None:
             description="x",
             valid_range=(0.0, 1.0),
             aggregation_rule="",
+            harm_direction_phrase="x",
         )
     with pytest.raises(ValueError, match="valid_range"):
         OUTCOME_BY_ID["contribution_margin_eur"].__class__(
@@ -109,6 +111,7 @@ def test_definition_requires_core_fields() -> None:
             description="x",
             valid_range=(1.0, 0.0),
             aggregation_rule="arithmetic_mean_of_present_values",
+            harm_direction_phrase="x",
         )
 
 
@@ -244,6 +247,15 @@ def test_every_definition_has_a_valid_range_and_aggregation_rule() -> None:
         low, high = definition.valid_range
         assert low <= high
         assert definition.aggregation_rule
+        assert definition.harm_direction_phrase
+
+
+def test_primary_outcome_harm_direction_phrase_is_product_reviewed() -> None:
+    assert primary_outcome().harm_direction_phrase == "Contribution margin drops"
+
+
+def test_every_definition_does_not_allow_winsorization_at_discovery() -> None:
+    for definition in OUTCOME_DEFINITIONS:
         assert definition.winsorization_allowed_at_discovery is False
 
 
@@ -259,6 +271,7 @@ def test_valid_range_rejects_low_greater_than_high() -> None:
             description="x",
             valid_range=(5.0, -5.0),
             aggregation_rule="arithmetic_mean_of_present_values",
+            harm_direction_phrase="x",
         )
 
 

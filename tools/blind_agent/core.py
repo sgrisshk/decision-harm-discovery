@@ -233,11 +233,35 @@ def _verify_source_snapshot(repository: Path, allowlist: Path, expected: dict[st
         raise ValueError(f"issued workspace source drift detected: {changed}")
 
 
+# Docker client env vars that redirect the CLI to a different daemon/context than the local
+# default. An ambient DOCKER_HOST (etc.) would let every isolation guarantee below --
+# --network=none, --read-only, --cap-drop=ALL, and the digest pin itself -- be satisfied by an
+# attacker-controlled daemon instead of actually enforced.
+_DOCKER_HOST_OVERRIDE_VARS = (
+    "DOCKER_HOST",
+    "DOCKER_CONTEXT",
+    "DOCKER_TLS_VERIFY",
+    "DOCKER_CERT_PATH",
+    "DOCKER_CONFIG",
+)
+
+
+def _docker_env() -> dict[str, str]:
+    """Environment for docker CLI subprocess calls, pinned to the local default daemon."""
+    return {
+        key: value for key, value in os.environ.items() if key not in _DOCKER_HOST_OVERRIDE_VARS
+    }
+
+
 def resolve_image(image: str) -> dict[str, str]:
     if not IMMUTABLE_IMAGE.fullmatch(image):
         raise ValueError("blind launch requires an immutable image reference name@sha256:<digest>")
     inspected = subprocess.run(
-        ["docker", "image", "inspect", image], capture_output=True, check=False, text=True
+        ["docker", "image", "inspect", image],
+        capture_output=True,
+        check=False,
+        text=True,
+        env=_docker_env(),
     )
     if inspected.returncode:
         raise ValueError(f"blind agent image is unavailable: {image}")
@@ -503,8 +527,13 @@ def launch(
         provenance["coding_agent"] = agent
         provenance["image"] = image_provenance
         _write(provenance_path, provenance)
+        # Re-check workspace integrity immediately before spawning the container, narrowing the
+        # window (verify() above, then resolve_image()'s subprocess + the provenance write) in
+        # which a same-user co-resident process could tamper with the workspace after it was
+        # verified but before the container mounts it.
+        verify(run_root, signing_key)
         transition(run_root, RunState.RUNNING)
-        completed = subprocess.run(command, check=False)
+        completed = subprocess.run(command, check=False, env=_docker_env())
         transition(run_root, RunState.COMPLETED if completed.returncode == 0 else RunState.FAILED)
         if completed.returncode:
             raise RuntimeError(f"blind agent exited with status {completed.returncode}")
@@ -529,6 +558,12 @@ def _validated_freeze(run_root: Path, signing_key: bytes) -> Path:
     except ValidationError as exc:
         raise ValueError(f"invalid blind output schema: {exc}") from exc
     manifest = json.loads((run_root / "manifest.json").read_text(encoding="utf-8"))
+    if manifest.get("runtime_agent") != "deterministic":
+        raise ValueError(
+            "only output from a runtime_agent=deterministic run may be frozen; "
+            f"this run was issued as {manifest.get('runtime_agent')!r} "
+            "(a shell/debug run cannot produce an accepted result)"
+        )
     raw_contract: object = manifest.get("acceptance_contract")
     if not isinstance(raw_contract, dict):
         raise ValueError("issued run has no frozen output acceptance contract")

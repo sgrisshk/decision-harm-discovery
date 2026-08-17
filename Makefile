@@ -47,7 +47,7 @@ blind-workspace: export-public-benchmark
 BLIND_RUNS_ROOT ?= /tmp/policy-blind-runs
 BLIND_EVALUATOR_KEY_FILE ?= /tmp/policy-blind-evaluator/signing.key
 BLIND_AGENT_IMAGE_TAG ?= policy-blind-agent:deterministic-local
-BLIND_AGENT_IMAGE ?= policy-blind-agent@sha256:5632ca11139272623e95a82a9fa24c52f19c16d8edc236dfa500e02cbc9570c0
+BLIND_AGENT_IMAGE ?= policy-blind-agent@sha256:9ad6e1a78ca41a7c04895d1d99c7775e77fc2c8fbb4f23cee268ed04534c7c9b
 AGENT ?= deterministic
 BLIND_NETWORK ?= none
 
@@ -57,6 +57,15 @@ blind-key-init:
 
 blind-image:
 	docker build --provenance=false --sbom=false -f infra/docker/blind-agent.Dockerfile -t "$(BLIND_AGENT_IMAGE_TAG)" .
+	@built="$$(docker image inspect --format '{{.Id}}' "$(BLIND_AGENT_IMAGE_TAG)")"; \
+	pinned="$(BLIND_AGENT_IMAGE)"; \
+	pinned="$${pinned#*@}"; \
+	if [ "$$built" != "$$pinned" ]; then \
+		echo "blind-image: built image digest ($$built) does not match the pinned BLIND_AGENT_IMAGE ($$pinned)." >&2; \
+		echo "blind-image: this is expected after any Dockerfile/base-image/apt-package change, but it means every reproducibility and digest-pin guarantee (tools/blind_agent/core.py resolve_image) is void until re-pinned." >&2; \
+		echo "blind-image: review the diff, confirm it is intentional, then update BLIND_AGENT_IMAGE here and in TASKS.md/memory/HANDOFFS.md to $$built and re-run make blind-rehearsal before issuing an official run." >&2; \
+		exit 1; \
+	fi
 
 blind-rehearsal:
 	@test -n "$(BLIND_AGENT_IMAGE)"

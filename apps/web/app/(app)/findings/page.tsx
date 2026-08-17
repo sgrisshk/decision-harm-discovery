@@ -42,11 +42,11 @@ export default async function FindingsPage() {
           {findings.map((finding) => (
             <li className="resourceCard" key={finding.id}>
               <span className="resourceCard-title">{finding.title}</span>
-              {/* Evidence-level and status labels are shown verbatim as the API
-                  returns them (packages/schemas EvidenceLevel/ResourceStatus).
+              {/* Evidence-level and lifecycle labels are shown verbatim as the API
+                  returns them (packages/schemas EvidenceLevel/FindingLifecycleStatus).
                   Do not rephrase these — evidence wording is Product-owned. */}
               <span className="resourceCard-tag">{finding.evidence_level}</span>
-              <span className="resourceCard-tag">{finding.status}</span>
+              <span className="resourceCard-tag">{finding.lifecycle_status}</span>
             </li>
           ))}
         </ul>

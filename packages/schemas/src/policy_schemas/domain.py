@@ -27,6 +27,18 @@ class ResourceStatus(StrEnum):
     DRAFT = "draft"
 
 
+class FindingLifecycleStatus(StrEnum):
+    """Distinct from `ResourceStatus` (job state, not finding lifecycle).
+
+    Forward-only transitions: `ACTIVE -> SUPERSEDED`, `ACTIVE -> WITHDRAWN`. Nothing transitions
+    back to `ACTIVE` (`docs/product/finding-product-contract.md` §12.1, resolves `HANDOFF-024`).
+    """
+
+    ACTIVE = "ACTIVE"
+    SUPERSEDED = "SUPERSEDED"
+    WITHDRAWN = "WITHDRAWN"
+
+
 class DatasetColumn(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
