@@ -20,6 +20,26 @@ class HealthResponse(ApiModel):
     status: str
 
 
+class DatasetColumnProfileRead(ApiModel):
+    """TASK-007. `semantic_type_guess` and `examples` are disclosed heuristics, not validated
+    facts — see `policy_analytics.profiling.schema_profiler`'s module docstring. Distinct from
+    `DatasetColumn` (`columns` below), which is TASK-008's feature-timing classification."""
+
+    column_name: str
+    inferred_type: str
+    row_count: int
+    missing_count: int
+    missingness: float
+    distinct_count: int
+    min_value: str | None
+    max_value: str | None
+    semantic_type_guess: str
+    examples: list[str]
+    examples_suppressed: bool
+    suspicious_values: list[str]
+    suspicious_count: int
+
+
 class DatasetRead(ApiModel):
     id: UUID
     name: str
@@ -31,6 +51,7 @@ class DatasetRead(ApiModel):
     content_type: str
     source_type: str
     columns: list[DatasetColumn]
+    column_profiles: list[DatasetColumnProfileRead]
     created_at: datetime
     updated_at: datetime
 

@@ -18,6 +18,8 @@ sys.path.insert(0, str(REPOSITORY / "scripts"))
 from evaluate_benchmark import (  # noqa: E402
     MATCH_RECALL_THRESHOLD,
     TRAP_APPARENT_CONDITIONS,
+    _attribution_narrowed_impact,
+    _attribution_overlap_ids,
     _condition_from_dict,
     _matches_trap,
 )
@@ -71,3 +73,40 @@ def test_all_five_traps_are_registered_with_their_stated_apparent_feature() -> N
 def test_match_recall_threshold_is_a_majority_bar_fixed_before_scoring() -> None:
     # Documents the preregistered choice (module docstring): 0.5, chosen once, not tuned to results.
     assert MATCH_RECALL_THRESHOLD == 0.5
+
+
+# --- TASK-059: attribution-narrowed diagnostic helpers (synthetic fixtures only) -----------------
+
+
+def test_attribution_overlap_ids_is_the_intersection_with_matched_patterns_only() -> None:
+    exposed_ids = frozenset({"b1", "b2", "b3", "b4"})
+    patterns_by_id = {
+        "P01": {"affected_booking_ids": ["b2", "b3", "b9"]},
+        "P02": {"affected_booking_ids": ["b4", "b10"]},
+        "P03": {"affected_booking_ids": ["b1"]},  # not in matched_patterns -> must not contribute
+    }
+    overlap = _attribution_overlap_ids(exposed_ids, ["P01", "P02"], patterns_by_id)
+    assert overlap == frozenset({"b2", "b3", "b4"})
+
+
+def test_attribution_overlap_ids_is_empty_when_no_patterns_matched() -> None:
+    exposed_ids = frozenset({"b1", "b2"})
+    patterns_by_id = {"P01": {"affected_booking_ids": ["b1", "b2"]}}
+    assert _attribution_overlap_ids(exposed_ids, [], patterns_by_id) == frozenset()
+
+
+def test_attribution_narrowed_impact_scales_per_record_effect_by_overlap_n() -> None:
+    per_record_effect = {"value": 100.0, "ci_low": 80.0, "ci_high": 130.0}
+    point, ci = _attribution_narrowed_impact(per_record_effect, overlap_n=50)
+    assert point == pytest.approx(5000.0)
+    assert ci == (pytest.approx(4000.0), pytest.approx(6500.0))
+
+
+def test_attribution_narrowed_impact_is_zero_for_an_empty_overlap() -> None:
+    # A candidate can recover a pattern by recall (majority of the pattern's bookings) while still
+    # sharing zero bookings with a *different* matched pattern's affected set — must not divide by
+    # zero or otherwise error, just report zero narrowed impact for that population.
+    per_record_effect = {"value": -42.0, "ci_low": -60.0, "ci_high": -20.0}
+    point, ci = _attribution_narrowed_impact(per_record_effect, overlap_n=0)
+    assert point == 0.0
+    assert ci == (0.0, 0.0)

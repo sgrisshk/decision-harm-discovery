@@ -4,6 +4,7 @@ from typing import Any
 
 from sqlalchemy import (
     BigInteger,
+    Boolean,
     DateTime,
     Float,
     ForeignKey,
@@ -45,6 +46,44 @@ class DatasetModel(TimestampMixin, Base):
     columns: Mapped[list[dict[str, Any]]] = mapped_column(JSONB, nullable=False, default=list)
 
     analysis_runs: Mapped[list["AnalysisRunModel"]] = relationship(back_populates="dataset")
+    column_profiles: Mapped[list["DatasetColumnProfileModel"]] = relationship(
+        back_populates="dataset"
+    )
+
+
+class DatasetColumnProfileModel(TimestampMixin, Base):
+    """One row per profiled column (TASK-007). Deliberately separate from `DatasetModel.columns`
+    (`DatasetColumn`: name/data_type/timing/nullable) — that JSONB field is TASK-008's eventual
+    feature-timing-classification output, a different pipeline stage. Written once per dataset
+    version, never updated (`policy_analytics.profiling.schema_profiler` is the pure computation).
+    """
+
+    __tablename__ = "dataset_column_profiles"
+    __table_args__ = (
+        UniqueConstraint(
+            "dataset_id", "column_name", name="uq_dataset_column_profiles_dataset_column"
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    dataset_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("datasets.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    column_name: Mapped[str] = mapped_column(String(128), nullable=False)
+    inferred_type: Mapped[str] = mapped_column(String(16), nullable=False)
+    row_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    missing_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    missingness: Mapped[float] = mapped_column(Float, nullable=False)
+    distinct_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    min_value: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    max_value: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    semantic_type_guess: Mapped[str] = mapped_column(String(32), nullable=False)
+    examples: Mapped[list[str]] = mapped_column(JSONB, nullable=False, default=list)
+    examples_suppressed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    suspicious_values: Mapped[list[str]] = mapped_column(JSONB, nullable=False, default=list)
+    suspicious_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+    dataset: Mapped[DatasetModel] = relationship(back_populates="column_profiles")
 
 
 class AnalysisRunModel(TimestampMixin, Base):

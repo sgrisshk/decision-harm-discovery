@@ -1,3 +1,4 @@
+import logging
 from uuid import UUID
 
 from fastapi import HTTPException, UploadFile, status
@@ -13,6 +14,8 @@ from app.ingestion.validation import (
     sanitize_filename,
     validate_csv_content,
 )
+
+logger = logging.getLogger("policy_api.datasets")
 
 SOURCE_TYPE_CSV_UPLOAD = "csv_upload"
 _DEFAULT_CONTENT_TYPE = "text/csv"
@@ -44,6 +47,10 @@ def create_dataset_from_upload(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
     stored = store_immutable_csv(settings.ingestion_storage_root, raw)
+
+    # Deferred import: app.datasets.profiling imports SOURCE_TYPE_CSV_UPLOAD from this module,
+    # so importing it at module load time here would be circular.
+    from app.datasets.profiling import profile_dataset
 
     latest = session.scalars(
         select(DatasetModel)
@@ -78,6 +85,19 @@ def create_dataset_from_upload(
             detail="concurrent upload for this dataset name, retry",
         ) from exc
     session.refresh(dataset)
+
+    # TASK-007: profile the just-stored CSV. The raw bytes are already immutably persisted at this
+    # point (TASK-006's own guarantee), so a profiling failure must not undo or hide the upload —
+    # log it and leave the dataset unprofiled rather than fail (or silently half-fail) the request.
+    try:
+        profile_dataset(session, dataset, settings)
+        session.commit()
+    except Exception:
+        session.rollback()
+        logger.warning(
+            "dataset_profiling_failed", extra={"fields": {"dataset_id": str(dataset.id)}}
+        )
+
     return dataset
 
 

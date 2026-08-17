@@ -16,6 +16,22 @@ because interpretable discovery is expected to return broader, more actionable r
 injected condition — a rule capturing most of a pattern's affected population is a real recovery
 even if it also covers unrelated bookings; that dilution is instead visible in the impact-error
 metric, where it belongs.
+
+**`TASK-059` addition (`HANDOFF-043` remediation part 1):** metric 6's governing number
+(`metrics.economic_impact_estimation_error`) is unchanged — it still compares each matched
+candidate's *whole-rule* reported historical impact against the matched pattern(s)' true impact,
+exactly as `docs/benchmark/decision-gate.md` pre-registered it. A second, clearly-separate,
+diagnostic-only sibling metric
+(`metrics.economic_impact_estimation_error_attribution_narrowed_diagnostic`) is added alongside it:
+same matched-candidate population, but the reported side is recomputed over just the booking IDs a
+candidate's exposed set shares with its matched pattern's `affected_booking_ids` (only knowable
+here, against `hidden_ground_truth.json`, never for a real customer finding — `HANDOFF-043`, ML
+Discovery dissent). **This diagnostic does not govern the decision gate and must not be substituted
+for `economic_impact_estimation_error` when reading `docs/benchmark/decision-gate.md`'s bands** —
+it exists to show how much of the whole-rule error is attributable to population dilution
+(`task-029-benchmark-report-v1.md` §3.6) versus genuine per-booking effect misestimation, and, per
+`HANDOFF-043`'s own warning, is not by itself sufficient grounds for a re-grade without `TASK-058`
+(tighter candidates at search time) as well.
 """
 
 from __future__ import annotations
@@ -99,6 +115,37 @@ def _matches_trap(conditions: list[dict[str, object]]) -> list[str]:
     ]
 
 
+def _attribution_overlap_ids(
+    exposed_ids: frozenset[str],
+    matched_patterns: list[str],
+    patterns_by_id: dict[str, dict[str, object]],
+) -> frozenset[str]:
+    """Bookings a candidate's exposed set shares with any of its matched patterns' truth-labeled
+    affected population — the `TASK-059` attribution-narrowed diagnostic's population.
+    """
+    overlap: frozenset[str] = frozenset()
+    for pid in matched_patterns:
+        overlap |= exposed_ids & frozenset(patterns_by_id[pid]["affected_booking_ids"])  # type: ignore[index]
+    return overlap
+
+
+def _attribution_narrowed_impact(
+    per_record_effect: dict[str, object], overlap_n: int
+) -> tuple[float, tuple[float, float]]:
+    """Scale a candidate's own reported per-record effect by a narrower population — the same
+    linear scaling `economic_impact.py` already uses for
+    `historical_impact = per_record_effect x affected_records`, just over `overlap_n` instead of
+    the candidate's full exposed population. No new estimation method; only computable here
+    because `overlap_n` requires `hidden_ground_truth.json`.
+    """
+    point = float(per_record_effect["value"]) * overlap_n  # type: ignore[arg-type]
+    ci = (
+        float(per_record_effect["ci_low"]) * overlap_n,  # type: ignore[arg-type]
+        float(per_record_effect["ci_high"]) * overlap_n,  # type: ignore[arg-type]
+    )
+    return point, ci
+
+
 def main() -> None:
     ground_truth = json.loads(GROUND_TRUTH_PATH.read_text(encoding="utf-8"))
     validation = json.loads(VALIDATION_REPORT_PATH.read_text(encoding="utf-8"))
@@ -119,12 +166,14 @@ def main() -> None:
     raw_by_id = {c["candidate_id"]: c for c in candidates_payload["candidates"]}
 
     scores: list[CandidateScore] = []
+    exposed_ids_by_candidate: dict[str, frozenset[str]] = {}
     for candidate_id, raw in raw_by_id.items():
         conditions = [_condition_from_dict(c) for c in raw["conditions"]]
         mask = frame.select(rule_expr(conditions).alias("m"))["m"].to_list()
         exposed_ids = frozenset(
             bid for bid, exposed in zip(booking_ids, mask, strict=True) if exposed
         )
+        exposed_ids_by_candidate[candidate_id] = exposed_ids
 
         recalls: dict[str, float] = {}
         for pid, pattern in patterns_by_id.items():
@@ -258,6 +307,68 @@ def main() -> None:
             else (sorted_errors[midpoint - 1] + sorted_errors[midpoint]) / 2
         )
 
+    # --- Diagnostic (TASK-059, benchmark-evaluation-only, does not govern the decision gate):
+    # attribution-narrowed economic impact error. Same matched-candidate population as metric 6,
+    # but the reported side uses only the bookings a candidate's exposed set shares with its
+    # matched pattern's affected_booking_ids, scaled by the candidate's own reported per-record
+    # effect — the same linear scaling `economic_impact.py` already uses for
+    # `historical_impact = per_record_effect x affected_records`, just over a narrower population.
+    # Only possible here, against hidden_ground_truth.json; no analog exists for a real finding.
+    attribution_details: list[dict[str, object]] = []
+    attribution_relative_errors: list[float] = []
+    for s in validated_matched:
+        economic_impact = report_by_id[s.candidate_id].get("economic_impact")
+        if economic_impact is None:
+            attribution_details.append(
+                {
+                    "candidate_id": s.candidate_id,
+                    "skipped_reason": (
+                        "validation report has no economic_impact field (pre-HANDOFF-025 "
+                        "artifact) - cannot compute a per-record-effect-scaled narrowed estimate"
+                    ),
+                }
+            )
+            continue
+        overlap_ids = _attribution_overlap_ids(
+            exposed_ids_by_candidate[s.candidate_id], s.matched_patterns, patterns_by_id
+        )
+        overlap_n = len(overlap_ids)
+        per_record = economic_impact["per_record_effect"]
+        narrowed_point, narrowed_ci = _attribution_narrowed_impact(per_record, overlap_n)
+        truth_impact = float(
+            sum(
+                patterns_by_id[pid]["true_effect"]["realized_economic_impact"]
+                for pid in s.matched_patterns
+            )
+        )
+        narrowed_relative_error = (
+            abs(narrowed_point - truth_impact) / truth_impact if truth_impact else None
+        )
+        if narrowed_relative_error is not None:
+            attribution_relative_errors.append(narrowed_relative_error)
+        attribution_details.append(
+            {
+                "candidate_id": s.candidate_id,
+                "matched_patterns": s.matched_patterns,
+                "attribution_narrowed_n": overlap_n,
+                "exposed_n_full_cohort": s.exposed_n_full_cohort,
+                "per_record_effect_eur": per_record["value"],
+                "attribution_narrowed_impact_point_eur": narrowed_point,
+                "attribution_narrowed_impact_ci_eur": list(narrowed_ci),
+                "matched_ground_truth_impact_eur": truth_impact,
+                "relative_error": narrowed_relative_error,
+            }
+        )
+    sorted_attribution_errors = sorted(attribution_relative_errors)
+    median_attribution_narrowed_error: float | None = None
+    if sorted_attribution_errors:
+        midpoint = len(sorted_attribution_errors) // 2
+        median_attribution_narrowed_error = (
+            sorted_attribution_errors[midpoint]
+            if len(sorted_attribution_errors) % 2 == 1
+            else (sorted_attribution_errors[midpoint - 1] + sorted_attribution_errors[midpoint]) / 2
+        )
+
     payload = {
         "status": "FROZEN",
         "frozen_at": datetime.now(UTC).isoformat(),
@@ -269,6 +380,14 @@ def main() -> None:
             "ranking_signal_for_top_k": (
                 "economic_exposure (as reported by TASK-015), descending — TASK-016 candidate "
                 "ranking has not run; this is a documented substitution, not TASK-016's output"
+            ),
+            "attribution_narrowed_diagnostic": (
+                "TASK-059 (HANDOFF-043 remediation part 1): "
+                "metrics.economic_impact_estimation_error_attribution_narrowed_diagnostic is a "
+                "benchmark-evaluation-only sibling of metric 6, computed only because "
+                "hidden_ground_truth.json's affected_booking_ids are available here. It does NOT "
+                "govern docs/benchmark/decision-gate.md and must not replace "
+                "metrics.economic_impact_estimation_error when reading that document's bands."
             ),
         },
         "inputs": {
@@ -315,6 +434,14 @@ def main() -> None:
                 "median_relative_error": median_impact_error,
                 "details": impact_errors,
             },
+            "economic_impact_estimation_error_attribution_narrowed_diagnostic": {
+                "note": (
+                    "DIAGNOSTIC ONLY - does not govern docs/benchmark/decision-gate.md. See "
+                    "methodology.attribution_narrowed_diagnostic and TASK-059/HANDOFF-043."
+                ),
+                "median_relative_error": median_attribution_narrowed_error,
+                "details": attribution_details,
+            },
         },
     }
 
@@ -326,7 +453,11 @@ def main() -> None:
     print(f"Any trap promoted: {any_trap_promoted}")
     print(f"Leakage violations: {leakage_violations}")
     print(f"Direction accuracy: {direction_accuracy}")
-    print(f"Median impact error: {median_impact_error}")
+    print(f"Median impact error (whole-rule, governs decision-gate): {median_impact_error}")
+    print(
+        "Median impact error (attribution-narrowed, DIAGNOSTIC ONLY, TASK-059): "
+        f"{median_attribution_narrowed_error}"
+    )
 
 
 if __name__ == "__main__":
