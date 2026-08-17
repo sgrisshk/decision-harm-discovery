@@ -1,7 +1,7 @@
 # Discovery Engine v0 methodology
 
-**Owner:** ML Discovery · **Task:** TASK-015 · **Methodology version:**
-`discovery-engine-v0.1.0`
+**Owner:** ML Discovery · **Task:** TASK-015, TASK-058 · **Methodology version:**
+`discovery-engine-v0.2.0`
 
 ## Scope and evidence boundary
 
@@ -45,15 +45,57 @@ family.
 For each split, deterministic code reports population N, exposed N, support, exposed/comparison
 means, raw difference, sign-normalized harm per booking, and raw historical exposure. Historical
 exposure is `harm_per_booking × exposed N`; it is unadjusted, unannualized value at stake over the
-observed window, not savings. Preliminary order is development historical exposure with a mild
-complexity penalty. Full multi-factor ranking (economic impact, support, stability, actionability,
-novelty) is implemented separately in `docs/analytics/candidate-ranking-v0.md` (`TASK-016`) and
-never edits the search's own output.
+observed window, not savings. Preliminary order (which rules survive the beam search and which are
+kept in the final top-K, not the same as `TASK-016`'s later multi-factor review ranking) is
+development `harm_per_booking × exposed N^population_score_exponent` with a mild complexity
+penalty — see "Precision term" below. Full multi-factor ranking (economic impact, support,
+stability, actionability, novelty) is implemented separately in
+`docs/analytics/candidate-ranking-v0.md` (`TASK-016`) and never edits the search's own output or
+which candidates it selected.
 
 Temporal direction consistency is the share of available later chronological splits whose raw
 difference remains harmful. Actionability is a coarse discovery label: conditions involving a
 directly controllable commercial field are `HIGH`; all others require business review. Neither
 label substitutes for Statistics or Product review.
+
+## Precision term (v0.2.0, `TASK-058`, `HANDOFF-043` remediation part 2)
+
+**Problem diagnosed (`HANDOFF-043`, 2026-08-17):** v0.1.0's preliminary order was pure
+`historical_exposure = harm_per_booking × exposed N`, linear in population. A rule that grows N
+mainly by absorbing bookings with a weaker (but still same-signed) effect always outscored a
+smaller, purer rule with the same or larger total exposure — even though the larger one is a worse
+estimate of any single underlying mechanism. On the first compliant blind run
+(`task-015-official-20260816-015`), matched candidates' exposed populations ran ~15–16× larger than
+the true patterns they partially recovered (`docs/benchmark/task-029-benchmark-report-v1.md` §3.6),
+diluting per-booking effect while inflating total reported exposure. Direct supporting evidence:
+`supplier` and `destination` were both eligible `DECISION_TIME` search features on that run, yet
+zero of the 15 reported candidates used any categorical condition — despite disclosed pattern names
+("BlueWing", "Tokyo") implying those are exactly the features that would have narrowed a candidate
+toward the true population. That is a search-selection artifact, not only a downstream reporting
+one: a beam-search step adding a narrowing categorical condition structurally lost to one that
+stayed broad, before any candidate was even reported, and no re-ranking of an already-selected
+top-K (`TASK-016`) can recover a rule the beam search already discarded.
+
+**Fix:** `_development_score` now raises `n_exposed` to `DiscoveryConfig.population_score_exponent`
+(default `0.5`) before multiplying by `harm_per_booking`:
+
+```text
+score = harm_per_booking × n_exposed^population_score_exponent / (1 + 0.15·(condition_count − 1))
+```
+
+At the default `0.5` this is `harm_per_booking × sqrt(n_exposed)` — a geometric-mean-style balance
+between total materiality (`harm_per_booking × n_exposed`) and per-booking purity
+(`harm_per_booking` alone), so a rule that grows mainly by dilution no longer automatically beats a
+smaller, stronger one, while a genuinely broad, undiluted true effect still wins on its own merits.
+`population_score_exponent = 1.0` reproduces v0.1.0's exact linear ranking (regression-tested in
+`tests/analytics/test_discovery_engine.py`); values must be in `(0.0, 1.0]`. This is a discovery-
+method decision, not a per-run tuning knob, and — like `TASK-016`'s ranking weights — was chosen
+from generic reasoning (a symmetric geometric mean, not fit to any specific candidate) without
+opening `hidden_ground_truth.json` or `synthetic_benchmark.py`.
+
+**Not yet done:** this fix has not yet been exercised through a new official `ADR-008` blind run;
+`TASK-058`'s own done condition requires one, scored against matched true patterns, before it can
+be considered validated rather than just implemented and unit-tested.
 
 ## Reproduction
 

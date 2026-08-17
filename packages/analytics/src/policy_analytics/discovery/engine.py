@@ -1,8 +1,10 @@
-"""Deterministic, interpretable candidate-pattern discovery (TASK-015/TASK-016).
+"""Deterministic, interpretable candidate-pattern discovery (TASK-015/TASK-016/TASK-058).
 
 The engine searches conjunctions of simple decision-time conditions. It selects rules only on the
 development split and reports later splits as stability diagnostics; it performs no inference and
-makes no causal claim.
+makes no causal claim. `TASK-058` (`HANDOFF-043` remediation part 2) added a precision term to the
+beam-survival score (`_development_score`) so candidates are not selected on raw total exposure
+alone — see its docstring and `docs/analytics/discovery-engine-v0.md`.
 """
 
 from __future__ import annotations
@@ -32,7 +34,7 @@ class OutcomeDefinition(Protocol):
     def harm_multiplier(self) -> int: ...
 
 Operator = Literal["eq", "ge", "lt"]
-DISCOVERY_METHOD_VERSION = "discovery-engine-v0.1.0"
+DISCOVERY_METHOD_VERSION = "discovery-engine-v0.2.0"
 
 
 @dataclass(frozen=True, slots=True, order=True)
@@ -55,6 +57,18 @@ class DiscoveryConfig:
     max_categorical_levels: int = 12
     max_candidate_jaccard: float = 0.85
     max_candidates_per_atom: int = 5
+    #: Exponent applied to `n_exposed` in the beam-survival score (see `_development_score`).
+    #: `1.0` reproduces `discovery-engine-v0.1.0`'s pure-total-exposure ranking exactly (linear in
+    #: population). The default `0.5` (TASK-058, `HANDOFF-043` remediation part 2) dampens the
+    #: reward for adding population that dilutes per-booking harm, so a rule that grows mainly by
+    #: broadening rather than by finding a genuinely stronger effect no longer automatically beats
+    #: a smaller, purer one. Must be in `(0.0, 1.0]`. Changing it is a discovery-method decision,
+    #: not a per-run tuning knob — see `docs/analytics/discovery-engine-v0.md`.
+    population_score_exponent: float = 0.5
+
+    def __post_init__(self) -> None:
+        if not 0.0 < self.population_score_exponent <= 1.0:
+            raise ValueError("population_score_exponent must be in (0.0, 1.0]")
 
 
 @dataclass(frozen=True, slots=True)
@@ -156,10 +170,24 @@ def _eligible(metric: SplitMetric | None, config: DiscoveryConfig) -> bool:
     )
 
 
-def _development_score(metric: SplitMetric, condition_count: int) -> float:
-    # Exposure rewards material and supported rules; the mild complexity penalty prefers concise
-    # rules when their descriptive exposure is similar. No validation/holdout outcome enters it.
-    return metric.historical_exposure / (1.0 + 0.15 * (condition_count - 1))
+def _development_score(
+    metric: SplitMetric, condition_count: int, config: DiscoveryConfig
+) -> float:
+    # historical_exposure = harm_per_booking * n_exposed rewards material, supported rules but is
+    # linear in population: a rule that grows N mainly by absorbing bookings with a weaker (but
+    # still same-signed) effect always scores higher than a smaller, purer rule with the same or
+    # larger total exposure, even though the larger one is a worse estimate of any one underlying
+    # mechanism (HANDOFF-043 §3.6: matched candidates' exposed populations ran ~15-16x larger than
+    # the true patterns they partially recovered). Raising n_exposed to `population_score_exponent`
+    # < 1 makes the score grow sub-linearly in population, so a narrower rule with a stronger
+    # per-booking effect can now out-score a broader, more diluted one at comparable total
+    # exposure — a geometric-mean-style balance between total materiality and per-booking purity,
+    # not a preference for narrowness on its own (a genuinely broad, undiluted true effect still
+    # wins). The mild complexity penalty prefers concise rules when descriptive exposure is
+    # similar. No validation/holdout outcome enters either term.
+    population_component = metric.n_exposed**config.population_score_exponent
+    magnitude = metric.harm_per_booking * population_component
+    return magnitude / (1.0 + 0.15 * (condition_count - 1))
 
 
 def _exposed_rows(frame: pl.DataFrame, rule: tuple[Condition, ...]) -> frozenset[int]:
@@ -213,7 +241,7 @@ def discover_candidates(
                         parent and parent.n_exposed == metric.n_exposed for parent in parent_metrics
                     ):
                         continue
-                scored[rule] = (_development_score(metric, depth), metric)
+                scored[rule] = (_development_score(metric, depth, config), metric)
 
         beam = [
             rule
@@ -287,7 +315,7 @@ def discover_candidates(
             )
         )
     return {
-        "methodology_version": "discovery-engine-v0.1.0",
+        "methodology_version": DISCOVERY_METHOD_VERSION,
         "search": {**asdict(config), "evaluated_hypotheses": evaluated},
         "outcome": {
             "outcome_id": outcome.outcome_id,
