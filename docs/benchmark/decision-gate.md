@@ -136,3 +136,23 @@ FOUNDER_STRATEGY, this document's owner) clarify that the weakest-band rule appl
 1, 2, 3 (when not disqualified), 5, and 6 — five bands — with metric 4 remaining purely a binary
 disqualifier gate, never itself contributing a "band." This did not change this run's verdict:
 FAILED is the floor under every reading, since metric 6 alone is FAILED.
+
+---
+
+**2026-08-17, Statistics/Architect.** Remediation rerun under the FAILED action's authorized
+single-remediation path (`HANDOFF-043`, both parts): `task-058-remediation-20260817-001`
+(`ADR-023`'s `discovery-engine-v0.2.0`, `population_score_exponent=0.5`), validated under contract
+v1.1.0 (`artifacts/validation/task-019-official-20260817-task-058-remediation-001.json`), scored by
+`TASK-028` (`artifacts/evaluation/task-028-task-058-remediation-001.json`). Full record:
+`ADR-025`; resolves `HANDOFF-048`.
+
+| Metric | Pre-registered band met | Actual result | Notes |
+|---|---|---|---|
+| Top-K precision | STRONG (≥60%) | 90% (9/10) | Unchanged from the original run |
+| Economic-weighted recall | PROMISING (25–49%) | 45.2% | Unchanged — still only P01, P06 of 7 scoreable patterns |
+| Confounder trap rejection | PROMISING, not STRONG | 0/5 promoted | Now a materially different case than the original run's "absence": `CAND-014` (`destination==Tokyo AND payment_method==bank_transfer`, a genuine `P06` recovery, `best_pattern_recall=1.0`) literally contains `T04`'s apparent-feature condition (`payment_method==bank_transfer`) as a subset and is therefore flagged `is_trap=True` by the evaluator's exact-tuple-membership check, alongside `matched_patterns=['P06']` — the evaluator cannot currently distinguish "trap condition alone" from "trap condition plus a genuine narrowing condition." `T04` did not promote (`policy_readiness=experiment_only`) either way, so the hard disqualifier and the graded band are unaffected, but the true positive/negative label for this one candidate is methodologically ambiguous, not a clean active rejection. Disclosed rather than smoothed over one way or the other. |
+| Leakage violations | passes | 0 | Unchanged |
+| Effect direction accuracy | STRONG (100%) | 100% (7/7) | More matched candidates than before (7 vs 3) because tighter candidates recall-match a single pattern more often; all still correctly signed |
+| Economic impact estimation error | **PROMISING (25–50%)** | median 37.5% (6.9–381% range) | Down from 204%; diagnostic attribution-narrowed sibling (`TASK-059`) is 76.2% on this run — no longer the tighter of the two, consistent with `TASK-058` shrinking the gap between whole-rule and narrowed exposure directly, rather than the diagnostic doing the work |
+| **Overall verdict** | — | **PROMISING** | Weakest graded band (metrics 2, 3, 6); no hard disqualifier fired |
+| **Action taken** | — | See `ADR-025` | `TASK-058` done condition met (materially narrower exposed populations); real-customer-data question (`TASK-038`) not resolved by this entry alone — flagged to Founder in `ADR-025` given this document's own PROMISING action-row wording |

@@ -135,6 +135,30 @@ def test_mostly_clean_column_above_threshold_flags_the_minority_as_suspicious() 
     assert profile.suspicious_values == ("N/A",)
 
 
+def test_a_suspicious_value_never_leaks_into_min_or_max() -> None:
+    """Regression test for a real bug: `_min_max` used to filter with the broader `_matches_float`
+    (which also accepts plain integers) instead of the winning type's own predicate, so a
+    suspicious non-integer value could still end up reported as an "integer" column's min/max —
+    silently laundering a flagged outlier into what looks like a normal range boundary. Found by
+    manual repro, not by the original test suite (whose suspicious-value fixtures never happened
+    to be the numeric extreme)."""
+    values = [str(i) for i in range(1, 100)] + ["999999.5"]
+    profile = profile_column("mostly_clean", values)
+    assert profile.inferred_type == "integer"
+    assert profile.suspicious_values == ("999999.5",)
+    assert profile.max_value == "99"
+    assert profile.min_value == "1"
+
+
+def test_suspicious_date_value_never_leaks_into_min_or_max() -> None:
+    values = ["2025-01-01", "2025-06-15", "2025-12-31"] * 40 + ["not-a-date"]
+    profile = profile_column("some_date", values)
+    assert profile.inferred_type == "date"
+    assert profile.suspicious_values == ("not-a-date",)
+    assert profile.min_value == "2025-01-01"
+    assert profile.max_value == "2025-12-31"
+
+
 def test_suspicious_values_are_capped() -> None:
     # 495 clean + 10 bad = 505 total, 495/505 ~= 98.0% -> clears the threshold as "integer", with
     # more suspicious values than MAX_SUSPICIOUS_VALUES to actually exercise the cap.

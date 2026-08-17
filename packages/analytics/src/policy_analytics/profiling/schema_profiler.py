@@ -115,17 +115,23 @@ def _predicate_for(inferred_type: str) -> Callable[[str], bool] | None:
     }.get(inferred_type)
 
 
-def _min_max(values: list[str], inferred_type: str) -> tuple[str | None, str | None]:
+def _min_max(clean_values: list[str], inferred_type: str) -> tuple[str | None, str | None]:
+    """`clean_values` must already be filtered to only the values matching `inferred_type`'s own
+    predicate (see `profile_column`) — never re-filter more broadly here. A column typed
+    "integer" must never report a min/max computed from a value that was itself excluded from
+    that type and flagged as suspicious; a suspicious outlier silently laundered into the
+    reported range is worse than not reporting a range at all (a real bug this docstring exists
+    to prevent recurring: an earlier version filtered numeric ranges with the broader
+    `_matches_float`, which also accepts integers, so a suspicious non-integer float value could
+    still end up as an "integer" column's reported min/max).
+    """
+    if not clean_values:
+        return None, None
     if inferred_type in ("integer", "float"):
-        numeric = [float(v) for v in values if _matches_float(v)]
-        if not numeric:
-            return None, None
+        numeric = [float(v) for v in clean_values]
         return _format_number(min(numeric)), _format_number(max(numeric))
     if inferred_type == "date":
-        dated = [v for v in values if _matches_date(v)]
-        if not dated:
-            return None, None
-        return min(dated), max(dated)
+        return min(clean_values), max(clean_values)
     return None, None
 
 
@@ -196,15 +202,20 @@ def profile_column(name: str, values: list[str | None]) -> ColumnProfile:
 
     inferred_type = _infer_structural_type(non_null)
     predicate = _predicate_for(inferred_type)
-    suspicious = (
-        [v for v in non_null if not predicate(v)] if predicate is not None else []
-    )
+    if predicate is not None:
+        clean = [v for v in non_null if predicate(v)]
+        suspicious = [v for v in non_null if not predicate(v)]
+    else:
+        clean = non_null
+        suspicious = []
 
     distinct_values = set(non_null)
     distinct_count = len(distinct_values)
     cardinality_ratio = distinct_count / len(non_null) if non_null else 0.0
 
-    min_value, max_value = _min_max(non_null, inferred_type)
+    # Only ever computed from `clean` — see _min_max's own docstring for why a suspicious value
+    # must never leak into the reported range.
+    min_value, max_value = _min_max(clean, inferred_type)
     semantic_type = _guess_semantic_type(
         name, inferred_type, distinct_count, len(non_null), distinct_values
     )

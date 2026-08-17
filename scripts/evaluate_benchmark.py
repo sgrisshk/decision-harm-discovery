@@ -36,6 +36,7 @@ it exists to show how much of the whole-rule error is attributable to population
 
 from __future__ import annotations
 
+import argparse
 import json
 import sys
 from dataclasses import asdict, dataclass
@@ -54,8 +55,10 @@ from policy_analytics.validation.apply import (  # noqa: E402
 
 DATASET_ROOT = REPOSITORY / "synthetic_data/analytical/travel-bookings-analytical-v1.0.0"
 GROUND_TRUTH_PATH = REPOSITORY / "synthetic_data/evaluation/hidden_ground_truth.json"
-VALIDATION_REPORT_PATH = REPOSITORY / "artifacts/validation/task-019-official-20260816-015.json"
-OUTPUT_PATH = REPOSITORY / "artifacts/evaluation/task-028-benchmark-evaluation.json"
+DEFAULT_VALIDATION_REPORT_PATH = (
+    REPOSITORY / "artifacts/validation/task-019-official-20260816-015.json"
+)
+DEFAULT_OUTPUT_PATH = REPOSITORY / "artifacts/evaluation/task-028-benchmark-evaluation.json"
 
 MATCH_RECALL_THRESHOLD = 0.5
 TOP_K = 10
@@ -146,9 +149,46 @@ def _attribution_narrowed_impact(
     return point, ci
 
 
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description=(
+            "CLI: score a frozen TASK-019 validation report against hidden ground truth "
+            "(TASK-028)."
+        )
+    )
+    parser.add_argument(
+        "--validation-report",
+        type=Path,
+        default=DEFAULT_VALIDATION_REPORT_PATH,
+        help="frozen TASK-019 output to score (default: the historical task-015 official run)",
+    )
+    parser.add_argument(
+        "--output",
+        type=Path,
+        default=DEFAULT_OUTPUT_PATH,
+        help="where to write the frozen TASK-028 evaluation report",
+    )
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="allow overwriting an existing output file",
+    )
+    return parser.parse_args()
+
+
 def main() -> None:
+    args = parse_args()
+    validation_report_path: Path = args.validation_report.resolve()
+    output_path: Path = args.output.resolve()
+    if output_path.exists() and not args.force:
+        raise SystemExit(
+            f"{output_path} already exists and is a frozen result. Refusing to overwrite it. "
+            "Point --output at a new file, or pass --force with a clear reason recorded in "
+            "TASKS.md/HANDOFFS.md — do not use --force to silently regrade the same result."
+        )
+
     ground_truth = json.loads(GROUND_TRUTH_PATH.read_text(encoding="utf-8"))
-    validation = json.loads(VALIDATION_REPORT_PATH.read_text(encoding="utf-8"))
+    validation = json.loads(validation_report_path.read_text(encoding="utf-8"))
     candidates_payload = json.loads(
         Path(validation["candidates_source"]).read_text(encoding="utf-8")
     )
@@ -391,7 +431,7 @@ def main() -> None:
             ),
         },
         "inputs": {
-            "validation_report": str(VALIDATION_REPORT_PATH.relative_to(REPOSITORY)),
+            "validation_report": str(validation_report_path.relative_to(REPOSITORY)),
             "candidates_source": validation["candidates_source"],
             "ground_truth_sha256_expected": (
                 "5c41aab8ad6765332b708fd8b91567b63839b84add2dd8aa206d87c159cab506"
@@ -445,9 +485,9 @@ def main() -> None:
         },
     }
 
-    OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
-    OUTPUT_PATH.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    print(f"Wrote {OUTPUT_PATH.relative_to(REPOSITORY)}")
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    print(f"Wrote {output_path.relative_to(REPOSITORY)}")
     print(f"Top-{TOP_K} precision: {top_k_precision:.0%} ({top_k_true_pattern_count}/{len(top_k)})")
     print(f"Economic-weighted recall: {economic_weighted_recall:.1%}")
     print(f"Any trap promoted: {any_trap_promoted}")
