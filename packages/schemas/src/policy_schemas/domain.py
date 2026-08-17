@@ -9,6 +9,11 @@ class FeatureTiming(StrEnum):
     POST_DECISION = "post_decision"
     OUTCOME = "outcome"
     METADATA = "metadata"
+    #: A column this repository's classifiers cannot confidently place (TASK-008). Excluded from
+    #: explanatory features exactly like POST_DECISION/OUTCOME
+    #: (`policy_analytics.outcomes.contract.EXCLUDED_EXPLANATORY_CLASSIFICATIONS`) — never a
+    #: silent stand-in for DECISION_TIME.
+    UNKNOWN = "unknown"
 
 
 class EvidenceLevel(StrEnum):
@@ -37,6 +42,15 @@ class FindingLifecycleStatus(StrEnum):
     ACTIVE = "ACTIVE"
     SUPERSEDED = "SUPERSEDED"
     WITHDRAWN = "WITHDRAWN"
+
+
+class DataQualityRating(StrEnum):
+    """The `TASK-009` Data Quality Report's single overall verdict — exactly one value, never
+    inferred loosely by a reader from the report's other fields."""
+
+    READY = "ready"
+    READY_WITH_LIMITATIONS = "ready_with_limitations"
+    NOT_READY = "not_ready"
 
 
 class DatasetColumn(BaseModel):

@@ -9,7 +9,7 @@ from __future__ import annotations
 import logging
 
 import polars as pl
-from policy_analytics.profiling.schema_profiler import profile_columns
+from policy_analytics.profiling.schema_profiler import ColumnProfile, profile_columns
 from sqlalchemy.orm import Session
 
 from app.core.config import Settings
@@ -23,8 +23,13 @@ class ProfilingError(ValueError):
     """Raised for a dataset this module cannot profile (e.g. not a single-CSV upload)."""
 
 
-def profile_dataset(session: Session, dataset: DatasetModel, settings: Settings) -> None:
+def profile_dataset(
+    session: Session, dataset: DatasetModel, settings: Settings
+) -> tuple[ColumnProfile, ...]:
     """Profile `dataset`'s stored CSV and persist one `DatasetColumnProfileModel` row per column.
+
+    Returns the computed profiles so callers can chain further pipeline stages (`TASK-008` feature-
+    timing classification) without a redundant read-back or a second pass over the CSV.
 
     Raises `ProfilingError` for anything other than a `source_type="csv_upload"` dataset — e.g.
     the multi-file analytical-dataset rows `scripts/promote_findings.py` creates directly, which
@@ -62,3 +67,4 @@ def profile_dataset(session: Session, dataset: DatasetModel, settings: Settings)
             )
         )
     session.flush()
+    return profiles

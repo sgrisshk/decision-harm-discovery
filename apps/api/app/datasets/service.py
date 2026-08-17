@@ -7,6 +7,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.config import Settings
+from app.datasets.timing import classify_dataset_timing
 from app.db.models import DatasetModel
 from app.ingestion.storage import UploadTooLargeError, read_bounded, store_immutable_csv
 from app.ingestion.validation import (
@@ -86,11 +87,14 @@ def create_dataset_from_upload(
         ) from exc
     session.refresh(dataset)
 
-    # TASK-007: profile the just-stored CSV. The raw bytes are already immutably persisted at this
-    # point (TASK-006's own guarantee), so a profiling failure must not undo or hide the upload —
-    # log it and leave the dataset unprofiled rather than fail (or silently half-fail) the request.
+    # TASK-007/TASK-008: profile the just-stored CSV, then classify each column's feature timing
+    # from those profiles. The raw bytes are already immutably persisted at this point (TASK-006's
+    # own guarantee), so a profiling/classification failure must not undo or hide the upload — log
+    # it and leave the dataset unprofiled/unclassified rather than fail (or silently half-fail) the
+    # request.
     try:
-        profile_dataset(session, dataset, settings)
+        profiles = profile_dataset(session, dataset, settings)
+        classify_dataset_timing(dataset, profiles)
         session.commit()
     except Exception:
         session.rollback()

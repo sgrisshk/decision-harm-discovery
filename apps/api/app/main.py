@@ -10,7 +10,7 @@ from app.analysis_runs.routes import router as analysis_runs_router
 from app.api.schemas import HealthResponse
 from app.core.config import get_settings
 from app.core.logging import configure_logging
-from app.core.middleware import RequestLoggingMiddleware
+from app.core.middleware import RequestLoggingMiddleware, SecurityHeadersMiddleware
 from app.datasets.routes import router as datasets_router
 from app.db.session import get_db
 from app.findings.routes import router as findings_router
@@ -27,6 +27,7 @@ app = FastAPI(
     redoc_url=None,
 )
 app.add_middleware(RequestLoggingMiddleware)
+app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,

@@ -64,7 +64,11 @@ def test_upload_creates_version_one_with_manifest_fields(
     assert body["content_type"] == "text/csv"
     assert body["source_type"] == "csv_upload"
     assert body["status"] == "pending"
-    assert body["columns"] == []
+    # TASK-008 now classifies feature timing for every column during upload; exact classification
+    # rules are tested in tests/analytics/test_feature_timing.py and
+    # tests/api/test_dataset_timing.py — this test only confirms the upload response carries a
+    # real entry per column, not TASK-006's own concern.
+    assert {c["name"] for c in body["columns"]} == {"booking_id", "discount"}
     assert "storage_path" not in body
 
     stored_files = list(small_storage.rglob("*.csv"))
