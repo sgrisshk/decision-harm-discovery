@@ -187,6 +187,9 @@ def main(argv: list[str] | None = None) -> None:
                 "candidate_id": result.candidate_id,
                 "verdict": result.verdict,
                 "validation_report": result.report.to_dict(),
+                "economic_impact": (
+                    result.economic_impact.to_dict() if result.economic_impact else None
+                ),
                 "diagnostics": result.diagnostics,
             }
             for result in results

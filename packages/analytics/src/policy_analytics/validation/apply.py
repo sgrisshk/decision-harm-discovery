@@ -49,6 +49,10 @@ from policy_analytics.validation.contract import (
     IdentificationDesign,
     PolicyReadiness,
 )
+from policy_analytics.validation.economic_impact import (
+    EconomicImpactResult,
+    build_economic_impact_result,
+)
 from policy_analytics.validation.grading import (
     assign_policy_readiness,
     benjamini_hochberg_adjusted,
@@ -347,6 +351,7 @@ class CandidateInterim:
     p_value: float
     gates_except_multiplicity: dict[GateId, GateResult]
     diagnostics: dict[str, Any]
+    economic_impact: EconomicImpactResult
 
 
 def _validate_one(
@@ -597,18 +602,21 @@ def _validate_one(
     )
 
     combined_mask = full_mask
+    # TASK-023 / economic_impact.py: the combined (development + validation + future_holdout)
+    # cohort, not the development-only split evidence grading uses above. `combined_stats` is the
+    # real, unresampled point estimate; the bootstrap below supplies its interval only.
+    combined_stats = split_stats(frame, combined_mask, outcome, "combined")
     combined_clusters = cluster_cells(frame, combined_mask, outcome.column)
     combined_reps = cluster_bootstrap_replicates(combined_clusters, DIAGNOSTIC_BOOTSTRAP_REPS, rng)
-    exposed_total = frame.filter(combined_mask).height  # pyright: ignore[reportUnknownMemberType]
+    exposed_total = combined_stats.n_exposed if combined_stats else 0
+    per_record_value = combined_stats.harm_per_booking if combined_stats else 0.0
+    per_record_reps = [d * outcome.harm_multiplier for d in combined_reps]
+    per_low, per_high = percentile_ci(per_record_reps, DEFAULT_THRESHOLDS.confidence_level)
     exposure_reps = [d * outcome.harm_multiplier * exposed_total for d in combined_reps]
     exp_low, exp_high = percentile_ci(exposure_reps, DEFAULT_THRESHOLDS.confidence_level)
+    historical_value = per_record_value * exposed_total
     total_outcome_abs = frame[outcome.column].abs().sum()
-    mean_combined_harm = (
-        sum(combined_reps) / len(combined_reps) * outcome.harm_multiplier if combined_reps else 0.0
-    )
-    outcome_share = (
-        abs(exposed_total * mean_combined_harm) / total_outcome_abs if total_outcome_abs else 0.0
-    )
+    outcome_share = abs(historical_value) / total_outcome_abs if total_outcome_abs else 0.0
     diagnostics["historical_exposure_ci_eur"] = [min(exp_low, exp_high), max(exp_low, exp_high)]
     diagnostics["historical_exposure_outcome_share"] = outcome_share
     material = min(exp_low, exp_high) > 0 and (
@@ -622,6 +630,18 @@ def _validate_one(
         f"{max(exp_low, exp_high):.0f}] "
         f"EUR, outcome share {outcome_share:.3%}.",
     )
+    economic_impact = build_economic_impact_result(
+        outcome=outcome,
+        affected_records=exposed_total,
+        per_record_value=per_record_value,
+        per_record_ci_low=per_low,
+        per_record_ci_high=per_high,
+        confidence_level=DEFAULT_THRESHOLDS.confidence_level,
+        historical_value=historical_value,
+        historical_ci_low=exp_low,
+        historical_ci_high=exp_high,
+        materiality_pass=material,
+    )
 
     return CandidateInterim(
         candidate_id=candidate_id,
@@ -632,6 +652,7 @@ def _validate_one(
         dev_effect=dev_effect,
         adjusted_effect=adjusted_effect,
         p_value=p_value,
+        economic_impact=economic_impact,
         gates_except_multiplicity=gates,
         diagnostics=diagnostics,
     )
@@ -701,6 +722,7 @@ class CandidateValidation:
     verdict: str
     split_results: dict[str, SplitStats]
     diagnostics: dict[str, Any]
+    economic_impact: EconomicImpactResult | None = None
 
 
 def verdict_for(report: ValidationReport) -> str:
@@ -906,6 +928,7 @@ def run_validation(
                 verdict,
                 interim.split_results,
                 interim.diagnostics,
+                economic_impact=interim.economic_impact,
             )
         )
 

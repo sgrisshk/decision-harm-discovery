@@ -46,6 +46,10 @@ export type Dataset = {
   source_filename: string;
   version: number;
   status: ResourceStatus;
+  checksum_sha256: string;
+  size_bytes: number;
+  content_type: string;
+  source_type: string;
   columns: DatasetColumn[];
   created_at: string;
   updated_at: string;
