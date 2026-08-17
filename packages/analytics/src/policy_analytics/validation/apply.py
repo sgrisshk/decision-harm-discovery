@@ -191,8 +191,19 @@ def cluster_cells(
 def cluster_bootstrap_replicates(
     cells: dict[str, ClusterCell], reps: int, rng: random.Random
 ) -> list[float]:
-    """Bootstrap the exposed-minus-comparison mean while resampling clusters."""
-    population = list(cells.values())
+    """Bootstrap the exposed-minus-comparison mean while resampling clusters.
+
+    `population` is built in sorted-key order, never raw dict/insertion order. `cells` is
+    typically built by `cluster_cells()` from a Polars `group_by(...).agg(...)`, whose row order
+    is not guaranteed run-to-run without `maintain_order=True` (which it does not set, for
+    performance). Resampling by *index* (`rng.choices(population, k=len(population))`) with a
+    fixed-seed `rng` is only reproducible if `population`'s element order is itself fixed — an
+    unsorted dict-derived list silently broke that across otherwise-identical runs (`HANDOFF-047`:
+    point estimates stayed byte-identical, since they sum over the whole population regardless of
+    order, but bootstrap CIs and BH-adjusted p-values drifted run-to-run). Sorting here, at the one
+    place resampling actually happens, fixes it regardless of how any caller's dict was built.
+    """
+    population = [cells[key] for key in sorted(cells)]
     replicates: list[float] = []
     for _ in range(reps):
         sample = rng.choices(population, k=len(population))

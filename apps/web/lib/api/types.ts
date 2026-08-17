@@ -146,6 +146,25 @@ export type Finding = {
   updated_at: string;
 };
 
+// apps/api/app/api/schemas.py: AnalysisRunRead
+export type AnalysisRun = {
+  id: string;
+  dataset_id: string;
+  dataset_version: number;
+  analytical_dataset_version: string;
+  analytical_dataset_identity_sha256: string;
+  code_version: string;
+  discovery_methodology_version: string;
+  outcome_definition_version: string;
+  validation_contract_version: string;
+  configuration: Record<string, unknown>;
+  random_seed: number;
+  evaluated_hypotheses: number;
+  status: ResourceStatus;
+  created_at: string;
+  updated_at: string;
+};
+
 // apps/api/app/api/schemas.py: HealthResponse
 export type HealthStatus = {
   status: string;
