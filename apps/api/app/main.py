@@ -15,6 +15,7 @@ from app.core.middleware import RequestLoggingMiddleware, SecurityHeadersMiddlew
 from app.datasets.routes import router as datasets_router
 from app.db.session import get_db
 from app.findings.routes import router as findings_router
+from app.policies.routes import router as policies_router
 
 settings = get_settings()
 configure_logging(settings.log_level)
@@ -62,3 +63,4 @@ app.include_router(auth_router, prefix="/api/v1")
 app.include_router(datasets_router, prefix="/api/v1")
 app.include_router(analysis_runs_router, prefix="/api/v1")
 app.include_router(findings_router, prefix="/api/v1")
+app.include_router(policies_router, prefix="/api/v1")

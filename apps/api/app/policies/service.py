@@ -1,16 +1,20 @@
-"""Persistence services for Policy Candidates (`TASK-030`).
+"""Persistence services for Policy Candidates (`TASK-030`/`TASK-034`).
 
-Internal only — not exposed as public routes, mirrors `app.findings.persistence`'s own boundary.
-The only intended future caller is `TASK-031`'s generator, which does not exist yet: nothing in
-this codebase currently calls `create_draft_policy_candidate` or `cascade_finding_lifecycle_change`
-in production. Both are built and tested directly so `HANDOFF-049`'s open persistence-shape
-question has a real, verified answer, not a paper one.
+`create_draft_policy_candidate`/`transition_policy_candidate`/`cascade_finding_lifecycle_change`
+were written internal-only (mirroring `app.findings.persistence`), with `TASK-031`'s generator as
+their only intended caller. `TASK-034` is the first consumer that needs reads over HTTP —
+`list_policy_candidates`/`get_policy_candidate` below follow `app.findings.service`'s own
+route-facing style (raising `HTTPException` directly) rather than the framework-agnostic
+`PolicyCandidateError` the write functions above use — `app.policies.routes` is the boundary that
+translates the latter into an HTTP response, exactly like `app.findings.routes` does for its own
+persistence-layer errors.
 """
 
 from __future__ import annotations
 
 from uuid import UUID, uuid4
 
+from fastapi import HTTPException, status
 from policy_analytics.validation.contract import PolicyReadiness
 from policy_schemas.domain import EvidenceLevel, FindingLifecycleStatus, PolicyCandidateStatus
 from sqlalchemy import select
@@ -195,3 +199,21 @@ def cascade_finding_lifecycle_change(
 
     session.flush()
     return affected
+
+
+def list_policy_candidates(
+    session: Session, finding_id: UUID | None = None
+) -> list[PolicyCandidateModel]:
+    statement = select(PolicyCandidateModel).order_by(PolicyCandidateModel.created_at.desc())
+    if finding_id is not None:
+        statement = statement.where(PolicyCandidateModel.finding_id == finding_id)
+    return list(session.scalars(statement))
+
+
+def get_policy_candidate(session: Session, candidate_id: UUID) -> PolicyCandidateModel:
+    candidate = session.get(PolicyCandidateModel, candidate_id)
+    if candidate is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Policy candidate not found"
+        )
+    return candidate

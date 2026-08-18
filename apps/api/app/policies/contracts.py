@@ -10,7 +10,7 @@ from __future__ import annotations
 from datetime import date, datetime
 
 from policy_analytics.validation.contract import PolicyReadiness
-from policy_schemas.domain import EvidenceLevel, PolicyCandidateMode
+from policy_schemas.domain import EvidenceLevel, PolicyCandidateMode, PolicyCandidateStatus
 from pydantic import Field, field_validator, model_validator
 
 from app.findings.contracts import (
@@ -90,3 +90,23 @@ class PolicyCandidateCreate(ContractModel):
                 "enforcement proposal"
             )
         return value
+
+
+class PolicyCandidateTransitionRequest(ContractModel):
+    """`TASK-034` API input for `POST /policy-candidates/{id}/transition`. `action_detail` is only
+    meaningful (and required) alongside `new_status=UNDER_REVIEW` — the route sets it on the
+    candidate before calling `app.policies.service.transition_policy_candidate`, so the UI needs
+    one call, not two, to submit a candidate for review (§8)."""
+
+    new_status: PolicyCandidateStatus
+    reason: str | None = Field(default=None, min_length=1)
+    action_detail: str | None = Field(default=None, min_length=1)
+
+
+class PolicyBacktestTriggerRequest(ContractModel):
+    """`TASK-034` API input for `POST /policy-candidates/{id}/backtest`. `cost_per_review_eur` is
+    the caller-supplied constant `docs/analytics/policy-backtest-contract.md` §5 requires — never
+    invented by the engine; leaving it unset is a fully valid, expected choice (`docs/product/
+    policy-backtest-screen.md` §2)."""
+
+    cost_per_review_eur: float | None = Field(default=None, gt=0)

@@ -14,6 +14,8 @@ from policy_schemas.domain import (
     FeedbackNovelty,
     FeedbackTag,
     FindingLifecycleStatus,
+    PolicyCandidateMode,
+    PolicyCandidateStatus,
     ResourceStatus,
 )
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
@@ -251,4 +253,71 @@ class FindingFeedbackRead(ApiModel):
     customer_owner: str | None
     internal_follow_up_owner: str | None
     follow_up_date: date | None
+    created_at: datetime
+
+
+class PolicyCandidateEvidenceRead(ApiModel):
+    """`TASK-030` §6 — frozen copy of the source Finding's evidence state at generation time."""
+
+    evidence_level: EvidenceLevel
+    policy_readiness: PolicyReadiness
+    validation_contract_version: str
+    finding_generated_at: datetime
+
+
+class PolicyCandidateBacktestResultRead(ApiModel):
+    """`TASK-034`. Mirrors `BacktestResult.to_dict()`'s exact shape
+    (`docs/analytics/policy-backtest-contract.md`) — every field name here is copied from the
+    engine, not renamed."""
+
+    backtest_contract_version: str
+    outcome_name: str
+    outcome_unit: str
+    window: str
+    affected_decisions: int
+    avoided_bad_outcomes: int
+    suppressed_good_outcomes: int
+    bad_outcome_definition: str
+    benefit: EffectEstimateRead
+    benefit_is_adjusted: bool
+    operational_cost_per_review_eur: float | None
+    operational_cost: EffectEstimateRead | None
+    net_effect: EffectEstimateRead
+    net_effect_is_cost_exclusive: bool
+    no_measurable_net_effect: bool
+    methodology_disclosure: str
+
+
+class PolicyCandidateRead(ApiModel):
+    """`TASK-030`/`TASK-034`. `trigger_conditions` is always an immutable copy of the source
+    Finding's own `pattern.conditions` (§2) — never independently editable."""
+
+    id: UUID
+    finding_id: UUID
+    title: str
+    rationale: str
+    trigger_conditions: list[dict[str, Any]]
+    effective_population: str | None
+    scope_narrowing_features: list[str]
+    mode: PolicyCandidateMode
+    effective_from: date
+    expected_benefit_snapshot: FindingImpactRead
+    action_detail: str | None
+    evidence_snapshot: PolicyCandidateEvidenceRead
+    backtest_result: PolicyCandidateBacktestResultRead | None
+    status: PolicyCandidateStatus
+    rejection_reason: str | None
+    retirement_reason: str | None
+    blocked_by_source_lifecycle: bool
+    created_at: datetime
+    updated_at: datetime
+
+
+class PolicyBacktestRunRead(ApiModel):
+    id: UUID
+    policy_candidate_id: UUID
+    cost_per_review_eur: float | None
+    status: ResourceStatus
+    backtest_result: PolicyCandidateBacktestResultRead | None
+    failure_reason: str | None
     created_at: datetime

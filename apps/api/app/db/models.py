@@ -365,3 +365,30 @@ class FindingFeedbackModel(TimestampMixin, Base):
     customer_owner: Mapped[str | None] = mapped_column(String(200), nullable=True)
     internal_follow_up_owner: Mapped[str | None] = mapped_column(String(200), nullable=True)
     follow_up_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+
+
+class PolicyBacktestRunModel(TimestampMixin, Base):
+    """`TASK-034`. A single triggered backtest run against one Policy Candidate's trigger
+    condition — append-only, matching this codebase's convention (`CandidatePatternModel`,
+    `FindingFeedbackModel`): re-running never overwrites a prior run, it inserts a new row.
+    Computed synchronously inside the request that creates it (no async/worker infrastructure
+    exists anywhere in this codebase) — `status` is set to its terminal value
+    (`completed`/`failed`) before the row is ever committed, never left `pending`/`running`.
+    """
+
+    __tablename__ = "policy_backtest_runs"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    policy_candidate_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("policy_candidates.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    #: The caller-supplied input, echoed back — never invented by the engine (`ADR-004`,
+    #: `docs/analytics/policy-backtest-contract.md` §5).
+    cost_per_review_eur: Mapped[float | None] = mapped_column(Float, nullable=True)
+    status: Mapped[str] = mapped_column(String(16), nullable=False)
+    #: Validated against `PolicyCandidateBacktestSnapshot` (mirrors `BacktestResult.to_dict()`)
+    #: before being stored — set only when `status == "completed"`.
+    backtest_result: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    #: Set only when `status == "failed"` — the engine's own disclosed reason (e.g. no
+    #: `future_holdout` records under this trigger), never a raw stack trace.
+    failure_reason: Mapped[str | None] = mapped_column(Text, nullable=True)

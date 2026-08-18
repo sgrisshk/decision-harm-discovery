@@ -1,6 +1,9 @@
+"use client";
+
 import Link from "next/link";
-import type { ReactNode } from "react";
-import { ErrorState } from "@/components/states";
+import { useSearchParams } from "next/navigation";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { ErrorState, LoadingState } from "@/components/states";
 import { EvidencePill } from "@/components/findings/EvidencePill";
 import { ExposureFigure } from "@/components/findings/ExposureFigure";
 import { FeedbackForm } from "@/components/findings/FeedbackForm";
@@ -11,8 +14,6 @@ import { toErrorDisplay } from "@/lib/api/display";
 import { getFinding, listFindingFeedback } from "@/lib/api/findings";
 import { EVIDENCE_LABELS } from "@/lib/copy/findingLanguage";
 import type { EvidenceLevel, Finding, FindingFeedback } from "@/lib/api/types";
-
-export const dynamic = "force-dynamic";
 
 const EVIDENCE_LADDER: EvidenceLevel[] = [
   "descriptive_observation",
@@ -38,42 +39,54 @@ const NEXT_STEP_ACTIONS: Record<Finding["policy_readiness"], string[]> = {
   ],
 };
 
-export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
-  return { title: `Finding ${id.slice(0, 8)} — Signal Foundry` };
-}
+export function FindingDetailView() {
+  const id = useSearchParams().get("id") ?? "";
 
-export default async function FindingDetailPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
-  const { id } = await params;
+  const [finding, setFinding] = useState<Finding | null>(null);
+  const [feedback, setFeedback] = useState<FindingFeedback[]>([]);
+  const [error, setError] = useState<unknown>(null);
 
-  let finding: Finding;
-  try {
-    finding = await getFinding(id);
-  } catch (error) {
-    // A 404 (never promoted / wrong ID) and a genuine network/API failure both
-    // go through the same ApiError path — docs/product/finding-detail-screen.md
-    // deliberately has no special-cased "not found" page.
-    const { message, requestId } = toErrorDisplay(error);
+  const load = useCallback(() => {
+    setError(null);
+    setFinding(null);
+    setFeedback([]);
+    getFinding(id)
+      .then((loaded) => {
+        setFinding(loaded);
+        document.title = `Finding ${loaded.id.slice(0, 8)} — Signal Foundry`;
+        // Feedback history is supplementary, like provenance below — a failure here must not
+        // take down the rest of an otherwise-loaded page.
+        listFindingFeedback(id)
+          .then(setFeedback)
+          .catch(() => setFeedback([]));
+      })
+      .catch((err: unknown) => setError(err));
+  }, [id]);
+
+  useEffect(load, [load]);
+
+  if (!id) {
     return (
       <ErrorState
         title="Could not load this finding"
-        message={message}
-        requestId={requestId}
-        retryHref={`/findings/${id}`}
+        message="No finding ID was given."
+        retryHref="/findings"
       />
     );
   }
 
-  let feedback: FindingFeedback[] = [];
-  try {
-    feedback = await listFindingFeedback(id);
-  } catch {
-    // Feedback history is supplementary, like provenance below — a failure here must not take
-    // down the rest of an otherwise-loaded page.
+  if (error) {
+    // A 404 (never promoted / wrong ID) and a genuine network/API failure both go through the
+    // same ApiError path — docs/product/finding-detail-screen.md deliberately has no
+    // special-cased "not found" page.
+    const { message, requestId } = toErrorDisplay(error);
+    return (
+      <ErrorState title="Could not load this finding" message={message} requestId={requestId} onRetry={load} />
+    );
+  }
+
+  if (finding === null) {
+    return <LoadingState label="Loading finding…" />;
   }
 
   return (
@@ -294,16 +307,31 @@ function EvidenceLadder({ current }: { current: EvidenceLevel }) {
   );
 }
 
-async function ProvenanceStrip({ finding }: { finding: Finding }) {
-  let runSummary: string;
-  try {
-    const run = await getAnalysisRun(finding.analysis_run_id);
-    runSummary = `dataset v${run.dataset_version} · code ${run.code_version} · validation contract ${run.validation_contract_version}`;
-  } catch {
-    // Provenance is a supplementary trust signal, not the primary content —
-    // a failure here must not take down the rest of an otherwise-loaded page.
-    runSummary = "provenance unavailable";
-  }
+function ProvenanceStrip({ finding }: { finding: Finding }) {
+  const [runSummary, setRunSummary] = useState("loading provenance…");
+
+  useEffect(() => {
+    let cancelled = false;
+    getAnalysisRun(finding.analysis_run_id)
+      .then((run) => {
+        if (!cancelled) {
+          setRunSummary(
+            `dataset v${run.dataset_version} · code ${run.code_version} · validation contract ${run.validation_contract_version}`,
+          );
+        }
+      })
+      .catch(() => {
+        // Provenance is a supplementary trust signal, not the primary content — a failure here
+        // must not take down the rest of an otherwise-loaded page.
+        if (!cancelled) {
+          setRunSummary("provenance unavailable");
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [finding.analysis_run_id]);
+
   return (
     <details className="findingDetail-provenance">
       <summary>Provenance</summary>

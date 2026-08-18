@@ -226,3 +226,87 @@ export type FeedbackCreatePayload = {
   internal_follow_up_owner?: string | null;
   follow_up_date?: string | null;
 };
+
+// packages/schemas/src/policy_schemas/domain.py: PolicyCandidateMode
+export type PolicyCandidateMode = "SHADOW" | "ENFORCEMENT_PROPOSAL";
+
+// packages/schemas/src/policy_schemas/domain.py: PolicyCandidateStatus
+// Forward-only — see docs/product/policy-candidate-domain-model.md §8.
+export type PolicyCandidateStatus =
+  | "DRAFT"
+  | "UNDER_REVIEW"
+  | "REJECTED"
+  | "APPROVED_SHADOW"
+  | "APPROVED_FOR_CUSTOMER_DECISION"
+  | "RETIRED";
+
+// apps/api/app/api/schemas.py: PolicyCandidateEvidenceRead
+export type PolicyCandidateEvidence = {
+  evidence_level: EvidenceLevel;
+  policy_readiness: PolicyReadiness;
+  validation_contract_version: string;
+  finding_generated_at: string;
+};
+
+// apps/api/app/api/schemas.py: PolicyCandidateBacktestResultRead
+// Every field name here is copied verbatim from BacktestResult — see
+// docs/analytics/policy-backtest-contract.md. Do not rename or reword.
+export type PolicyCandidateBacktestResult = {
+  backtest_contract_version: string;
+  outcome_name: string;
+  outcome_unit: string;
+  window: string;
+  affected_decisions: number;
+  avoided_bad_outcomes: number;
+  suppressed_good_outcomes: number;
+  bad_outcome_definition: string;
+  benefit: EffectEstimate;
+  benefit_is_adjusted: boolean;
+  operational_cost_per_review_eur: number | null;
+  operational_cost: EffectEstimate | null;
+  net_effect: EffectEstimate;
+  net_effect_is_cost_exclusive: boolean;
+  no_measurable_net_effect: boolean;
+  methodology_disclosure: string;
+};
+
+// apps/api/app/api/schemas.py: PolicyCandidateRead
+export type PolicyCandidate = {
+  id: string;
+  finding_id: string;
+  title: string;
+  rationale: string;
+  trigger_conditions: Record<string, unknown>[];
+  effective_population: string | null;
+  scope_narrowing_features: string[];
+  mode: PolicyCandidateMode;
+  effective_from: string;
+  expected_benefit_snapshot: FindingImpact;
+  action_detail: string | null;
+  evidence_snapshot: PolicyCandidateEvidence;
+  backtest_result: PolicyCandidateBacktestResult | null;
+  status: PolicyCandidateStatus;
+  rejection_reason: string | null;
+  retirement_reason: string | null;
+  blocked_by_source_lifecycle: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+// apps/api/app/policies/contracts.py: PolicyCandidateTransitionRequest
+export type PolicyCandidateTransitionPayload = {
+  new_status: PolicyCandidateStatus;
+  reason?: string | null;
+  action_detail?: string | null;
+};
+
+// apps/api/app/api/schemas.py: PolicyBacktestRunRead
+export type PolicyBacktestRun = {
+  id: string;
+  policy_candidate_id: string;
+  cost_per_review_eur: number | null;
+  status: ResourceStatus;
+  backtest_result: PolicyCandidateBacktestResult | null;
+  failure_reason: string | null;
+  created_at: string;
+};
