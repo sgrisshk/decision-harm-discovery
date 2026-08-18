@@ -11,8 +11,10 @@ Every candidate must be described as “associated with lower contribution margi
 statistical validation.”
 
 The run is pinned to analytical dataset `travel-bookings-analytical-v1.0.0`, identity
-`98ad4e7e08e63ee9e31f9317ca408f2895da8bece49324482915e24df0aee04c`, and Statistics-owned outcome
-contract v1.0.0. The primary outcome is `contribution_margin_eur`; a decrease is harmful.
+`e7aff995359222bfedb6ee7332934a9238ce10b7e889f8812f27a0ff7da1e707` (re-pinned 2026-08-18 per
+ADR-030; was `98ad4e7e08e63ee9e31f9317ca408f2895da8bece49324482915e24df0aee04c` — the underlying data
+is unchanged, see that entry), and Statistics-owned outcome contract v1.0.0. The primary outcome is
+`contribution_margin_eur`; a decrease is harmful.
 
 ## Search
 

@@ -206,17 +206,27 @@ def build_analytical_dataset(
     artifact_paths["missingness"] = missingness_path
     source_sha256 = _sha256(source_csv)
     feature_timing_sha256 = _sha256(feature_timing_path)
-    transformation_implementation_sha256 = _sha256(Path(__file__))
     partition_hashes = {
         role: _sha256(path) for role, path in artifact_paths.items() if role in partitions
     }
+    # dataset_identity_sha256 (below) is deliberately a hash of *content* — source data,
+    # feature-timing manifest, transformation config, outcome contract version, and the written
+    # partitions — not of this module's own source bytes. An earlier version hashed `Path(__file__)`
+    # into this payload as `transformation_implementation_sha256`; that made any edit to this file —
+    # including a value-preserving one, e.g. TASK-010's CANONICAL_SCHEMA_VERSION re-export from
+    # `policy_analytics.cleaning.canonical_schema` — change dataset identity and trip
+    # `scripts/build_synthetic_analytical_dataset.py`'s immutability guard, forcing a
+    # dataset_version bump for a change that provably produces byte-identical output. Nothing else
+    # in the codebase ever read that sub-field independently (only the aggregate
+    # `dataset_identity_sha256` matters to `blind_isolation.py`/`promote_findings.py`/the outcome
+    # contract's pinned hash), so it added churn without adding a checked guarantee. Which commit
+    # built a given dataset version is what `git log` is for. See ADR-030.
     identity_payload = {
         "dataset_version": config.dataset_version,
         "schema_version": config.canonical_schema_version,
         "source_sha256": source_sha256,
         "feature_timing_sha256": feature_timing_sha256,
         "transformation_config": asdict(config),
-        "transformation_implementation_sha256": transformation_implementation_sha256,
         "outcome_contract_version": OUTCOME_CONTRACT_VERSION,
         "partition_sha256": partition_hashes,
     }

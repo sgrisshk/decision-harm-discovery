@@ -7,8 +7,10 @@ selects and ranks *conditions* over a fixed, preregistered outcome definition.
 
 **Scope.** This contract is fixed for the delivered analytical dataset
 `travel-bookings-analytical-v1.0.0` (`synthetic_data/analytical/travel-bookings-analytical-v1.0.0/`,
-`dataset_identity_sha256 = 98ad4e7e08e63ee9e31f9317ca408f2895da8bece49324482915e24df0aee04c`,
-resolving `HANDOFF-002`), whose outcome columns live in `outcomes.csv`, decision-time features in
+`dataset_identity_sha256 = e7aff995359222bfedb6ee7332934a9238ce10b7e889f8812f27a0ff7da1e707`,
+resolving `HANDOFF-002`; re-pinned 2026-08-18 per ADR-030 — see that entry for why the hash moved
+with the underlying data provably unchanged), whose outcome columns live in `outcomes.csv`,
+decision-time features in
 `features.csv`, identifiers (including the `customer_id` clustering key) in `identifiers.csv`, and
 split/timing metadata in `metadata.csv`. It answers the outcome half of `HANDOFF-003` for
 `TASK-015`/`TASK-016`/`TASK-017` on that dataset. It is not the canonical real-customer outcome
@@ -49,7 +51,12 @@ DATASET_VERSION = "travel-bookings-analytical-v1.0.0"
 
 #: Pinned identity of the dataset above (`manifest.json.dataset_identity_sha256`). A finding whose
 #: dataset_version matches but whose identity hash does not is not graded under this contract.
-DATASET_IDENTITY_SHA256 = "98ad4e7e08e63ee9e31f9317ca408f2895da8bece49324482915e24df0aee04c"
+#: Re-pinned 2026-08-18 (was `98ad4e7e08e63ee9e31f9317ca408f2895da8bece49324482915e24df0aee04c`):
+#: ADR-030 stopped folding this module's own source-file hash into dataset identity, since that
+#: made value-preserving code edits (e.g. TASK-010's canonical-schema re-export) look like a data
+#: change. Every partition (`features.csv`/`outcomes.csv`/`identifiers.csv`/`metadata.csv`) is
+#: byte-identical before and after; only this fingerprint's computation changed.
+DATASET_IDENTITY_SHA256 = "e7aff995359222bfedb6ee7332934a9238ce10b7e889f8812f27a0ff7da1e707"
 
 
 class OutcomeRole(StrEnum):

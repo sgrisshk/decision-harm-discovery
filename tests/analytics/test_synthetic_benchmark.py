@@ -11,6 +11,7 @@ from policy_analytics.blind_isolation import (
     prepare_blind_workspace,
     validate_blind_workspace,
 )
+from policy_analytics.outcomes.contract import DATASET_IDENTITY_SHA256
 from policy_analytics.synthetic_benchmark import (
     BenchmarkConfig,
     evaluate_persisted_candidates,
@@ -106,9 +107,7 @@ def test_blind_workspace_is_allowlisted_and_rejects_restricted_files(tmp_path: P
     analytical_manifest.write_text(
         json.dumps(
             {
-                "dataset_identity_sha256": (
-                    "98ad4e7e08e63ee9e31f9317ca408f2895da8bece49324482915e24df0aee04c"
-                ),
+                "dataset_identity_sha256": DATASET_IDENTITY_SHA256,
                 "record_count": 10,
                 "partitions": {
                     name: {"columns": [name], "schema": [{"name": name, "dtype": "String"}]}
@@ -175,9 +174,7 @@ def test_evaluator_requires_signed_immutable_commitment(tmp_path: Path) -> None:
     analytical_manifest.write_text(
         json.dumps(
             {
-                "dataset_identity_sha256": (
-                    "98ad4e7e08e63ee9e31f9317ca408f2895da8bece49324482915e24df0aee04c"
-                ),
+                "dataset_identity_sha256": DATASET_IDENTITY_SHA256,
                 "record_count": 10,
                 "partitions": {
                     name: {"columns": [name], "schema": [{"name": name, "dtype": "String"}]}
