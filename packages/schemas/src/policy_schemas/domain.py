@@ -100,3 +100,25 @@ class FeedbackCommitmentStrength(StrEnum):
     STATED_COMMITMENT = "STATED_COMMITMENT"
     STATED_INTENTION = "STATED_INTENTION"
     NONE = "NONE"
+
+
+class PolicyCandidateMode(StrEnum):
+    """`docs/product/policy-candidate-domain-model.md` §3. `ENFORCEMENT_PROPOSAL` is reserved —
+    §1: "no code path today can produce an enforcement proposal, by construction, not by an
+    omitted feature." `app.policies.contracts.PolicyCandidateCreate` enforces this as a real
+    invariant, not just a doc claim."""
+
+    SHADOW = "SHADOW"
+    ENFORCEMENT_PROPOSAL = "ENFORCEMENT_PROPOSAL"
+
+
+class PolicyCandidateStatus(StrEnum):
+    """§8 — forward-only, matching this repository's `FindingLifecycleStatus` convention.
+    Adjacency (which transitions are legal) lives in `app.policies.service`, not here."""
+
+    DRAFT = "DRAFT"
+    UNDER_REVIEW = "UNDER_REVIEW"
+    REJECTED = "REJECTED"
+    APPROVED_SHADOW = "APPROVED_SHADOW"
+    APPROVED_FOR_CUSTOMER_DECISION = "APPROVED_FOR_CUSTOMER_DECISION"
+    RETIRED = "RETIRED"

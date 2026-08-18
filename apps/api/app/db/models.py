@@ -255,6 +255,13 @@ class FindingModel(TimestampMixin, Base):
 
 
 class PolicyCandidateModel(TimestampMixin, Base):
+    """`TASK-030`, `docs/product/policy-candidate-domain-model.md`.
+
+    A human-reviewable proposal derived from exactly one Finding — never a second, independent
+    piece of evidence (§0/§6). `TASK-031` (the generator that would populate real rows) does not
+    exist yet; this table is confirmed empty in every environment.
+    """
+
     __tablename__ = "policy_candidates"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -263,8 +270,38 @@ class PolicyCandidateModel(TimestampMixin, Base):
     )
     title: Mapped[str] = mapped_column(String(240), nullable=False)
     rationale: Mapped[str] = mapped_column(Text, nullable=False)
-    rule_definition: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
-    status: Mapped[str] = mapped_column(String(32), nullable=False, default="draft")
+    #: §2 — an immutable copy of the source Finding's `pattern.conditions`. Never accepted from a
+    #: caller; always derived by `app.policies.service.create_draft_policy_candidate`.
+    trigger_conditions: Mapped[list[dict[str, Any]]] = mapped_column(JSONB, nullable=False)
+    #: §3 — free text; `None` means the documented default ("every future decision matching the
+    #: trigger, within the source Finding's eligible cohort").
+    effective_population: Mapped[str | None] = mapped_column(Text, nullable=True)
+    #: §3's confounder-scope guardrail needs a structured field the domain model doesn't literally
+    #: define (`HANDOFF-049`'s own resolution flags this as a real gap) — which Finding features,
+    #: if any, this candidate's scope has been narrowed by beyond the trigger. Empty by default;
+    #: validated against the source Finding's `potential_confounders` at creation time.
+    scope_narrowing_features: Mapped[list[str]] = mapped_column(JSONB, nullable=False, default=list)
+    mode: Mapped[str] = mapped_column(String(32), nullable=False, default="SHADOW")
+    effective_from: Mapped[date] = mapped_column(Date, nullable=False)
+    #: §4 — frozen copy of `FindingImpactRead`'s fields at generation time. Never recomputed.
+    expected_benefit_snapshot: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    #: §5 — required to be human-authored before a candidate can leave `DRAFT`. Never populated by
+    #: a generator or a generative model.
+    action_detail: Mapped[str | None] = mapped_column(Text, nullable=True)
+    #: §6 — frozen copy of the source Finding's evidence state at generation time.
+    evidence_snapshot: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    #: §7 — reserved; `null` until a real `TASK-031`/backtest wiring populates it. Shape mirrors
+    #: `BacktestResult.to_dict()` (`policy_analytics.backtest.contract`).
+    backtest_result: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="DRAFT")
+    rejection_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    retirement_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    #: §6's cascade: set by `app.policies.service.cascade_finding_lifecycle_change` when the
+    #: source Finding leaves `ACTIVE`. Blocks further forward transitions until a human reviews the
+    #: change — never itself changes `status`.
+    blocked_by_source_lifecycle: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False
+    )
 
 
 class UserModel(TimestampMixin, Base):
