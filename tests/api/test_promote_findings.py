@@ -197,7 +197,10 @@ def test_promote_findings_script_against_real_closing_run(
     assert len(new_run_ids) == 1
     run = postgres_session.get(AnalysisRunModel, new_run_ids.pop())
     assert run is not None
-    assert run.evaluated_hypotheses == 6945
+    # The script's default now points at task-058-remediation-20260817-001 — the current
+    # PROMISING-verdict closing run (`ADR-025`) — not the superseded, FAILED-graded
+    # task-015-official-20260816-015 this test originally asserted against.
+    assert run.evaluated_hypotheses == 6557
     assert run.random_seed == 1729
 
     candidates = postgres_session.scalars(
@@ -219,14 +222,18 @@ def test_promote_findings_script_against_real_closing_run(
             shadow_policy_keys.add(key)
         else:
             assert finding.policy_readiness == "experiment_only"
-            assert finding.evidence_level == "descriptive_observation"
+            # DOWNGRADE candidates on this run land at two different evidence levels
+            # (descriptive_observation or predictive_association), unlike task-015's — both are
+            # still capped short of adjusted_observational_association, which is what
+            # experiment_only readiness actually gates on.
+            assert finding.evidence_level in {"descriptive_observation", "predictive_association"}
             experiment_only_keys.add(key)
     assert shadow_policy_keys == {
-        "CAND-004",
+        "CAND-003",
+        "CAND-006",
         "CAND-007",
-        "CAND-009",
-        "CAND-010",
-        "CAND-012",
+        "CAND-011",
+        "CAND-013",
         "CAND-015",
     }
     assert len(experiment_only_keys) == 9
@@ -241,8 +248,14 @@ def test_promote_findings_script_against_real_closing_run(
     assert {item["pattern"]["candidate_key"] for item in listed_from_this_run} == (
         shadow_policy_keys | experiment_only_keys
     )
+    # Any shadow_policy candidate demonstrates the adjusted_effect shape below — picked from the
+    # set derived above rather than a hardcoded key, so this doesn't go stale if the default run
+    # changes again.
+    shadow_policy_key = next(iter(shadow_policy_keys))
     sample = next(
-        item for item in listed_from_this_run if item["pattern"]["candidate_key"] == "CAND-004"
+        item
+        for item in listed_from_this_run
+        if item["pattern"]["candidate_key"] == shadow_policy_key
     )
     assert sample["title"].startswith("Contribution margin drops when")
     assert sample["evidence"]["adjusted_effect"] is not None
@@ -272,5 +285,5 @@ def test_promote_findings_script_against_real_closing_run(
         if item["pattern"]["candidate_key"] == experiment_only_key
     )
     assert weak["evidence"]["raw_effect"] is not None
-    assert weak["evidence_level"] == "descriptive_observation"
+    assert weak["evidence_level"] in {"descriptive_observation", "predictive_association"}
     assert weak["policy_readiness"] == "experiment_only"

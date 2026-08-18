@@ -1,25 +1,41 @@
-"""One-shot promotion of the real closing run into persisted Findings (TASK-024).
+"""One-shot promotion of a frozen, validated blind run into persisted Findings (TASK-024).
 
-Reads the three real frozen artifacts for `task-015-official-20260816-015` (discovery candidates,
-TASK-016 ranking, TASK-019 validation report — the last regenerated in this session to carry the
-newly-wired `economic_impact` field, see `HANDOFF-025`/`HANDOFF-047`), persists one `AnalysisRun`
-and all 15 `CandidatePattern`/`ValidationReport` rows, and promotes every candidate whose report
-has a non-null `evidence_level` to `Finding`.
+Reads four real frozen artifacts for a given run (discovery candidates, TASK-016 ranking, TASK-019
+validation report, and the discovery-metrics document), persists one `AnalysisRun` and all
+`CandidatePattern`/`ValidationReport` rows, and promotes every candidate whose report has a
+non-null `evidence_level` to `Finding`.
 
 Per `docs/product/finding-product-contract.md` §0, a "Finding" is any graded candidate output
-(evidence + impact) — not only a `PASS`-verdict/`SHADOW_POLICY` one. On this closing run all 15
-candidates grade to a non-null evidence level (6 `PASS`/`adjusted_observational_association`, 9
-`DOWNGRADE`/`descriptive_observation`, none `REJECT`), so all 15 promote to `Finding`; the
-`PASS`/`DOWNGRADE` distinction lives in `evidence_level`/`policy_readiness` on each Finding, not in
-whether it exists at all.
+(evidence + impact) — not only a `PASS`-verdict/`SHADOW_POLICY` one. The `PASS`/`DOWNGRADE`
+distinction lives in `evidence_level`/`policy_readiness` on each Finding, not in whether it exists
+at all.
+
+**Paths are parametrized (`--candidates`/`--metrics`/`--ranking`/`--validation-report`), not
+hardcoded to one run** — mirrors `scripts/evaluate_benchmark.py`/`scripts/rank_candidates.py`'s own
+CLI convention. The defaults point at `task-058-remediation-20260817-001`, the current PROMISING-
+verdict closing run (`ADR-025`); the original `task-015-official-20260816-015` predates that
+remediation and graded FAILED overall (`ADR-019`) — pass its paths explicitly if that historical
+run is ever needed again, never rely on stale defaults.
 
 Internal script, not a public API — matches
 `docs/architecture/finding-persistence-contract.md`'s boundary. Not idempotent: this is a one-shot
-demo entrypoint against a fresh database, not a repeatable pipeline stage.
+demo entrypoint against a fresh (or already-seeded-once) database, not a repeatable pipeline stage
+— rerunning against the same database inserts a second `AnalysisRun`/duplicate `Finding` set rather
+than upserting.
+
+Usage:
+  uv run python scripts/promote_findings.py
+  uv run python scripts/promote_findings.py \\
+      --candidates artifacts/blind/task-015-official-20260816-015.candidates.json \\
+      --metrics artifacts/blind/task-015-official-20260816-015.discovery_metrics.json \\
+      --ranking \\
+        artifacts/discovery/task-016-candidate-ranking-task-015-official-20260816-015.json \\
+      --validation-report artifacts/validation/task-019-official-20260816-015.json
 """
 
 from __future__ import annotations
 
+import argparse
 import hashlib
 import json
 import sys
@@ -67,15 +83,29 @@ from policy_analytics.validation.apply import (  # noqa: E402
 from sqlalchemy import select  # noqa: E402
 from sqlalchemy.orm import Session  # noqa: E402
 
-CANDIDATES_PATH = REPOSITORY / "artifacts/blind/task-015-official-20260816-015.candidates.json"
-METRICS_PATH = REPOSITORY / "artifacts/blind/task-015-official-20260816-015.discovery_metrics.json"
-RANKING_PATH = (
-    REPOSITORY
-    / "artifacts/discovery/task-016-candidate-ranking-task-015-official-20260816-015.json"
+_DEFAULT_RUN_ID = "task-058-remediation-20260817-001"
+DEFAULT_CANDIDATES_PATH = REPOSITORY / f"artifacts/blind/{_DEFAULT_RUN_ID}.candidates.json"
+DEFAULT_METRICS_PATH = REPOSITORY / f"artifacts/blind/{_DEFAULT_RUN_ID}.discovery_metrics.json"
+DEFAULT_RANKING_PATH = (
+    REPOSITORY / f"artifacts/discovery/task-016-candidate-ranking-{_DEFAULT_RUN_ID}.json"
 )
-VALIDATION_PATH = REPOSITORY / "artifacts/validation/task-019-official-20260816-015.json"
+DEFAULT_VALIDATION_PATH = (
+    REPOSITORY / "artifacts/validation/task-019-official-20260817-task-058-remediation-001.json"
+)
 ANALYTICAL_DATASET_DIR = REPOSITORY / "synthetic_data/analytical/travel-bookings-analytical-v1.0.0"
 SPLITS = ("development", "validation", "future_holdout")
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Promote a frozen, validated blind run's candidates into persisted Findings."
+    )
+    parser.add_argument("--candidates", type=Path, default=DEFAULT_CANDIDATES_PATH)
+    parser.add_argument("--metrics", type=Path, default=DEFAULT_METRICS_PATH)
+    parser.add_argument("--ranking", type=Path, default=DEFAULT_RANKING_PATH)
+    parser.add_argument("--validation-report", type=Path, default=DEFAULT_VALIDATION_PATH)
+    return parser.parse_args()
+
 
 # The fields ValidationReport.to_dict() emits that ValidationMetadataPersistence (deliberately)
 # does not model — request/run identity lives on CandidatePattern/AnalysisRun instead.
@@ -204,6 +234,8 @@ def _promote_one(
     raw_candidate: dict[str, Any],
     ranking_by_id: dict[str, Any],
     validation_by_id: dict[str, Any],
+    candidates_path: Path,
+    validation_path: Path,
     candidates_sha256: str,
     validation_sha256: str,
     validation_frozen_at: datetime,
@@ -234,7 +266,7 @@ def _promote_one(
         lineage=(
             LineageReference(
                 kind="candidate_artifact",
-                uri=f"{CANDIDATES_PATH}#{candidate_id}",
+                uri=f"{candidates_path}#{candidate_id}",
                 sha256=candidates_sha256,
             ),
         ),
@@ -253,7 +285,7 @@ def _promote_one(
         lineage=(
             LineageReference(
                 kind="validation_report",
-                uri=f"{VALIDATION_PATH}#{candidate_id}",
+                uri=f"{validation_path}#{candidate_id}",
                 sha256=validation_sha256,
             ),
         ),
@@ -278,7 +310,7 @@ def _promote_one(
             lineage=(
                 LineageReference(
                     kind="impact_report",
-                    uri=f"{VALIDATION_PATH}#{candidate_id}",
+                    uri=f"{validation_path}#{candidate_id}",
                     sha256=validation_sha256,
                 ),
             ),
@@ -289,10 +321,14 @@ def _promote_one(
 
 
 def main() -> None:
-    candidates_doc = _load_json(CANDIDATES_PATH)
-    metrics_doc = _load_json(METRICS_PATH)
-    ranking_doc = _load_json(RANKING_PATH)
-    validation_doc = _load_json(VALIDATION_PATH)
+    args = parse_args()
+    candidates_path: Path = args.candidates.resolve()
+    validation_path: Path = args.validation_report.resolve()
+
+    candidates_doc = _load_json(candidates_path)
+    metrics_doc = _load_json(args.metrics.resolve())
+    ranking_doc = _load_json(args.ranking.resolve())
+    validation_doc = _load_json(validation_path)
     assert candidates_doc["dataset_identity_sha256"] == DATASET_IDENTITY_SHA256
     assert candidates_doc["dataset_version"] == DATASET_VERSION
 
@@ -306,10 +342,10 @@ def main() -> None:
     validation_sha256 = _sha256_of(validation_doc)
     run_lineage = (
         LineageReference(
-            kind="candidate_artifact", uri=str(CANDIDATES_PATH), sha256=candidates_sha256
+            kind="candidate_artifact", uri=str(candidates_path), sha256=candidates_sha256
         ),
         LineageReference(
-            kind="validation_report", uri=str(VALIDATION_PATH), sha256=validation_sha256
+            kind="validation_report", uri=str(validation_path), sha256=validation_sha256
         ),
     )
 
@@ -331,6 +367,8 @@ def main() -> None:
                 raw_candidate=raw_candidate,
                 ranking_by_id=ranking_by_id,
                 validation_by_id=validation_by_id,
+                candidates_path=candidates_path,
+                validation_path=validation_path,
                 candidates_sha256=candidates_sha256,
                 validation_sha256=validation_sha256,
                 validation_frozen_at=validation_frozen_at,
@@ -338,9 +376,10 @@ def main() -> None:
                 promoted += 1
 
         session.commit()
+        total = len(cast(list[Any], candidates_doc["candidates"]))
         print(
-            f"Persisted analysis_run={run.id} with 15 candidate_patterns/validation_reports, "
-            f"promoted {promoted} findings."
+            f"Persisted analysis_run={run.id} ({args.candidates.name}) with "
+            f"{total} candidate_patterns/validation_reports, promoted {promoted} findings."
         )
     except Exception:
         session.rollback()
