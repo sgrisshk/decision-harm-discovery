@@ -2,8 +2,8 @@
 
 **Owner:** PRODUCT
 **Task:** TASK-030 ("Policy candidate domain model"), preparing `TASK-031` ("Policy candidate generator")
-**Depends on (implementation):** `TASK-031` implementation is `BLOCKED` on this document; `TASK-032`/`TASK-033` (backtest engine) remain separately `BLOCKED` on `TASK-031`.
-**Status:** Domain/field contract only. No persistence migration, no UI, no backtest statistics are implemented or proposed here — mirrors how `docs/product/finding-product-contract.md` and `docs/product/finding-feedback-contract.md` were written ahead of their implementations.
+**Depends on (implementation):** none anymore — `TASK-030` is `DONE` (`ADR-029`, 2026-08-18). `TASK-031` (the generator, `READY`) is the only thing still not built; `TASK-032`/`TASK-033` (backtest engine) shipped independently (`ADR-028`, operating directly on a Finding's `pattern.conditions`, not on this persistence layer).
+**Status:** Domain model **and real, tested persistence** (`apps/api/app/policies/`, migration `20260818_0007`). §1–§9 below are annotated with the concrete implementation where it now exists; nothing in the original content was wrong, §12 (added same day) turned out to match the real code closely enough that Architect implemented straight from it.
 
 ## Why this document exists now
 
@@ -41,6 +41,8 @@ Gated entirely by the Finding's own `policy_readiness` (`docs/analytics/validati
 
 On today's real data, this means: of the 15 real Findings, only the 6 at `adjusted_observational_association`/`shadow_policy` are eligible at all, and every eligible candidate starts in `SHADOW` mode — there is no code path today that can produce an enforcement proposal, by construction, not by an omitted feature.
 
+**Implemented (`ADR-029`):** `app.policies.service.create_draft_policy_candidate` enforces this table exactly (`_ELIGIBLE_READINESS`), plus one gate this section didn't literally spell out but §0's "a Finding a policy candidate attaches to" already implies: the source Finding's `lifecycle_status` must be `ACTIVE`. Ratified here, not just accepted silently — generating a candidate from a `SUPERSEDED`/`WITHDRAWN` Finding would create a row §6 would immediately have to block anyway, so rejecting it at creation is the correct reading of this document's own intent, not an Architect addition beyond it. `mode` is enforced as contract-locked to `SHADOW` by a Pydantic validator, not merely undocumented as a path nothing takes.
+
 ## 2. Trigger
 
 The **trigger** is the condition that would have fired on a historical decision — inherited verbatim from the source Finding, never re-derived or narrowed by the candidate itself:
@@ -58,6 +60,8 @@ The **trigger** is the condition that would have fired on a historical decision 
 - `effective_from`: a date, required, defaulting to "candidate creation date" — this is inherently forward-looking in a way the Finding itself is not (the Finding describes a closed historical window; a policy has no historical window, only a start date).
 - **Guardrail — scope must never be narrowed by a variable the source Finding's validation flagged as a confounder or trap risk.** If `potential_confounders` (`FindingEvidenceRead.potential_confounders`) contains a variable, that variable cannot be used to further restrict scope (e.g. "only apply to manager X") — doing so would reintroduce exactly the confound the validation contract's gates exist to rule out, using the operational scope field as a back door around statistical review. This is a hard validation rule for `TASK-031`, not a suggestion.
 - Manual scope narrowing beyond the trigger (e.g. "only new bookings from Tuesday's rollout onward," a pure timing/rollout choice unrelated to the statistical condition) is allowed and does not require new validation — it doesn't change what pattern is being acted on, only when/how broadly.
+
+**Implemented (`ADR-029`):** `effective_population` stays free text exactly as written above. The guardrail needed something mechanically checkable, which this section didn't literally define — closed by a new `scope_narrowing_features: tuple[str, ...]` field (empty by default): `app.policies.contracts.PolicyCandidateCreate` accepts it, and `create_draft_policy_candidate` rejects any value intersecting the source Finding's `potential_confounders` before a row is ever written, raising `PolicyCandidateError` rather than silently dropping the offending feature. `TASK-031`'s generator does not need to (and must not try to) reimplement this check — it only needs to populate `scope_narrowing_features` correctly and let the persistence layer enforce it.
 
 ## 4. Expected benefit
 
@@ -82,16 +86,20 @@ A Policy Candidate does not carry independent evidence — it carries a **frozen
 
 - `source_finding_id` (FK, `RESTRICT` — matches the existing `PolicyCandidateModel`).
 - `evidence_snapshot`: `evidence_level`, `policy_readiness`, `validation_contract_version`, `finding_generated_at` — copied, not re-joined live.
-- **If the source Finding later becomes `SUPERSEDED` or `WITHDRAWN`** (`FindingLifecycleStatus`, `docs/product/finding-product-contract.md` §12.1), every Policy Candidate referencing it is affected: any candidate still in `DRAFT` or `UNDER_REVIEW` is blocked from advancing further until a human reviews the change; any already `APPROVED_SHADOW` is auto-transitioned to `RETIRED` with the reason "source finding no longer active" (§8). A policy candidate must never keep quietly running against a finding the system itself no longer stands behind.
+- **If the source Finding later becomes `SUPERSEDED` or `WITHDRAWN`** (`FindingLifecycleStatus`, `docs/product/finding-product-contract.md` §12.1), every Policy Candidate referencing it is affected: any candidate still in `DRAFT` or `UNDER_REVIEW` is blocked from advancing further until a human reviews the change; any already `APPROVED_SHADOW` **or `APPROVED_FOR_CUSTOMER_DECISION`** is auto-transitioned to `RETIRED` with the reason "source finding no longer active" (§8). A policy candidate must never keep quietly running against a finding the system itself no longer stands behind. (The `APPROVED_FOR_CUSTOMER_DECISION` half is an extension beyond this section's original literal wording, which only named `APPROVED_SHADOW` — ratified here as correct: the stated rationale, "must never keep quietly running against a finding the system no longer stands behind," applies equally to both approved states, and leaving `APPROVED_FOR_CUSTOMER_DECISION` un-cascaded would have been an oversight, not a deliberate narrower scope.)
 - One Finding may produce more than one Policy Candidate (e.g. a reviewer proposes an alternative `effective_from` date or a narrower non-confounded scope, §3) — but every one of them shares the same `evidence_snapshot`, because they share the same underlying statistical claim. Multiple candidates from one Finding are not multiple pieces of evidence; `TASK-031`'s default behavior is to generate exactly one candidate per eligible Finding, and additional candidates only arise from explicit human review action, never automatic proliferation.
 
-## 7. Backtest result (reserved, not built)
+**Implemented (`ADR-029`):** `app.policies.service.create_draft_policy_candidate` derives `trigger_conditions`/`evidence_snapshot` from the Finding directly — never accepted from a caller, operationalizing §2's ban on caller-supplied conditions. `validation_contract_version` comes from the linked `ValidationReportModel` row (not present on the Finding's own snapshot) rather than omitted. One-per-Finding defaults on; `force=True` creates an explicit additional one, raising `PolicyCandidateError` otherwise (never a silent no-op). `cascade_finding_lifecycle_change` implements the bullet above as a service-layer function, not a database trigger — consistent with every other lifecycle rule in this codebase being enforced in Python (`FindingLifecycleStatus` transitions, `TASK-035`'s `WRONG ⇒ comment` rule). **Disclosed gap, not fixed here:** nothing in this codebase yet transitions a Finding's `lifecycle_status` away from `ACTIVE` — no supersede/withdraw endpoint exists — so this function is built and tested directly but not called from anywhere in production today.
 
-`TASK-032`/`TASK-033` do not exist yet. This document reserves the field, does not define its computation:
+## 7. Backtest result
 
-- `backtest_result`: nullable, `null` for every Policy Candidate today. Once `TASK-032` exists, this holds the Statistics-owned result: affected decisions, avoided bad outcomes **and** suppressed good outcomes (both sides always, per `docs/analytics/validation-contract.md` §9), benefit, operational cost, net effect with interval, computed only against the future holdout split, never the window the pattern was discovered in.
+`TASK-032`/`TASK-033` shipped the same day this document was written (`ADR-028`), ahead of `TASK-031` — the engine operates directly on a Finding's `pattern.conditions` and does not need this persistence layer to exist. This section's original reservation held field-for-field:
+
+- `backtest_result`: nullable, `null` for every Policy Candidate today (no `TASK-031` generator has run yet — the table is confirmed empty). Once populated, holds the Statistics-owned result: affected decisions, avoided bad outcomes **and** suppressed good outcomes (both sides always, per `docs/analytics/validation-contract.md` §9), benefit, operational cost, net effect with interval, computed only against the future holdout split, never the window the pattern was discovered in.
 - A net effect whose interval includes zero must be shown as "no measurable net effect" — never as a positive (existing rule, reused, not reinvented here).
 - Until this field is non-null, no Policy Candidate may claim a validated forward-looking benefit — §4's exposure framing is the ceiling.
+
+**Implemented (`ADR-029`):** `app.policies.contracts.PolicyCandidateBacktestSnapshot` validates the real `BacktestResult.to_dict()` shape exactly (`docs/analytics/policy-backtest-contract.md`) — `affected_decisions`, `avoided_bad_outcomes`/`suppressed_good_outcomes` (with a model validator enforcing they sum to `affected_decisions`, the same both-sides guarantee `BacktestResult.__post_init__` already enforces one layer down), `bad_outcome_definition`, `benefit`/`benefit_is_adjusted`, `operational_cost`/`operational_cost_per_review_eur`, `net_effect`/`net_effect_is_cost_exclusive`, `no_measurable_net_effect`, `methodology_disclosure`. Nothing writes to this field yet — reserved per this section, not populated by `TASK-030`'s scope.
 
 ## 8. Status
 
@@ -107,6 +115,8 @@ A Policy Candidate does not carry independent evidence — it carries a **frozen
 | `RETIRED` | No longer active — either a human withdrew it, or its source Finding became `SUPERSEDED`/`WITHDRAWN` (§6). Requires a reason. Terminal. | From `APPROVED_SHADOW` or `APPROVED_FOR_CUSTOMER_DECISION`. |
 
 No transition ever returns a candidate to `DRAFT` or `UNDER_REVIEW` from a later state. A reconsidered `RETIRED`/`REJECTED` candidate is a new candidate generated fresh from a current (possibly re-validated) Finding, never a revived old row — same principle as `FindingLifecycleStatus` and `CandidatePattern`.
+
+**Implemented (`ADR-029`):** `app.policies.service.transition_policy_candidate` enforces this table as a literal adjacency map (`_TRANSITIONS`), rejects any edge not listed (`PolicyCandidateError`, never a silent coercion), enforces the `action_detail`-before-`UNDER_REVIEW` entry condition, and requires a `reason` for both `REJECTED` (stored as `rejection_reason`) and `RETIRED` (stored as `retirement_reason`) — matching this table's own "Requires a reason" cells for both terminal states, not just the one this document's prose emphasized more. A `blocked_by_source_lifecycle` flag (§6) additionally halts any transition, checked before the adjacency map, so a blocked candidate cannot advance even along an otherwise-legal edge.
 
 ## 9. What must never be interpreted as validation
 
