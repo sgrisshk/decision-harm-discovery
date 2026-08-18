@@ -29,9 +29,18 @@ from fastapi.testclient import TestClient
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+import scripts.promote_findings as promote_findings_script
+
 REPOSITORY = Path(__file__).resolve().parents[2]
 
 pytestmark = pytest.mark.integration
+
+_CLOSING_RUN_ARTIFACTS = (
+    promote_findings_script.DEFAULT_CANDIDATES_PATH,
+    promote_findings_script.DEFAULT_METRICS_PATH,
+    promote_findings_script.DEFAULT_RANKING_PATH,
+    promote_findings_script.DEFAULT_VALIDATION_PATH,
+)
 
 
 def _effect() -> EffectEstimatePersistence:
@@ -166,6 +175,12 @@ def test_promote_finding_rejects_a_report_without_evidence_level(
     assert list(findings) == []
 
 
+@pytest.mark.skipif(
+    not all(path.exists() for path in _CLOSING_RUN_ARTIFACTS),
+    reason="task-058-remediation-20260817-001 closing-run artifacts are gitignored (regenerable "
+    "via scripts/rank_candidates.py per the promote_findings.py fix commit) and not present on "
+    "this checkout",
+)
 def test_promote_findings_script_against_real_closing_run(
     postgres_session: Session, db_client: TestClient
 ) -> None:
