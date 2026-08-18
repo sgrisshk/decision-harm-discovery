@@ -57,7 +57,9 @@ def main() -> None:
     rows = [generate_row(index, rng) for index in range(ROWS)]
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)
     with OUTPUT.open("w", encoding="utf-8", newline="") as output:
-        writer = csv.DictWriter(output, fieldnames=list(rows[0]))
+        # See ADR-031: pin lineterminator so regenerating this fixture is byte-identical to what's
+        # committed everywhere, not just on a machine whose git client normalizes CRLF/LF.
+        writer = csv.DictWriter(output, fieldnames=list(rows[0]), lineterminator="\n")
         writer.writeheader()
         writer.writerows(rows)
 

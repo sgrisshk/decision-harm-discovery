@@ -7,10 +7,10 @@ selects and ranks *conditions* over a fixed, preregistered outcome definition.
 
 **Scope.** This contract is fixed for the delivered analytical dataset
 `travel-bookings-analytical-v1.0.0` (`synthetic_data/analytical/travel-bookings-analytical-v1.0.0/`,
-`dataset_identity_sha256 = e7aff995359222bfedb6ee7332934a9238ce10b7e889f8812f27a0ff7da1e707`,
-resolving `HANDOFF-002`; re-pinned 2026-08-18 per ADR-030 — see that entry for why the hash moved
-with the underlying data provably unchanged), whose outcome columns live in `outcomes.csv`,
-decision-time features in
+`dataset_identity_sha256 = dd7889f7d14264a7ae19e2fc11d95dcdb9da8ad4df3645b4adf7f8bab79cd423`,
+resolving `HANDOFF-002`; re-pinned 2026-08-18 per ADR-030, then again same day per ADR-031 — see
+those entries for why the hash moved twice with the underlying data provably unchanged both times),
+whose outcome columns live in `outcomes.csv`, decision-time features in
 `features.csv`, identifiers (including the `customer_id` clustering key) in `identifiers.csv`, and
 split/timing metadata in `metadata.csv`. It answers the outcome half of `HANDOFF-003` for
 `TASK-015`/`TASK-016`/`TASK-017` on that dataset. It is not the canonical real-customer outcome
@@ -51,12 +51,19 @@ DATASET_VERSION = "travel-bookings-analytical-v1.0.0"
 
 #: Pinned identity of the dataset above (`manifest.json.dataset_identity_sha256`). A finding whose
 #: dataset_version matches but whose identity hash does not is not graded under this contract.
-#: Re-pinned 2026-08-18 (was `98ad4e7e08e63ee9e31f9317ca408f2895da8bece49324482915e24df0aee04c`):
-#: ADR-030 stopped folding this module's own source-file hash into dataset identity, since that
-#: made value-preserving code edits (e.g. TASK-010's canonical-schema re-export) look like a data
-#: change. Every partition (`features.csv`/`outcomes.csv`/`identifiers.csv`/`metadata.csv`) is
-#: byte-identical before and after; only this fingerprint's computation changed.
-DATASET_IDENTITY_SHA256 = "e7aff995359222bfedb6ee7332934a9238ce10b7e889f8812f27a0ff7da1e707"
+#: Re-pinned twice on 2026-08-18, same underlying data both times:
+#: 1. Was `98ad4e7e08e63ee9e31f9317ca408f2895da8bece49324482915e24df0aee04c`. ADR-030 stopped
+#:    folding this module's own source-file hash into dataset identity, since that made
+#:    value-preserving code edits (e.g. TASK-010's canonical-schema re-export) look like a data
+#:    change. Became `e7aff995359222bfedb6ee7332934a9238ce10b7e889f8812f27a0ff7da1e707`.
+#: 2. ADR-031 fixed `_write_csv` in `synthetic_benchmark.py` to pin `lineterminator="\n"` — the
+#:    generator's CSV writer defaulted to "\r\n" regardless of platform, but the committed
+#:    `travel_bookings_clean.csv` is "\n"-only, so `source_sha256` (part of dataset identity)
+#:    differed depending on whether the machine that last regenerated it happened to have a git
+#:    client that normalizes CRLF/LF for comparison. Became the current value.
+#: In both cases every partition (`features.csv`/`outcomes.csv`/`identifiers.csv`/`metadata.csv`)
+#: was verified byte-identical before and after; only fingerprint fields moved.
+DATASET_IDENTITY_SHA256 = "dd7889f7d14264a7ae19e2fc11d95dcdb9da8ad4df3645b4adf7f8bab79cd423"
 
 
 class OutcomeRole(StrEnum):

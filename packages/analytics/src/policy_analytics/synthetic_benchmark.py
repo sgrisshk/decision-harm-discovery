@@ -467,8 +467,14 @@ def _generate_row(
 
 def _write_csv(path: Path, rows: list[dict[str, object]]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
+    # csv.writer's default (excel) dialect uses "\r\n" regardless of platform — deterministic, but
+    # not what's committed under synthetic_data/ (plain "\n"). Pin lineterminator explicitly so a
+    # freshly generated file is byte-identical to the committed one everywhere, instead of only
+    # appearing identical on a machine whose git client happens to normalize CRLF/LF for comparison
+    # (core.autocrlf=input) — CI's runner does not, so `git diff --exit-code -- synthetic_data`
+    # always failed on a clean checkout regardless of the actual generated content. See ADR-031.
     with path.open("w", encoding="utf-8", newline="") as output:
-        writer = csv.DictWriter(output, fieldnames=list(rows[0]))
+        writer = csv.DictWriter(output, fieldnames=list(rows[0]), lineterminator="\n")
         writer.writeheader()
         writer.writerows(rows)
 

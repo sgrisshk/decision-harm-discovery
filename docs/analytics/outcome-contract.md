@@ -6,10 +6,10 @@ outcome-contract half of `HANDOFF-003`
 This contract fixes what "harm" means for `TASK-015`/`TASK-016`/`TASK-017` on the delivered
 analytical dataset `travel-bookings-analytical-v1.0.0`
 (`synthetic_data/analytical/travel-bookings-analytical-v1.0.0/`, dataset identity
-`e7aff995359222bfedb6ee7332934a9238ce10b7e889f8812f27a0ff7da1e707` — re-pinned 2026-08-18 per
-ADR-030, was `98ad4e7e08e63ee9e31f9317ca408f2895da8bece49324482915e24df0aee04c`; every data
-partition is byte-identical before and after, only a metadata fingerprint's computation changed —
-resolving `HANDOFF-002`). It is
+`dd7889f7d14264a7ae19e2fc11d95dcdb9da8ad4df3645b4adf7f8bab79cd423` — re-pinned twice 2026-08-18 per
+ADR-030 then ADR-031, originally `98ad4e7e08e63ee9e31f9317ca408f2895da8bece49324482915e24df0aee04c`;
+every data partition is byte-identical throughout, only metadata fingerprints' computation changed
+— resolving `HANDOFF-002`). It is
 preregistered the same way the validation contract is (`docs/analytics/validation-contract.md`, ADR-007):
 fixed before any candidate exists, versioned, and not renegotiable per finding. Its executable form
 is `packages/analytics/src/policy_analytics/outcomes/` (`contract.py` = definitions and the
