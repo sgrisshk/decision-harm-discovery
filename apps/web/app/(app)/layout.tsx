@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { Nav } from "@/components/nav";
+import { NavUser } from "@/components/nav-user";
 import "./app-shell.css";
 
 const isDev = process.env.NODE_ENV !== "production";
@@ -19,6 +20,7 @@ export default function AppLayout({ children }: Readonly<{ children: ReactNode }
           Signal Foundry
         </Link>
         <Nav />
+        <NavUser />
         {isDev && (
           <Link className="appDevLink" href="/dev/status">
             Dev: API status

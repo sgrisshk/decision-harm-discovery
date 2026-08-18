@@ -7,6 +7,7 @@ this module only reads the already-validated, already-stored CSV bytes and persi
 from __future__ import annotations
 
 import logging
+from dataclasses import dataclass
 
 import polars as pl
 from policy_analytics.profiling.schema_profiler import ColumnProfile, profile_columns
@@ -23,13 +24,18 @@ class ProfilingError(ValueError):
     """Raised for a dataset this module cannot profile (e.g. not a single-CSV upload)."""
 
 
-def profile_dataset(
-    session: Session, dataset: DatasetModel, settings: Settings
-) -> tuple[ColumnProfile, ...]:
+@dataclass(frozen=True, slots=True)
+class ProfilingResult:
+    frame: pl.DataFrame
+    profiles: tuple[ColumnProfile, ...]
+
+
+def profile_dataset(session: Session, dataset: DatasetModel, settings: Settings) -> ProfilingResult:
     """Profile `dataset`'s stored CSV and persist one `DatasetColumnProfileModel` row per column.
 
-    Returns the computed profiles so callers can chain further pipeline stages (`TASK-008` feature-
-    timing classification) without a redundant read-back or a second pass over the CSV.
+    Returns the computed profiles *and* the loaded dataframe so callers can chain further pipeline
+    stages (`TASK-008` feature-timing classification, `TASK-009` data-quality report) without a
+    redundant read-back or a second pass over the CSV.
 
     Raises `ProfilingError` for anything other than a `source_type="csv_upload"` dataset — e.g.
     the multi-file analytical-dataset rows `scripts/promote_findings.py` creates directly, which
@@ -67,4 +73,4 @@ def profile_dataset(
             )
         )
     session.flush()
-    return profiles
+    return ProfilingResult(frame=frame, profiles=profiles)

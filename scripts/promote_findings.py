@@ -299,9 +299,7 @@ def main() -> None:
     outcome = primary_outcome()
     frame = load_analytical_frame(ANALYTICAL_DATASET_DIR)
     ranking_by_id = {c["candidate_id"]: c for c in cast(list[Any], ranking_doc["candidates"])}
-    validation_by_id = {
-        c["candidate_id"]: c for c in cast(list[Any], validation_doc["candidates"])
-    }
+    validation_by_id = {c["candidate_id"]: c for c in cast(list[Any], validation_doc["candidates"])}
     validation_frozen_at = datetime.fromisoformat(str(validation_doc["frozen_at"]))
 
     candidates_sha256 = _sha256_of(candidates_doc)

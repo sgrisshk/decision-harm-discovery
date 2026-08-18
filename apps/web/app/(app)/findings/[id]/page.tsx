@@ -3,13 +3,14 @@ import type { ReactNode } from "react";
 import { ErrorState } from "@/components/states";
 import { EvidencePill } from "@/components/findings/EvidencePill";
 import { ExposureFigure } from "@/components/findings/ExposureFigure";
+import { FeedbackForm } from "@/components/findings/FeedbackForm";
 import { ReadinessPill } from "@/components/findings/ReadinessPill";
 import { WarningBadge } from "@/components/findings/WarningBadge";
 import { getAnalysisRun } from "@/lib/api/analysisRuns";
 import { toErrorDisplay } from "@/lib/api/display";
-import { getFinding } from "@/lib/api/findings";
-import { EVIDENCE_LABELS, FEEDBACK_REACTIONS } from "@/lib/copy/findingLanguage";
-import type { EvidenceLevel, Finding } from "@/lib/api/types";
+import { getFinding, listFindingFeedback } from "@/lib/api/findings";
+import { EVIDENCE_LABELS } from "@/lib/copy/findingLanguage";
+import type { EvidenceLevel, Finding, FindingFeedback } from "@/lib/api/types";
 
 export const dynamic = "force-dynamic";
 
@@ -67,6 +68,14 @@ export default async function FindingDetailPage({
     );
   }
 
+  let feedback: FindingFeedback[] = [];
+  try {
+    feedback = await listFindingFeedback(id);
+  } catch {
+    // Feedback history is supplementary, like provenance below — a failure here must not take
+    // down the rest of an otherwise-loaded page.
+  }
+
   return (
     <article className="findingDetail">
       <Link href="/findings" className="findingDetail-back">
@@ -85,7 +94,7 @@ export default async function FindingDetailPage({
       {finding.lifecycle_status !== "ACTIVE" ? (
         <LifecycleBanner finding={finding} />
       ) : (
-        <FindingBody finding={finding} />
+        <FindingBody finding={finding} feedback={feedback} />
       )}
 
       <ProvenanceStrip finding={finding} />
@@ -105,7 +114,7 @@ function LifecycleBanner({ finding }: { finding: Finding }) {
   );
 }
 
-function FindingBody({ finding }: { finding: Finding }) {
+function FindingBody({ finding, feedback }: { finding: Finding; feedback: FindingFeedback[] }) {
   const totalPopulation = finding.exposed_records + finding.comparison_records;
   const exposedShare =
     totalPopulation > 0 ? ((finding.exposed_records / totalPopulation) * 100).toFixed(1) : null;
@@ -246,7 +255,7 @@ function FindingBody({ finding }: { finding: Finding }) {
             <p>{finding.evidence.recommended_validation}</p>
           </div>
         )}
-        <FeedbackSlot />
+        <FeedbackForm findingId={finding.id} initialHistory={feedback} />
       </Section>
     </>
   );
@@ -282,21 +291,6 @@ function EvidenceLadder({ current }: { current: EvidenceLevel }) {
         </li>
       ))}
     </ol>
-  );
-}
-
-function FeedbackSlot() {
-  return (
-    <div className="findingDetail-feedback">
-      <p className="findingDetail-meta">Feedback capture coming soon</p>
-      <div className="findingDetail-feedbackChips">
-        {FEEDBACK_REACTIONS.map((reaction) => (
-          <span key={reaction} className="findingDetail-feedbackChip" aria-disabled="true">
-            {reaction}
-          </span>
-        ))}
-      </div>
-    </div>
   );
 }
 

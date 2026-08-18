@@ -11,6 +11,18 @@ Report vulnerabilities privately to the repository owners; do not open a public 
 - Database credentials are server-only. Browser bundles receive only `NEXT_PUBLIC_API_URL`.
 - CORS allowlists are explicit. Production debug mode is disabled and API errors hide internals.
 - Dependencies and lockfiles are reviewed and scanned in CI.
+- Security response headers (X-Frame-Options, X-Content-Type-Options, Referrer-Policy, a strict Content-Security-Policy, Permissions-Policy) are set on every response by `SecurityHeadersMiddleware`.
+- HSTS/forced HTTPS is intentionally not set — TLS termination is an undecided deployment-provider choice (`docs/operations/deployment.md`); hardcoding it now would break local/Docker dev and risks pinning it wrong behind a future misconfigured proxy.
 
-Auth is a documented future boundary, not a placeholder that implies protection. Do not expose this MVP to untrusted networks before authentication and authorization are implemented.
+## Authentication — real, but narrow (`TASK-053`, `ADR-027`)
+
+Internal-staff login exists (`apps/api/app/auth/`): bcrypt-hashed passwords, DB-backed session
+cookies (httpOnly, `SameSite=Lax`, real revocation on logout — no JWT). Accounts are created only
+via `scripts/create_user.py`; there is no self-serve signup endpoint.
+
+**This does not mean the MVP is locked down.** Auth exists specifically to attribute *who* records
+customer finding feedback (`POST /api/v1/findings/{id}/feedback`, `TASK-035`) — that is the only
+route that currently requires it. Every other route, including dataset upload, remains
+unauthenticated by design. Login rate-limiting and bot protection are not implemented. **Do not
+expose this MVP to untrusted networks** — most of the API still has no access control at all.
 

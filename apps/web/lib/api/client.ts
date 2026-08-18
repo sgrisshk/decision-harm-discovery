@@ -16,6 +16,9 @@ export async function apiFetch<T>(path: string, init: ApiRequestInit = {}): Prom
   let response: Response;
   try {
     response = await fetch(url, {
+      // Session auth (TASK-053) is an httpOnly cookie on the API's own origin — always send it
+      // unless a caller explicitly overrides.
+      credentials: "include",
       ...rest,
       headers: { "content-type": "application/json", ...headers },
       body: body === undefined ? undefined : JSON.stringify(body),

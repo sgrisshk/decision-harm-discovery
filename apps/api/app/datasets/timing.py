@@ -7,15 +7,18 @@ module only takes the profiles `TASK-007` already computed and writes the result
 
 from __future__ import annotations
 
-from policy_analytics.profiling.feature_timing import classify_columns
+from policy_analytics.profiling.feature_timing import FeatureTimingClassification, classify_columns
 from policy_analytics.profiling.schema_profiler import ColumnProfile
 from policy_schemas.domain import DatasetColumn
 
 from app.db.models import DatasetModel
 
 
-def classify_dataset_timing(dataset: DatasetModel, profiles: tuple[ColumnProfile, ...]) -> None:
-    """Classify `profiles` and set `dataset.columns` in place. Does not commit.
+def classify_dataset_timing(
+    dataset: DatasetModel, profiles: tuple[ColumnProfile, ...]
+) -> tuple[FeatureTimingClassification, ...]:
+    """Classify `profiles`, set `dataset.columns` in place, and return the classifications so
+    callers can chain `TASK-009`'s data-quality report without reclassifying. Does not commit.
 
     A profiling failure upstream already leaves `dataset.columns` at its empty default (`TASK-007`
     never calls this when it raises), so a dataset can legitimately have profiles with no timing
@@ -31,3 +34,4 @@ def classify_dataset_timing(dataset: DatasetModel, profiles: tuple[ColumnProfile
         ).model_dump(mode="json")
         for classification, profile in zip(classifications, profiles, strict=True)
     ]
+    return classifications

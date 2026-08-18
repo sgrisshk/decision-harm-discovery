@@ -33,6 +33,7 @@ class OutcomeDefinition(Protocol):
     @property
     def harm_multiplier(self) -> int: ...
 
+
 Operator = Literal["eq", "ge", "lt"]
 DISCOVERY_METHOD_VERSION = "discovery-engine-v0.2.0"
 
@@ -170,9 +171,7 @@ def _eligible(metric: SplitMetric | None, config: DiscoveryConfig) -> bool:
     )
 
 
-def _development_score(
-    metric: SplitMetric, condition_count: int, config: DiscoveryConfig
-) -> float:
+def _development_score(metric: SplitMetric, condition_count: int, config: DiscoveryConfig) -> float:
     # historical_exposure = harm_per_booking * n_exposed rewards material, supported rules but is
     # linear in population: a rule that grows N mainly by absorbing bookings with a weaker (but
     # still same-signed) effect always scores higher than a smaller, purer rule with the same or

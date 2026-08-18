@@ -1,6 +1,6 @@
 SHELL := /bin/sh
 
-.PHONY: setup dev test lint typecheck format db-migrate db-upgrade fixture benchmark export-public-benchmark blind-workspace blind-key-init blind-image blind-rehearsal blind-issue blind-prepare blind-verify blind-shell blind-freeze blind-status analytical-dataset temporal-splits check-data docker-build
+.PHONY: setup dev test lint typecheck format db-migrate db-upgrade fixture benchmark benchmark-difficulty export-public-benchmark blind-workspace blind-key-init blind-image blind-rehearsal blind-issue blind-prepare blind-verify blind-shell blind-freeze blind-status analytical-dataset temporal-splits check-data docker-build
 
 setup:
 	test -f .env || cp .env.example .env
@@ -37,6 +37,12 @@ fixture:
 
 benchmark:
 	uv run python scripts/generate_synthetic_benchmark.py
+
+# TASK-004. difficulty=easy|medium|hard|brutal (default medium). Writes to
+# synthetic_data_presets/<difficulty>/, never to synthetic_data/ (medium's own default output
+# still goes to synthetic_data/ only via the plain `benchmark` target above, unchanged).
+benchmark-difficulty:
+	uv run python scripts/generate_synthetic_benchmark.py --difficulty "$(or $(difficulty),medium)"
 
 export-public-benchmark: temporal-splits
 	test -n "$(destination)"

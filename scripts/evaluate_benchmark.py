@@ -152,8 +152,7 @@ def _attribution_narrowed_impact(
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
-            "CLI: score a frozen TASK-019 validation report against hidden ground truth "
-            "(TASK-028)."
+            "CLI: score a frozen TASK-019 validation report against hidden ground truth (TASK-028)."
         )
     )
     parser.add_argument(

@@ -9,6 +9,7 @@ import math
 import random
 from dataclasses import asdict, dataclass
 from datetime import UTC, date, datetime, timedelta
+from enum import StrEnum
 from pathlib import Path
 from typing import Any, cast
 
@@ -60,9 +61,7 @@ PATTERN_CONFIGURED_EFFECTS: dict[str, dict[str, Any]] = {
         "additional_cost_location_delta_eur": {
             "by_customer_segment": {"corporate": 610, "otherwise": 230}
         },
-        "cancellation_logit_delta": {
-            "by_customer_segment": {"corporate": 0.85, "otherwise": 0.25}
-        },
+        "cancellation_logit_delta": {"by_customer_segment": {"corporate": 0.85, "otherwise": 0.25}},
     },
 }
 
@@ -86,10 +85,155 @@ class BenchmarkConfig:
     start_date: str = START_DATE.isoformat()
     months: int = 24
     dirty_duplicate_rows: int = 37
+    #: TASK-004 difficulty knobs. Every default below is the identity value for its own
+    #: mechanism (1.0 = unscaled, 0 extra draws) so that `BenchmarkConfig()` — the config every
+    #: already-frozen artifact (`5c41aab8...` hidden ground truth, `98ad4e7e...` analytical
+    #: dataset identity, and every downstream discovery/validation/blind run built on them) was
+    #: generated with — reproduces byte-identical output. None of these fields add, remove, or
+    #: reorder a single `rng.*()` call versus the pre-TASK-004 generator; every one multiplies or
+    #: nudges an already-existing magnitude or threshold in place. See `Difficulty`/
+    #: `DIFFICULTY_PRESETS` for the named EASY/MEDIUM/HARD/BRUTAL combinations; `MEDIUM` is these
+    #: defaults.
+    effect_scale: float = 1.0
+    noise_scale: float = 1.0
+    confounding_scale: float = 1.0
+    missingness_scale: float = 1.0
+    rarity_scale: float = 1.0
+    drift_scale: float = 1.0
+
+
+class Difficulty(StrEnum):
+    EASY = "easy"
+    MEDIUM = "medium"
+    HARD = "hard"
+    BRUTAL = "brutal"
+
+
+@dataclass(frozen=True, slots=True)
+class DifficultyScales:
+    effect_scale: float
+    noise_scale: float
+    confounding_scale: float
+    missingness_scale: float
+    rarity_scale: float
+    drift_scale: float
+
+
+#: Named combinations of the six TASK-004 knobs above, applied on top of `BenchmarkConfig`'s other
+#: fields (seed/row_count/etc. stay caller-supplied). `MEDIUM` is exactly the pre-TASK-004
+#: defaults — the currently frozen benchmark is `difficulty_config(Difficulty.MEDIUM)`, byte-
+#: identical to `BenchmarkConfig()`. Larger effects/rarity, smaller noise/confounding/missingness,
+#: are easier to discover; the reverse is harder. Chosen to move each knob a meaningful but not
+#: destabilizing amount per step — see `docs/benchmark/difficulty-presets.md` for the full
+#: rationale and verified per-preset support numbers.
+DIFFICULTY_PRESETS: dict[Difficulty, DifficultyScales] = {
+    Difficulty.EASY: DifficultyScales(
+        effect_scale=1.6,
+        noise_scale=0.7,
+        confounding_scale=0.5,
+        missingness_scale=0.5,
+        rarity_scale=1.3,
+        drift_scale=0.5,
+    ),
+    Difficulty.MEDIUM: DifficultyScales(
+        effect_scale=1.0,
+        noise_scale=1.0,
+        confounding_scale=1.0,
+        missingness_scale=1.0,
+        rarity_scale=1.0,
+        drift_scale=1.0,
+    ),
+    Difficulty.HARD: DifficultyScales(
+        effect_scale=0.6,
+        noise_scale=1.5,
+        confounding_scale=1.6,
+        missingness_scale=1.6,
+        rarity_scale=0.7,
+        drift_scale=1.6,
+    ),
+    Difficulty.BRUTAL: DifficultyScales(
+        effect_scale=0.35,
+        noise_scale=2.2,
+        confounding_scale=2.4,
+        missingness_scale=2.2,
+        # 0.65, not a smaller (more aggressive) value: verified empirically that every one of the
+        # 9 patterns keeps nonzero support on the full 10,000-row benchmark down to ~0.6; below
+        # that, P04/P08's own already-narrow trigger conditions (each requires reaching the tail
+        # of a capped gaussian on top of two other conditions) start losing all support outright,
+        # which is "the pattern no longer exists in this sample," not "hard to find."
+        rarity_scale=0.65,
+        drift_scale=2.4,
+    ),
+}
+
+
+def difficulty_config(
+    difficulty: Difficulty, *, seed: int = SEED, row_count: int = ROW_COUNT
+) -> BenchmarkConfig:
+    """Build the `BenchmarkConfig` for a named preset. `Difficulty.MEDIUM` is exactly
+    `BenchmarkConfig()` — asserted by `tests/analytics/test_difficulty_presets.py`."""
+    scales = DIFFICULTY_PRESETS[difficulty]
+    return BenchmarkConfig(
+        seed=seed,
+        row_count=row_count,
+        effect_scale=scales.effect_scale,
+        noise_scale=scales.noise_scale,
+        confounding_scale=scales.confounding_scale,
+        missingness_scale=scales.missingness_scale,
+        rarity_scale=scales.rarity_scale,
+        drift_scale=scales.drift_scale,
+    )
 
 
 def _sigmoid(value: float) -> float:
     return 1.0 / (1.0 + math.exp(-value))
+
+
+def scaled_uniform(rng: random.Random, low: float, high: float, scale: float) -> float:
+    """`rng.uniform(low, high)` with its width scaled around its own mean. Exactly
+    `rng.uniform(low, high)` (same single `rng.random()` draw, same arguments) when `scale == 1.0`
+    — never adds or removes a draw, so this never shifts the PRNG sequence for later calls."""
+    mean = (low + high) / 2
+    half_width = (high - low) / 2 * scale
+    return rng.uniform(mean - half_width, mean + half_width)
+
+
+def _tightened_min(base: float, rarity: float, domain_max: float) -> float:
+    """A ">=" trigger threshold tightened by `rarity` (identity at `rarity == 1.0`), capped at
+    `domain_max` so a small `rarity` doesn't push the threshold past the field's actual achievable
+    range and make it structurally impossible (as opposed to merely rare). This caps *reachability*
+    only — a capped threshold can still have near-zero real support if reaching it requires an
+    extreme tail of its own generating distribution (e.g. `trip_duration_days`'s gaussian, capped
+    well below where its mass actually lives); `DIFFICULTY_PRESETS[Difficulty.BRUTAL].rarity_scale`
+    was chosen empirically so every pattern keeps nonzero support on the full 10,000-row benchmark
+    — see that field's own comment and `docs/benchmark/difficulty-presets.md`."""
+    return min(domain_max, base / rarity)
+
+
+def scale_effect_leaves(value: object, scale: float) -> object:
+    """Recursively multiply every numeric leaf of a `PATTERN_CONFIGURED_EFFECTS[pattern_id]`
+    entry by `scale`, leaving strings (e.g. the descriptive `"formula"` field) untouched. Linear
+    scaling distributes over the `intercept`/`party_size_coefficient` shape exactly the same as
+    scaling the whole hardcoded expression in `_generate_row` — the two are mathematically
+    guaranteed consistent without sharing code, verified directly in
+    `tests/analytics/test_difficulty_presets.py`.
+
+    `scale == 1.0` returns `value` completely untouched (not `value * 1.0`) so the already-frozen
+    `hidden_ground_truth.json` (`5c41aab8...`) stays byte-identical at `Difficulty.MEDIUM` — an int
+    leaf like `410` must stay the JSON integer `410`, never become the float `410.0`, or every
+    downstream consumer pinned to that exact SHA-256 (already-completed discovery/validation/blind
+    runs) would silently see a changed artifact.
+    """
+    if scale == 1.0:
+        return value
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, int | float):
+        return value * scale
+    if isinstance(value, dict):
+        typed_value = cast(dict[str, object], value)
+        return {key: scale_effect_leaves(item, scale) for key, item in typed_value.items()}
+    return value
 
 
 def _money(value: float) -> float:
@@ -101,7 +245,10 @@ def _weighted(rng: random.Random, values: list[str], weights: list[float]) -> st
 
 
 def _generate_row(
-    index: int, rng: random.Random, disabled_pattern_id: str | None = None
+    index: int,
+    rng: random.Random,
+    config: BenchmarkConfig,
+    disabled_pattern_id: str | None = None,
 ) -> tuple[dict[str, object], list[str]]:
     booking_date = START_DATE + timedelta(days=rng.randrange(731))
     month = booking_date.month
@@ -124,16 +271,18 @@ def _generate_row(
         rng, ["direct", "partner", "paid_search", "referral"], [0.35, 0.25, 0.27, 0.13]
     )
 
-    # Deliberately non-random assignment creates observed confounding traps.
+    # Deliberately non-random assignment creates observed confounding traps. Strength scales with
+    # config.confounding_scale (1.0 = unscaled); the weight itself is compared/consumed by
+    # rng.choices() the same way regardless, so this never changes the draw count.
     manager_weights = [1.0] * 8
     if destination in {"Tokyo", "Zanzibar"} or lead_time < 14:
-        manager_weights[1] += 3.5  # Manager 2 receives intrinsically difficult bookings.
+        manager_weights[1] += 3.5 * config.confounding_scale  # Manager 2's bookings are harder.
     manager = _weighted(rng, [f"Manager {number}" for number in range(1, 9)], manager_weights)
     supplier_weights = [1.0, 1.0, 1.0, 1.0]
     if trip_duration >= 14:
-        supplier_weights[0] += 4.0  # Atlas appears costly because it handles long trips.
+        supplier_weights[0] += 4.0 * config.confounding_scale  # Atlas handles long trips.
     if destination == "Tokyo":
-        supplier_weights[1] += 2.0
+        supplier_weights[1] += 2.0 * config.confounding_scale
     supplier = _weighted(rng, ["Atlas", "BlueWing", "Cedar", "DeltaSun"], supplier_weights)
 
     price_multiplier = {"standard": 1.0, "premium": 1.42, "luxury": 2.15}[category]
@@ -146,7 +295,7 @@ def _generate_row(
     }[destination]
     customer_price = max(
         450.0,
-        rng.gauss(1750, 360) * price_multiplier * destination_multiplier
+        rng.gauss(1750, 360 * config.noise_scale) * price_multiplier * destination_multiplier
         + 115 * party_size
         + 48 * trip_duration,
     )
@@ -173,36 +322,56 @@ def _generate_row(
     cancel_logit = -3.05 + 0.34 * complexity
     support_lambda = 0.16 + 0.10 * complexity
 
-    if supplier == "BlueWing" and discount >= 0.12 and lead_time < 21:
+    # Trigger thresholds are nudged by config.rarity_scale (>1 loosens/more support, <1 tightens/
+    # less support; identity at 1.0 — every comparison below reduces to its original literal).
+    # Effect magnitudes are multiplied by config.effect_scale (identity at 1.0). Neither changes
+    # which or how many rng.*() calls happen, so MEDIUM (all scales 1.0) is byte-identical to the
+    # pre-TASK-004 generator — verified in tests/analytics/test_difficulty_presets.py.
+    rarity = config.rarity_scale
+    effect = config.effect_scale
+    if supplier == "BlueWing" and discount >= 0.12 and lead_time < 21 * rarity:
         patterns.append("P01")
         if disabled_pattern_id != "P01":
-            loss += 410
-            cancel_logit += 1.05
-            support_lambda += 0.75
-    if destination == "Zanzibar" and segment == "family" and party_size >= 5 and month in {6, 7, 8}:
+            loss += 410 * effect
+            cancel_logit += 1.05 * effect
+            support_lambda += 0.75 * effect
+    if (
+        destination == "Zanzibar"
+        and segment == "family"
+        and party_size >= _tightened_min(5, rarity, 7)  # 7 = max party_size (family segment)
+        and month in {6, 7, 8}
+    ):
         patterns.append("P02")
         if disabled_pattern_id != "P02":
-            loss += 520 + 45 * party_size
-            support_lambda += 1.0
-    if installments >= 3 and customer_type == "new" and channel == "paid_search":
+            loss += (520 + 45 * party_size) * effect
+            support_lambda += 1.0 * effect
+    if (
+        installments >= _tightened_min(3, rarity, 4)  # 4 = max installments
+        and customer_type == "new"
+        and channel == "paid_search"
+    ):
         patterns.append("P03")
         if disabled_pattern_id != "P03":
-            loss += 240
-            cancel_logit += 0.72
-    if supplier == "Atlas" and trip_duration >= 14 and month in {1, 2, 12}:
+            loss += 240 * effect
+            cancel_logit += 0.72 * effect
+    if (
+        supplier == "Atlas"
+        and trip_duration >= _tightened_min(14, rarity, 28)  # 28 = max trip_duration_days
+        and month in {1, 2, 12}
+    ):
         patterns.append("P04")
         if disabled_pattern_id != "P04":
-            loss += 365
-            support_lambda += 0.55
-    if manager == "Manager 4" and manual_exception and customer_price >= 3500:
+            loss += 365 * effect
+            support_lambda += 0.55 * effect
+    if manager == "Manager 4" and manual_exception and customer_price >= 3500 / rarity:
         patterns.append("P05")
         if disabled_pattern_id != "P05":
-            loss += 475
-    if destination == "Tokyo" and lead_time < 10 and payment_method == "bank_transfer":
+            loss += 475 * effect
+    if destination == "Tokyo" and lead_time < 10 * rarity and payment_method == "bank_transfer":
         patterns.append("P06")
         if disabled_pattern_id != "P06":
-            loss += 300
-            cancel_logit += 1.15
+            loss += 300 * effect
+            cancel_logit += 1.15 * effect
     if (
         supplier == "Cedar"
         and channel == "partner"
@@ -211,29 +380,40 @@ def _generate_row(
     ):
         patterns.append("P07")
         if disabled_pattern_id != "P07":
-            loss += 390
-            support_lambda += 0.45
-    if category == "luxury" and party_size == 1 and lead_time >= 90:
+            # The one pattern whose trigger is itself temporal — drift_scale represents how much
+            # more (or less) unstable this drift-linked relationship is (identity at 1.0).
+            drift_effect = effect * config.drift_scale
+            loss += 390 * drift_effect
+            support_lambda += 0.45 * drift_effect
+    if (
+        category == "luxury"
+        and party_size == 1
+        and lead_time >= _tightened_min(90, rarity, 240)  # 240 = max lead_time
+    ):
         patterns.append("P08")
         if disabled_pattern_id != "P08":
-            loss += 440
-            support_lambda += 0.85
-    if supplier == "DeltaSun" and month in {9, 10, 11} and party_size >= 4:
+            loss += 440 * effect
+            support_lambda += 0.85 * effect
+    if (
+        supplier == "DeltaSun"
+        and month in {9, 10, 11}
+        and party_size >= _tightened_min(4, rarity, 7)  # 7 = max party_size (family segment)
+    ):
         patterns.append("P09")
         if disabled_pattern_id != "P09":
             heterogeneous_loss = 610 if segment == "corporate" else 230
-            loss += heterogeneous_loss
-            cancel_logit += 0.85 if segment == "corporate" else 0.25
+            loss += heterogeneous_loss * effect
+            cancel_logit += (0.85 if segment == "corporate" else 0.25) * effect
 
     cancellation = rng.random() < _sigmoid(cancel_logit)
     support_cases = min(6, int(rng.expovariate(1 / max(support_lambda, 0.01))))
-    support_cost = support_cases * rng.uniform(38, 92)
+    support_cost = support_cases * scaled_uniform(rng, 38, 92, config.noise_scale)
     payment_fee = customer_price * (0.012 + 0.008 * max(0, installments - 1))
-    base_cost_ratio = rng.uniform(0.66, 0.79) + 0.015 * complexity
+    base_cost_ratio = scaled_uniform(rng, 0.66, 0.79, config.noise_scale) + 0.015 * complexity
     base_cost = customer_price * base_cost_ratio
-    additional_cost = max(0.0, rng.gauss(42 + loss, 55 + 0.08 * loss))
+    additional_cost = max(0.0, rng.gauss(42 + loss, (55 + 0.08 * loss) * config.noise_scale))
     net_revenue = customer_price * (1 - discount)
-    refund_ratio = rng.uniform(0.82, 1.0) if cancellation else 0.0
+    refund_ratio = scaled_uniform(rng, 0.82, 1.0, config.noise_scale) if cancellation else 0.0
     refund_amount = net_revenue * refund_ratio
     gross_profit = net_revenue - base_cost - refund_amount
     contribution_margin = gross_profit - additional_cost - support_cost - payment_fee
@@ -241,8 +421,10 @@ def _generate_row(
         -0.55 - 0.95 * cancellation - 0.00022 * max(0, -contribution_margin)
     )
     repeat_purchase: bool | None = rng.random() < repeat_probability
-    # Selection bias: repeat behavior is unobservable more often after cancellation.
-    if rng.random() < (0.46 if cancellation else 0.07):
+    # Selection bias: repeat behavior is unobservable more often after cancellation. Scaled by
+    # config.missingness_scale (identity at 1.0), clamped so it always stays a valid probability.
+    missingness_threshold = min(1.0, (0.46 if cancellation else 0.07) * config.missingness_scale)
+    if rng.random() < missingness_threshold:
         repeat_purchase = None
     refund_date = booking_date + timedelta(days=rng.randint(2, 75)) if cancellation else None
 
@@ -495,7 +677,7 @@ def _realized_pattern_effects(
         affected = set(affected_ids)
         counterfactual_rng = random.Random(config.seed)
         counterfactual_rows = [
-            _generate_row(index, counterfactual_rng, disabled_pattern_id=pattern_id)[0]
+            _generate_row(index, counterfactual_rng, config, disabled_pattern_id=pattern_id)[0]
             for index in range(config.row_count)
         ]
         outcome_effects: dict[str, Any] = {}
@@ -545,9 +727,15 @@ def _ground_truth(
         realized = realized_effects[pattern_id]["outcomes"][primary_outcome.column]
         realized_value = realized["mean_effect"]
         affected_n = realized_effects[pattern_id]["affected_record_count"]
+        # P07 is the one drift-linked pattern (see _generate_row) — its applied magnitude is
+        # additionally scaled by drift_scale, so its reported configured_effect must be too, to
+        # stay consistent with what was actually applied (identity at effect_scale=drift_scale=1.0).
+        pattern_scale = config.effect_scale * (config.drift_scale if pattern_id == "P07" else 1.0)
         return {
             "pattern_id": pattern_id,
-            "configured_effect": PATTERN_CONFIGURED_EFFECTS[pattern_id],
+            "configured_effect": scale_effect_leaves(
+                PATTERN_CONFIGURED_EFFECTS[pattern_id], pattern_scale
+            ),
             "realized_effect": realized_value,
             "direction": "decrease_is_harm",
             "affected_n": affected_n,
@@ -572,6 +760,7 @@ def _ground_truth(
                 "positive means realized harm; harm_multiplier=-1 from outcome contract"
             ),
         }
+
     patterns = [
         (
             "P01",
@@ -703,22 +892,31 @@ def _ground_truth(
 def generate_benchmark(output_root: Path, config: BenchmarkConfig | None = None) -> dict[str, str]:
     """Generate all benchmark artifacts and return their checksums."""
     config = config or BenchmarkConfig()
+    scale_fields = (
+        config.effect_scale,
+        config.noise_scale,
+        config.confounding_scale,
+        config.missingness_scale,
+        config.rarity_scale,
+        config.drift_scale,
+    )
     if (
         config.row_count < 180
         or config.dirty_duplicate_rows < 0
         or config.dirty_duplicate_rows > config.row_count
         or config.months != 24
         or config.start_date != START_DATE.isoformat()
+        or any(scale <= 0 for scale in scale_fields)
     ):
         raise ValueError(
-            "benchmark requires at least 180 rows, a feasible duplicate count, and the configured "
-            "24-month window"
+            "benchmark requires at least 180 rows, a feasible duplicate count, the configured "
+            "24-month window, and every TASK-004 difficulty scale factor strictly positive"
         )
     rng = random.Random(config.seed)
     clean_rows: list[dict[str, object]] = []
     memberships: dict[str, list[str]] = {f"P{number:02d}": [] for number in range(1, 10)}
     for index in range(config.row_count):
-        row, matched_patterns = _generate_row(index, rng)
+        row, matched_patterns = _generate_row(index, rng, config)
         clean_rows.append(row)
         for pattern_id in matched_patterns:
             memberships[pattern_id].append(str(row["booking_id"]))

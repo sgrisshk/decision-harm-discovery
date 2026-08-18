@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.analysis_runs.routes import router as analysis_runs_router
 from app.api.schemas import HealthResponse
+from app.auth.routes import router as auth_router
 from app.core.config import get_settings
 from app.core.logging import configure_logging
 from app.core.middleware import RequestLoggingMiddleware, SecurityHeadersMiddleware
@@ -31,7 +32,10 @@ app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
-    allow_credentials=False,
+    # TASK-053: session auth is an httpOnly cookie, so cross-origin requests must be allowed to
+    # send it. `cors_origins` stays an explicit allowlist (never "*"), which is required for
+    # credentialed CORS to be valid at all.
+    allow_credentials=True,
     allow_methods=["GET", "POST"],
     allow_headers=["content-type", "x-request-id"],
 )
@@ -54,6 +58,7 @@ def ready(session: Session = Depends(get_db)) -> HealthResponse:
     return HealthResponse(status="ready")
 
 
+app.include_router(auth_router, prefix="/api/v1")
 app.include_router(datasets_router, prefix="/api/v1")
 app.include_router(analysis_runs_router, prefix="/api/v1")
 app.include_router(findings_router, prefix="/api/v1")

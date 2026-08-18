@@ -43,9 +43,7 @@ def _condition_phrase(condition: PatternCondition) -> str:
     return f"{label} {phrase} {condition.value}"
 
 
-def generate_title(
-    harm_direction_phrase: str, conditions: tuple[PatternCondition, ...]
-) -> str:
+def generate_title(harm_direction_phrase: str, conditions: tuple[PatternCondition, ...]) -> str:
     """Short, list-row-length sentence (target <= ~80 characters). Truncates past
     `_TITLE_MAX_CONDITIONS` conditions but always discloses the truncation."""
     if not conditions:
@@ -59,9 +57,7 @@ def generate_title(
     return title
 
 
-def generate_summary(
-    harm_direction_phrase: str, conditions: tuple[PatternCondition, ...]
-) -> str:
+def generate_summary(harm_direction_phrase: str, conditions: tuple[PatternCondition, ...]) -> str:
     """One-paragraph version for the detail screen's "What we found" section. Every condition is
     named — the summary is not subject to the title's readability truncation."""
     if not conditions:

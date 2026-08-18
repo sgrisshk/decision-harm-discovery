@@ -10,6 +10,9 @@ from typing import Any, cast
 
 import polars as pl
 
+from policy_analytics.cleaning.canonical_schema import (
+    CANONICAL_SCHEMA_VERSION,
+)
 from policy_analytics.outcomes.contract import (
     DATASET_VERSION as OUTCOME_CONTRACT_DATASET_SCOPE,
 )
@@ -22,7 +25,9 @@ from policy_analytics.outcomes.contract import (
 )
 
 DATASET_VERSION = "travel-bookings-analytical-v1.0.0"
-CANONICAL_SCHEMA_VERSION = "travel-booking-canonical-v1.0.0"
+#: TASK-010 now formally defines this schema (`policy_analytics.cleaning.canonical_schema`) —
+#: re-exported here unchanged (same version string, same target shape) so existing importers of
+#: `analytical_dataset.CANONICAL_SCHEMA_VERSION` are unaffected.
 ALLOWED_CLASSIFICATIONS = {
     "DECISION_TIME",
     "POST_DECISION",

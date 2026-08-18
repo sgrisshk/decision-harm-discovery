@@ -5,6 +5,8 @@ description = "Outcome-driven policy discovery monorepo"
 requires-python = ">=3.12"
 dependencies = [
   "alembic==1.16.4",
+  "bcrypt==5.0.0",
+  "email-validator==2.3.0",
   "fastapi==0.116.1",
   "polars==1.32.2",
   "psycopg[binary]==3.2.9",
@@ -48,6 +50,7 @@ select = ["E", "F", "I", "B", "UP", "SIM", "RUF"]
 [tool.ruff.lint.per-file-ignores]
 "apps/api/app/**/routes.py" = ["B008"]
 "apps/api/app/main.py" = ["B008"]
+"apps/api/app/auth/dependencies.py" = ["B008"]
 
 [tool.pyright]
 pythonVersion = "3.12"

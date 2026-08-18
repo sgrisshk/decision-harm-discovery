@@ -169,3 +169,60 @@ export type AnalysisRun = {
 export type HealthStatus = {
   status: string;
 };
+
+// apps/api/app/api/schemas.py: UserRead
+export type User = {
+  id: string;
+  email: string;
+  display_name: string;
+};
+
+// packages/schemas/src/policy_schemas/domain.py: FeedbackNovelty
+export type FeedbackNovelty = "KNOWN_ALREADY" | "NEW";
+
+// packages/schemas/src/policy_schemas/domain.py: FeedbackActionability
+export type FeedbackActionability = "ACTIONABLE" | "NOT_ACTIONABLE";
+
+// packages/schemas/src/policy_schemas/domain.py: FeedbackTag
+export type FeedbackTag = "WRONG" | "INTERESTING";
+
+// packages/schemas/src/policy_schemas/domain.py: FeedbackCertainty
+export type FeedbackCertainty = "LOW" | "MEDIUM" | "HIGH";
+
+// packages/schemas/src/policy_schemas/domain.py: FeedbackCommitmentStrength
+export type FeedbackCommitmentStrength = "STATED_COMMITMENT" | "STATED_INTENTION" | "NONE";
+
+// apps/api/app/api/schemas.py: FindingFeedbackRead
+export type FindingFeedback = {
+  id: string;
+  finding_id: string;
+  created_by_user_id: string;
+  review_session: string;
+  captured_at: string;
+  novelty: FeedbackNovelty | null;
+  actionability: FeedbackActionability | null;
+  tags: FeedbackTag[];
+  customer_comment: string | null;
+  customer_certainty: FeedbackCertainty | null;
+  intended_action: string | null;
+  commitment_strength: FeedbackCommitmentStrength | null;
+  customer_owner: string | null;
+  internal_follow_up_owner: string | null;
+  follow_up_date: string | null;
+  created_at: string;
+};
+
+// apps/api/app/findings/feedback_contracts.py: FeedbackCreate
+export type FeedbackCreatePayload = {
+  review_session: string;
+  novelty?: FeedbackNovelty | null;
+  actionability?: FeedbackActionability | null;
+  tags?: FeedbackTag[];
+  customer_comment?: string | null;
+  customer_certainty?: FeedbackCertainty | null;
+  intended_action?: string | null;
+  commitment_strength?: FeedbackCommitmentStrength | null;
+  customer_owner?: string | null;
+  internal_follow_up_owner?: string | null;
+  follow_up_date?: string | null;
+};

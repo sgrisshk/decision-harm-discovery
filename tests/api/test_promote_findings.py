@@ -128,9 +128,7 @@ def test_promote_finding_rejects_a_report_without_evidence_level(
             artifact_sha256="c" * 64,
             persisted_at=datetime.now(UTC),
             lineage=(
-                LineageReference(
-                    kind="candidate_artifact", uri="test://fixture", sha256="d" * 64
-                ),
+                LineageReference(kind="candidate_artifact", uri="test://fixture", sha256="d" * 64),
             ),
         ),
     )
@@ -232,9 +230,7 @@ def test_promote_findings_script_against_real_closing_run(
         "CAND-015",
     }
     assert len(experiment_only_keys) == 9
-    assert shadow_policy_keys | experiment_only_keys == {
-        f"CAND-{i:03d}" for i in range(1, 16)
-    }
+    assert shadow_policy_keys | experiment_only_keys == {f"CAND-{i:03d}" for i in range(1, 16)}
 
     # API surface: all 15 ACTIVE findings from this run are listed (superset-safe — a persistent,
     # non-ephemeral database could carry findings from an earlier rerun too, same rationale as

@@ -26,9 +26,7 @@ from policy_analytics.validation.apply import SPLITS, Condition, rule_expr, spli
 
 
 def _conditions_from(raw_conditions: list[dict[str, Any]]) -> tuple[Condition, ...]:
-    return tuple(
-        Condition(raw["feature"], raw["operator"], raw["value"]) for raw in raw_conditions
-    )
+    return tuple(Condition(raw["feature"], raw["operator"], raw["value"]) for raw in raw_conditions)
 
 
 def _development_exposed_ids(

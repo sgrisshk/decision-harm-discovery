@@ -54,7 +54,7 @@ Impact fields do not exist in code yet (`TASK-023` is `BLOCKED`). Listed here as
 
 | Field | Meaning | Display rule |
 |---|---|---|
-| `affected_records` (window) | Same population as `exposed_records`, restated for the impact section | — |
+| `affected_records` (window) | **Correction (`HANDOFF-046`, 2026-08-17): not the same population as `exposed_records`.** `exposed_records` (§1 "Who this applies to") is the development-split-only count evidence was graded on; `affected_records` here is the full combined-window (development + validation + future_holdout) count the pattern actually touches historically — on the real closing run these differ by ~1.7×. This is the customer-facing "money at stake" number (`FindingImpactRead.affected_records`, matching `apps/api/app/api/schemas.py`); `exposed_records` stays in the evidence section as the grading-population count, never presented as if it were the same figure. | Always the count, never a bare percentage; never captioned as a restatement of `exposed_records` |
 | `per_record_effect` (value + interval, in outcome's own unit) | Same shape as `EffectEstimate` | Always interval, never bare |
 | `historical_impact` (value + interval) | `affected × effect`, interval propagated from the same bootstrap | Always interval, never bare |
 | `outcome_name`, `outcome_unit` | Rendered from data (`docs/analytics/outcome-contract.md`), never hardcoded as "gross margin" or any fixed string — `OQ-002` (real-customer outcome) is still open | — |

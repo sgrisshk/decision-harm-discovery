@@ -1,10 +1,11 @@
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any
 
 from sqlalchemy import (
     BigInteger,
     Boolean,
+    Date,
     DateTime,
     Float,
     ForeignKey,
@@ -44,6 +45,13 @@ class DatasetModel(TimestampMixin, Base):
     source_type: Mapped[str] = mapped_column(String(32), nullable=False)
     storage_path: Mapped[str] = mapped_column(String(512), nullable=False)
     columns: Mapped[list[dict[str, Any]]] = mapped_column(JSONB, nullable=False, default=list)
+    #: TASK-009. Single JSONB document
+    #: (`policy_analytics.profiling.quality_report.DataQualityReport` via `dataclasses.asdict`)
+    #: rather than a relational table — it is read/written as one unit,
+    #: never queried column-by-column, matching `ValidationReportModel`'s own precedent for
+    #: versioned diagnostic documents. `NULL` means profiling/classification did not complete for
+    #: this dataset version (upload still succeeded — see `TASK-006`'s guarantee).
+    quality_report: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
 
     analysis_runs: Mapped[list["AnalysisRunModel"]] = relationship(back_populates="dataset")
     column_profiles: Mapped[list["DatasetColumnProfileModel"]] = relationship(
@@ -125,9 +133,7 @@ class CandidatePatternModel(TimestampMixin, Base):
 
     __tablename__ = "candidate_patterns"
     __table_args__ = (
-        UniqueConstraint(
-            "analysis_run_id", "candidate_key", name="uq_candidate_patterns_run_key"
-        ),
+        UniqueConstraint("analysis_run_id", "candidate_key", name="uq_candidate_patterns_run_key"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -259,3 +265,66 @@ class PolicyCandidateModel(TimestampMixin, Base):
     rationale: Mapped[str] = mapped_column(Text, nullable=False)
     rule_definition: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="draft")
+
+
+class UserModel(TimestampMixin, Base):
+    """Internal staff account (`TASK-053`) — not a customer account, not multi-tenant.
+
+    No self-serve signup: rows are created only via `scripts/create_user.py`.
+    """
+
+    __tablename__ = "users"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    email: Mapped[str] = mapped_column(String(320), nullable=False, unique=True)
+    password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
+    display_name: Mapped[str] = mapped_column(String(200), nullable=False)
+
+
+class SessionModel(Base):
+    """A DB-backed opaque session — real, immediate revocation on logout, no signing secret.
+
+    No `TimestampMixin`: a session is never updated after creation, only deleted.
+    """
+
+    __tablename__ = "sessions"
+
+    token: Mapped[str] = mapped_column(String(64), primary_key=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+
+class FindingFeedbackModel(TimestampMixin, Base):
+    """A single append-only reviewer capture.
+
+    `TASK-035`, `docs/product/finding-feedback-contract.md`. Never updated after insert (§5);
+    never a write path to `FindingModel.evidence_level`/
+    `policy_readiness` (§7) — this table has no code path that touches `findings` at all.
+    """
+
+    __tablename__ = "finding_feedback"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    finding_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("findings.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    created_by_user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
+    )
+    review_session: Mapped[str] = mapped_column(String(256), nullable=False)
+    captured_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    novelty: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    actionability: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    tags: Mapped[list[str]] = mapped_column(JSONB, nullable=False, default=list)
+    customer_comment: Mapped[str | None] = mapped_column(Text, nullable=True)
+    customer_certainty: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    intended_action: Mapped[str | None] = mapped_column(Text, nullable=True)
+    commitment_strength: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    customer_owner: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    internal_follow_up_owner: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    follow_up_date: Mapped[date | None] = mapped_column(Date, nullable=True)

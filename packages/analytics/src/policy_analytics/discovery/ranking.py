@@ -57,11 +57,7 @@ class RankingWeights:
 
     def __post_init__(self) -> None:
         total = (
-            self.economic_impact
-            + self.support
-            + self.stability
-            + self.actionability
-            + self.novelty
+            self.economic_impact + self.support + self.stability + self.actionability + self.novelty
         )
         if abs(total - 1.0) > 1e-9:
             raise ValueError(f"ranking weights must sum to 1.0, got {total}")

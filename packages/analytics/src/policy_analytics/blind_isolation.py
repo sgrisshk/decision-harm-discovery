@@ -96,9 +96,7 @@ def _verify_issued_manifest(manifest: dict[str, Any], signing_key: bytes) -> dic
         unsigned_runner = {
             key: value for key, value in manifest.items() if key != "evaluator_signature"
         }
-        expected_runner = _signature(
-            unsigned_runner, signing_key, b"blind-agent-manifest-v1\0"
-        )
+        expected_runner = _signature(unsigned_runner, signing_key, b"blind-agent-manifest-v1\0")
         if not isinstance(runner_signature, str) or not hmac.compare_digest(
             runner_signature, expected_runner
         ):
@@ -108,9 +106,7 @@ def _verify_issued_manifest(manifest: dict[str, Any], signing_key: bytes) -> dic
             raise ValueError("blind runner manifest allowed_files must be a non-empty object")
         runner_files = cast(dict[object, object], raw_files)
         copied = {str(key): str(value) for key, value in runner_files.items()}
-        bundle_id = hashlib.sha256(
-            json.dumps(copied, sort_keys=True).encode("utf-8")
-        ).hexdigest()
+        bundle_id = hashlib.sha256(json.dumps(copied, sort_keys=True).encode("utf-8")).hexdigest()
         if unsigned_runner.get("bundle_id") != bundle_id:
             raise ValueError("blind runner manifest bundle_id is invalid")
         if unsigned_runner.get("protocol_version") != BLIND_PROTOCOL_VERSION:

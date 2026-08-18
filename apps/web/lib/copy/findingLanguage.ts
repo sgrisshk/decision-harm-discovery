@@ -1,4 +1,12 @@
-import type { EvidenceLevel, PolicyReadiness } from "@/lib/api/types";
+import type {
+  EvidenceLevel,
+  FeedbackActionability,
+  FeedbackCertainty,
+  FeedbackCommitmentStrength,
+  FeedbackNovelty,
+  FeedbackTag,
+  PolicyReadiness,
+} from "@/lib/api/types";
 
 /**
  * Single source of truth for the evidence/readiness pill wording. Both
@@ -37,15 +45,33 @@ export function impactFramingLabel(): "exposure" {
 }
 
 /**
- * Reaction options for the feedback-capture UI slot (docs/product/finding-detail-screen.md
- * §7, entry point for TASK-035/036). The full semantic contract lives in
- * docs/product/finding-feedback-contract.md; this screen only reserves the slot.
+ * Feedback-capture labels (`TASK-035`, `docs/product/finding-feedback-contract.md` §2). The six
+ * values split into two nullable single-select axes plus a multi-select tag set — see the
+ * contract for why these are not one flat enum.
  */
-export const FEEDBACK_REACTIONS = [
-  "Known already",
-  "New to us",
-  "Doesn't look right",
-  "Not actionable",
-  "Interesting",
-  "Actionable",
-] as const;
+export const FEEDBACK_NOVELTY_LABELS: Record<FeedbackNovelty, string> = {
+  KNOWN_ALREADY: "Known already",
+  NEW: "New to us",
+};
+
+export const FEEDBACK_ACTIONABILITY_LABELS: Record<FeedbackActionability, string> = {
+  ACTIONABLE: "Actionable",
+  NOT_ACTIONABLE: "Not actionable",
+};
+
+export const FEEDBACK_TAG_LABELS: Record<FeedbackTag, string> = {
+  WRONG: "Doesn't look right",
+  INTERESTING: "Interesting",
+};
+
+export const FEEDBACK_CERTAINTY_LABELS: Record<FeedbackCertainty, string> = {
+  LOW: "Low",
+  MEDIUM: "Medium",
+  HIGH: "High",
+};
+
+export const FEEDBACK_COMMITMENT_LABELS: Record<FeedbackCommitmentStrength, string> = {
+  STATED_COMMITMENT: "Stated commitment",
+  STATED_INTENTION: "Stated intention",
+  NONE: "None",
+};

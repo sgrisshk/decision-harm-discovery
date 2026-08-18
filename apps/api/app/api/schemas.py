@@ -1,15 +1,22 @@
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any
 from uuid import UUID
 
 from policy_analytics.validation.contract import IdentificationDesign, PolicyReadiness
 from policy_schemas.domain import (
+    DataQualityRating,
     DatasetColumn,
     EvidenceLevel,
+    FeatureTiming,
+    FeedbackActionability,
+    FeedbackCertainty,
+    FeedbackCommitmentStrength,
+    FeedbackNovelty,
+    FeedbackTag,
     FindingLifecycleStatus,
     ResourceStatus,
 )
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 
 class ApiModel(BaseModel):
@@ -40,6 +47,47 @@ class DatasetColumnProfileRead(ApiModel):
     suspicious_count: int
 
 
+class DateCoverageRead(ApiModel):
+    column_name: str
+    min_date: str
+    max_date: str
+
+
+class ExcludedColumnRead(ApiModel):
+    """Every column not usable as a `DECISION_TIME` explanatory feature, with why (`TASK-009`)."""
+
+    column_name: str
+    timing: FeatureTiming
+    reason: str
+
+
+class DataQualityReportRead(ApiModel):
+    """`TASK-009`. Aggregates `TASK-007`/`TASK-008` output — see
+    `policy_analytics.profiling.quality_report`'s module docstring for the rating's decision
+    rules. `None` on `DatasetRead` means profiling/classification did not complete for this
+    version, not that quality was assessed and found perfect."""
+
+    row_count: int
+    column_count: int
+    duplicate_row_count: int
+    distinct_row_count: int
+    date_coverage: list[DateCoverageRead]
+    detected_currencies: list[str]
+    total_missing_cells: int
+    overall_missingness: float
+    columns_with_high_missingness: list[str]
+    total_suspicious_values: int
+    columns_with_suspicious_values: list[str]
+    excluded_columns: list[ExcludedColumnRead]
+    available_outcomes: list[str]
+    usable_decision_variables: list[str]
+    unknown_columns: list[str]
+    constant_decision_variables: list[str]
+    schema_warnings: list[str]
+    rating: DataQualityRating
+    rating_reasons: list[str]
+
+
 class DatasetRead(ApiModel):
     id: UUID
     name: str
@@ -52,6 +100,7 @@ class DatasetRead(ApiModel):
     source_type: str
     columns: list[DatasetColumn]
     column_profiles: list[DatasetColumnProfileRead]
+    quality_report: DataQualityReportRead | None
     created_at: datetime
     updated_at: datetime
 
@@ -168,3 +217,38 @@ class FindingRead(ApiModel):
     lifecycle_status: FindingLifecycleStatus
     created_at: datetime
     updated_at: datetime
+
+
+class UserRead(ApiModel):
+    id: UUID
+    email: str
+    display_name: str
+
+
+class LoginRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    email: EmailStr
+    password: str = Field(min_length=1, max_length=72)
+
+
+class FindingFeedbackRead(ApiModel):
+    """`TASK-035`. `created_by_user_id` identifies the internal reviewer who captured this, not
+    the customer — see `docs/product/finding-feedback-contract.md` §4/§9 on `review_session`."""
+
+    id: UUID
+    finding_id: UUID
+    created_by_user_id: UUID
+    review_session: str
+    captured_at: datetime
+    novelty: FeedbackNovelty | None
+    actionability: FeedbackActionability | None
+    tags: list[FeedbackTag]
+    customer_comment: str | None
+    customer_certainty: FeedbackCertainty | None
+    intended_action: str | None
+    commitment_strength: FeedbackCommitmentStrength | None
+    customer_owner: str | None
+    internal_follow_up_owner: str | None
+    follow_up_date: date | None
+    created_at: datetime

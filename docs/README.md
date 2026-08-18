@@ -41,6 +41,7 @@ When moving or renaming a document, update all code, task, decision, handoff, me
 
 ### Architecture
 
+- `docs/architecture/canonical-schema-contract.md`
 - `docs/architecture/finding-persistence-contract.md`
 - `docs/architecture/ingestion-contract.md`
 
@@ -55,6 +56,7 @@ When moving or renaming a document, update all code, task, decision, handoff, me
 
 - `docs/benchmark/blind-benchmark-protocol.md`
 - `docs/benchmark/decision-gate.md`
+- `docs/benchmark/difficulty-presets.md`
 - `docs/benchmark/simulation-report.md`
 
 ### Customer

@@ -142,9 +142,7 @@ def test_discover_candidates_with_exponent_one_matches_manual_pure_exposure_repr
             frame,
             ("supplier", "discount_rate", "party_size"),
             primary_outcome(),
-            DiscoveryConfig(
-                min_n=20, beam_width=30, top_k=5, population_score_exponent=exponent
-            ),
+            DiscoveryConfig(min_n=20, beam_width=30, top_k=5, population_score_exponent=exponent),
         )
         assert result["candidate_count"] > 0
         assert all(candidate["fit_split"] == "development" for candidate in result["candidates"])

@@ -490,11 +490,7 @@ def launch(
     workspace = (run_root / "workspace").resolve()
     if provider_network:
         raise ValueError("deterministic blind launch forbids provider network")
-    inner = (
-        ["/bin/sh"]
-        if agent == "shell"
-        else ["python", "/workspace/scripts/run_discovery.py"]
-    )
+    inner = ["/bin/sh"] if agent == "shell" else ["python", "/workspace/scripts/run_discovery.py"]
     network = "none"
     command = [
         "docker",
