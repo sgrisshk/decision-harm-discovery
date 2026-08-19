@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { ErrorState, LoadingState } from "@/components/states";
 import { EvidencePill } from "@/components/findings/EvidencePill";
 import { ExposureFigure } from "@/components/findings/ExposureFigure";
@@ -39,31 +39,34 @@ const NEXT_STEP_ACTIONS: Record<Finding["policy_readiness"], string[]> = {
   ],
 };
 
+type Result = { attempt: number } & ({ finding: Finding; feedback: FindingFeedback[] } | { error: unknown });
+
 export function FindingDetailView() {
   const id = useSearchParams().get("id") ?? "";
+  const [attempt, setAttempt] = useState(0);
+  const [result, setResult] = useState<Result | null>(null);
 
-  const [finding, setFinding] = useState<Finding | null>(null);
-  const [feedback, setFeedback] = useState<FindingFeedback[]>([]);
-  const [error, setError] = useState<unknown>(null);
-
-  const load = useCallback(() => {
-    setError(null);
-    setFinding(null);
-    setFeedback([]);
+  useEffect(() => {
+    if (!id) return;
+    let cancelled = false;
     getFinding(id)
-      .then((loaded) => {
-        setFinding(loaded);
-        document.title = `Finding ${loaded.id.slice(0, 8)} — Signal Foundry`;
+      .then(async (finding) => {
+        if (cancelled) return;
+        document.title = `Finding ${finding.id.slice(0, 8)} — Signal Foundry`;
         // Feedback history is supplementary, like provenance below — a failure here must not
         // take down the rest of an otherwise-loaded page.
-        listFindingFeedback(id)
-          .then(setFeedback)
-          .catch(() => setFeedback([]));
+        const feedback = await listFindingFeedback(id).catch(() => []);
+        if (!cancelled) setResult({ attempt, finding, feedback });
       })
-      .catch((err: unknown) => setError(err));
-  }, [id]);
+      .catch((error: unknown) => {
+        if (!cancelled) setResult({ attempt, error });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [id, attempt]);
 
-  useEffect(load, [load]);
+  const retry = () => setAttempt((current) => current + 1);
 
   if (!id) {
     return (
@@ -75,19 +78,21 @@ export function FindingDetailView() {
     );
   }
 
-  if (error) {
+  if (result === null || result.attempt !== attempt) {
+    return <LoadingState label="Loading finding…" />;
+  }
+
+  if ("error" in result) {
     // A 404 (never promoted / wrong ID) and a genuine network/API failure both go through the
     // same ApiError path — docs/product/finding-detail-screen.md deliberately has no
     // special-cased "not found" page.
-    const { message, requestId } = toErrorDisplay(error);
+    const { message, requestId } = toErrorDisplay(result.error);
     return (
-      <ErrorState title="Could not load this finding" message={message} requestId={requestId} onRetry={load} />
+      <ErrorState title="Could not load this finding" message={message} requestId={requestId} onRetry={retry} />
     );
   }
 
-  if (finding === null) {
-    return <LoadingState label="Loading finding…" />;
-  }
+  const { finding, feedback } = result;
 
   return (
     <article className="findingDetail">

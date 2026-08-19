@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { EmptyState, ErrorState, LoadingState } from "@/components/states";
 import { EvidencePill } from "@/components/findings/EvidencePill";
 import { ExposureFigure } from "@/components/findings/ExposureFigure";
@@ -20,6 +20,8 @@ function firstValue(value: string | string[] | undefined): string {
   return Array.isArray(value) ? (value[0] ?? "") : (value ?? "");
 }
 
+type Result = { attempt: number } & ({ findings: Finding[] } | { error: unknown });
+
 export function FindingsView() {
   const searchParams = useSearchParams();
   const params: SearchParams = Object.fromEntries(searchParams.entries());
@@ -29,29 +31,26 @@ export function FindingsView() {
   const warnings = firstValue(params.warnings);
   const requestedPage = Number.parseInt(firstValue(params.page), 10) || 1;
 
-  const [findings, setFindings] = useState<Finding[] | null>(null);
-  const [error, setError] = useState<unknown>(null);
+  const [attempt, setAttempt] = useState(0);
+  const [result, setResult] = useState<Result | null>(null);
 
-  const load = useCallback(() => {
-    setError(null);
-    setFindings(null);
+  useEffect(() => {
+    let cancelled = false;
     listFindings()
-      .then(setFindings)
-      .catch((err: unknown) => setError(err));
-  }, []);
+      .then((findings) => {
+        if (!cancelled) setResult({ attempt, findings });
+      })
+      .catch((error: unknown) => {
+        if (!cancelled) setResult({ attempt, error });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [attempt]);
 
-  useEffect(load, [load]);
+  const retry = () => setAttempt((current) => current + 1);
 
-  if (error) {
-    const { message, requestId } = toErrorDisplay(error);
-    return (
-      <PageShell count={undefined}>
-        <ErrorState title="Could not load findings" message={message} requestId={requestId} onRetry={load} />
-      </PageShell>
-    );
-  }
-
-  if (findings === null) {
+  if (result === null || result.attempt !== attempt) {
     return (
       <PageShell count={undefined}>
         <LoadingState label="Loading findings…" />
@@ -59,6 +58,16 @@ export function FindingsView() {
     );
   }
 
+  if ("error" in result) {
+    const { message, requestId } = toErrorDisplay(result.error);
+    return (
+      <PageShell count={undefined}>
+        <ErrorState title="Could not load findings" message={message} requestId={requestId} onRetry={retry} />
+      </PageShell>
+    );
+  }
+
+  const { findings } = result;
   const filtered = filterFindings(findings, { readiness, evidence, warnings });
   const sorted = sortFindings(filtered, sort);
   const { items, totalPages, page } = paginateFindings(sorted, requestedPage);

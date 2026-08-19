@@ -214,7 +214,7 @@ Consolidates the pill/wording rules already stated inline above into one table. 
 
 Reuse `apps/web/components/states/` — no new primitives:
 
-- **Loading:** `LoadingState` with `label="Loading finding…"`. Not yet implemented — `apps/web/app/(app)/findings/[id]/` does not exist yet (only the list route does); flagged in `HANDOFF-029`.
+- **Loading:** `LoadingState` with `label="Loading finding…"`. Implemented at `apps/web/app/(app)/findings/detail/` (`HANDOFF-029`) — moved from a `[id]` dynamic route to a `?id=` query param per ADR-032, when the app was converted to a GitHub Pages static export (no server, so an unbounded set of finding IDs can't be pre-rendered via `generateStaticParams`).
 - **Error (finding not found, or API failure):** `ErrorState` with `title="Could not load this finding"`, `message`/`requestId` from `toErrorDisplay(error)`, `retryHref` pointing back to the same finding URL. A 404 (finding never existed or ID is wrong) and a genuine API/network failure both go through the same `ApiError`-based path already established in `apps/web/lib/api/errors.ts` — no special-cased "not found" page distinct from the standard error state, consistent with how `/datasets` and `/findings` already handle errors.
 - **Empty:** not applicable to a single-item detail page — a detail screen either resolves to content (including the `SUPERSEDED`/`WITHDRAWN` banner variants, which are not "empty," just non-default) or resolves to the error state above. There is no zero-items case for a single ID lookup.
 
@@ -230,4 +230,4 @@ Originally an open list handed to Architect (`HANDOFF-008`). Now substantially r
 - Outcome name/unit as data → resolved, `EconomicImpactPersistence.outcome_name`/`outcome_unit`.
 - Finding-lifecycle status → resolved, `docs/product/finding-product-contract.md` §12.1 (`HANDOFF-024`).
 
-Remaining, non-blocking: feature `display_label` for readable titles (`HANDOFF-028`), and the `/findings/[id]` route itself, which still needs to be built (`HANDOFF-029`).
+Remaining, non-blocking: feature `display_label` for readable titles (`HANDOFF-028`). The route itself (`HANDOFF-029`) is built, at `/findings/detail?id=` rather than `/findings/[id]` — see ADR-032.
