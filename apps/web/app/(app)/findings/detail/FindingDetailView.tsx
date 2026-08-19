@@ -12,8 +12,10 @@ import { WarningBadge } from "@/components/findings/WarningBadge";
 import { getAnalysisRun } from "@/lib/api/analysisRuns";
 import { toErrorDisplay } from "@/lib/api/display";
 import { getFinding, listFindingFeedback } from "@/lib/api/findings";
+import { listPolicyCandidates } from "@/lib/api/policyCandidates";
 import { EVIDENCE_LABELS } from "@/lib/copy/findingLanguage";
-import type { EvidenceLevel, Finding, FindingFeedback } from "@/lib/api/types";
+import { POLICY_CANDIDATE_STATUS_LABELS } from "@/lib/copy/policyLanguage";
+import type { EvidenceLevel, Finding, FindingFeedback, PolicyCandidate } from "@/lib/api/types";
 
 const EVIDENCE_LADDER: EvidenceLevel[] = [
   "descriptive_observation",
@@ -39,7 +41,11 @@ const NEXT_STEP_ACTIONS: Record<Finding["policy_readiness"], string[]> = {
   ],
 };
 
-type Result = { attempt: number } & ({ finding: Finding; feedback: FindingFeedback[] } | { error: unknown });
+type Result = { attempt: number } &
+  (
+    | { finding: Finding; feedback: FindingFeedback[]; policyCandidates: PolicyCandidate[] }
+    | { error: unknown }
+  );
 
 export function FindingDetailView() {
   const id = useSearchParams().get("id") ?? "";
@@ -53,10 +59,11 @@ export function FindingDetailView() {
       .then(async (finding) => {
         if (cancelled) return;
         document.title = `Finding ${finding.id.slice(0, 8)} — Signal Foundry`;
-        // Feedback history is supplementary, like provenance below — a failure here must not
-        // take down the rest of an otherwise-loaded page.
+        // Feedback history and policy candidates are supplementary, like provenance below — a
+        // failure here must not take down the rest of an otherwise-loaded page.
         const feedback = await listFindingFeedback(id).catch(() => []);
-        if (!cancelled) setResult({ attempt, finding, feedback });
+        const policyCandidates = await listPolicyCandidates(id).catch(() => []);
+        if (!cancelled) setResult({ attempt, finding, feedback, policyCandidates });
       })
       .catch((error: unknown) => {
         if (!cancelled) setResult({ attempt, error });
@@ -92,7 +99,7 @@ export function FindingDetailView() {
     );
   }
 
-  const { finding, feedback } = result;
+  const { finding, feedback, policyCandidates } = result;
 
   return (
     <article className="findingDetail">
@@ -112,7 +119,7 @@ export function FindingDetailView() {
       {finding.lifecycle_status !== "ACTIVE" ? (
         <LifecycleBanner finding={finding} />
       ) : (
-        <FindingBody finding={finding} feedback={feedback} />
+        <FindingBody finding={finding} feedback={feedback} policyCandidates={policyCandidates} />
       )}
 
       <ProvenanceStrip finding={finding} />
@@ -132,7 +139,15 @@ function LifecycleBanner({ finding }: { finding: Finding }) {
   );
 }
 
-function FindingBody({ finding, feedback }: { finding: Finding; feedback: FindingFeedback[] }) {
+function FindingBody({
+  finding,
+  feedback,
+  policyCandidates,
+}: {
+  finding: Finding;
+  feedback: FindingFeedback[];
+  policyCandidates: PolicyCandidate[];
+}) {
   const totalPopulation = finding.exposed_records + finding.comparison_records;
   const exposedShare =
     totalPopulation > 0 ? ((finding.exposed_records / totalPopulation) * 100).toFixed(1) : null;
@@ -275,6 +290,23 @@ function FindingBody({ finding, feedback }: { finding: Finding; feedback: Findin
         )}
         <FeedbackForm findingId={finding.id} initialHistory={feedback} />
       </Section>
+
+      {policyCandidates.length > 0 && (
+        <Section number={8} title="Policy candidates">
+          <ul className="findingDetail-actions">
+            {policyCandidates.map((candidate) => (
+              <li key={candidate.id}>
+                <Link href={`/policy-candidates/detail?id=${candidate.id}`}>
+                  {candidate.title}
+                </Link>{" "}
+                <span className="findingDetail-meta">
+                  ({POLICY_CANDIDATE_STATUS_LABELS[candidate.status]})
+                </span>
+              </li>
+            ))}
+          </ul>
+        </Section>
+      )}
     </>
   );
 }
