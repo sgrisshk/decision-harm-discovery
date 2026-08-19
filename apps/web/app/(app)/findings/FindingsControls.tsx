@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 export const SORT_OPTIONS = [
@@ -110,6 +111,9 @@ export function FindingsControls() {
           ))}
         </select>
       </label>
+      <Link href="/findings/review" className="findingsControls-reviewLink">
+        Start review session
+      </Link>
     </div>
   );
 }
