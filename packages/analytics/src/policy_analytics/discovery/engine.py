@@ -1,10 +1,14 @@
-"""Deterministic, interpretable candidate-pattern discovery (TASK-015/TASK-016/TASK-058).
+"""Deterministic, interpretable candidate-pattern discovery (TASK-015/TASK-016/TASK-058/TASK-060).
 
 The engine searches conjunctions of simple decision-time conditions. It selects rules only on the
 development split and reports later splits as stability diagnostics; it performs no inference and
 makes no causal claim. `TASK-058` (`HANDOFF-043` remediation part 2) added a precision term to the
 beam-survival score (`_development_score`) so candidates are not selected on raw total exposure
-alone — see its docstring and `docs/analytics/discovery-engine-v0.md`.
+alone. `TASK-060` added greedy marginal-gain diversity to top-K *selection*
+(`_greedy_diverse_select`) — a distinct concern from `_development_score`: fixing how well one rule
+scores does not stop the reported set from being dominated by near-duplicate rescalings of the
+single strongest mechanism. See both functions' docstrings and
+`docs/analytics/discovery-engine-v0.md`.
 """
 
 from __future__ import annotations
@@ -35,7 +39,7 @@ class OutcomeDefinition(Protocol):
 
 
 Operator = Literal["eq", "ge", "lt"]
-DISCOVERY_METHOD_VERSION = "discovery-engine-v0.2.0"
+DISCOVERY_METHOD_VERSION = "discovery-engine-v0.3.0"
 
 
 @dataclass(frozen=True, slots=True, order=True)
@@ -66,10 +70,22 @@ class DiscoveryConfig:
     #: a smaller, purer one. Must be in `(0.0, 1.0]`. Changing it is a discovery-method decision,
     #: not a per-run tuning knob — see `docs/analytics/discovery-engine-v0.md`.
     population_score_exponent: float = 0.5
+    #: Weight of the overlap discount in top-K selection (see `_greedy_diverse_select`). At each
+    #: selection round, a remaining rule's `_development_score` is multiplied by
+    #: `1 - diversity_discount_weight * max_overlap_with_already_selected`. `0.0` disables the
+    #: discount entirely, which makes greedy selection choose in pure score order — an exact
+    #: reproduction of `discovery-engine-v0.2.0`'s selection sequence (regression-tested). The
+    #: default `1.0` (TASK-060) applies the full discount: a rule that fully overlaps something
+    #: already selected can contribute nothing further to the top-K regardless of its own raw
+    #: score. `max_candidate_jaccard` remains a hard ceiling independent of this weight — a rule
+    #: over that ceiling is skipped outright, never merely deprioritized.
+    diversity_discount_weight: float = 1.0
 
     def __post_init__(self) -> None:
         if not 0.0 < self.population_score_exponent <= 1.0:
             raise ValueError("population_score_exponent must be in (0.0, 1.0]")
+        if not 0.0 <= self.diversity_discount_weight <= 1.0:
+            raise ValueError("diversity_discount_weight must be in [0.0, 1.0]")
 
 
 @dataclass(frozen=True, slots=True)
@@ -199,6 +215,70 @@ def _jaccard(left: frozenset[int], right: frozenset[int]) -> float:
     return len(left & right) / len(union) if union else 1.0
 
 
+def _greedy_diverse_select(
+    pool: list[tuple[Condition, ...]],
+    scored: dict[tuple[Condition, ...], tuple[float, SplitMetric]],
+    exposures: dict[tuple[Condition, ...], frozenset[int]],
+    config: DiscoveryConfig,
+    selected: list[tuple[Condition, ...]],
+    selected_exposures: list[frozenset[int]],
+    atom_usage: dict[Condition, int],
+    max_overlap: dict[tuple[Condition, ...], float],
+) -> None:
+    """Greedily fill remaining top-K slots from `pool`, by marginal gain rather than raw score
+    (TASK-060). `_development_score` (TASK-058/ADR-023) already fixes how any single rule is
+    scored; selecting purely by that score, as v0.1.0/v0.2.0 did, tends to fill the reported set
+    with near-duplicate rescalings of whichever single mechanism has the strongest raw signal —
+    differently-thresholded variants of the same underlying pattern, individually under
+    `max_candidate_jaccard` but collectively redundant — rather than surfacing genuinely distinct
+    mechanisms. On `task-058-remediation-20260817-001`, 13 of 15 reported candidates turned out to
+    be rescalings of one pattern (`P01`); only 2 of the 9 true patterns were represented at all.
+
+    Each round, every remaining eligible rule's own score is discounted by its current maximum
+    development-split exposure overlap (Jaccard) with everything already selected — the discount
+    is updated incrementally against only the most recently selected rule each round, not
+    recomputed from scratch against the whole selected set every time. `max_candidate_jaccard`
+    remains a hard ceiling independent of the discount: a rule still over it after discounting is
+    skipped outright, never merely deprioritized (mirrors the pre-TASK-060 behavior, just no longer
+    the *only* diversity control).
+
+    Mutates `selected`/`selected_exposures`/`atom_usage`/`max_overlap` in place so two calls (one
+    per pool) can share running state — `discover_candidates` uses this to keep the existing
+    interactions-before-singletons preference: interactions fill the top-K first, singletons only
+    considered for slots interactions didn't fill, exactly as before TASK-060.
+    """
+    remaining = list(pool)
+    while remaining and len(selected) < config.top_k:
+        best_rule: tuple[Condition, ...] | None = None
+        best_marginal = float("-inf")
+        for rule in remaining:
+            if max_overlap[rule] > config.max_candidate_jaccard:
+                continue
+            if any(
+                atom_usage.get(condition, 0) >= config.max_candidates_per_atom
+                for condition in rule
+            ):
+                continue
+            discount = config.diversity_discount_weight * max_overlap[rule]
+            marginal = scored[rule][0] * (1.0 - discount)
+            if best_rule is None or marginal > best_marginal or (
+                marginal == best_marginal and rule < best_rule
+            ):
+                best_rule, best_marginal = rule, marginal
+        if best_rule is None:
+            break
+        selected.append(best_rule)
+        exposure = exposures[best_rule]
+        selected_exposures.append(exposure)
+        for condition in best_rule:
+            atom_usage[condition] = atom_usage.get(condition, 0) + 1
+        remaining.remove(best_rule)
+        for rule in remaining:
+            overlap = _jaccard(exposures[rule], exposure)
+            if overlap > max_overlap[rule]:
+                max_overlap[rule] = overlap
+
+
 def discover_candidates(
     frame: pl.DataFrame,
     feature_columns: tuple[str, ...],
@@ -261,26 +341,36 @@ def discover_candidates(
     ranked_rules = sorted(scored, key=lambda rule: (-scored[rule][0], rule))
     # Prefer interactions; singletons remain eligible fallbacks and diagnostics.
     interactions = [rule for rule in ranked_rules if len(rule) >= 2]
+    singles = [rule for rule in ranked_rules if len(rule) == 1]
+
     selected: list[tuple[Condition, ...]] = []
     selected_exposures: list[frozenset[int]] = []
     atom_usage: dict[Condition, int] = {}
-    for rule in interactions + [rule for rule in ranked_rules if len(rule) == 1]:
-        exposure = _exposed_rows(development, rule)
-        too_similar = any(
-            _jaccard(exposure, previous) > config.max_candidate_jaccard
-            for previous in selected_exposures
+    max_overlap: dict[tuple[Condition, ...], float] = {}
+    exposures: dict[tuple[Condition, ...], frozenset[int]] = {}
+
+    def _prepare(pool: list[tuple[Condition, ...]]) -> None:
+        # Exposure is only computed once per rule, and only for rules a phase actually needs —
+        # singles are never touched at all when interactions alone already fill the top-K (the
+        # common case), matching the pre-TASK-060 cost profile.
+        for rule in pool:
+            if rule not in exposures:
+                exposures[rule] = _exposed_rows(development, rule)
+                max_overlap[rule] = 0.0
+
+    # Two phases, not one combined greedy pass, so interactions still fill the top-K before any
+    # singleton is considered regardless of relative score (matches pre-TASK-060 ordering exactly).
+    _prepare(interactions)
+    _greedy_diverse_select(
+        interactions, scored, exposures, config, selected, selected_exposures, atom_usage,
+        max_overlap,
+    )
+    if len(selected) < config.top_k:
+        _prepare(singles)
+        _greedy_diverse_select(
+            singles, scored, exposures, config, selected, selected_exposures, atom_usage,
+            max_overlap,
         )
-        overused_atom = any(
-            atom_usage.get(condition, 0) >= config.max_candidates_per_atom for condition in rule
-        )
-        if too_similar or overused_atom:
-            continue
-        selected.append(rule)
-        selected_exposures.append(exposure)
-        for condition in rule:
-            atom_usage[condition] = atom_usage.get(condition, 0) + 1
-        if len(selected) == config.top_k:
-            break
     candidates: list[Candidate] = []
     for index, rule in enumerate(selected, start=1):
         score, development_metric = scored[rule]

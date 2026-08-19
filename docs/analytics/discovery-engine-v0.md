@@ -1,7 +1,7 @@
 # Discovery Engine v0 methodology
 
-**Owner:** ML Discovery · **Task:** TASK-015, TASK-058 · **Methodology version:**
-`discovery-engine-v0.2.0`
+**Owner:** ML Discovery · **Task:** TASK-015, TASK-058, TASK-060 · **Methodology version:**
+`discovery-engine-v0.3.0`
 
 ## Scope and evidence boundary
 
@@ -95,9 +95,62 @@ method decision, not a per-run tuning knob, and — like `TASK-016`'s ranking we
 from generic reasoning (a symmetric geometric mean, not fit to any specific candidate) without
 opening `hidden_ground_truth.json` or `synthetic_benchmark.py`.
 
-**Not yet done:** this fix has not yet been exercised through a new official `ADR-008` blind run;
-`TASK-058`'s own done condition requires one, scored against matched true patterns, before it can
-be considered validated rather than just implemented and unit-tested.
+**Validated (2026-08-17, Statistics/Architect, `ADR-025`):** `TASK-019`/`TASK-028` ran against the
+resulting official run (`task-058-remediation-20260817-001`); governing economic impact estimation
+error dropped 204%→37.5% median (FAILED→PROMISING band), Top-K precision/leakage/direction accuracy
+held or improved. `docs/benchmark/decision-gate.md`'s overall verdict moved FAILED→PROMISING.
+`TASK-058` is `DONE`.
+
+## Diversity-aware selection (v0.3.0, `TASK-060`)
+
+**Problem diagnosed (2026-08-18, live-verified against
+`artifacts/evaluation/task-028-task-058-remediation-001.json`):** the precision term fixed how
+*well* any single rule scores; it did nothing about which *set* of rules fills the top-K. Of
+`task-058-remediation-20260817-001`'s 15 persisted candidates, only **2 unique patterns** (`P01`,
+`P06`) were represented — the other 13 were near-duplicate rescalings of `P01` (different numeric
+thresholds on the same underlying features). Economic-weighted recall (45.2%) had not moved since
+before `TASK-058`, because tightening a rule's population doesn't help discover a *different* rule
+if the beam search never surfaces one. Mechanism: score-sorted single-pass selection plus a hard
+`max_candidate_jaccard = 0.85` ceiling lets many pairwise-under-85%-overlap rescalings of one
+dominant mechanism all individually pass — 80% overlap, for instance, clears the ceiling every
+time — while collectively crowding out a genuinely distinct, lower-scoring pattern that never gets
+a turn.
+
+**Fix:** top-K selection (`_greedy_diverse_select`) is now a two-phase (interactions, then
+singletons — preserving the pre-existing preference) greedy loop scored by marginal gain, not raw
+score. Each round, every remaining rule's own `_development_score` is discounted by its current
+maximum development-split exposure overlap with everything already selected:
+
+```text
+marginal = score × (1 − diversity_discount_weight × max_overlap_with_selected)
+```
+
+The discount is updated incrementally against only the most recently selected rule each round, not
+recomputed from scratch. `DiscoveryConfig.diversity_discount_weight` defaults to `1.0` (full
+discount); `0.0` disables it, which reproduces `v0.2.0`'s exact selection sequence
+(regression-tested — the hard `max_candidate_jaccard` ceiling is independent of the weight and
+still applies at either setting, so a rule over it is always skipped outright, never merely
+deprioritized). This is a discovery-method decision, not a per-run tuning knob, chosen from generic
+reasoning (score discounted by its own overlap fraction, the simplest form of marginal-gain
+selection) — like the precision term, without opening `hidden_ground_truth.json` or
+`synthetic_benchmark.py`. Full design rationale: `TASK-060` in `TASKS.md`, `ADR-035`.
+
+**Explicitly not in scope:** `_development_score` itself (`TASK-058`, `ADR-023`) — this is about
+which set of already-scored rules survives to the top-K, not how any single rule is scored.
+
+**New official blind run issued (2026-08-18, ML Discovery):** `task-060-remediation-20260818-001`,
+`status=PERSISTED`, 15 candidates, committed via signed receipt before any evaluation opened
+`hidden_ground_truth.json`. Public, no-ground-truth comparison against
+`task-058-remediation-20260817-001`: distinct categorical `(feature, value)` pairs used across the
+15 candidates rose from 3 to 5 — `destination == Zanzibar` is new (matching the disclosed pattern
+name "P02 Zanzibar family summer"), alongside the already-known `supplier == BlueWing` and
+`destination == Tokyo`. Mean support fell a further ~33% (0.1787→0.1202) and total reported
+exposure a further ~36% (3.56M→2.28M) on top of `TASK-058`'s reduction. **Caution flagged for
+Statistics:** `CAND-012` uses `acquisition_channel == paid_search`, a feature the validation
+contract's own trap taxonomy associates with a confounding-composition trap (T02) — diversity
+surfacing a previously-never-selected feature is exactly the intended effect, but this specific
+one needs G06/trap-rejection scrutiny, not an assumption it is a genuine pattern. `TASK-019`/
+`TASK-028` against this run are requested in `HANDOFF-052`; not yet scored as of this writing.
 
 ## Reproduction
 

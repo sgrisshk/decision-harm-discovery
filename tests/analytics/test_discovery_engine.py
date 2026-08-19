@@ -3,9 +3,11 @@ import math
 import polars as pl
 import pytest
 from policy_analytics.discovery.engine import (
+    Condition,
     DiscoveryConfig,
     SplitMetric,
     _development_score,
+    _greedy_diverse_select,
     discover_candidates,
 )
 from policy_analytics.outcomes import primary_outcome
@@ -146,4 +148,127 @@ def test_discover_candidates_with_exponent_one_matches_manual_pure_exposure_repr
         )
         assert result["candidate_count"] > 0
         assert all(candidate["fit_split"] == "development" for candidate in result["candidates"])
-        assert result["methodology_version"] == "discovery-engine-v0.2.0"
+        assert result["methodology_version"] == "discovery-engine-v0.3.0"
+
+
+# --- TASK-060: greedy marginal-gain diversity in top-K selection ---
+
+
+def _rule(feature: str, value: object) -> tuple[Condition, ...]:
+    return (Condition(feature, "eq", value),)
+
+
+def _run_select(
+    pool: list[tuple[Condition, ...]],
+    scored: dict[tuple[Condition, ...], tuple[float, SplitMetric]],
+    exposures: dict[tuple[Condition, ...], frozenset[int]],
+    config: DiscoveryConfig,
+) -> list[tuple[Condition, ...]]:
+    selected: list[tuple[Condition, ...]] = []
+    _greedy_diverse_select(
+        pool,
+        scored,
+        exposures,
+        config,
+        selected,
+        [],
+        {},
+        dict.fromkeys(pool, 0.0),
+    )
+    return selected
+
+
+def _dominant_and_distinct_fixture() -> tuple[
+    dict[tuple[Condition, ...], tuple[float, SplitMetric]],
+    dict[tuple[Condition, ...], frozenset[int]],
+]:
+    # D1/D2: same underlying mechanism at two thresholds, 80% pairwise Jaccard (below the 0.85
+    # hard cap, so the old score-only selection happily keeps both). W: a smaller but genuinely
+    # distinct, disjoint pattern with a lower raw score than either duplicate.
+    d1, d2, w = _rule("price", "ge_1"), _rule("price", "ge_2"), _rule("segment", "Y")
+    scored = {
+        d1: (100.0, _metric(80, 10.0)),
+        d2: (95.0, _metric(64, 10.0)),
+        w: (50.0, _metric(60, 10.0)),
+    }
+    exposures = {
+        d1: frozenset(range(0, 80)),
+        d2: frozenset(range(0, 64)),  # |D1 n D2| = 64, |D1 u D2| = 80 -> jaccard = 0.8
+        w: frozenset(range(500, 560)),  # disjoint from D1/D2
+    }
+    return scored, exposures
+
+
+def test_diversity_default_prefers_distinct_pattern_over_a_near_duplicate() -> None:
+    scored, exposures = _dominant_and_distinct_fixture()
+    pool = list(scored)
+    config = DiscoveryConfig(top_k=2)  # diversity_discount_weight defaults to 1.0
+    selected = _run_select(pool, scored, exposures, config)
+    assert selected == [_rule("price", "ge_1"), _rule("segment", "Y")]
+
+
+def test_diversity_weight_zero_reproduces_pure_score_and_hard_cap_selection() -> None:
+    scored, exposures = _dominant_and_distinct_fixture()
+    pool = list(scored)
+    config = DiscoveryConfig(top_k=2, diversity_discount_weight=0.0)
+    selected = _run_select(pool, scored, exposures, config)
+    assert selected == [_rule("price", "ge_1"), _rule("price", "ge_2")]
+
+
+def test_max_candidate_jaccard_hard_cap_applies_regardless_of_diversity_weight() -> None:
+    d1, d2, w = _rule("price", "ge_1"), _rule("price", "ge_2"), _rule("segment", "Y")
+    scored = {
+        d1: (100.0, _metric(80, 10.0)),
+        d2: (95.0, _metric(72, 10.0)),
+        w: (50.0, _metric(60, 10.0)),
+    }
+    exposures = {
+        d1: frozenset(range(0, 80)),
+        d2: frozenset(range(0, 72)),  # |D1 n D2| = 72, |D1 u D2| = 80 -> jaccard = 0.9 > 0.85
+        w: frozenset(range(500, 560)),
+    }
+    pool = list(scored)
+    for weight in (0.0, 1.0):
+        config = DiscoveryConfig(top_k=2, diversity_discount_weight=weight)
+        selected = _run_select(pool, scored, exposures, config)
+        assert d2 not in selected  # over the hard ceiling either way, never merely deprioritized
+        assert selected == [d1, w]
+
+
+def test_diversity_discount_weight_must_be_in_zero_to_one_range() -> None:
+    for bad_weight in (-0.1, 1.1):
+        with pytest.raises(ValueError, match="diversity_discount_weight"):
+            DiscoveryConfig(diversity_discount_weight=bad_weight)
+    DiscoveryConfig(diversity_discount_weight=0.0)  # bounds inclusive, neither raises
+    DiscoveryConfig(diversity_discount_weight=1.0)
+
+
+def test_discover_candidates_still_prefers_interactions_with_default_diversity() -> None:
+    """End-to-end: the pre-TASK-060 "interactions fill the top-K before any singleton"
+    discipline must survive the two-phase greedy-diverse rewrite."""
+    rows = []
+    for split in ("development", "validation", "future_holdout"):
+        for index in range(400):
+            supplier = "A" if index % 2 == 0 else "B"
+            discount = (index % 10) / 100
+            harm = 80.0 if supplier == "A" and discount >= 0.05 else 0.0
+            rows.append((supplier, discount, index % 3, 200.0 - harm, split))
+    frame = pl.DataFrame(
+        rows,
+        schema=[
+            "supplier",
+            "discount_rate",
+            "party_size",
+            "contribution_margin_eur",
+            "split_label",
+        ],
+        orient="row",
+    )
+    result = discover_candidates(
+        frame,
+        ("supplier", "discount_rate", "party_size"),
+        primary_outcome(),
+        DiscoveryConfig(min_n=20, beam_width=30, top_k=5),
+    )
+    assert result["candidate_count"] > 0
+    assert all(len(candidate["conditions"]) >= 2 for candidate in result["candidates"])
