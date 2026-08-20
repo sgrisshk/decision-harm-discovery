@@ -8,6 +8,10 @@ generalization can actually be tested rather than assumed. **Does not touch `syn
 or `synthetic_data/` at all** — a genuinely separate, independent addition (per explicit
 instruction), verified by never importing from that module.
 
+**Status: all six domains complete** (54 patterns, 30 traps, 24 generated variants total; 120/120
+generic tests pass; see `TASKS.md`'s `TASK-061` entry for the honest done-when assessment against
+the one still-deferred criterion, the `evaluate_benchmark.py`/analytical-dataset bridge).
+
 ## Status
 
 | Domain | Status |
@@ -17,7 +21,7 @@ instruction), verified by never importing from that module.
 | Insurance claims | **Done** — 9 patterns, 5 traps (live-trap-verified, one iteration needed), 4 variants generated |
 | Manufacturing QA | **Done** — 9 patterns, 5 traps (live-trap-verified, one design conflict caught and fixed), 4 variants generated |
 | B2B sales pipeline | **Done** — 9 patterns, 5 traps (live-trap-verified, real bug found and fixed, several tuning iterations), 4 variants generated |
-| Healthcare scheduling | Not started |
+| Healthcare scheduling | **Done** — 9 patterns, 5 traps (live-trap-verified on the first attempt), 4 variants generated |
 
 ## Architecture
 
@@ -279,6 +283,36 @@ is sales-rep/region routing. `harm_direction="decrease_is_harm"`, same conventio
 arithmetic consistency confirmed for all 9 patterns; generated at full 10,000-row scale for all
 four variants (`synthetic_data_domains/b2b_sales/`). Full project suite verified against a live
 database (499 passed); `ruff`/`pyright` clean.
+
+## Domain 6: Healthcare scheduling
+
+Appointment no-show/rescheduling/overtime cost
+(`packages/analytics/src/policy_analytics/domain_benchmarks/healthcare.py`), the sixth and final
+domain. The unit of analysis is a scheduled *appointment*; the decision-time surface is
+booking/scheduling data (lead time, channel, reminder opt-in, time of day); the confounding source
+is provider/clinic-location routing. `harm_direction="increase_is_harm"`, same convention as
+insurance/manufacturing.
+
+- **9 patterns** (`H01`–`H09`): a phone same-day specialist no-show risk, a winter pediatrics
+  urgent-visit overtime surge, a young-adult no-reminder long-lead no-show pattern, a summer
+  Location D dermatology reschedule pattern, a single-provider long-lead specialist-overbooking
+  anomaly, an online evening urgent-care rescheduling-error pattern, a late-period (drift)
+  location/insurance-group cost pattern, a long-lead reminded-orthopedics no-show mismatch, and a
+  spring long-lead pattern heterogeneous by patient age band.
+- **5 confounding traps** (`HT01`–`HT05`), built against the full accumulated lesson set from all
+  five prior domains at once: every confounder gated behind `config.trap_active(...)`; no
+  `complexity`-style composite score used at all (avoiding domain 5's `BT05` class of bug
+  structurally, by construction, rather than catching it after the fact); no confounder shared with
+  another trap's apparent feature (domain 4's `MT02`/`MT05` lesson); every skew tuned hard from the
+  first draft (domain 3's `IT03` lesson) rather than starting weak and iterating.
+- **Passed the live-trap check on the first attempt** — no bug found, no tuning iteration needed,
+  the only domain besides domain 2 (SaaS) to do so. `traps_only` (3 traps): `|z|` 6.36–8.74;
+  `noise`: `|z|` 0.03–1.14 — both sides clear the bar comfortably.
+
+**Verified, not assumed:** all 20 generic tests pass for all six domains (120 total, the complete
+`TASK-061` domain set); ground-truth arithmetic consistency confirmed for all 9 patterns; generated
+at full 10,000-row scale for all four variants (`synthetic_data_domains/healthcare/`). Full project
+suite verified against a live database (519 passed); `ruff`/`pyright` clean.
 
 ## Isolation from TASK-060
 

@@ -1,0 +1,42 @@
+{
+  "active_patterns": [],
+  "active_traps": [
+    "HT01",
+    "HT02",
+    "HT03"
+  ],
+  "benchmark_version": "1.0.0",
+  "confounding_traps": [
+    {
+      "apparent_feature": "provider=Provider 2",
+      "confounded_by": [
+        "lead_time_days"
+      ],
+      "direct_effect": 0,
+      "id": "HT01",
+      "note": "Provider 2 is routed disproportionately long-lead-time appointments; lead time directly raises no-show probability, which gates lost_revenue_usd."
+    },
+    {
+      "apparent_feature": "clinic_location=Location A",
+      "confounded_by": [
+        "department"
+      ],
+      "direct_effect": 0,
+      "id": "HT02",
+      "note": "Location A skews toward higher-value departments (orthopedics/dermatology); department carries a real, always-on base-value multiplier independent of this trap."
+    },
+    {
+      "apparent_feature": "booking_channel=phone",
+      "confounded_by": [
+        "appointment_type"
+      ],
+      "direct_effect": 0,
+      "id": "HT03",
+      "note": "Proxy/mediator trap: phone bookings are disproportionately specialist appointments; appointment_type carries a real, always-on value multiplier by construction."
+    }
+  ],
+  "domain": "healthcare",
+  "patterns": [],
+  "seed": 20260818,
+  "warning": "RESTRICTED: do not expose to ML Discovery before candidate persistence."
+}
