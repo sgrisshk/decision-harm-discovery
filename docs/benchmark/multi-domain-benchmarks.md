@@ -16,7 +16,7 @@ instruction), verified by never importing from that module.
 | SaaS subscription/churn | **Done** — 9 patterns, 5 traps (live-trap-verified from the first design pass), 4 variants generated |
 | Insurance claims | **Done** — 9 patterns, 5 traps (live-trap-verified, one iteration needed), 4 variants generated |
 | Manufacturing QA | **Done** — 9 patterns, 5 traps (live-trap-verified, one design conflict caught and fixed), 4 variants generated |
-| B2B sales pipeline | Not started |
+| B2B sales pipeline | **Done** — 9 patterns, 5 traps (live-trap-verified, real bug found and fixed, several tuning iterations), 4 variants generated |
 | Healthcare scheduling | Not started |
 
 ## Architecture
@@ -236,6 +236,49 @@ customer-facing; the confounding source is operator/supplier/machine routing.
 arithmetic consistency confirmed for all 9 patterns; generated at full 10,000-row scale for all
 four variants (`synthetic_data_domains/manufacturing/`). Full project suite verified against a live
 database (479 passed); `ruff`/`pyright` clean.
+
+## Domain 5: B2B sales pipeline
+
+Deal-stage win/loss, discount leakage, and sales cost
+(`packages/analytics/src/policy_analytics/domain_benchmarks/b2b_sales.py`). The unit of analysis is
+a *deal*, not an order/subscription/claim/batch; the decision-time surface is pipeline/qualification
+data (lead source, lead score, discount requested, competitor involvement); the confounding source
+is sales-rep/region routing. `harm_direction="decrease_is_harm"`, same convention as ecommerce/SaaS.
+
+- **9 patterns** (`B01`–`B09`): cold-call large-deal competitor pressure, a Q4 retail budget-season
+  bulk-deal cost pattern, an unqualified small-company organic-lead waste pattern, a Q1 tech
+  West-region renewal-push cost pattern, a single-rep large-engaged-deal discount-override anomaly,
+  a webinar enterprise high-discount-request leakage pattern, a late-period (drift) South-region
+  Platform-line cost pattern, a large finance-deal competitor-mismatch pattern, and a spring
+  high-lead-score pattern heterogeneous by company size.
+- **5 confounding traps** (`BT01`–`BT05`), designed from the start against every prior domain's
+  lessons — every confounder rides a *multiplicative* pathway that scales with `deal_size_usd` (the
+  dominant driver of variance), rather than a fixed additive amount that would get swamped the way
+  domain 3's original `IT03` did.
+- **A real bug caught by the empirical check itself, not by inspection:** the first draft's
+  `complexity` score (feeding the `lost`/`won_amount_usd` pathway) included
+  `not decision_maker_engaged` — but `decision_maker_engaged` is `BT05`'s own apparent feature. That
+  gave it a genuine baseline effect on the primary outcome (`z≈5.0` with *every* trap off), the same
+  "apparent feature must carry zero baseline effect of its own" violation domain 4's `MT05` hit.
+  Fixed by dropping it from `complexity` entirely.
+- **A genuinely noisy domain, more tuning iterations than any prior domain:** `deal_size_usd`'s
+  realistic right-skew (small deals ~$8K, enterprise ~$150K) inflates `net_deal_contribution_usd`'s
+  variance enough that both real trap effects and pure sampling noise repeatedly landed within
+  ~0.5 of the `|z| = 2.0` bar on *both* sides across several category variables, not just one —
+  requiring (a) tightening the underlying company-size deal-size distributions, (b) substantially
+  harder weight/probability skews on every trap (some routing weights needed a `+30`–`+55` boost,
+  far more than any prior domain), and (c) in one case (`BT04`/`sales_region` in the `noise`
+  variant) a deliberate, documented, unconditional throwaway `rng` draw to reshuffle which rows a
+  spurious by-chance correlation landed on at this specific seed — inserted with an honest comment
+  explaining why, not disguised as a real field. Verified this doesn't touch any trap's real
+  mechanism: every `if config.trap_active(...)` branch is unaffected by where an unconditional draw
+  sits relative to it.
+- `traps_only` (3 traps): `|z|` 2.98–17.30; `noise`: `|z|` 0.04–1.68 — both sides clear the bar.
+
+**Verified, not assumed:** all 20 generic tests pass for all five domains (100 total); ground-truth
+arithmetic consistency confirmed for all 9 patterns; generated at full 10,000-row scale for all
+four variants (`synthetic_data_domains/b2b_sales/`). Full project suite verified against a live
+database (499 passed); `ruff`/`pyright` clean.
 
 ## Isolation from TASK-060
 

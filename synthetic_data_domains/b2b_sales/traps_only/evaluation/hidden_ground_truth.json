@@ -1,0 +1,42 @@
+{
+  "active_patterns": [],
+  "active_traps": [
+    "BT01",
+    "BT02",
+    "BT03"
+  ],
+  "benchmark_version": "1.0.0",
+  "confounding_traps": [
+    {
+      "apparent_feature": "sales_rep=Rep 2",
+      "confounded_by": [
+        "deal_size_usd"
+      ],
+      "direct_effect": 0,
+      "id": "BT01",
+      "note": "Rep 2 is routed disproportionately large deals; deal size directly and multiplicatively scales sales cost and discount leakage."
+    },
+    {
+      "apparent_feature": "sales_region=Region East",
+      "confounded_by": [
+        "industry"
+      ],
+      "direct_effect": 0,
+      "id": "BT02",
+      "note": "Region East skews toward finance-industry accounts; industry carries a real, always-on multiplicative cost factor independent of this trap."
+    },
+    {
+      "apparent_feature": "lead_source=referral",
+      "confounded_by": [
+        "discount_requested_pct"
+      ],
+      "direct_effect": 0,
+      "id": "BT03",
+      "note": "Proxy/mediator trap: referral leads are disproportionately drawn from high-discount-request deals; discount_requested_pct directly drives discount_leakage_usd by construction."
+    }
+  ],
+  "domain": "b2b_sales",
+  "patterns": [],
+  "seed": 20260818,
+  "warning": "RESTRICTED: do not expose to ML Discovery before candidate persistence."
+}
