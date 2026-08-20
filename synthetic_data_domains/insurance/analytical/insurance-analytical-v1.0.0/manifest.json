@@ -1,0 +1,423 @@
+{
+  "clustering": {
+    "column": "policyholder_id",
+    "partition": "identifiers"
+  },
+  "dataset_identity_sha256": "5d397cfad215b299df568a8bf0d9a2213d4ca828f02c9c1378543d9bb408ca91",
+  "dataset_version": "insurance-analytical-v1.0.0",
+  "derived_metadata_columns": {
+    "source_currency": "Renamed from the source METADATA field currency.",
+    "source_row_number": "One-based row lineage in the clean reference CSV.",
+    "split_label": "Deterministic chronological split derived from claim_filed_date."
+  },
+  "excluded_post_decision_columns": [
+    "investigation_opened_date",
+    "adjuster_notes_count",
+    "last_modified_at"
+  ],
+  "feature_timing": {
+    "adjuster": {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "NONE"
+    },
+    "adjuster_notes_count": {
+      "classification": "POST_DECISION",
+      "discovery_feature_allowed": false,
+      "leakage_risk": "HIGH"
+    },
+    "claim_channel": {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "NONE"
+    },
+    "claim_filed_date": {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "NONE"
+    },
+    "claim_id": {
+      "classification": "IDENTIFIER",
+      "discovery_feature_allowed": false,
+      "leakage_risk": "NONE"
+    },
+    "claim_type": {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "NONE"
+    },
+    "claimed_amount_usd": {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "NONE"
+    },
+    "currency": {
+      "classification": "METADATA",
+      "discovery_feature_allowed": false,
+      "leakage_risk": "NONE"
+    },
+    "deductible_usd": {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "NONE"
+    },
+    "denied": {
+      "classification": "OUTCOME",
+      "discovery_feature_allowed": false,
+      "leakage_risk": "HIGH"
+    },
+    "documentation_complete": {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "NONE"
+    },
+    "filed_within_24h": {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "NONE"
+    },
+    "fraud_flagged": {
+      "classification": "OUTCOME",
+      "discovery_feature_allowed": false,
+      "leakage_risk": "HIGH"
+    },
+    "fraud_loss_usd": {
+      "classification": "OUTCOME",
+      "discovery_feature_allowed": false,
+      "leakage_risk": "HIGH"
+    },
+    "investigation_opened_date": {
+      "classification": "POST_DECISION",
+      "discovery_feature_allowed": false,
+      "leakage_risk": "HIGH"
+    },
+    "last_modified_at": {
+      "classification": "POST_DECISION",
+      "discovery_feature_allowed": false,
+      "leakage_risk": "HIGH"
+    },
+    "net_claim_cost_usd": {
+      "classification": "OUTCOME",
+      "discovery_feature_allowed": false,
+      "leakage_risk": "HIGH"
+    },
+    "payout_amount_usd": {
+      "classification": "OUTCOME",
+      "discovery_feature_allowed": false,
+      "leakage_risk": "HIGH"
+    },
+    "policy_tenure_months": {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "NONE"
+    },
+    "policy_type": {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "NONE"
+    },
+    "policyholder_age_band": {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "NONE"
+    },
+    "policyholder_id": {
+      "classification": "IDENTIFIER",
+      "discovery_feature_allowed": false,
+      "leakage_risk": "NONE"
+    },
+    "prior_claims_count": {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "NONE"
+    },
+    "processing_cost_usd": {
+      "classification": "OUTCOME",
+      "discovery_feature_allowed": false,
+      "leakage_risk": "HIGH"
+    },
+    "processing_days": {
+      "classification": "OUTCOME",
+      "discovery_feature_allowed": false,
+      "leakage_risk": "HIGH"
+    },
+    "region": {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "NONE"
+    },
+    "reopened_90d": {
+      "classification": "OUTCOME",
+      "discovery_feature_allowed": false,
+      "leakage_risk": "HIGH"
+    }
+  },
+  "limitations": [
+    "Candidate-specific exposure-group missingness is computed only after immutable candidate conditions exist.",
+    "This benchmark analytical layer does not replace the blocked production TASK-010 customer-input canonicalization pipeline."
+  ],
+  "outcome_contract": {
+    "available_columns": [
+      "denied",
+      "fraud_flagged",
+      "payout_amount_usd",
+      "processing_cost_usd",
+      "fraud_loss_usd",
+      "processing_days",
+      "net_claim_cost_usd",
+      "reopened_90d"
+    ],
+    "dataset_scope": "insurance-analytical-v1.0.0",
+    "default_comparison_rule": "complement of the candidate condition within the eligible cohort",
+    "definitions": [
+      {
+        "column": "net_claim_cost_usd",
+        "decomposition_of": null,
+        "higher_is_worse": true,
+        "missing_data_policy": "not_yet_classified",
+        "outcome_id": "net_claim_cost_usd",
+        "role": "primary",
+        "status": "PROVISIONAL",
+        "unit": "USD (nominal; single currency; no inflation or FX adjustment)"
+      }
+    ],
+    "eligible_cohort_rule": "claim_filed_date within the domain's configured temporal window; no filter on any POST_DECISION or OUTCOME column.",
+    "owner": "DATA_ENGINEER",
+    "primary_outcome_id": "net_claim_cost_usd",
+    "status": "PROVISIONAL",
+    "task": "TASK-061",
+    "version": "0.1.0-provisional"
+  },
+  "partitions": {
+    "features": {
+      "columns": [
+        "claim_filed_date",
+        "policy_type",
+        "claim_type",
+        "claimed_amount_usd",
+        "policy_tenure_months",
+        "policyholder_age_band",
+        "claim_channel",
+        "prior_claims_count",
+        "adjuster",
+        "region",
+        "documentation_complete",
+        "deductible_usd",
+        "filed_within_24h"
+      ],
+      "path": "features.csv",
+      "schema": [
+        {
+          "dtype": "String",
+          "name": "claim_filed_date"
+        },
+        {
+          "dtype": "String",
+          "name": "policy_type"
+        },
+        {
+          "dtype": "String",
+          "name": "claim_type"
+        },
+        {
+          "dtype": "Float64",
+          "name": "claimed_amount_usd"
+        },
+        {
+          "dtype": "Int64",
+          "name": "policy_tenure_months"
+        },
+        {
+          "dtype": "String",
+          "name": "policyholder_age_band"
+        },
+        {
+          "dtype": "String",
+          "name": "claim_channel"
+        },
+        {
+          "dtype": "Int64",
+          "name": "prior_claims_count"
+        },
+        {
+          "dtype": "String",
+          "name": "adjuster"
+        },
+        {
+          "dtype": "String",
+          "name": "region"
+        },
+        {
+          "dtype": "Boolean",
+          "name": "documentation_complete"
+        },
+        {
+          "dtype": "Float64",
+          "name": "deductible_usd"
+        },
+        {
+          "dtype": "Boolean",
+          "name": "filed_within_24h"
+        }
+      ],
+      "sha256": "66e9517d33998fd7c6eeeaf78502a0012adb661f5d10206e088ddb6faeecd993"
+    },
+    "identifiers": {
+      "columns": [
+        "claim_id",
+        "policyholder_id"
+      ],
+      "path": "identifiers.csv",
+      "schema": [
+        {
+          "dtype": "String",
+          "name": "claim_id"
+        },
+        {
+          "dtype": "String",
+          "name": "policyholder_id"
+        }
+      ],
+      "sha256": "46e00dcab958400d3301baacf91fc27a02968f6a087d7f1f1edf1be5660b83ad"
+    },
+    "metadata": {
+      "columns": [
+        "source_row_number",
+        "split_label",
+        "source_currency"
+      ],
+      "path": "metadata.csv",
+      "schema": [
+        {
+          "dtype": "Int64",
+          "name": "source_row_number"
+        },
+        {
+          "dtype": "String",
+          "name": "split_label"
+        },
+        {
+          "dtype": "String",
+          "name": "source_currency"
+        }
+      ],
+      "sha256": "b0318dfac35d9f12f2977781b3c97f4a4dabda45d7d76872c20c86ef1cb71c68"
+    },
+    "outcomes": {
+      "columns": [
+        "denied",
+        "fraud_flagged",
+        "payout_amount_usd",
+        "processing_cost_usd",
+        "fraud_loss_usd",
+        "processing_days",
+        "net_claim_cost_usd",
+        "reopened_90d"
+      ],
+      "path": "outcomes.csv",
+      "schema": [
+        {
+          "dtype": "Boolean",
+          "name": "denied"
+        },
+        {
+          "dtype": "Boolean",
+          "name": "fraud_flagged"
+        },
+        {
+          "dtype": "Float64",
+          "name": "payout_amount_usd"
+        },
+        {
+          "dtype": "Float64",
+          "name": "processing_cost_usd"
+        },
+        {
+          "dtype": "Float64",
+          "name": "fraud_loss_usd"
+        },
+        {
+          "dtype": "Int64",
+          "name": "processing_days"
+        },
+        {
+          "dtype": "Float64",
+          "name": "net_claim_cost_usd"
+        },
+        {
+          "dtype": "Boolean",
+          "name": "reopened_90d"
+        }
+      ],
+      "sha256": "b930d5cb925416fedde6b15ea636450284cd1bdbb97c8089b3647ba7788598bc"
+    }
+  },
+  "primary_outcome": "net_claim_cost_usd",
+  "record_count": 10000,
+  "reproducibility_command": "make analytical-dataset",
+  "row_alignment": "All CSV partitions preserve identical source row order.",
+  "schema_version": "insurance-canonical-v1.0.0",
+  "source": {
+    "feature_timing_path": "<repo>/synthetic_data_domains/insurance/comparable/metadata/feature_timing.json",
+    "feature_timing_sha256": "08bd9ef7ad785c453a25c5641363adb410f72df888b765c0ea760c2a270b19df",
+    "path": "<repo>/synthetic_data_domains/insurance/comparable/reference/insurance_clean.csv",
+    "sha256": "71c34f69780205f0696c5ea424dbda3d9f746348f35e96548d4a0126d69fa3e5"
+  },
+  "status": "READY",
+  "supporting_artifacts": {
+    "excluded_columns_manifest": {
+      "path": "excluded_columns_manifest.json",
+      "sha256": "0347eca41140be1b84928c5fe49faed066feaf4862147dfcce05135fc80cb82b"
+    },
+    "feature_manifest": {
+      "path": "feature_manifest.json",
+      "sha256": "03a8bc407d0b4400826ae970b0f6981679f9f48e8525ef807135a7215cc60875"
+    },
+    "missingness": {
+      "path": "missingness.json",
+      "sha256": "aea4155129d411bf401d3ef488bd42862e66ced74e8a1d4ef7d102018f45d8ce"
+    },
+    "outcome_columns_manifest": {
+      "path": "outcome_columns_manifest.json",
+      "sha256": "3c92f4eed00f4e7cbc9920e075e627e234a339d029cc354d7d45713925d05965"
+    },
+    "version_metadata": {
+      "path": "version_metadata.json",
+      "sha256": "9846479e0d1345b17949e18c777db862ac06cc8444c663bbf3a9238f53509691"
+    }
+  },
+  "temporal_splits": {
+    "boundaries": {
+      "development": [
+        "2024-01-01",
+        "2024-12-31"
+      ],
+      "future_holdout": [
+        "2025-07-01",
+        "2025-12-31"
+      ],
+      "validation": [
+        "2025-01-01",
+        "2025-06-30"
+      ]
+    },
+    "column": "split_label",
+    "counts": {
+      "development": 4917,
+      "future_holdout": 2589,
+      "validation": 2494
+    },
+    "partition": "metadata",
+    "strategy": "chronological; no random shuffling"
+  },
+  "transformation": {
+    "canonical_schema_version": "insurance-canonical-v1.0.0",
+    "clustering_key": "policyholder_id",
+    "dataset_version": "insurance-analytical-v1.0.0",
+    "decision_timestamp_column": "claim_filed_date",
+    "development_end": "2024-12-31",
+    "future_holdout_end": "2025-12-31",
+    "transformation_version": "1.0.0",
+    "validation_end": "2025-06-30"
+  }
+}

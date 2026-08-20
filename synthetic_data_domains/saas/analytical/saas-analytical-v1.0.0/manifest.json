@@ -1,0 +1,438 @@
+{
+  "clustering": {
+    "column": "account_id",
+    "partition": "identifiers"
+  },
+  "dataset_identity_sha256": "7fc51acdef7baedd18984c06a9782da6d280d96da2145e190574e42084c1bbb5",
+  "dataset_version": "saas-analytical-v1.0.0",
+  "derived_metadata_columns": {
+    "source_currency": "Renamed from the source METADATA field currency.",
+    "source_row_number": "One-based row lineage in the clean reference CSV.",
+    "split_label": "Deterministic chronological split derived from signup_date."
+  },
+  "excluded_post_decision_columns": [
+    "downgrade_date",
+    "reschedule_events",
+    "support_tickets",
+    "last_modified_at"
+  ],
+  "feature_timing": {
+    "account_id": {
+      "classification": "IDENTIFIER",
+      "discovery_feature_allowed": false,
+      "leakage_risk": "NONE"
+    },
+    "account_owner": {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "NONE"
+    },
+    "acquisition_channel": {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "NONE"
+    },
+    "billing_cycle": {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "NONE"
+    },
+    "churned": {
+      "classification": "OUTCOME",
+      "discovery_feature_allowed": false,
+      "leakage_risk": "HIGH"
+    },
+    "company_size_band": {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "NONE"
+    },
+    "csm_intervention_cost_usd": {
+      "classification": "OUTCOME",
+      "discovery_feature_allowed": false,
+      "leakage_risk": "HIGH"
+    },
+    "currency": {
+      "classification": "METADATA",
+      "discovery_feature_allowed": false,
+      "leakage_risk": "NONE"
+    },
+    "discount_pct": {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "NONE"
+    },
+    "downgrade_date": {
+      "classification": "POST_DECISION",
+      "discovery_feature_allowed": false,
+      "leakage_risk": "HIGH"
+    },
+    "expansion_90d": {
+      "classification": "OUTCOME",
+      "discovery_feature_allowed": false,
+      "leakage_risk": "HIGH"
+    },
+    "gross_margin_usd": {
+      "classification": "OUTCOME",
+      "discovery_feature_allowed": false,
+      "leakage_risk": "HIGH"
+    },
+    "industry": {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "NONE"
+    },
+    "integrations_connected": {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "NONE"
+    },
+    "last_modified_at": {
+      "classification": "POST_DECISION",
+      "discovery_feature_allowed": false,
+      "leakage_risk": "HIGH"
+    },
+    "mrr_lost_usd": {
+      "classification": "OUTCOME",
+      "discovery_feature_allowed": false,
+      "leakage_risk": "HIGH"
+    },
+    "mrr_usd": {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "NONE"
+    },
+    "net_contribution_usd": {
+      "classification": "OUTCOME",
+      "discovery_feature_allowed": false,
+      "leakage_risk": "HIGH"
+    },
+    "onboarding_track": {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "NONE"
+    },
+    "payment_method": {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "NONE"
+    },
+    "plan_tier": {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "NONE"
+    },
+    "reschedule_events": {
+      "classification": "POST_DECISION",
+      "discovery_feature_allowed": false,
+      "leakage_risk": "HIGH"
+    },
+    "seat_count": {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "NONE"
+    },
+    "signup_date": {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "NONE"
+    },
+    "signup_source_device": {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "NONE"
+    },
+    "subscription_id": {
+      "classification": "IDENTIFIER",
+      "discovery_feature_allowed": false,
+      "leakage_risk": "NONE"
+    },
+    "support_cost_usd": {
+      "classification": "OUTCOME",
+      "discovery_feature_allowed": false,
+      "leakage_risk": "HIGH"
+    },
+    "support_tickets": {
+      "classification": "POST_DECISION",
+      "discovery_feature_allowed": false,
+      "leakage_risk": "HIGH"
+    },
+    "trial_used": {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "NONE"
+    }
+  },
+  "limitations": [
+    "Candidate-specific exposure-group missingness is computed only after immutable candidate conditions exist.",
+    "This benchmark analytical layer does not replace the blocked production TASK-010 customer-input canonicalization pipeline."
+  ],
+  "outcome_contract": {
+    "available_columns": [
+      "churned",
+      "mrr_lost_usd",
+      "support_cost_usd",
+      "csm_intervention_cost_usd",
+      "gross_margin_usd",
+      "net_contribution_usd",
+      "expansion_90d"
+    ],
+    "dataset_scope": "saas-analytical-v1.0.0",
+    "default_comparison_rule": "complement of the candidate condition within the eligible cohort",
+    "definitions": [
+      {
+        "column": "net_contribution_usd",
+        "decomposition_of": null,
+        "higher_is_worse": false,
+        "missing_data_policy": "not_yet_classified",
+        "outcome_id": "net_contribution_usd",
+        "role": "primary",
+        "status": "PROVISIONAL",
+        "unit": "USD (nominal; single currency; no inflation or FX adjustment)"
+      }
+    ],
+    "eligible_cohort_rule": "signup_date within the domain's configured temporal window; no filter on any POST_DECISION or OUTCOME column.",
+    "owner": "DATA_ENGINEER",
+    "primary_outcome_id": "net_contribution_usd",
+    "status": "PROVISIONAL",
+    "task": "TASK-061",
+    "version": "0.1.0-provisional"
+  },
+  "partitions": {
+    "features": {
+      "columns": [
+        "signup_date",
+        "plan_tier",
+        "billing_cycle",
+        "seat_count",
+        "mrr_usd",
+        "discount_pct",
+        "acquisition_channel",
+        "signup_source_device",
+        "industry",
+        "company_size_band",
+        "account_owner",
+        "onboarding_track",
+        "trial_used",
+        "payment_method",
+        "integrations_connected"
+      ],
+      "path": "features.csv",
+      "schema": [
+        {
+          "dtype": "String",
+          "name": "signup_date"
+        },
+        {
+          "dtype": "String",
+          "name": "plan_tier"
+        },
+        {
+          "dtype": "String",
+          "name": "billing_cycle"
+        },
+        {
+          "dtype": "Int64",
+          "name": "seat_count"
+        },
+        {
+          "dtype": "Float64",
+          "name": "mrr_usd"
+        },
+        {
+          "dtype": "Float64",
+          "name": "discount_pct"
+        },
+        {
+          "dtype": "String",
+          "name": "acquisition_channel"
+        },
+        {
+          "dtype": "String",
+          "name": "signup_source_device"
+        },
+        {
+          "dtype": "String",
+          "name": "industry"
+        },
+        {
+          "dtype": "String",
+          "name": "company_size_band"
+        },
+        {
+          "dtype": "String",
+          "name": "account_owner"
+        },
+        {
+          "dtype": "String",
+          "name": "onboarding_track"
+        },
+        {
+          "dtype": "Boolean",
+          "name": "trial_used"
+        },
+        {
+          "dtype": "String",
+          "name": "payment_method"
+        },
+        {
+          "dtype": "Int64",
+          "name": "integrations_connected"
+        }
+      ],
+      "sha256": "6262cc8d62aa930aeab235dd141a5add96a04d2e2581ada41d35c6f89ac75596"
+    },
+    "identifiers": {
+      "columns": [
+        "subscription_id",
+        "account_id"
+      ],
+      "path": "identifiers.csv",
+      "schema": [
+        {
+          "dtype": "String",
+          "name": "subscription_id"
+        },
+        {
+          "dtype": "String",
+          "name": "account_id"
+        }
+      ],
+      "sha256": "ba5c6ecd6c32604c8dc3955f273b682ce4f1524f0c9c656df3816a56b17a19f9"
+    },
+    "metadata": {
+      "columns": [
+        "source_row_number",
+        "split_label",
+        "source_currency"
+      ],
+      "path": "metadata.csv",
+      "schema": [
+        {
+          "dtype": "Int64",
+          "name": "source_row_number"
+        },
+        {
+          "dtype": "String",
+          "name": "split_label"
+        },
+        {
+          "dtype": "String",
+          "name": "source_currency"
+        }
+      ],
+      "sha256": "10fe0fd4fbb3621db9e330caf9bcdda8ff8f9db24825603dd236f44ad65fba68"
+    },
+    "outcomes": {
+      "columns": [
+        "churned",
+        "mrr_lost_usd",
+        "support_cost_usd",
+        "csm_intervention_cost_usd",
+        "gross_margin_usd",
+        "net_contribution_usd",
+        "expansion_90d"
+      ],
+      "path": "outcomes.csv",
+      "schema": [
+        {
+          "dtype": "Boolean",
+          "name": "churned"
+        },
+        {
+          "dtype": "Float64",
+          "name": "mrr_lost_usd"
+        },
+        {
+          "dtype": "Float64",
+          "name": "support_cost_usd"
+        },
+        {
+          "dtype": "Float64",
+          "name": "csm_intervention_cost_usd"
+        },
+        {
+          "dtype": "Float64",
+          "name": "gross_margin_usd"
+        },
+        {
+          "dtype": "Float64",
+          "name": "net_contribution_usd"
+        },
+        {
+          "dtype": "Boolean",
+          "name": "expansion_90d"
+        }
+      ],
+      "sha256": "67858aa08d02b1f03cc3346cb43c4c11e4d8a1657b0c06200ee9292f863f62d6"
+    }
+  },
+  "primary_outcome": "net_contribution_usd",
+  "record_count": 10000,
+  "reproducibility_command": "make analytical-dataset",
+  "row_alignment": "All CSV partitions preserve identical source row order.",
+  "schema_version": "saas-canonical-v1.0.0",
+  "source": {
+    "feature_timing_path": "<repo>/synthetic_data_domains/saas/comparable/metadata/feature_timing.json",
+    "feature_timing_sha256": "2c6c7a8eac86f3933df55639c4b0e40c180430c9f2210250145849a65c4e734f",
+    "path": "<repo>/synthetic_data_domains/saas/comparable/reference/saas_clean.csv",
+    "sha256": "6686ac779de858e1fa18335d7d72b5ce7fe83d84cddb1d2714fb64cddd524649"
+  },
+  "status": "READY",
+  "supporting_artifacts": {
+    "excluded_columns_manifest": {
+      "path": "excluded_columns_manifest.json",
+      "sha256": "05773453764dd7e2003f07ba04ed1a497b7c48188a92b89968d27aa22955db9a"
+    },
+    "feature_manifest": {
+      "path": "feature_manifest.json",
+      "sha256": "6ceff68e53e53ee2642438c5948248ab4f3ceb0ac49ddfb362f37866e4a3e757"
+    },
+    "missingness": {
+      "path": "missingness.json",
+      "sha256": "ec3fa88ade0be786ca1616252a0b024078eaad34624b8963988f12679362aabd"
+    },
+    "outcome_columns_manifest": {
+      "path": "outcome_columns_manifest.json",
+      "sha256": "36357efe00c73b258278c8aed04753c6e9a8f44f171f389f25a85c80f9ffa618"
+    },
+    "version_metadata": {
+      "path": "version_metadata.json",
+      "sha256": "7fc5a0276c34463c1c5961c15ffda8695234fc572c0fc0e4efa13b71f5a33fc4"
+    }
+  },
+  "temporal_splits": {
+    "boundaries": {
+      "development": [
+        "2024-01-01",
+        "2024-12-31"
+      ],
+      "future_holdout": [
+        "2025-07-01",
+        "2025-12-31"
+      ],
+      "validation": [
+        "2025-01-01",
+        "2025-06-30"
+      ]
+    },
+    "column": "split_label",
+    "counts": {
+      "development": 4910,
+      "future_holdout": 2549,
+      "validation": 2541
+    },
+    "partition": "metadata",
+    "strategy": "chronological; no random shuffling"
+  },
+  "transformation": {
+    "canonical_schema_version": "saas-canonical-v1.0.0",
+    "clustering_key": "account_id",
+    "dataset_version": "saas-analytical-v1.0.0",
+    "decision_timestamp_column": "signup_date",
+    "development_end": "2024-12-31",
+    "future_holdout_end": "2025-12-31",
+    "transformation_version": "1.0.0",
+    "validation_end": "2025-06-30"
+  }
+}

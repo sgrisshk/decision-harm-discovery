@@ -1,0 +1,45 @@
+{
+  "dataset_version": "ecommerce-analytical-v1.0.0",
+  "outcome_contract": {
+    "available_columns": [
+      "returned",
+      "return_amount_usd",
+      "refund_processing_cost_usd",
+      "restocking_cost_usd",
+      "gross_margin_usd",
+      "net_contribution_usd",
+      "repeat_purchase_90d"
+    ],
+    "dataset_scope": "ecommerce-analytical-v1.0.0",
+    "default_comparison_rule": "complement of the candidate condition within the eligible cohort",
+    "definitions": [
+      {
+        "column": "net_contribution_usd",
+        "decomposition_of": null,
+        "higher_is_worse": false,
+        "missing_data_policy": "not_yet_classified",
+        "outcome_id": "net_contribution_usd",
+        "role": "primary",
+        "status": "PROVISIONAL",
+        "unit": "USD (nominal; single currency; no inflation or FX adjustment)"
+      }
+    ],
+    "eligible_cohort_rule": "order_date within the domain's configured temporal window; no filter on any POST_DECISION or OUTCOME column.",
+    "owner": "DATA_ENGINEER",
+    "primary_outcome_id": "net_contribution_usd",
+    "status": "PROVISIONAL",
+    "task": "TASK-061",
+    "version": "0.1.0-provisional"
+  },
+  "role": "OUTCOME",
+  "schema_version": "ecommerce-canonical-v1.0.0",
+  "stored_columns": [
+    "returned",
+    "return_amount_usd",
+    "refund_processing_cost_usd",
+    "restocking_cost_usd",
+    "gross_margin_usd",
+    "net_contribution_usd",
+    "repeat_purchase_90d"
+  ]
+}

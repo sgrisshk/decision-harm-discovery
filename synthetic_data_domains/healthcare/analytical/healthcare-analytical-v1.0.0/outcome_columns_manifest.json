@@ -1,0 +1,43 @@
+{
+  "dataset_version": "healthcare-analytical-v1.0.0",
+  "outcome_contract": {
+    "available_columns": [
+      "no_show",
+      "lost_revenue_usd",
+      "overtime_staffing_cost_usd",
+      "rescheduling_cost_usd",
+      "net_scheduling_cost_usd",
+      "return_visit_180d"
+    ],
+    "dataset_scope": "healthcare-analytical-v1.0.0",
+    "default_comparison_rule": "complement of the candidate condition within the eligible cohort",
+    "definitions": [
+      {
+        "column": "net_scheduling_cost_usd",
+        "decomposition_of": null,
+        "higher_is_worse": true,
+        "missing_data_policy": "not_yet_classified",
+        "outcome_id": "net_scheduling_cost_usd",
+        "role": "primary",
+        "status": "PROVISIONAL",
+        "unit": "USD (nominal; single currency; no inflation or FX adjustment)"
+      }
+    ],
+    "eligible_cohort_rule": "booking_date within the domain's configured temporal window; no filter on any POST_DECISION or OUTCOME column.",
+    "owner": "DATA_ENGINEER",
+    "primary_outcome_id": "net_scheduling_cost_usd",
+    "status": "PROVISIONAL",
+    "task": "TASK-061",
+    "version": "0.1.0-provisional"
+  },
+  "role": "OUTCOME",
+  "schema_version": "healthcare-canonical-v1.0.0",
+  "stored_columns": [
+    "no_show",
+    "lost_revenue_usd",
+    "overtime_staffing_cost_usd",
+    "rescheduling_cost_usd",
+    "net_scheduling_cost_usd",
+    "return_visit_180d"
+  ]
+}

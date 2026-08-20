@@ -1,0 +1,67 @@
+{
+  "dataset_version": "healthcare-analytical-v1.0.0",
+  "excluded_from_feature_matrix": [
+    {
+      "classification": "POST_DECISION",
+      "name": "checkin_time",
+      "reason": "Observed after the booking decision; prohibited by anti-leakage boundary."
+    },
+    {
+      "classification": "POST_DECISION",
+      "name": "notes_count",
+      "reason": "Observed after the booking decision; prohibited by anti-leakage boundary."
+    },
+    {
+      "classification": "POST_DECISION",
+      "name": "last_modified_at",
+      "reason": "Observed after the booking decision; prohibited by anti-leakage boundary."
+    },
+    {
+      "classification": "OUTCOME",
+      "name": "no_show",
+      "reason": "Physically separated into the outcomes partition."
+    },
+    {
+      "classification": "OUTCOME",
+      "name": "lost_revenue_usd",
+      "reason": "Physically separated into the outcomes partition."
+    },
+    {
+      "classification": "OUTCOME",
+      "name": "overtime_staffing_cost_usd",
+      "reason": "Physically separated into the outcomes partition."
+    },
+    {
+      "classification": "OUTCOME",
+      "name": "rescheduling_cost_usd",
+      "reason": "Physically separated into the outcomes partition."
+    },
+    {
+      "classification": "OUTCOME",
+      "name": "net_scheduling_cost_usd",
+      "reason": "Physically separated into the outcomes partition."
+    },
+    {
+      "classification": "OUTCOME",
+      "name": "return_visit_180d",
+      "reason": "Physically separated into the outcomes partition."
+    },
+    {
+      "classification": "IDENTIFIER",
+      "name": "appointment_id",
+      "reason": "Physically separated into the identifiers partition."
+    },
+    {
+      "classification": "IDENTIFIER",
+      "name": "patient_id",
+      "reason": "Physically separated into the identifiers partition."
+    },
+    {
+      "classification": "METADATA",
+      "name": "currency",
+      "reason": "Physically separated into the metadata partition."
+    }
+  ],
+  "schema_version": "healthcare-canonical-v1.0.0",
+  "unknown_columns": []
+}

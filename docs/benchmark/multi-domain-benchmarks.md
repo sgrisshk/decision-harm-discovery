@@ -9,8 +9,10 @@ or `synthetic_data/` at all** — a genuinely separate, independent addition (pe
 instruction), verified by never importing from that module.
 
 **Status: all six domains complete** (54 patterns, 30 traps, 24 generated variants total; 120/120
-generic tests pass; see `TASKS.md`'s `TASK-061` entry for the honest done-when assessment against
-the one still-deferred criterion, the `evaluate_benchmark.py`/analytical-dataset bridge).
+generic tests pass) **and the analytical-dataset bridge is closed** (`TASK-062`; see the "Closed
+gap" section below and `TASKS.md`'s `TASK-062` entry). Still open: a `TASK-013`-grade,
+STATISTICS-reviewed outcome contract per domain, and generalizing `evaluate_benchmark.py` itself —
+both real, separate, explicitly out-of-scope follow-up work, not silently implied done.
 
 ## Status
 
@@ -322,19 +324,41 @@ neither task's development opens the other's hidden ground truth: this task's ow
 `evaluation/hidden_ground_truth.json` files were not read by, and do not reference, anything from
 `TASK-060`'s remediation work on the travel benchmark, and vice versa.
 
-## Known gap: analytical-dataset bridge
+## Closed gap: analytical-dataset bridge (`TASK-062`)
 
-`validate_candidates.py` already accepts `--dataset-root` generically (no change needed). It
-expects an *analytical* dataset shape (`features.csv`/`outcomes.csv`/`identifiers.csv`/
-`metadata.csv` + `manifest.json`), which for the travel benchmark is built by a separate step
-(`policy_analytics.analytical_dataset.build_analytical_dataset`, `TASK-011`) — not by
-`synthetic_benchmark.py` itself. That builder currently hardcodes travel-specific column names
-(`booking_id`, `currency`) and is not yet domain-parameterized. Generalizing it (or writing a
-domain-benchmark-specific equivalent) is real, separate follow-up work — explicitly out of scope
-for this delivery, same as it was a dedicated task (`TASK-011`) for travel rather than an implied
-side effect of the raw generator existing. Until that bridge exists, these benchmarks are usable
-for leakage/reproducibility/ground-truth-consistency evaluation (this task's actual point) but not
-yet as direct `TASK-015`-style discovery-engine input.
+Previously a documented gap here: `build_analytical_dataset` hardcoded travel-specific column names
+(`booking_id`, `currency`) and a travel-specific STATISTICS outcome contract, so none of these six
+domains could actually reach `discovery.engine.discover_candidates`, even though
+`validate_candidates.py` already accepted `--dataset-root` generically. Closed by `TASK-062`:
+
+- `AnalyticalDatasetConfig` gained `identifier_column`/`currency_column` fields (defaulted to their
+  prior hardcoded values, so travel is unaffected); the outcome-contract section is now a pluggable
+  `OutcomeContractInputs` parameter instead of an internal travel-specific import.
+- `policy_analytics.domain_benchmarks.analytical_bridge` derives both entirely from any registered
+  `DomainSpec` — `analytical_dataset_config(spec)` / `provisional_outcome_contract(spec)` — no
+  per-domain analytical-dataset code. The embedded outcome contract is explicitly
+  `status="PROVISIONAL"` throughout: it is what `discover_candidates` needs to run (its
+  `OutcomeDefinition` Protocol), not a `TASK-013`-grade, STATISTICS-reviewed contract
+  (empirically-pinned `valid_range`, product-reviewed `harm_direction_phrase`, `aggregation_rule`
+  per outcome) — authoring that for six domains is real, separate, still-open follow-up work, and
+  the manifest says so explicitly rather than implying equivalence to travel's contract.
+- `scripts/build_domain_analytical_dataset.py --domain <id>` builds all six
+  (`synthetic_data_domains/<domain>/analytical/`, from each domain's `comparable` variant); all six
+  built successfully and pass the same leakage/reproducibility tests `test_analytical_dataset.py`
+  already asserts for travel (`tests/analytics/test_domain_analytical_bridge.py`, 14 tests,
+  parameterized over `DOMAIN_REGISTRY`).
+- **Proof-of-concept, not just compilation:** one of the 14 tests runs a real local
+  `discover_candidates` call end-to-end against a generated domain's `features.csv`/`outcomes.csv`
+  (insurance, chosen arbitrarily — the bridge is domain-agnostic).
+- **A real regression caught before shipping:** adding the two new config fields, even with
+  byte-reproducing defaults, moved travel's `dataset_identity_sha256`-pinned hash purely because
+  `identity_payload` hashed `asdict(config)` — the same value-preserving-edit-moves-a-pinned-hash
+  bug class `ADR-030` already fixed once. Fixed with an explicit frozen field list instead; verified
+  by regenerating travel's real committed analytical dataset and confirming zero `git diff`.
+
+Full detail, including the regression and its fix, in `TASKS.md`'s `TASK-062` entry. Still not in
+scope: a `TASK-013`-grade outcome contract per domain, or generalizing `evaluate_benchmark.py`
+itself (both remain real, separate, explicitly out-of-scope follow-up work).
 
 ## How to generate
 

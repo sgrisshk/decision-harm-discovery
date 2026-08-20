@@ -1,0 +1,45 @@
+{
+  "dataset_version": "b2b_sales-analytical-v1.0.0",
+  "outcome_contract": {
+    "available_columns": [
+      "lost",
+      "won_amount_usd",
+      "sales_cost_usd",
+      "discount_leakage_usd",
+      "gross_deal_margin_usd",
+      "net_deal_contribution_usd",
+      "expansion_180d"
+    ],
+    "dataset_scope": "b2b_sales-analytical-v1.0.0",
+    "default_comparison_rule": "complement of the candidate condition within the eligible cohort",
+    "definitions": [
+      {
+        "column": "net_deal_contribution_usd",
+        "decomposition_of": null,
+        "higher_is_worse": false,
+        "missing_data_policy": "not_yet_classified",
+        "outcome_id": "net_deal_contribution_usd",
+        "role": "primary",
+        "status": "PROVISIONAL",
+        "unit": "USD (nominal; single currency; no inflation or FX adjustment)"
+      }
+    ],
+    "eligible_cohort_rule": "deal_created_date within the domain's configured temporal window; no filter on any POST_DECISION or OUTCOME column.",
+    "owner": "DATA_ENGINEER",
+    "primary_outcome_id": "net_deal_contribution_usd",
+    "status": "PROVISIONAL",
+    "task": "TASK-061",
+    "version": "0.1.0-provisional"
+  },
+  "role": "OUTCOME",
+  "schema_version": "b2b-sales-canonical-v1.0.0",
+  "stored_columns": [
+    "lost",
+    "won_amount_usd",
+    "sales_cost_usd",
+    "discount_leakage_usd",
+    "gross_deal_margin_usd",
+    "net_deal_contribution_usd",
+    "expansion_180d"
+  ]
+}

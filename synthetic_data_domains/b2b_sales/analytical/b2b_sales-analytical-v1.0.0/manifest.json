@@ -1,0 +1,402 @@
+{
+  "clustering": {
+    "column": "account_id",
+    "partition": "identifiers"
+  },
+  "dataset_identity_sha256": "72c5ce99e97bb56bc8831653bc8820ad92610ad114b53589c3ac580bd2c15493",
+  "dataset_version": "b2b_sales-analytical-v1.0.0",
+  "derived_metadata_columns": {
+    "source_currency": "Renamed from the source METADATA field currency.",
+    "source_row_number": "One-based row lineage in the clean reference CSV.",
+    "split_label": "Deterministic chronological split derived from deal_created_date."
+  },
+  "excluded_post_decision_columns": [
+    "close_date",
+    "notes_count",
+    "last_modified_at"
+  ],
+  "feature_timing": {
+    "account_id": {
+      "classification": "IDENTIFIER",
+      "discovery_feature_allowed": false,
+      "leakage_risk": "NONE"
+    },
+    "close_date": {
+      "classification": "POST_DECISION",
+      "discovery_feature_allowed": false,
+      "leakage_risk": "HIGH"
+    },
+    "company_size_band": {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "NONE"
+    },
+    "competitor_involved": {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "NONE"
+    },
+    "currency": {
+      "classification": "METADATA",
+      "discovery_feature_allowed": false,
+      "leakage_risk": "NONE"
+    },
+    "deal_created_date": {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "NONE"
+    },
+    "deal_id": {
+      "classification": "IDENTIFIER",
+      "discovery_feature_allowed": false,
+      "leakage_risk": "NONE"
+    },
+    "deal_size_usd": {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "NONE"
+    },
+    "decision_maker_engaged": {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "NONE"
+    },
+    "discount_leakage_usd": {
+      "classification": "OUTCOME",
+      "discovery_feature_allowed": false,
+      "leakage_risk": "HIGH"
+    },
+    "discount_requested_pct": {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "NONE"
+    },
+    "expansion_180d": {
+      "classification": "OUTCOME",
+      "discovery_feature_allowed": false,
+      "leakage_risk": "HIGH"
+    },
+    "gross_deal_margin_usd": {
+      "classification": "OUTCOME",
+      "discovery_feature_allowed": false,
+      "leakage_risk": "HIGH"
+    },
+    "industry": {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "NONE"
+    },
+    "last_modified_at": {
+      "classification": "POST_DECISION",
+      "discovery_feature_allowed": false,
+      "leakage_risk": "HIGH"
+    },
+    "lead_score": {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "NONE"
+    },
+    "lead_source": {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "NONE"
+    },
+    "lost": {
+      "classification": "OUTCOME",
+      "discovery_feature_allowed": false,
+      "leakage_risk": "HIGH"
+    },
+    "net_deal_contribution_usd": {
+      "classification": "OUTCOME",
+      "discovery_feature_allowed": false,
+      "leakage_risk": "HIGH"
+    },
+    "notes_count": {
+      "classification": "POST_DECISION",
+      "discovery_feature_allowed": false,
+      "leakage_risk": "HIGH"
+    },
+    "product_line": {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "NONE"
+    },
+    "sales_cost_usd": {
+      "classification": "OUTCOME",
+      "discovery_feature_allowed": false,
+      "leakage_risk": "HIGH"
+    },
+    "sales_region": {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "NONE"
+    },
+    "sales_rep": {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "NONE"
+    },
+    "won_amount_usd": {
+      "classification": "OUTCOME",
+      "discovery_feature_allowed": false,
+      "leakage_risk": "HIGH"
+    }
+  },
+  "limitations": [
+    "Candidate-specific exposure-group missingness is computed only after immutable candidate conditions exist.",
+    "This benchmark analytical layer does not replace the blocked production TASK-010 customer-input canonicalization pipeline."
+  ],
+  "outcome_contract": {
+    "available_columns": [
+      "lost",
+      "won_amount_usd",
+      "sales_cost_usd",
+      "discount_leakage_usd",
+      "gross_deal_margin_usd",
+      "net_deal_contribution_usd",
+      "expansion_180d"
+    ],
+    "dataset_scope": "b2b_sales-analytical-v1.0.0",
+    "default_comparison_rule": "complement of the candidate condition within the eligible cohort",
+    "definitions": [
+      {
+        "column": "net_deal_contribution_usd",
+        "decomposition_of": null,
+        "higher_is_worse": false,
+        "missing_data_policy": "not_yet_classified",
+        "outcome_id": "net_deal_contribution_usd",
+        "role": "primary",
+        "status": "PROVISIONAL",
+        "unit": "USD (nominal; single currency; no inflation or FX adjustment)"
+      }
+    ],
+    "eligible_cohort_rule": "deal_created_date within the domain's configured temporal window; no filter on any POST_DECISION or OUTCOME column.",
+    "owner": "DATA_ENGINEER",
+    "primary_outcome_id": "net_deal_contribution_usd",
+    "status": "PROVISIONAL",
+    "task": "TASK-061",
+    "version": "0.1.0-provisional"
+  },
+  "partitions": {
+    "features": {
+      "columns": [
+        "deal_created_date",
+        "lead_source",
+        "industry",
+        "company_size_band",
+        "deal_size_usd",
+        "sales_rep",
+        "sales_region",
+        "product_line",
+        "discount_requested_pct",
+        "competitor_involved",
+        "lead_score",
+        "decision_maker_engaged"
+      ],
+      "path": "features.csv",
+      "schema": [
+        {
+          "dtype": "String",
+          "name": "deal_created_date"
+        },
+        {
+          "dtype": "String",
+          "name": "lead_source"
+        },
+        {
+          "dtype": "String",
+          "name": "industry"
+        },
+        {
+          "dtype": "String",
+          "name": "company_size_band"
+        },
+        {
+          "dtype": "Float64",
+          "name": "deal_size_usd"
+        },
+        {
+          "dtype": "String",
+          "name": "sales_rep"
+        },
+        {
+          "dtype": "String",
+          "name": "sales_region"
+        },
+        {
+          "dtype": "String",
+          "name": "product_line"
+        },
+        {
+          "dtype": "Float64",
+          "name": "discount_requested_pct"
+        },
+        {
+          "dtype": "Boolean",
+          "name": "competitor_involved"
+        },
+        {
+          "dtype": "Int64",
+          "name": "lead_score"
+        },
+        {
+          "dtype": "Boolean",
+          "name": "decision_maker_engaged"
+        }
+      ],
+      "sha256": "0325eb069154f5d736c62ca8217c51443bde86757498c9132d8d896480d46b9c"
+    },
+    "identifiers": {
+      "columns": [
+        "deal_id",
+        "account_id"
+      ],
+      "path": "identifiers.csv",
+      "schema": [
+        {
+          "dtype": "String",
+          "name": "deal_id"
+        },
+        {
+          "dtype": "String",
+          "name": "account_id"
+        }
+      ],
+      "sha256": "e5b17d305d48de69d17dc7501e78382514005a5e00c08dd2fc2264da67e651c4"
+    },
+    "metadata": {
+      "columns": [
+        "source_row_number",
+        "split_label",
+        "source_currency"
+      ],
+      "path": "metadata.csv",
+      "schema": [
+        {
+          "dtype": "Int64",
+          "name": "source_row_number"
+        },
+        {
+          "dtype": "String",
+          "name": "split_label"
+        },
+        {
+          "dtype": "String",
+          "name": "source_currency"
+        }
+      ],
+      "sha256": "c64f94d51ed54596512769cf3c53164a8b8c72b0950e6f0efe342aefe35d566d"
+    },
+    "outcomes": {
+      "columns": [
+        "lost",
+        "won_amount_usd",
+        "sales_cost_usd",
+        "discount_leakage_usd",
+        "gross_deal_margin_usd",
+        "net_deal_contribution_usd",
+        "expansion_180d"
+      ],
+      "path": "outcomes.csv",
+      "schema": [
+        {
+          "dtype": "Boolean",
+          "name": "lost"
+        },
+        {
+          "dtype": "Float64",
+          "name": "won_amount_usd"
+        },
+        {
+          "dtype": "Float64",
+          "name": "sales_cost_usd"
+        },
+        {
+          "dtype": "Float64",
+          "name": "discount_leakage_usd"
+        },
+        {
+          "dtype": "Float64",
+          "name": "gross_deal_margin_usd"
+        },
+        {
+          "dtype": "Float64",
+          "name": "net_deal_contribution_usd"
+        },
+        {
+          "dtype": "Boolean",
+          "name": "expansion_180d"
+        }
+      ],
+      "sha256": "5dfe2d5e0ec67e68604e39ae8a38f60632d8f7f9411924c94f81c03ea96f303b"
+    }
+  },
+  "primary_outcome": "net_deal_contribution_usd",
+  "record_count": 10000,
+  "reproducibility_command": "make analytical-dataset",
+  "row_alignment": "All CSV partitions preserve identical source row order.",
+  "schema_version": "b2b-sales-canonical-v1.0.0",
+  "source": {
+    "feature_timing_path": "<repo>/synthetic_data_domains/b2b_sales/comparable/metadata/feature_timing.json",
+    "feature_timing_sha256": "27ddbd8d36951bfebfa2b57e1b50a0a44d974fe47620a9f644ca5dec60219ffd",
+    "path": "<repo>/synthetic_data_domains/b2b_sales/comparable/reference/b2b_sales_clean.csv",
+    "sha256": "600a0726e37a59a64d4bd6ecb91c9e5bf6bb5f0f075a17b47f5f36e17f95984d"
+  },
+  "status": "READY",
+  "supporting_artifacts": {
+    "excluded_columns_manifest": {
+      "path": "excluded_columns_manifest.json",
+      "sha256": "7fb1eaf4cd88c68190a9a2bab2ef1a583e94fb59e347935010cb231190753d36"
+    },
+    "feature_manifest": {
+      "path": "feature_manifest.json",
+      "sha256": "e8c2668d5aaa1a7aead3d84cac42ab2a3a5b882c08d667d6dc1a5da0e23b5850"
+    },
+    "missingness": {
+      "path": "missingness.json",
+      "sha256": "73c4385d927c0e79a972a7145fc43379c9d992cd8797078dc630aaa2239b6c9b"
+    },
+    "outcome_columns_manifest": {
+      "path": "outcome_columns_manifest.json",
+      "sha256": "c97004d46c7c423f1fc2cb246594d0d22e56a82cfac6c5d1b794a6b0645eeb75"
+    },
+    "version_metadata": {
+      "path": "version_metadata.json",
+      "sha256": "877a68a2a05331d713ddf46fc41ce3ae4c4f972ade0cd34a278b64294f76bfd2"
+    }
+  },
+  "temporal_splits": {
+    "boundaries": {
+      "development": [
+        "2024-01-01",
+        "2024-12-31"
+      ],
+      "future_holdout": [
+        "2025-07-01",
+        "2025-12-31"
+      ],
+      "validation": [
+        "2025-01-01",
+        "2025-06-30"
+      ]
+    },
+    "column": "split_label",
+    "counts": {
+      "development": 5028,
+      "future_holdout": 2481,
+      "validation": 2491
+    },
+    "partition": "metadata",
+    "strategy": "chronological; no random shuffling"
+  },
+  "transformation": {
+    "canonical_schema_version": "b2b-sales-canonical-v1.0.0",
+    "clustering_key": "account_id",
+    "dataset_version": "b2b_sales-analytical-v1.0.0",
+    "decision_timestamp_column": "deal_created_date",
+    "development_end": "2024-12-31",
+    "future_holdout_end": "2025-12-31",
+    "transformation_version": "1.0.0",
+    "validation_end": "2025-06-30"
+  }
+}

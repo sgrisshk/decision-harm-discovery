@@ -1,0 +1,401 @@
+{
+  "clustering": {
+    "column": "patient_id",
+    "partition": "identifiers"
+  },
+  "dataset_identity_sha256": "686a49e52650cdce31649e71f7df99ca12ef585c89509430c4b3ac336f26ff01",
+  "dataset_version": "healthcare-analytical-v1.0.0",
+  "derived_metadata_columns": {
+    "source_currency": "Renamed from the source METADATA field currency.",
+    "source_row_number": "One-based row lineage in the clean reference CSV.",
+    "split_label": "Deterministic chronological split derived from booking_date."
+  },
+  "excluded_post_decision_columns": [
+    "checkin_time",
+    "notes_count",
+    "last_modified_at"
+  ],
+  "feature_timing": {
+    "appointment_date": {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "NONE"
+    },
+    "appointment_duration_min": {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "NONE"
+    },
+    "appointment_id": {
+      "classification": "IDENTIFIER",
+      "discovery_feature_allowed": false,
+      "leakage_risk": "NONE"
+    },
+    "appointment_type": {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "NONE"
+    },
+    "booking_channel": {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "NONE"
+    },
+    "booking_date": {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "NONE"
+    },
+    "checkin_time": {
+      "classification": "POST_DECISION",
+      "discovery_feature_allowed": false,
+      "leakage_risk": "HIGH"
+    },
+    "clinic_location": {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "NONE"
+    },
+    "currency": {
+      "classification": "METADATA",
+      "discovery_feature_allowed": false,
+      "leakage_risk": "NONE"
+    },
+    "department": {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "NONE"
+    },
+    "insurance_group": {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "NONE"
+    },
+    "last_modified_at": {
+      "classification": "POST_DECISION",
+      "discovery_feature_allowed": false,
+      "leakage_risk": "HIGH"
+    },
+    "lead_time_days": {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "NONE"
+    },
+    "lost_revenue_usd": {
+      "classification": "OUTCOME",
+      "discovery_feature_allowed": false,
+      "leakage_risk": "HIGH"
+    },
+    "net_scheduling_cost_usd": {
+      "classification": "OUTCOME",
+      "discovery_feature_allowed": false,
+      "leakage_risk": "HIGH"
+    },
+    "no_show": {
+      "classification": "OUTCOME",
+      "discovery_feature_allowed": false,
+      "leakage_risk": "HIGH"
+    },
+    "notes_count": {
+      "classification": "POST_DECISION",
+      "discovery_feature_allowed": false,
+      "leakage_risk": "HIGH"
+    },
+    "overtime_staffing_cost_usd": {
+      "classification": "OUTCOME",
+      "discovery_feature_allowed": false,
+      "leakage_risk": "HIGH"
+    },
+    "patient_age_band": {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "NONE"
+    },
+    "patient_id": {
+      "classification": "IDENTIFIER",
+      "discovery_feature_allowed": false,
+      "leakage_risk": "NONE"
+    },
+    "provider": {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "NONE"
+    },
+    "reminder_opted_in": {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "NONE"
+    },
+    "rescheduling_cost_usd": {
+      "classification": "OUTCOME",
+      "discovery_feature_allowed": false,
+      "leakage_risk": "HIGH"
+    },
+    "return_visit_180d": {
+      "classification": "OUTCOME",
+      "discovery_feature_allowed": false,
+      "leakage_risk": "HIGH"
+    },
+    "time_of_day": {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "NONE"
+    }
+  },
+  "limitations": [
+    "Candidate-specific exposure-group missingness is computed only after immutable candidate conditions exist.",
+    "This benchmark analytical layer does not replace the blocked production TASK-010 customer-input canonicalization pipeline."
+  ],
+  "outcome_contract": {
+    "available_columns": [
+      "no_show",
+      "lost_revenue_usd",
+      "overtime_staffing_cost_usd",
+      "rescheduling_cost_usd",
+      "net_scheduling_cost_usd",
+      "return_visit_180d"
+    ],
+    "dataset_scope": "healthcare-analytical-v1.0.0",
+    "default_comparison_rule": "complement of the candidate condition within the eligible cohort",
+    "definitions": [
+      {
+        "column": "net_scheduling_cost_usd",
+        "decomposition_of": null,
+        "higher_is_worse": true,
+        "missing_data_policy": "not_yet_classified",
+        "outcome_id": "net_scheduling_cost_usd",
+        "role": "primary",
+        "status": "PROVISIONAL",
+        "unit": "USD (nominal; single currency; no inflation or FX adjustment)"
+      }
+    ],
+    "eligible_cohort_rule": "booking_date within the domain's configured temporal window; no filter on any POST_DECISION or OUTCOME column.",
+    "owner": "DATA_ENGINEER",
+    "primary_outcome_id": "net_scheduling_cost_usd",
+    "status": "PROVISIONAL",
+    "task": "TASK-061",
+    "version": "0.1.0-provisional"
+  },
+  "partitions": {
+    "features": {
+      "columns": [
+        "booking_date",
+        "appointment_date",
+        "department",
+        "provider",
+        "clinic_location",
+        "insurance_group",
+        "appointment_type",
+        "booking_channel",
+        "lead_time_days",
+        "appointment_duration_min",
+        "patient_age_band",
+        "reminder_opted_in",
+        "time_of_day"
+      ],
+      "path": "features.csv",
+      "schema": [
+        {
+          "dtype": "String",
+          "name": "booking_date"
+        },
+        {
+          "dtype": "String",
+          "name": "appointment_date"
+        },
+        {
+          "dtype": "String",
+          "name": "department"
+        },
+        {
+          "dtype": "String",
+          "name": "provider"
+        },
+        {
+          "dtype": "String",
+          "name": "clinic_location"
+        },
+        {
+          "dtype": "String",
+          "name": "insurance_group"
+        },
+        {
+          "dtype": "String",
+          "name": "appointment_type"
+        },
+        {
+          "dtype": "String",
+          "name": "booking_channel"
+        },
+        {
+          "dtype": "Int64",
+          "name": "lead_time_days"
+        },
+        {
+          "dtype": "Int64",
+          "name": "appointment_duration_min"
+        },
+        {
+          "dtype": "String",
+          "name": "patient_age_band"
+        },
+        {
+          "dtype": "Boolean",
+          "name": "reminder_opted_in"
+        },
+        {
+          "dtype": "String",
+          "name": "time_of_day"
+        }
+      ],
+      "sha256": "771e23043743168fda974bbc3a1f2e135e210ee469b65ab653a4935718ed4c12"
+    },
+    "identifiers": {
+      "columns": [
+        "appointment_id",
+        "patient_id"
+      ],
+      "path": "identifiers.csv",
+      "schema": [
+        {
+          "dtype": "String",
+          "name": "appointment_id"
+        },
+        {
+          "dtype": "String",
+          "name": "patient_id"
+        }
+      ],
+      "sha256": "12bf58ec624a466fb945426a93a20126546057f49c885cec7f5d098520412491"
+    },
+    "metadata": {
+      "columns": [
+        "source_row_number",
+        "split_label",
+        "source_currency"
+      ],
+      "path": "metadata.csv",
+      "schema": [
+        {
+          "dtype": "Int64",
+          "name": "source_row_number"
+        },
+        {
+          "dtype": "String",
+          "name": "split_label"
+        },
+        {
+          "dtype": "String",
+          "name": "source_currency"
+        }
+      ],
+      "sha256": "bbbdf2db547455126da30e98b23d4bd9772d85d8be79e5715964c13f7232b59c"
+    },
+    "outcomes": {
+      "columns": [
+        "no_show",
+        "lost_revenue_usd",
+        "overtime_staffing_cost_usd",
+        "rescheduling_cost_usd",
+        "net_scheduling_cost_usd",
+        "return_visit_180d"
+      ],
+      "path": "outcomes.csv",
+      "schema": [
+        {
+          "dtype": "Boolean",
+          "name": "no_show"
+        },
+        {
+          "dtype": "Float64",
+          "name": "lost_revenue_usd"
+        },
+        {
+          "dtype": "Float64",
+          "name": "overtime_staffing_cost_usd"
+        },
+        {
+          "dtype": "Float64",
+          "name": "rescheduling_cost_usd"
+        },
+        {
+          "dtype": "Float64",
+          "name": "net_scheduling_cost_usd"
+        },
+        {
+          "dtype": "Boolean",
+          "name": "return_visit_180d"
+        }
+      ],
+      "sha256": "2c7d468c26990075d7b039f2ebe0e8fac18e57b978983492196af7efcc02786d"
+    }
+  },
+  "primary_outcome": "net_scheduling_cost_usd",
+  "record_count": 10000,
+  "reproducibility_command": "make analytical-dataset",
+  "row_alignment": "All CSV partitions preserve identical source row order.",
+  "schema_version": "healthcare-canonical-v1.0.0",
+  "source": {
+    "feature_timing_path": "<repo>/synthetic_data_domains/healthcare/comparable/metadata/feature_timing.json",
+    "feature_timing_sha256": "91035922573e743eaea9485a19aac8411e5fcf5ec8b0f16500d3c069ada19742",
+    "path": "<repo>/synthetic_data_domains/healthcare/comparable/reference/healthcare_clean.csv",
+    "sha256": "7a78b844584af59fe8966d2243a28386b1c7850986a0816b169c2156cfc7b874"
+  },
+  "status": "READY",
+  "supporting_artifacts": {
+    "excluded_columns_manifest": {
+      "path": "excluded_columns_manifest.json",
+      "sha256": "265daaed55e6ee9cd652b5c8d8855b56183bc4b5840ab5dfc5db03f753f6e7f4"
+    },
+    "feature_manifest": {
+      "path": "feature_manifest.json",
+      "sha256": "2862985a7993be47cec1f90d663f10f04c36fb01164bfb8f634ec316c8ba6d65"
+    },
+    "missingness": {
+      "path": "missingness.json",
+      "sha256": "f6a36b65afc4f16f99f8fecc889bb1842c7b7306639e6edd4aae4f4fb6d1a913"
+    },
+    "outcome_columns_manifest": {
+      "path": "outcome_columns_manifest.json",
+      "sha256": "cc715443f5e126af2f05305f555709e8dd6f444cc51bb0155cc4706cd34a21ff"
+    },
+    "version_metadata": {
+      "path": "version_metadata.json",
+      "sha256": "0438da02b2f4a56b22e72c55bbf77e63ca94afef927bf2f083e748b4f0bbded0"
+    }
+  },
+  "temporal_splits": {
+    "boundaries": {
+      "development": [
+        "2024-01-01",
+        "2024-12-31"
+      ],
+      "future_holdout": [
+        "2025-07-01",
+        "2025-12-31"
+      ],
+      "validation": [
+        "2025-01-01",
+        "2025-06-30"
+      ]
+    },
+    "column": "split_label",
+    "counts": {
+      "development": 5254,
+      "future_holdout": 2112,
+      "validation": 2634
+    },
+    "partition": "metadata",
+    "strategy": "chronological; no random shuffling"
+  },
+  "transformation": {
+    "canonical_schema_version": "healthcare-canonical-v1.0.0",
+    "clustering_key": "patient_id",
+    "dataset_version": "healthcare-analytical-v1.0.0",
+    "decision_timestamp_column": "booking_date",
+    "development_end": "2024-12-31",
+    "future_holdout_end": "2025-12-31",
+    "transformation_version": "1.0.0",
+    "validation_end": "2025-06-30"
+  }
+}

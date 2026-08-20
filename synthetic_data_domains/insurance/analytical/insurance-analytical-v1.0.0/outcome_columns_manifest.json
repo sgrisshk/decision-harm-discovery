@@ -1,0 +1,47 @@
+{
+  "dataset_version": "insurance-analytical-v1.0.0",
+  "outcome_contract": {
+    "available_columns": [
+      "denied",
+      "fraud_flagged",
+      "payout_amount_usd",
+      "processing_cost_usd",
+      "fraud_loss_usd",
+      "processing_days",
+      "net_claim_cost_usd",
+      "reopened_90d"
+    ],
+    "dataset_scope": "insurance-analytical-v1.0.0",
+    "default_comparison_rule": "complement of the candidate condition within the eligible cohort",
+    "definitions": [
+      {
+        "column": "net_claim_cost_usd",
+        "decomposition_of": null,
+        "higher_is_worse": true,
+        "missing_data_policy": "not_yet_classified",
+        "outcome_id": "net_claim_cost_usd",
+        "role": "primary",
+        "status": "PROVISIONAL",
+        "unit": "USD (nominal; single currency; no inflation or FX adjustment)"
+      }
+    ],
+    "eligible_cohort_rule": "claim_filed_date within the domain's configured temporal window; no filter on any POST_DECISION or OUTCOME column.",
+    "owner": "DATA_ENGINEER",
+    "primary_outcome_id": "net_claim_cost_usd",
+    "status": "PROVISIONAL",
+    "task": "TASK-061",
+    "version": "0.1.0-provisional"
+  },
+  "role": "OUTCOME",
+  "schema_version": "insurance-canonical-v1.0.0",
+  "stored_columns": [
+    "denied",
+    "fraud_flagged",
+    "payout_amount_usd",
+    "processing_cost_usd",
+    "fraud_loss_usd",
+    "processing_days",
+    "net_claim_cost_usd",
+    "reopened_90d"
+  ]
+}

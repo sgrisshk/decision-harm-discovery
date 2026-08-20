@@ -1,0 +1,402 @@
+{
+  "clustering": {
+    "column": "production_line_id",
+    "partition": "identifiers"
+  },
+  "dataset_identity_sha256": "b004c831daa3bdf3fd2b729cbdcefb577549f0dea3dab202c474aea9a78f5a15",
+  "dataset_version": "manufacturing-analytical-v1.0.0",
+  "derived_metadata_columns": {
+    "source_currency": "Renamed from the source METADATA field currency.",
+    "source_row_number": "One-based row lineage in the clean reference CSV.",
+    "split_label": "Deterministic chronological split derived from batch_date."
+  },
+  "excluded_post_decision_columns": [
+    "inspection_completed_date",
+    "quality_notes_count",
+    "last_modified_at"
+  ],
+  "feature_timing": {
+    "batch_date": {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "NONE"
+    },
+    "batch_id": {
+      "classification": "IDENTIFIER",
+      "discovery_feature_allowed": false,
+      "leakage_risk": "NONE"
+    },
+    "batch_size_units": {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "NONE"
+    },
+    "currency": {
+      "classification": "METADATA",
+      "discovery_feature_allowed": false,
+      "leakage_risk": "NONE"
+    },
+    "defective": {
+      "classification": "OUTCOME",
+      "discovery_feature_allowed": false,
+      "leakage_risk": "HIGH"
+    },
+    "downtime_cost_usd": {
+      "classification": "OUTCOME",
+      "discovery_feature_allowed": false,
+      "leakage_risk": "HIGH"
+    },
+    "humidity_pct": {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "NONE"
+    },
+    "inspection_completed_date": {
+      "classification": "POST_DECISION",
+      "discovery_feature_allowed": false,
+      "leakage_risk": "HIGH"
+    },
+    "last_modified_at": {
+      "classification": "POST_DECISION",
+      "discovery_feature_allowed": false,
+      "leakage_risk": "HIGH"
+    },
+    "machine_id": {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "NONE"
+    },
+    "material_grade": {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "NONE"
+    },
+    "operator": {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "NONE"
+    },
+    "planned_cycle_time_min": {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "NONE"
+    },
+    "product_line": {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "NONE"
+    },
+    "production_line_id": {
+      "classification": "IDENTIFIER",
+      "discovery_feature_allowed": false,
+      "leakage_risk": "NONE"
+    },
+    "quality_notes_count": {
+      "classification": "POST_DECISION",
+      "discovery_feature_allowed": false,
+      "leakage_risk": "HIGH"
+    },
+    "raw_material_supplier": {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "NONE"
+    },
+    "recurrence_90d": {
+      "classification": "OUTCOME",
+      "discovery_feature_allowed": false,
+      "leakage_risk": "HIGH"
+    },
+    "rework_cost_usd": {
+      "classification": "OUTCOME",
+      "discovery_feature_allowed": false,
+      "leakage_risk": "HIGH"
+    },
+    "rush_order": {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "NONE"
+    },
+    "scrap_cost_usd": {
+      "classification": "OUTCOME",
+      "discovery_feature_allowed": false,
+      "leakage_risk": "HIGH"
+    },
+    "shift": {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "NONE"
+    },
+    "temperature_c": {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "NONE"
+    },
+    "total_quality_cost_usd": {
+      "classification": "OUTCOME",
+      "discovery_feature_allowed": false,
+      "leakage_risk": "HIGH"
+    },
+    "yield_loss_usd": {
+      "classification": "OUTCOME",
+      "discovery_feature_allowed": false,
+      "leakage_risk": "HIGH"
+    }
+  },
+  "limitations": [
+    "Candidate-specific exposure-group missingness is computed only after immutable candidate conditions exist.",
+    "This benchmark analytical layer does not replace the blocked production TASK-010 customer-input canonicalization pipeline."
+  ],
+  "outcome_contract": {
+    "available_columns": [
+      "defective",
+      "scrap_cost_usd",
+      "rework_cost_usd",
+      "downtime_cost_usd",
+      "yield_loss_usd",
+      "total_quality_cost_usd",
+      "recurrence_90d"
+    ],
+    "dataset_scope": "manufacturing-analytical-v1.0.0",
+    "default_comparison_rule": "complement of the candidate condition within the eligible cohort",
+    "definitions": [
+      {
+        "column": "total_quality_cost_usd",
+        "decomposition_of": null,
+        "higher_is_worse": true,
+        "missing_data_policy": "not_yet_classified",
+        "outcome_id": "total_quality_cost_usd",
+        "role": "primary",
+        "status": "PROVISIONAL",
+        "unit": "USD (nominal; single currency; no inflation or FX adjustment)"
+      }
+    ],
+    "eligible_cohort_rule": "batch_date within the domain's configured temporal window; no filter on any POST_DECISION or OUTCOME column.",
+    "owner": "DATA_ENGINEER",
+    "primary_outcome_id": "total_quality_cost_usd",
+    "status": "PROVISIONAL",
+    "task": "TASK-061",
+    "version": "0.1.0-provisional"
+  },
+  "partitions": {
+    "features": {
+      "columns": [
+        "batch_date",
+        "product_line",
+        "raw_material_supplier",
+        "shift",
+        "batch_size_units",
+        "operator",
+        "machine_id",
+        "planned_cycle_time_min",
+        "material_grade",
+        "humidity_pct",
+        "temperature_c",
+        "rush_order"
+      ],
+      "path": "features.csv",
+      "schema": [
+        {
+          "dtype": "String",
+          "name": "batch_date"
+        },
+        {
+          "dtype": "String",
+          "name": "product_line"
+        },
+        {
+          "dtype": "String",
+          "name": "raw_material_supplier"
+        },
+        {
+          "dtype": "String",
+          "name": "shift"
+        },
+        {
+          "dtype": "Int64",
+          "name": "batch_size_units"
+        },
+        {
+          "dtype": "String",
+          "name": "operator"
+        },
+        {
+          "dtype": "String",
+          "name": "machine_id"
+        },
+        {
+          "dtype": "Float64",
+          "name": "planned_cycle_time_min"
+        },
+        {
+          "dtype": "String",
+          "name": "material_grade"
+        },
+        {
+          "dtype": "Float64",
+          "name": "humidity_pct"
+        },
+        {
+          "dtype": "Float64",
+          "name": "temperature_c"
+        },
+        {
+          "dtype": "Boolean",
+          "name": "rush_order"
+        }
+      ],
+      "sha256": "f8b671b3ef829d1b160740ab59c2a13220ebd8f0c6863b618f0c534ae0cf0a4b"
+    },
+    "identifiers": {
+      "columns": [
+        "batch_id",
+        "production_line_id"
+      ],
+      "path": "identifiers.csv",
+      "schema": [
+        {
+          "dtype": "String",
+          "name": "batch_id"
+        },
+        {
+          "dtype": "String",
+          "name": "production_line_id"
+        }
+      ],
+      "sha256": "546d26cf6ac4848fb5836789dcfde8d1a4645745d2f5f248c8d3be253014f8f6"
+    },
+    "metadata": {
+      "columns": [
+        "source_row_number",
+        "split_label",
+        "source_currency"
+      ],
+      "path": "metadata.csv",
+      "schema": [
+        {
+          "dtype": "Int64",
+          "name": "source_row_number"
+        },
+        {
+          "dtype": "String",
+          "name": "split_label"
+        },
+        {
+          "dtype": "String",
+          "name": "source_currency"
+        }
+      ],
+      "sha256": "59415602b386a275a89be7350b41f43f227b5bc842cceb70363c52c852e4cac2"
+    },
+    "outcomes": {
+      "columns": [
+        "defective",
+        "scrap_cost_usd",
+        "rework_cost_usd",
+        "downtime_cost_usd",
+        "yield_loss_usd",
+        "total_quality_cost_usd",
+        "recurrence_90d"
+      ],
+      "path": "outcomes.csv",
+      "schema": [
+        {
+          "dtype": "Boolean",
+          "name": "defective"
+        },
+        {
+          "dtype": "Float64",
+          "name": "scrap_cost_usd"
+        },
+        {
+          "dtype": "Float64",
+          "name": "rework_cost_usd"
+        },
+        {
+          "dtype": "Float64",
+          "name": "downtime_cost_usd"
+        },
+        {
+          "dtype": "Float64",
+          "name": "yield_loss_usd"
+        },
+        {
+          "dtype": "Float64",
+          "name": "total_quality_cost_usd"
+        },
+        {
+          "dtype": "Boolean",
+          "name": "recurrence_90d"
+        }
+      ],
+      "sha256": "2e9a19eb792e2a98280185165d705e9616d41e7bf7e631eff8ded13f5663bb18"
+    }
+  },
+  "primary_outcome": "total_quality_cost_usd",
+  "record_count": 10000,
+  "reproducibility_command": "make analytical-dataset",
+  "row_alignment": "All CSV partitions preserve identical source row order.",
+  "schema_version": "manufacturing-canonical-v1.0.0",
+  "source": {
+    "feature_timing_path": "<repo>/synthetic_data_domains/manufacturing/comparable/metadata/feature_timing.json",
+    "feature_timing_sha256": "43e9826e1925cc06152294a958e466502b78c68bed8e4bdfcfa29524cac977b5",
+    "path": "<repo>/synthetic_data_domains/manufacturing/comparable/reference/manufacturing_clean.csv",
+    "sha256": "0983819185be2b9cbef4da7007e126931414237955e89bd6dcc4b5d512e449a4"
+  },
+  "status": "READY",
+  "supporting_artifacts": {
+    "excluded_columns_manifest": {
+      "path": "excluded_columns_manifest.json",
+      "sha256": "0bd692148842ea5b2c3155f706823588272e0a402a4632aaf909799875c421d8"
+    },
+    "feature_manifest": {
+      "path": "feature_manifest.json",
+      "sha256": "d4bc781156f44996bc29ee2f9dfc4c50ec3b9815d2d047539fd0aa099db3f2fe"
+    },
+    "missingness": {
+      "path": "missingness.json",
+      "sha256": "f01af60f29cd9ee8b43628b67c2757f8bd417c701efc898742d991d2d53ebcd9"
+    },
+    "outcome_columns_manifest": {
+      "path": "outcome_columns_manifest.json",
+      "sha256": "3a6494b90dcef24d440ac3d83b8b48a8835b0639f5e9180aec4a42222acadfda"
+    },
+    "version_metadata": {
+      "path": "version_metadata.json",
+      "sha256": "6df0749020bbc7aed554e16e7db8ad9a68fbccf9ef0a389f663d9b1f06e26fa5"
+    }
+  },
+  "temporal_splits": {
+    "boundaries": {
+      "development": [
+        "2024-01-01",
+        "2024-12-31"
+      ],
+      "future_holdout": [
+        "2025-07-01",
+        "2025-12-31"
+      ],
+      "validation": [
+        "2025-01-01",
+        "2025-06-30"
+      ]
+    },
+    "column": "split_label",
+    "counts": {
+      "development": 4925,
+      "future_holdout": 2565,
+      "validation": 2510
+    },
+    "partition": "metadata",
+    "strategy": "chronological; no random shuffling"
+  },
+  "transformation": {
+    "canonical_schema_version": "manufacturing-canonical-v1.0.0",
+    "clustering_key": "production_line_id",
+    "dataset_version": "manufacturing-analytical-v1.0.0",
+    "decision_timestamp_column": "batch_date",
+    "development_end": "2024-12-31",
+    "future_holdout_end": "2025-12-31",
+    "transformation_version": "1.0.0",
+    "validation_end": "2025-06-30"
+  }
+}

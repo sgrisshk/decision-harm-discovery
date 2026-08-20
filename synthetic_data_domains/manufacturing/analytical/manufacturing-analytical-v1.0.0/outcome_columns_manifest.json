@@ -1,0 +1,45 @@
+{
+  "dataset_version": "manufacturing-analytical-v1.0.0",
+  "outcome_contract": {
+    "available_columns": [
+      "defective",
+      "scrap_cost_usd",
+      "rework_cost_usd",
+      "downtime_cost_usd",
+      "yield_loss_usd",
+      "total_quality_cost_usd",
+      "recurrence_90d"
+    ],
+    "dataset_scope": "manufacturing-analytical-v1.0.0",
+    "default_comparison_rule": "complement of the candidate condition within the eligible cohort",
+    "definitions": [
+      {
+        "column": "total_quality_cost_usd",
+        "decomposition_of": null,
+        "higher_is_worse": true,
+        "missing_data_policy": "not_yet_classified",
+        "outcome_id": "total_quality_cost_usd",
+        "role": "primary",
+        "status": "PROVISIONAL",
+        "unit": "USD (nominal; single currency; no inflation or FX adjustment)"
+      }
+    ],
+    "eligible_cohort_rule": "batch_date within the domain's configured temporal window; no filter on any POST_DECISION or OUTCOME column.",
+    "owner": "DATA_ENGINEER",
+    "primary_outcome_id": "total_quality_cost_usd",
+    "status": "PROVISIONAL",
+    "task": "TASK-061",
+    "version": "0.1.0-provisional"
+  },
+  "role": "OUTCOME",
+  "schema_version": "manufacturing-canonical-v1.0.0",
+  "stored_columns": [
+    "defective",
+    "scrap_cost_usd",
+    "rework_cost_usd",
+    "downtime_cost_usd",
+    "yield_loss_usd",
+    "total_quality_cost_usd",
+    "recurrence_90d"
+  ]
+}

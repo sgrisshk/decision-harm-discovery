@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import hashlib
 import json
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, cast
+from typing import Any, Literal, cast
 
 import polars as pl
 
@@ -43,11 +43,76 @@ class AnalyticalDatasetConfig:
     dataset_version: str = DATASET_VERSION
     canonical_schema_version: str = CANONICAL_SCHEMA_VERSION
     decision_timestamp_column: str = "booking_date"
+    #: TASK-061 generalization: was a hardcoded `frame["booking_id"]` literal. Defaulted to
+    #: `"booking_id"` so the travel caller (`scripts/build_synthetic_analytical_dataset.py`, which
+    #: never passes a `config`) is byte-for-byte unaffected.
+    identifier_column: str = "booking_id"
     clustering_key: str = "customer_id"
+    #: TASK-061 generalization: was a hardcoded `pl.col("currency").alias("source_currency")`
+    #: literal. `None` skips the metadata currency rename entirely (a domain with no currency
+    #: METADATA column). Defaulted to `"currency"` so the travel caller is unaffected.
+    currency_column: str | None = "currency"
     development_end: str = "2024-12-31"
     validation_end: str = "2025-06-30"
     future_holdout_end: str = "2025-12-31"
     transformation_version: str = "1.0.0"
+
+
+@dataclass(frozen=True, slots=True)
+class OutcomeContractInputs:
+    """Everything `build_analytical_dataset` needs to describe the outcome layer in its manifest.
+
+    Deliberately much thinner than `policy_analytics.outcomes.contract.OutcomeDefinition` — this is
+    the minimal shape required to be valid `policy_analytics.discovery.engine.discover_candidates`
+    input (its `OutcomeDefinition` Protocol: `outcome_id`/`column`/`unit`/`higher_is_worse`/
+    `harm_multiplier`), not a STATISTICS-reviewed, `TASK-013`-grade contract (empirically pinned
+    `valid_range`, product-reviewed `harm_direction_phrase`, `aggregation_rule`,
+    `missing_data_policy` per outcome — real, separate authorship work that does not exist for any
+    `TASK-061` domain yet). `status` records which situation applies so a manifest reader never has
+    to guess: `"ATTACHED"` (a real, reviewed contract — travel's `TASK-013`) or `"PROVISIONAL"`
+    (mechanically generated from the domain's own `DomainSpec`, not yet reviewed — every `TASK-061`
+    domain today, via `domain_benchmarks.analytical_bridge.provisional_outcome_contract`).
+    """
+
+    status: Literal["ATTACHED", "PROVISIONAL"]
+    owner: str
+    task: str
+    version: str
+    dataset_scope: str
+    primary_outcome_id: str
+    eligible_cohort_rule: str
+    default_comparison_rule: str
+    definitions: tuple[dict[str, Any], ...]
+
+
+def _default_travel_outcome_contract() -> OutcomeContractInputs:
+    """The real, STATISTICS-reviewed `TASK-013` contract — unchanged from what this module always
+    embedded, just relocated behind the new pluggable `outcome_contract` parameter so a caller with
+    no equivalent contract (every `TASK-061` domain) is not forced to fabricate one that looks
+    equally authoritative."""
+    contract_definitions = [
+        {
+            "outcome_id": definition.outcome_id,
+            "role": definition.role.value,
+            "column": definition.column,
+            "unit": definition.unit,
+            "higher_is_worse": definition.higher_is_worse,
+            "missing_data_policy": definition.missing_data_policy.value,
+            "decomposition_of": definition.decomposition_of,
+        }
+        for definition in OUTCOME_DEFINITIONS
+    ]
+    return OutcomeContractInputs(
+        status="ATTACHED",
+        owner="STATISTICS",
+        task="TASK-013",
+        version=OUTCOME_CONTRACT_VERSION,
+        dataset_scope=OUTCOME_CONTRACT_DATASET_SCOPE,
+        primary_outcome_id=PRIMARY_OUTCOME_ID,
+        eligible_cohort_rule=ELIGIBLE_COHORT_RULE,
+        default_comparison_rule=DEFAULT_COMPARISON_RULE,
+        definitions=tuple(contract_definitions),
+    )
 
 
 def _sha256(path: Path) -> str:
@@ -143,14 +208,48 @@ def compute_exposure_group_missingness(
     return result
 
 
+def _config_summary(config: AnalyticalDatasetConfig) -> dict[str, Any]:
+    """The config fields written into every JSON artifact — deliberately an explicit, frozen field
+    list, not `asdict(config)`. `TASK-061` added `identifier_column`/`currency_column` to
+    `AnalyticalDatasetConfig` with defaults that reproduce travel's prior hardcoded behavior
+    byte-for-byte; if this returned `asdict(config)` directly, those two new keys would still
+    appear in every artifact and change its bytes for the travel default config, tripping
+    `scripts/build_synthetic_analytical_dataset.py`'s full-file immutability guard for a change
+    that alters no actual data or identity (same value-preserving-edit-perturbs-a-frozen-artifact
+    class ADR-030 already fixed once, at the identity-hash layer specifically). New config fields
+    are visible at runtime (they select the right columns) and observable in the manifest's
+    existing `partitions`/`clustering` sections; they do not need a redundant explicit echo here to
+    be usable — so this list only grows when a field's value needs restating, not automatically
+    with every new `AnalyticalDatasetConfig` field.
+    """
+    return {
+        "dataset_version": config.dataset_version,
+        "canonical_schema_version": config.canonical_schema_version,
+        "decision_timestamp_column": config.decision_timestamp_column,
+        "clustering_key": config.clustering_key,
+        "development_end": config.development_end,
+        "validation_end": config.validation_end,
+        "future_holdout_end": config.future_holdout_end,
+        "transformation_version": config.transformation_version,
+    }
+
+
 def build_analytical_dataset(
     source_csv: Path,
     feature_timing_path: Path,
     output_root: Path,
     config: AnalyticalDatasetConfig | None = None,
+    outcome_contract: OutcomeContractInputs | None = None,
 ) -> dict[str, Any]:
-    """Partition a canonical benchmark into immutable analytical roles."""
+    """Partition a canonical benchmark into immutable analytical roles.
+
+    `config`/`outcome_contract` both default to the travel benchmark's own values (unchanged
+    behavior for the existing caller, `scripts/build_synthetic_analytical_dataset.py`, which passes
+    neither) — see `TASK-061`'s `domain_benchmarks.analytical_bridge` for the generic adapter that
+    builds both from any registered domain's `DomainSpec`.
+    """
     config = config or AnalyticalDatasetConfig()
+    outcome_contract = outcome_contract or _default_travel_outcome_contract()
     timing = _load_timing(feature_timing_path)
     frame = pl.read_csv(source_csv, try_parse_dates=False, null_values=[""])
     missing_timing = sorted(set(frame.columns) - set(timing))
@@ -159,8 +258,8 @@ def build_analytical_dataset(
         raise ValueError(
             f"schema/timing mismatch: missing={missing_timing}, extra={unknown_timing_columns}"
         )
-    if frame["booking_id"].n_unique() != frame.height:
-        raise ValueError("booking_id must be unique")
+    if frame[config.identifier_column].n_unique() != frame.height:
+        raise ValueError(f"{config.identifier_column} must be unique")
     if frame[config.clustering_key].null_count() or frame[config.clustering_key].n_unique() < 5:
         raise ValueError("clustering key must be complete and contain at least five clusters")
 
@@ -184,13 +283,16 @@ def build_analytical_dataset(
     if "outside_supported_window" in split_labels.to_list():
         raise ValueError("records exist outside the configured temporal split window")
     row_numbers = pl.Series("source_row_number", range(1, frame.height + 1), dtype=pl.Int64)
+    metadata_frame = frame.select(metadata_source_columns).with_columns(row_numbers, split_labels)
+    if config.currency_column is not None:
+        metadata_frame = metadata_frame.with_columns(
+            pl.col(config.currency_column).alias("source_currency")
+        ).drop(config.currency_column)
     partitions = {
         "features": frame.select(feature_columns),
         "outcomes": frame.select(outcome_columns),
         "identifiers": frame.select(identifier_columns),
-        "metadata": frame.select(metadata_source_columns)
-        .with_columns(row_numbers, split_labels, pl.col("currency").alias("source_currency"))
-        .drop("currency"),
+        "metadata": metadata_frame,
     }
 
     version_root = output_root / config.dataset_version
@@ -221,13 +323,22 @@ def build_analytical_dataset(
     # `dataset_identity_sha256` matters to `blind_isolation.py`/`promote_findings.py`/the outcome
     # contract's pinned hash), so it added churn without adding a checked guarantee. Which commit
     # built a given dataset version is what `git log` is for. See ADR-030.
+    #
+    # `transformation_config` below is deliberately an explicit, frozen field list — NOT blind
+    # `asdict(config)` — for the exact same reason: `TASK-061` added `identifier_column`/
+    # `currency_column` to `AnalyticalDatasetConfig` with defaults that reproduce travel's prior
+    # hardcoded behavior byte-for-byte, but `asdict()` would still fold the two new keys into this
+    # hash and move `dataset_identity_sha256` for a provably output-identical change — the same
+    # value-preserving-edit-moves-a-pinned-hash bug ADR-030 already fixed once. Any real behavioral
+    # difference from a new config field is already captured by `partition_sha256` (the actual
+    # written CSV content), so freezing this sub-payload's shape loses no integrity checking.
     identity_payload = {
         "dataset_version": config.dataset_version,
         "schema_version": config.canonical_schema_version,
         "source_sha256": source_sha256,
         "feature_timing_sha256": feature_timing_sha256,
-        "transformation_config": asdict(config),
-        "outcome_contract_version": OUTCOME_CONTRACT_VERSION,
+        "transformation_config": _config_summary(config),
+        "outcome_contract_version": outcome_contract.version,
         "partition_sha256": partition_hashes,
     }
     version_identity = hashlib.sha256(
@@ -251,34 +362,22 @@ def build_analytical_dataset(
     feature_manifest_path = version_root / "feature_manifest.json"
     _write_json(feature_manifest_path, feature_manifest)
 
-    contract_definitions = [
-        {
-            "outcome_id": definition.outcome_id,
-            "role": definition.role.value,
-            "column": definition.column,
-            "unit": definition.unit,
-            "higher_is_worse": definition.higher_is_worse,
-            "missing_data_policy": definition.missing_data_policy.value,
-            "decomposition_of": definition.decomposition_of,
-        }
-        for definition in OUTCOME_DEFINITIONS
-    ]
     outcome_columns_manifest = {
         "dataset_version": config.dataset_version,
         "schema_version": config.canonical_schema_version,
         "role": "OUTCOME",
         "stored_columns": outcome_columns,
         "outcome_contract": {
-            "status": "ATTACHED",
-            "owner": "STATISTICS",
-            "task": "TASK-013",
-            "version": OUTCOME_CONTRACT_VERSION,
-            "dataset_scope": OUTCOME_CONTRACT_DATASET_SCOPE,
+            "status": outcome_contract.status,
+            "owner": outcome_contract.owner,
+            "task": outcome_contract.task,
+            "version": outcome_contract.version,
+            "dataset_scope": outcome_contract.dataset_scope,
             "available_columns": outcome_columns,
-            "primary_outcome_id": PRIMARY_OUTCOME_ID,
-            "eligible_cohort_rule": ELIGIBLE_COHORT_RULE,
-            "default_comparison_rule": DEFAULT_COMPARISON_RULE,
-            "definitions": contract_definitions,
+            "primary_outcome_id": outcome_contract.primary_outcome_id,
+            "eligible_cohort_rule": outcome_contract.eligible_cohort_rule,
+            "default_comparison_rule": outcome_contract.default_comparison_rule,
+            "definitions": list(outcome_contract.definitions),
         },
     }
     outcome_manifest_path = version_root / "outcome_columns_manifest.json"
@@ -320,7 +419,7 @@ def build_analytical_dataset(
         "dataset_version": config.dataset_version,
         "schema_version": config.canonical_schema_version,
         "dataset_identity_sha256": version_identity,
-        "transformation_config": asdict(config),
+        "transformation_config": _config_summary(config),
         "source_dataset_reference": {
             "path": str(source_csv),
             "sha256": source_sha256,
@@ -353,7 +452,7 @@ def build_analytical_dataset(
             "feature_timing_path": str(feature_timing_path),
             "feature_timing_sha256": feature_timing_sha256,
         },
-        "transformation": asdict(config),
+        "transformation": _config_summary(config),
         "partitions": {
             role: {
                 "path": path.name,
@@ -365,7 +464,7 @@ def build_analytical_dataset(
             if role in partitions
         },
         "excluded_post_decision_columns": excluded_columns,
-        "primary_outcome": PRIMARY_OUTCOME_ID,
+        "primary_outcome": outcome_contract.primary_outcome_id,
         "outcome_contract": outcome_columns_manifest["outcome_contract"],
         "supporting_artifacts": {
             name: {"path": path.name, "sha256": _sha256(path)}
@@ -394,8 +493,19 @@ def build_analytical_dataset(
         },
         "derived_metadata_columns": {
             "source_row_number": "One-based row lineage in the clean reference CSV.",
-            "split_label": "Deterministic chronological split derived from booking_date.",
-            "source_currency": "Renamed from the source METADATA field currency.",
+            "split_label": (
+                "Deterministic chronological split derived from "
+                f"{config.decision_timestamp_column}."
+            ),
+            **(
+                {
+                    "source_currency": (
+                        f"Renamed from the source METADATA field {config.currency_column}."
+                    )
+                }
+                if config.currency_column is not None
+                else {}
+            ),
         },
         "limitations": [
             "Candidate-specific exposure-group missingness is computed only after immutable "
