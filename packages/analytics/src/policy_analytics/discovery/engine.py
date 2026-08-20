@@ -15,8 +15,11 @@ addressing the search side generically without touching validation. A follow-up 
 (`scripts/diagnose_candidate_pool_recall.py`, `ADR-038`) then found that floor itself also excludes
 genuine weak signal, not just the noise it was built to stop; `v0.4.0` (`ADR-039`) credits a rule's
 cross-split stability (`_temporal_consistency`) before the floor/marginal-gain formula ever see its
-score, rather than moving the floor itself. See all three functions' docstrings and
-`docs/analytics/discovery-engine-v0.md`.
+score, rather than moving the floor itself — empirically null (the dominant pattern was itself
+stable). `v0.4.1` (`ADR-040`) instead changes the floor's reference point from the pool's single
+maximum score (always the dominant pattern) to a robust percentile of the pool's own score
+distribution (`_percentile`), still without moving `min_diversity_relevance_ratio` itself. See all
+four functions' docstrings and `docs/analytics/discovery-engine-v0.md`.
 """
 
 from __future__ import annotations
@@ -47,7 +50,7 @@ class OutcomeDefinition(Protocol):
 
 
 Operator = Literal["eq", "ge", "lt"]
-DISCOVERY_METHOD_VERSION = "discovery-engine-v0.4.0"
+DISCOVERY_METHOD_VERSION = "discovery-engine-v0.4.1"
 
 
 @dataclass(frozen=True, slots=True, order=True)
@@ -98,23 +101,26 @@ class DiscoveryConfig:
     #: `min_diversity_relevance_ratio` below for the complementary floor) without letting overlap
     #: alone override raw quality as completely.
     diversity_discount_weight: float = 0.5
-    #: Minimum raw `_development_score`, as a fraction of the strongest score in the same selection
-    #: phase (interactions or singletons, scored independently), a rule must reach before the
-    #: greedy-diverse loop will consider it at all (TASK-060 iteration). Diversity picks a rule
-    #: because it does not overlap what is already selected; nothing in that criterion requires the
-    #: rule to be any good on its own, so an otherwise-eligible but statistically thin rule can win
-    #: a round purely by being in an unexplored corner of the search space. The floor blocks that:
-    #: a rule below `min_diversity_relevance_ratio * best_score_in_phase` never enters the
+    #: Minimum `effective_score`, as a fraction of a reference value drawn from the same selection
+    #: phase's pool (interactions or singletons, scored independently — see
+    #: `relevance_floor_percentile` below for what the reference actually is), a rule must reach
+    #: before the greedy-diverse loop will consider it at all (TASK-060 iteration). Diversity picks
+    #: a rule because it does not overlap what is already selected; nothing in that criterion
+    #: requires the rule to be any good on its own, so an otherwise-eligible but statistically thin
+    #: rule can win a round purely by being in an unexplored corner of the search space. The floor
+    #: blocks that: a rule below `min_diversity_relevance_ratio * reference` never enters the
     #: candidate pool for selection, however low its overlap. `0.0` disables the floor (the
     #: original TASK-060 behavior, too permissive on its own); must be in `[0.0, 1.0]`.
     #:
-    #: **Unchanged by the `v0.4.0` stability-credit iteration below.** A live diagnostic
+    #: **Value unchanged by the `v0.4.0`/`v0.4.1` iterations below** — both changed what this ratio
+    #: is measured *against*, never the ratio itself. A live diagnostic
     #: (`scripts/diagnose_candidate_pool_recall.py`, `ADR-038`) found this floor's genuine cost:
-    #: several true patterns' best-matching pool candidates sit at 0.11-0.33 of their phase's best
-    #: raw score, well under `0.5`, so the floor that stops noise also blocks them. Lowering this
-    #: ratio globally was considered and rejected (`ADR-039`) — it reopens the same noise/trap risk
-    #: `v0.3.1` fixed. `stability_credit_weight` instead changes what gets compared against this
-    #: same, unmoved floor.
+    #: several true patterns' best-matching pool candidates sit at 0.11-0.33 of their phase's
+    #: *maximum* raw score, well under `0.5`, so the floor that stops noise also blocked them.
+    #: Lowering this ratio globally was considered and rejected (`ADR-038`) — it reopens the same
+    #: noise/trap risk `v0.3.1` fixed. `stability_credit_weight` (`v0.4.0`, `ADR-039`, empirically
+    #: null) and `relevance_floor_percentile` (`v0.4.1`, `ADR-040`) each change what gets compared
+    #: against this same, unmoved ratio instead.
     min_diversity_relevance_ratio: float = 0.5
     #: Credit applied to a rule's raw `_development_score` before either the relevance floor or the
     #: marginal-gain formula sees it (`TASK-060` iteration, `ADR-039`):
@@ -126,7 +132,30 @@ class DiscoveryConfig:
     #: References no specific feature or trap; the same formula applies to every rule regardless of
     #: which columns its conditions touch. `0.0` reproduces `v0.3.1` exactly (regression-tested);
     #: must be in `[0.0, 1.0]`.
+    #:
+    #: **Empirically null on `task-060-iteration-20260820-003` (`ADR-039`):** the dominant pattern
+    #: and the pool's best genuinely-distinct candidates turned out equally or more stable than it,
+    #: so a uniform credit could not differentiate them — the resulting official run was
+    #: byte-identical to the one before this field existed. Retained (not reverted: a real,
+    #: correctly-working capability, just insufficient alone) — `v0.4.1` below changes a different
+    #: axis instead.
     stability_credit_weight: float = 0.5
+    #: What `min_diversity_relevance_ratio` is a fraction *of* (`TASK-060` iteration, `ADR-040`).
+    #: `1.0` (the `v0.3.1`/`v0.4.0` behavior) uses the single largest `effective_score` in the
+    #: phase's pool — which `ADR-038`'s diagnostic showed is always the dominant rescaling family
+    #: (largest population x effect), so the floor ends up measured against one outlier rather than
+    #: the pool's typical quality, systematically excluding weaker genuine patterns (`P02`/`P08`/
+    #: `P09` sat at 0.11-0.33 of that maximum) without regard to whether they are noise or signal.
+    #: The default `0.75` instead uses the pool's own 75th-percentile `effective_score` (computed
+    #: once per phase, before selection runs) as the reference — a standard robust-statistics
+    #: choice: far less sensitive to a single extreme outlier than the maximum, while still
+    #: requiring a rule to be in its phase's upper quartile, unlike the median (`0.5`), which would
+    #: let roughly half the eligible pool through regardless of what the diversity mechanism then
+    #: does. `min_diversity_relevance_ratio` itself is unchanged; only what it multiplies changed.
+    #: References no specific feature, trap, or pattern — a property of the pool's own score
+    #: distribution only. Must be in `(0.0, 1.0]`; `1.0` reproduces `v0.4.0` exactly
+    #: (regression-tested).
+    relevance_floor_percentile: float = 0.75
 
     def __post_init__(self) -> None:
         if not 0.0 < self.population_score_exponent <= 1.0:
@@ -137,6 +166,8 @@ class DiscoveryConfig:
             raise ValueError("min_diversity_relevance_ratio must be in [0.0, 1.0]")
         if not 0.0 <= self.stability_credit_weight <= 1.0:
             raise ValueError("stability_credit_weight must be in [0.0, 1.0]")
+        if not 0.0 < self.relevance_floor_percentile <= 1.0:
+            raise ValueError("relevance_floor_percentile must be in (0.0, 1.0]")
 
 
 @dataclass(frozen=True, slots=True)
@@ -304,6 +335,23 @@ def _apply_stability_credit(raw_score: float, consistency: float, weight: float)
     return raw_score * (1.0 + weight * consistency)
 
 
+def _percentile(values: list[float], fraction: float) -> float:
+    """Linear-interpolation percentile (matches the standard "linear" method): `fraction=1.0`
+    returns exactly `max(values)`, `fraction=0.0` returns exactly `min(values)`. Pure statistics
+    over whatever `values` it is given — no notion of which rule or feature produced any of them.
+    """
+    if not values:
+        return 0.0
+    ordered = sorted(values)
+    if len(ordered) == 1:
+        return ordered[0]
+    position = fraction * (len(ordered) - 1)
+    lower_index = int(position)
+    upper_index = min(lower_index + 1, len(ordered) - 1)
+    weight = position - lower_index
+    return ordered[lower_index] * (1.0 - weight) + ordered[upper_index] * weight
+
+
 def _greedy_diverse_select(
     pool: list[tuple[Condition, ...]],
     effective_score: dict[tuple[Condition, ...], float],
@@ -352,12 +400,29 @@ def _greedy_diverse_select(
     `_development_score` — see `discover_candidates`, which blends in each rule's cross-split
     stability (`_temporal_consistency`) before either the floor or the marginal-gain formula ever
     sees a score. `min_diversity_relevance_ratio` and `diversity_discount_weight` are themselves
-    unchanged; only what gets compared against them changed.
+    unchanged; only what gets compared against them changed. Empirically null on
+    `task-060-iteration-20260820-003` (`ADR-039`) — the dominant pattern turned out at least as
+    stable as the genuinely distinct candidates it was competing with, so the credit could not
+    tell them apart.
+
+    **v0.4.1 (`TASK-060` iteration, `ADR-040`):** the floor's *reference point* — what
+    `min_diversity_relevance_ratio` is a fraction of — changes from the phase's single maximum
+    `effective_score` to its `relevance_floor_percentile`-th percentile. `ADR-038`'s diagnostic
+    found the maximum is always the dominant rescaling family (largest population x effect), so
+    the floor was measured against one outlier rather than the pool's typical quality. The default
+    75th percentile is a standard robust-statistics choice: far less sensitive to that outlier than
+    the maximum, while still requiring a rule to be in its phase's upper quartile — unlike the
+    median, which would let roughly half the pool through regardless of what selection then does.
+    `relevance_floor_percentile=1.0` reproduces `v0.4.0`'s reference exactly (the maximum), so
+    combined with `stability_credit_weight=0.0` it reproduces `v0.3.1` exactly too
+    (regression-tested).
     """
     if not pool:
         return
-    best_pool_score = max(effective_score[rule] for rule in pool)
-    score_floor = config.min_diversity_relevance_ratio * best_pool_score
+    reference_score = _percentile(
+        [effective_score[rule] for rule in pool], config.relevance_floor_percentile
+    )
+    score_floor = config.min_diversity_relevance_ratio * reference_score
     remaining = [rule for rule in pool if effective_score[rule] >= score_floor]
     while remaining and len(selected) < config.top_k:
         best_rule: tuple[Condition, ...] | None = None

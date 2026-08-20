@@ -9,6 +9,7 @@ from policy_analytics.discovery.engine import (
     _apply_stability_credit,
     _development_score,
     _greedy_diverse_select,
+    _percentile,
     _temporal_consistency,
     discover_candidates,
 )
@@ -150,7 +151,7 @@ def test_discover_candidates_with_exponent_one_matches_manual_pure_exposure_repr
         )
         assert result["candidate_count"] > 0
         assert all(candidate["fit_split"] == "development" for candidate in result["candidates"])
-        assert result["methodology_version"] == "discovery-engine-v0.4.0"
+        assert result["methodology_version"] == "discovery-engine-v0.4.1"
 
 
 # --- TASK-060: greedy marginal-gain diversity in top-K selection ---
@@ -505,3 +506,98 @@ def test_discover_candidates_final_candidates_reuse_cached_stability() -> None:
         assert candidate["temporal_direction_consistency"] == pytest.approx(1.0)
         assert candidate["validation"] is not None
         assert candidate["future_holdout"] is not None
+
+
+# --- TASK-060 iteration (2026-08-20, ADR-040): floor reference point, not the ratio itself ---
+#
+# ADR-038's diagnostic found the maximum-referenced floor is always measured against the dominant
+# rescaling family (largest population x effect), not the pool's typical quality. These tests use
+# only a generic outlier/typical/target fixture -- never a real benchmark feature or trap.
+
+
+def test_percentile_bounds_and_interpolation() -> None:
+    values = [10.0, 20.0, 30.0, 40.0, 50.0]
+    assert _percentile(values, 1.0) == pytest.approx(50.0)  # exactly max
+    assert _percentile(values, 0.0) == pytest.approx(10.0)  # exactly min
+    assert _percentile(values, 0.5) == pytest.approx(30.0)  # exact median, 5 points
+    assert _percentile([], 0.5) == 0.0
+    assert _percentile([7.0], 0.9) == pytest.approx(7.0)
+
+
+def test_relevance_floor_percentile_must_be_in_zero_to_one_range() -> None:
+    for bad_fraction in (0.0, -0.1, 1.1):
+        with pytest.raises(ValueError, match="relevance_floor_percentile"):
+            DiscoveryConfig(relevance_floor_percentile=bad_fraction)
+    DiscoveryConfig(relevance_floor_percentile=1.0)  # upper bound inclusive, does not raise
+
+
+def _outlier_typical_target_pool() -> tuple[
+    dict[tuple[Condition, ...], float], dict[tuple[Condition, ...], frozenset[int]]
+]:
+    outlier = (Condition("f", "eq", "outlier"),)
+    target = (Condition("f", "eq", "target"),)
+    typical = [(Condition("f", "eq", f"typical_{i}"),) for i in range(8)]
+    typical_scores = [100.0, 98.0, 96.0, 94.0, 92.0, 90.0, 88.0, 86.0]
+    effective_score = {outlier: 1000.0, target: 60.0}
+    effective_score.update(zip(typical, typical_scores, strict=True))
+    exposures = {
+        rule: frozenset({index}) for index, rule in enumerate([outlier, target, *typical])
+    }
+    return effective_score, exposures
+
+
+def test_max_reference_lets_one_outlier_exclude_almost_the_whole_pool() -> None:
+    """The pre-v0.4.1 behavior (relevance_floor_percentile=1.0): with one huge outlier, the floor
+    excludes every "typical" rule too, not just the intentionally weak target."""
+    effective_score, exposures = _outlier_typical_target_pool()
+    pool = list(effective_score)
+    selected: list[tuple[Condition, ...]] = []
+    _greedy_diverse_select(
+        pool,
+        effective_score,
+        exposures,
+        DiscoveryConfig(top_k=20, relevance_floor_percentile=1.0),
+        selected,
+        [],
+        {},
+        dict.fromkeys(pool, 0.0),
+    )
+    assert selected == [(Condition("f", "eq", "outlier"),)]
+
+
+def test_default_percentile_reference_survives_the_outlier_and_admits_the_target() -> None:
+    effective_score, exposures = _outlier_typical_target_pool()
+    pool = list(effective_score)
+    target = (Condition("f", "eq", "target"),)
+    selected: list[tuple[Condition, ...]] = []
+    _greedy_diverse_select(
+        pool,
+        effective_score,
+        exposures,
+        DiscoveryConfig(top_k=20),  # relevance_floor_percentile defaults to 0.75
+        selected,
+        [],
+        {},
+        dict.fromkeys(pool, 0.0),
+    )
+    assert target in selected
+    assert len(selected) == len(pool)  # every "typical" rule clears the floor too, not just target
+
+
+def test_relevance_floor_percentile_one_reproduces_v040_exactly() -> None:
+    """relevance_floor_percentile=1.0 combined with stability_credit_weight=0.0 must exactly
+    reproduce v0.3.1/v0.4.0's original max-referenced selection sequence."""
+    scored, exposures = _dominant_and_distinct_fixture()
+    pool = list(scored)
+    effective_score = {rule: score for rule, (score, _metric) in scored.items()}
+    config = DiscoveryConfig(
+        top_k=2,
+        diversity_discount_weight=1.0,
+        min_diversity_relevance_ratio=0.0,
+        relevance_floor_percentile=1.0,
+    )
+    selected: list[tuple[Condition, ...]] = []
+    _greedy_diverse_select(
+        pool, effective_score, exposures, config, selected, [], {}, dict.fromkeys(pool, 0.0)
+    )
+    assert selected == [(Condition("price", "eq", "ge_1"),), (Condition("segment", "eq", "Y"),)]

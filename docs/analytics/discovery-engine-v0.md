@@ -1,7 +1,7 @@
 # Discovery Engine v0 methodology
 
 **Owner:** ML Discovery · **Task:** TASK-015, TASK-058, TASK-060 · **Methodology version:**
-`discovery-engine-v0.4.0`
+`discovery-engine-v0.4.1`
 
 ## Scope and evidence boundary
 
@@ -297,6 +297,33 @@ this data: the dominant pattern is itself genuinely stable, not a fragile artifa
 remains `IN_PROGRESS`; the next iteration needs a mechanism beyond the two `ADR-038` scoped
 between (see `ADR-039`'s closing note on a possible floor-reference-point change, not itself
 authorized or implemented here).
+
+## Floor reference point, v0.4.1 (`TASK-060`, `ADR-040`)
+
+**Diagnosis:** the relevance floor's reference point — what `min_diversity_relevance_ratio` is a
+fraction *of* — was always the phase's single maximum `effective_score`. `ADR-038`'s diagnostic
+showed that maximum is always the dominant rescaling family (largest population × effect, by
+construction of `_development_score`), so the floor was measured against one outlier rather than
+the pool's typical quality — systematically excluding weaker genuine patterns (`P02`/`P08`/`P09`
+sat at 0.11–0.33 of that maximum) with no regard for whether they were noise or signal. Neither
+`v0.4.0`'s stability credit nor `ADR-038`'s rejected uniform-floor-lowering addressed this specific
+property; this iteration does.
+
+**Fix:** the reference the floor is measured against is now `relevance_floor_percentile`-th
+percentile of the phase's own `effective_score` distribution (`_percentile`, linear
+interpolation), not its maximum. Default `0.75` — a standard robust-statistics choice: a rule must
+be in its phase's upper quartile, which is far less sensitive to a single extreme outlier than the
+maximum, while still requiring genuinely above-average quality, unlike the median (`0.5`), which
+would let roughly half the eligible pool through regardless of what the diversity/overlap
+mechanism then does. `relevance_floor_percentile=1.0` reproduces the maximum exactly — `v0.4.0`'s
+behavior — and combined with `stability_credit_weight=0.0` reproduces `v0.3.1` exactly
+(regression-tested). `min_diversity_relevance_ratio` itself is unchanged, per `ADR-038`'s own
+constraint; only what it multiplies changed. References no specific feature, trap, or pattern — a
+property of the pool's own score distribution shape only.
+
+**New official blind run:** issued/verified/launched/frozen/committed under the same `ADR-008`
+protocol, before any evaluation opened `hidden_ground_truth.json` — see `TASKS.md` `TASK-060` for
+the run ID, public comparison, and `TASK-019`/`TASK-028` outcome.
 
 ## Reproduction
 
