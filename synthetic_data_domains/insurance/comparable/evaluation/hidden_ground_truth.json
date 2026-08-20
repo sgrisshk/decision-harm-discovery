@@ -1,0 +1,1339 @@
+{
+  "active_patterns": [
+    "I01",
+    "I02",
+    "I03",
+    "I04",
+    "I05",
+    "I06",
+    "I07",
+    "I08",
+    "I09"
+  ],
+  "active_traps": [
+    "IT01",
+    "IT02",
+    "IT03",
+    "IT04",
+    "IT05"
+  ],
+  "benchmark_version": "1.0.0",
+  "confounding_traps": [
+    {
+      "apparent_feature": "adjuster=Adjuster 2",
+      "confounded_by": [
+        "claimed_amount_usd"
+      ],
+      "direct_effect": 0,
+      "id": "IT01",
+      "note": "High-value claims route to Adjuster 2; claimed_amount_usd drives payout directly."
+    },
+    {
+      "apparent_feature": "region=Region A",
+      "confounded_by": [
+        "claim_type"
+      ],
+      "direct_effect": 0,
+      "id": "IT02",
+      "note": "Region A skews toward fire/theft claims, which carry a higher direct base cost."
+    },
+    {
+      "apparent_feature": "claim_channel=online",
+      "confounded_by": [
+        "deductible_usd"
+      ],
+      "direct_effect": 0,
+      "id": "IT03",
+      "note": "Online filers skew toward low-deductible policies, which directly raises net payout."
+    },
+    {
+      "apparent_feature": "filed_within_24h=true",
+      "confounded_by": [
+        "claimed_amount_usd"
+      ],
+      "direct_effect": 0,
+      "id": "IT04",
+      "note": "Small/simple claims get filed quickly \u2014 opposite tail from IT01, no overlap."
+    },
+    {
+      "apparent_feature": "documentation_complete=true",
+      "confounded_by": [
+        "prior_claims_count"
+      ],
+      "direct_effect": 0,
+      "id": "IT05",
+      "note": "I05 is a genuine interaction; the main effect is a trap. Repeat claimants have more practice assembling complete documentation; prior_claims_count directly raises processing cost (cross-referencing overhead) independent of this trap."
+    }
+  ],
+  "domain": "insurance",
+  "patterns": [
+    {
+      "affected_record_ids": [
+        "INS-00355",
+        "INS-00457",
+        "INS-00631",
+        "INS-00768",
+        "INS-00963",
+        "INS-01133",
+        "INS-01333",
+        "INS-01436",
+        "INS-01925",
+        "INS-01985",
+        "INS-02818",
+        "INS-02877",
+        "INS-03108",
+        "INS-03675",
+        "INS-03695",
+        "INS-03705",
+        "INS-03764",
+        "INS-04562",
+        "INS-04829",
+        "INS-04966",
+        "INS-05329",
+        "INS-05345",
+        "INS-05498",
+        "INS-05529",
+        "INS-05871",
+        "INS-06018",
+        "INS-06051",
+        "INS-06293",
+        "INS-06367",
+        "INS-06437",
+        "INS-07492",
+        "INS-08532",
+        "INS-08563",
+        "INS-09024",
+        "INS-09595",
+        "INS-09910"
+      ],
+      "behavior": "stable",
+      "id": "I01",
+      "name": "Phone high-value incomplete documentation",
+      "realized_counterfactual_effects": {
+        "affected_record_count": 36,
+        "outcomes": {
+          "denied": {
+            "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+            "mean_effect": -0.055556,
+            "paired_record_count": 36
+          },
+          "fraud_flagged": {
+            "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+            "mean_effect": 0.0,
+            "paired_record_count": 36
+          },
+          "fraud_loss_usd": {
+            "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+            "mean_effect": 22.079444,
+            "paired_record_count": 36
+          },
+          "net_claim_cost_usd": {
+            "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+            "mean_effect": 980.608889,
+            "paired_record_count": 36
+          },
+          "payout_amount_usd": {
+            "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+            "mean_effect": 898.227778,
+            "paired_record_count": 36
+          },
+          "processing_cost_usd": {
+            "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+            "mean_effect": 60.302222,
+            "paired_record_count": 36
+          },
+          "reopened_90d": {
+            "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+            "mean_effect": 0.064516,
+            "paired_record_count": 31
+          }
+        }
+      },
+      "rule": "claim_channel=phone AND claimed_amount_usd>=15000 AND documentation_complete=false",
+      "true_effect": {
+        "affected_n": 36,
+        "affected_support": 0.0036,
+        "configured_effect": {
+          "denied_logit_delta": -0.4,
+          "fraud_loss_delta_usd": 220,
+          "processing_cost_delta_usd": 60
+        },
+        "direction": "increase_is_harm",
+        "economic_impact_sign_convention": "positive means realized harm; harm_multiplier=1 from domain harm_direction",
+        "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+        "pattern_id": "I01",
+        "realized_economic_impact": 35301.92,
+        "realized_effect": 980.608889,
+        "relevant_outcome": "net_claim_cost_usd",
+        "valid_time_interval": {
+          "end_inclusive": "2025-12-31",
+          "start_inclusive": "2024-01-01"
+        }
+      }
+    },
+    {
+      "affected_record_ids": [
+        "INS-00028",
+        "INS-00061",
+        "INS-00074",
+        "INS-00186",
+        "INS-00263",
+        "INS-00337",
+        "INS-00380",
+        "INS-00658",
+        "INS-00812",
+        "INS-00887",
+        "INS-01035",
+        "INS-01202",
+        "INS-01292",
+        "INS-01299",
+        "INS-01334",
+        "INS-01384",
+        "INS-01537",
+        "INS-01581",
+        "INS-01692",
+        "INS-01775",
+        "INS-01874",
+        "INS-01909",
+        "INS-01914",
+        "INS-01943",
+        "INS-02002",
+        "INS-02010",
+        "INS-02251",
+        "INS-02347",
+        "INS-02393",
+        "INS-02518",
+        "INS-02632",
+        "INS-02644",
+        "INS-02765",
+        "INS-02888",
+        "INS-03086",
+        "INS-03091",
+        "INS-03132",
+        "INS-03148",
+        "INS-03183",
+        "INS-03255",
+        "INS-03266",
+        "INS-03289",
+        "INS-03464",
+        "INS-03500",
+        "INS-03688",
+        "INS-03778",
+        "INS-03845",
+        "INS-03876",
+        "INS-03923",
+        "INS-03992",
+        "INS-04033",
+        "INS-04163",
+        "INS-04416",
+        "INS-04676",
+        "INS-04701",
+        "INS-04714",
+        "INS-04800",
+        "INS-04824",
+        "INS-04830",
+        "INS-04946",
+        "INS-04952",
+        "INS-04956",
+        "INS-04960",
+        "INS-04996",
+        "INS-05182",
+        "INS-05259",
+        "INS-05261",
+        "INS-05396",
+        "INS-05552",
+        "INS-05590",
+        "INS-05709",
+        "INS-05717",
+        "INS-05843",
+        "INS-05936",
+        "INS-06108",
+        "INS-06180",
+        "INS-06255",
+        "INS-06329",
+        "INS-06484",
+        "INS-06604",
+        "INS-06685",
+        "INS-06747",
+        "INS-06825",
+        "INS-06854",
+        "INS-06928",
+        "INS-07058",
+        "INS-07106",
+        "INS-07163",
+        "INS-07182",
+        "INS-07194",
+        "INS-07224",
+        "INS-07316",
+        "INS-07338",
+        "INS-07567",
+        "INS-07642",
+        "INS-07725",
+        "INS-07762",
+        "INS-07766",
+        "INS-07865",
+        "INS-07904",
+        "INS-07905",
+        "INS-08013",
+        "INS-08195",
+        "INS-08296",
+        "INS-08345",
+        "INS-08439",
+        "INS-08442",
+        "INS-08546",
+        "INS-08655",
+        "INS-08707",
+        "INS-08838",
+        "INS-09064",
+        "INS-09271",
+        "INS-09319",
+        "INS-09468",
+        "INS-09513",
+        "INS-09586",
+        "INS-09621",
+        "INS-09700",
+        "INS-09752",
+        "INS-09757",
+        "INS-09831",
+        "INS-09903",
+        "INS-09993",
+        "INS-10000"
+      ],
+      "behavior": "seasonal",
+      "id": "I02",
+      "name": "Winter auto collision surge",
+      "realized_counterfactual_effects": {
+        "affected_record_count": 125,
+        "outcomes": {
+          "denied": {
+            "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+            "mean_effect": 0.0,
+            "paired_record_count": 125
+          },
+          "fraud_flagged": {
+            "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+            "mean_effect": 0.0,
+            "paired_record_count": 125
+          },
+          "fraud_loss_usd": {
+            "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+            "mean_effect": 3.18512,
+            "paired_record_count": 125
+          },
+          "net_claim_cost_usd": {
+            "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+            "mean_effect": 89.91432,
+            "paired_record_count": 125
+          },
+          "payout_amount_usd": {
+            "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+            "mean_effect": 0.0,
+            "paired_record_count": 125
+          },
+          "processing_cost_usd": {
+            "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+            "mean_effect": 86.72984,
+            "paired_record_count": 125
+          },
+          "reopened_90d": {
+            "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+            "mean_effect": 0.0,
+            "paired_record_count": 112
+          }
+        }
+      },
+      "rule": "policy_type=auto AND claim_type=collision AND claimed_amount_usd>=8000 AND month IN [12,1]",
+      "true_effect": {
+        "affected_n": 125,
+        "affected_support": 0.0125,
+        "configured_effect": {
+          "fraud_loss_delta_usd": 90,
+          "processing_cost_delta_usd": {
+            "amount_coefficient": 0.004,
+            "formula": "45 + 0.004 * claimed_amount_usd",
+            "intercept": 45
+          }
+        },
+        "direction": "increase_is_harm",
+        "economic_impact_sign_convention": "positive means realized harm; harm_multiplier=1 from domain harm_direction",
+        "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+        "pattern_id": "I02",
+        "realized_economic_impact": 11239.29,
+        "realized_effect": 89.91432,
+        "relevant_outcome": "net_claim_cost_usd",
+        "valid_time_interval": {
+          "active_months": [
+            12,
+            1
+          ],
+          "end_inclusive": "2025-12-31",
+          "start_inclusive": "2024-01-01"
+        }
+      }
+    },
+    {
+      "affected_record_ids": [
+        "INS-00017",
+        "INS-00066",
+        "INS-00307",
+        "INS-00309",
+        "INS-00414",
+        "INS-00814",
+        "INS-00818",
+        "INS-00991",
+        "INS-01045",
+        "INS-01064",
+        "INS-01412",
+        "INS-01435",
+        "INS-01576",
+        "INS-01693",
+        "INS-01929",
+        "INS-01974",
+        "INS-02073",
+        "INS-02675",
+        "INS-03210",
+        "INS-03229",
+        "INS-03310",
+        "INS-03435",
+        "INS-03895",
+        "INS-04034",
+        "INS-04135",
+        "INS-04536",
+        "INS-04615",
+        "INS-05151",
+        "INS-05246",
+        "INS-05786",
+        "INS-05790",
+        "INS-06093",
+        "INS-06176",
+        "INS-06199",
+        "INS-06299",
+        "INS-06443",
+        "INS-06495",
+        "INS-06509",
+        "INS-06723",
+        "INS-07095",
+        "INS-07102",
+        "INS-07580",
+        "INS-07740",
+        "INS-07793",
+        "INS-07831",
+        "INS-08029",
+        "INS-08060",
+        "INS-08065",
+        "INS-08173",
+        "INS-08462",
+        "INS-08465",
+        "INS-09026",
+        "INS-09055",
+        "INS-09070",
+        "INS-09103",
+        "INS-09642",
+        "INS-09715",
+        "INS-09749"
+      ],
+      "behavior": "stable",
+      "id": "I03",
+      "name": "Frequent new-policyholder online claims",
+      "realized_counterfactual_effects": {
+        "affected_record_count": 58,
+        "outcomes": {
+          "denied": {
+            "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+            "mean_effect": 0.0,
+            "paired_record_count": 58
+          },
+          "fraud_flagged": {
+            "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+            "mean_effect": 0.0,
+            "paired_record_count": 58
+          },
+          "fraud_loss_usd": {
+            "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+            "mean_effect": 17.169483,
+            "paired_record_count": 58
+          },
+          "net_claim_cost_usd": {
+            "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+            "mean_effect": 51.498448,
+            "paired_record_count": 58
+          },
+          "payout_amount_usd": {
+            "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+            "mean_effect": 0.0,
+            "paired_record_count": 58
+          },
+          "processing_cost_usd": {
+            "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+            "mean_effect": 34.33,
+            "paired_record_count": 58
+          },
+          "reopened_90d": {
+            "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+            "mean_effect": 0.0,
+            "paired_record_count": 54
+          }
+        }
+      },
+      "rule": "prior_claims_count>=3 AND policy_tenure_months<12 AND claim_channel=online",
+      "true_effect": {
+        "affected_n": 58,
+        "affected_support": 0.0058,
+        "configured_effect": {
+          "fraud_loss_delta_usd": 260,
+          "processing_cost_delta_usd": 35
+        },
+        "direction": "increase_is_harm",
+        "economic_impact_sign_convention": "positive means realized harm; harm_multiplier=1 from domain harm_direction",
+        "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+        "pattern_id": "I03",
+        "realized_economic_impact": 2986.91,
+        "realized_effect": 51.498448,
+        "relevant_outcome": "net_claim_cost_usd",
+        "valid_time_interval": {
+          "end_inclusive": "2025-12-31",
+          "start_inclusive": "2024-01-01"
+        }
+      }
+    },
+    {
+      "affected_record_ids": [
+        "INS-00496",
+        "INS-00508",
+        "INS-00879",
+        "INS-00951",
+        "INS-01453",
+        "INS-01649",
+        "INS-03056",
+        "INS-03123",
+        "INS-03829",
+        "INS-03951",
+        "INS-04125",
+        "INS-04581",
+        "INS-04908",
+        "INS-05283",
+        "INS-05888",
+        "INS-06094",
+        "INS-06190",
+        "INS-07457",
+        "INS-09207",
+        "INS-09463"
+      ],
+      "behavior": "seasonal",
+      "id": "I04",
+      "name": "Region D summer wildfire home claims",
+      "realized_counterfactual_effects": {
+        "affected_record_count": 20,
+        "outcomes": {
+          "denied": {
+            "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+            "mean_effect": 0.0,
+            "paired_record_count": 20
+          },
+          "fraud_flagged": {
+            "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+            "mean_effect": 0.0,
+            "paired_record_count": 20
+          },
+          "fraud_loss_usd": {
+            "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+            "mean_effect": 0.0,
+            "paired_record_count": 20
+          },
+          "net_claim_cost_usd": {
+            "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+            "mean_effect": 73.613,
+            "paired_record_count": 20
+          },
+          "payout_amount_usd": {
+            "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+            "mean_effect": 0.0,
+            "paired_record_count": 20
+          },
+          "processing_cost_usd": {
+            "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+            "mean_effect": 73.6125,
+            "paired_record_count": 20
+          },
+          "reopened_90d": {
+            "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+            "mean_effect": 0.0,
+            "paired_record_count": 19
+          }
+        }
+      },
+      "rule": "region=Region D AND policy_type=home AND claim_type=fire AND month IN [6,7,8]",
+      "true_effect": {
+        "affected_n": 20,
+        "affected_support": 0.002,
+        "configured_effect": {
+          "fraud_loss_delta_usd": 60,
+          "processing_cost_delta_usd": 75
+        },
+        "direction": "increase_is_harm",
+        "economic_impact_sign_convention": "positive means realized harm; harm_multiplier=1 from domain harm_direction",
+        "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+        "pattern_id": "I04",
+        "realized_economic_impact": 1472.26,
+        "realized_effect": 73.613,
+        "relevant_outcome": "net_claim_cost_usd",
+        "valid_time_interval": {
+          "active_months": [
+            6,
+            7,
+            8
+          ],
+          "end_inclusive": "2025-12-31",
+          "start_inclusive": "2024-01-01"
+        }
+      }
+    },
+    {
+      "affected_record_ids": [
+        "INS-00560",
+        "INS-01883",
+        "INS-03468"
+      ],
+      "behavior": "stable",
+      "id": "I05",
+      "name": "Adjuster 4 high-value approval override",
+      "realized_counterfactual_effects": {
+        "affected_record_count": 3,
+        "outcomes": {
+          "denied": {
+            "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+            "mean_effect": 0.0,
+            "paired_record_count": 3
+          },
+          "fraud_flagged": {
+            "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+            "mean_effect": 0.0,
+            "paired_record_count": 3
+          },
+          "fraud_loss_usd": {
+            "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+            "mean_effect": 0.0,
+            "paired_record_count": 3
+          },
+          "net_claim_cost_usd": {
+            "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+            "mean_effect": 84.156667,
+            "paired_record_count": 3
+          },
+          "payout_amount_usd": {
+            "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+            "mean_effect": 0.0,
+            "paired_record_count": 3
+          },
+          "processing_cost_usd": {
+            "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+            "mean_effect": 84.146667,
+            "paired_record_count": 3
+          },
+          "reopened_90d": {
+            "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+            "mean_effect": 0.0,
+            "paired_record_count": 3
+          }
+        }
+      },
+      "rule": "adjuster=Adjuster 4 AND documentation_complete=true AND claimed_amount_usd>=20000",
+      "true_effect": {
+        "affected_n": 3,
+        "affected_support": 0.0003,
+        "configured_effect": {
+          "processing_cost_delta_usd": 85
+        },
+        "direction": "increase_is_harm",
+        "economic_impact_sign_convention": "positive means realized harm; harm_multiplier=1 from domain harm_direction",
+        "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+        "pattern_id": "I05",
+        "realized_economic_impact": 252.47,
+        "realized_effect": 84.156667,
+        "relevant_outcome": "net_claim_cost_usd",
+        "valid_time_interval": {
+          "end_inclusive": "2025-12-31",
+          "start_inclusive": "2024-01-01"
+        }
+      }
+    },
+    {
+      "affected_record_ids": [
+        "INS-00050",
+        "INS-00223",
+        "INS-00241",
+        "INS-00277",
+        "INS-00320",
+        "INS-00372",
+        "INS-00378",
+        "INS-00390",
+        "INS-00429",
+        "INS-00497",
+        "INS-00628",
+        "INS-00644",
+        "INS-00685",
+        "INS-00834",
+        "INS-00873",
+        "INS-00889",
+        "INS-00906",
+        "INS-00933",
+        "INS-00936",
+        "INS-00968",
+        "INS-01000",
+        "INS-01005",
+        "INS-01022",
+        "INS-01032",
+        "INS-01037",
+        "INS-01074",
+        "INS-01135",
+        "INS-01212",
+        "INS-01221",
+        "INS-01229",
+        "INS-01287",
+        "INS-01358",
+        "INS-01396",
+        "INS-01397",
+        "INS-01428",
+        "INS-01439",
+        "INS-01518",
+        "INS-01575",
+        "INS-01578",
+        "INS-01751",
+        "INS-01785",
+        "INS-01795",
+        "INS-01798",
+        "INS-01831",
+        "INS-01860",
+        "INS-01880",
+        "INS-02105",
+        "INS-02108",
+        "INS-02126",
+        "INS-02200",
+        "INS-02248",
+        "INS-02274",
+        "INS-02359",
+        "INS-02448",
+        "INS-02487",
+        "INS-02521",
+        "INS-02554",
+        "INS-02619",
+        "INS-02707",
+        "INS-02982",
+        "INS-03039",
+        "INS-03250",
+        "INS-03254",
+        "INS-03273",
+        "INS-03370",
+        "INS-03532",
+        "INS-03556",
+        "INS-03643",
+        "INS-03655",
+        "INS-03723",
+        "INS-03804",
+        "INS-03918",
+        "INS-04042",
+        "INS-04050",
+        "INS-04185",
+        "INS-04228",
+        "INS-04308",
+        "INS-04314",
+        "INS-04376",
+        "INS-04392",
+        "INS-04511",
+        "INS-04526",
+        "INS-04682",
+        "INS-04684",
+        "INS-04692",
+        "INS-04698",
+        "INS-04759",
+        "INS-04771",
+        "INS-04905",
+        "INS-05054",
+        "INS-05086",
+        "INS-05232",
+        "INS-05273",
+        "INS-05294",
+        "INS-05438",
+        "INS-05508",
+        "INS-05567",
+        "INS-05631",
+        "INS-05725",
+        "INS-05808",
+        "INS-05878",
+        "INS-05961",
+        "INS-06012",
+        "INS-06086",
+        "INS-06115",
+        "INS-06127",
+        "INS-06130",
+        "INS-06149",
+        "INS-06258",
+        "INS-06315",
+        "INS-06351",
+        "INS-06457",
+        "INS-06507",
+        "INS-06558",
+        "INS-06584",
+        "INS-06585",
+        "INS-06625",
+        "INS-06658",
+        "INS-06688",
+        "INS-06702",
+        "INS-06771",
+        "INS-06800",
+        "INS-06887",
+        "INS-06952",
+        "INS-07005",
+        "INS-07037",
+        "INS-07062",
+        "INS-07064",
+        "INS-07067",
+        "INS-07074",
+        "INS-07202",
+        "INS-07232",
+        "INS-07384",
+        "INS-07452",
+        "INS-07496",
+        "INS-07623",
+        "INS-07634",
+        "INS-07645",
+        "INS-07742",
+        "INS-07748",
+        "INS-07891",
+        "INS-07921",
+        "INS-08040",
+        "INS-08071",
+        "INS-08078",
+        "INS-08103",
+        "INS-08148",
+        "INS-08153",
+        "INS-08186",
+        "INS-08220",
+        "INS-08228",
+        "INS-08351",
+        "INS-08481",
+        "INS-08567",
+        "INS-08665",
+        "INS-08713",
+        "INS-08745",
+        "INS-08792",
+        "INS-08840",
+        "INS-08926",
+        "INS-08983",
+        "INS-09083",
+        "INS-09088",
+        "INS-09098",
+        "INS-09108",
+        "INS-09121",
+        "INS-09185",
+        "INS-09230",
+        "INS-09253",
+        "INS-09276",
+        "INS-09313",
+        "INS-09383",
+        "INS-09407",
+        "INS-09429",
+        "INS-09683",
+        "INS-09701",
+        "INS-09726",
+        "INS-09758",
+        "INS-09792",
+        "INS-09823",
+        "INS-09827",
+        "INS-09881"
+      ],
+      "behavior": "stable",
+      "id": "I06",
+      "name": "Rushed app health triage",
+      "realized_counterfactual_effects": {
+        "affected_record_count": 182,
+        "outcomes": {
+          "denied": {
+            "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+            "mean_effect": 0.0,
+            "paired_record_count": 182
+          },
+          "fraud_flagged": {
+            "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+            "mean_effect": 0.0,
+            "paired_record_count": 182
+          },
+          "fraud_loss_usd": {
+            "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+            "mean_effect": 3.70511,
+            "paired_record_count": 182
+          },
+          "net_claim_cost_usd": {
+            "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+            "mean_effect": 54.319945,
+            "paired_record_count": 182
+          },
+          "payout_amount_usd": {
+            "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+            "mean_effect": 0.0,
+            "paired_record_count": 182
+          },
+          "processing_cost_usd": {
+            "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+            "mean_effect": 50.614945,
+            "paired_record_count": 182
+          },
+          "reopened_90d": {
+            "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+            "mean_effect": 0.006494,
+            "paired_record_count": 154
+          }
+        }
+      },
+      "rule": "claim_channel=app AND filed_within_24h=true AND policy_type=health",
+      "true_effect": {
+        "affected_n": 182,
+        "affected_support": 0.0182,
+        "configured_effect": {
+          "fraud_loss_delta_usd": 70,
+          "processing_cost_delta_usd": 50
+        },
+        "direction": "increase_is_harm",
+        "economic_impact_sign_convention": "positive means realized harm; harm_multiplier=1 from domain harm_direction",
+        "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+        "pattern_id": "I06",
+        "realized_economic_impact": 9886.23,
+        "realized_effect": 54.319945,
+        "relevant_outcome": "net_claim_cost_usd",
+        "valid_time_interval": {
+          "end_inclusive": "2025-12-31",
+          "start_inclusive": "2024-01-01"
+        }
+      }
+    },
+    {
+      "affected_record_ids": [
+        "INS-00009",
+        "INS-00019",
+        "INS-00039",
+        "INS-00043",
+        "INS-00095",
+        "INS-00203",
+        "INS-00248",
+        "INS-00281",
+        "INS-00421",
+        "INS-00549",
+        "INS-00647",
+        "INS-00728",
+        "INS-00783",
+        "INS-00900",
+        "INS-00920",
+        "INS-01074",
+        "INS-01363",
+        "INS-01473",
+        "INS-01654",
+        "INS-01888",
+        "INS-01894",
+        "INS-02026",
+        "INS-02043",
+        "INS-02145",
+        "INS-02206",
+        "INS-02324",
+        "INS-02359",
+        "INS-02361",
+        "INS-02388",
+        "INS-02471",
+        "INS-03052",
+        "INS-03224",
+        "INS-03225",
+        "INS-03244",
+        "INS-03308",
+        "INS-03451",
+        "INS-03476",
+        "INS-03745",
+        "INS-03777",
+        "INS-04458",
+        "INS-04570",
+        "INS-04628",
+        "INS-04858",
+        "INS-04961",
+        "INS-05162",
+        "INS-05270",
+        "INS-05321",
+        "INS-05393",
+        "INS-05531",
+        "INS-05547",
+        "INS-05658",
+        "INS-05745",
+        "INS-05915",
+        "INS-05980",
+        "INS-06263",
+        "INS-06422",
+        "INS-06434",
+        "INS-06534",
+        "INS-06675",
+        "INS-06809",
+        "INS-06870",
+        "INS-06919",
+        "INS-07161",
+        "INS-07294",
+        "INS-07337",
+        "INS-07402",
+        "INS-07487",
+        "INS-07675",
+        "INS-07710",
+        "INS-07727",
+        "INS-07828",
+        "INS-07848",
+        "INS-07947",
+        "INS-08024",
+        "INS-08040",
+        "INS-08076",
+        "INS-08230",
+        "INS-08240",
+        "INS-08473",
+        "INS-08550",
+        "INS-08979",
+        "INS-08990",
+        "INS-09103",
+        "INS-09381",
+        "INS-09465",
+        "INS-09797",
+        "INS-09958"
+      ],
+      "behavior": "drift",
+      "id": "I07",
+      "name": "Region C senior liability late-period drift",
+      "realized_counterfactual_effects": {
+        "affected_record_count": 87,
+        "outcomes": {
+          "denied": {
+            "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+            "mean_effect": 0.0,
+            "paired_record_count": 87
+          },
+          "fraud_flagged": {
+            "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+            "mean_effect": 0.0,
+            "paired_record_count": 87
+          },
+          "fraud_loss_usd": {
+            "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+            "mean_effect": 3.341724,
+            "paired_record_count": 87
+          },
+          "net_claim_cost_usd": {
+            "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+            "mean_effect": 59.248621,
+            "paired_record_count": 87
+          },
+          "payout_amount_usd": {
+            "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+            "mean_effect": 0.0,
+            "paired_record_count": 87
+          },
+          "processing_cost_usd": {
+            "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+            "mean_effect": 55.907356,
+            "paired_record_count": 87
+          },
+          "reopened_90d": {
+            "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+            "mean_effect": 0.0,
+            "paired_record_count": 77
+          }
+        }
+      },
+      "rule": "region=Region C AND claim_type=liability AND policyholder_age_band=senior AND drift_period=late",
+      "true_effect": {
+        "affected_n": 87,
+        "affected_support": 0.0087,
+        "configured_effect": {
+          "fraud_loss_delta_usd": 40,
+          "processing_cost_delta_usd": 55
+        },
+        "direction": "increase_is_harm",
+        "economic_impact_sign_convention": "positive means realized harm; harm_multiplier=1 from domain harm_direction",
+        "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+        "pattern_id": "I07",
+        "realized_economic_impact": 5154.63,
+        "realized_effect": 59.248621,
+        "relevant_outcome": "net_claim_cost_usd",
+        "valid_time_interval": {
+          "end_inclusive": "2025-12-31",
+          "start_inclusive": "2025-01-01"
+        }
+      }
+    },
+    {
+      "affected_record_ids": [
+        "INS-03052"
+      ],
+      "behavior": "stable",
+      "id": "I08",
+      "name": "Large first-time life claim mismatch",
+      "realized_counterfactual_effects": {
+        "affected_record_count": 1,
+        "outcomes": {
+          "denied": {
+            "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+            "mean_effect": 0.0,
+            "paired_record_count": 1
+          },
+          "fraud_flagged": {
+            "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+            "mean_effect": 0.0,
+            "paired_record_count": 1
+          },
+          "fraud_loss_usd": {
+            "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+            "mean_effect": 0.0,
+            "paired_record_count": 1
+          },
+          "net_claim_cost_usd": {
+            "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+            "mean_effect": 57.97,
+            "paired_record_count": 1
+          },
+          "payout_amount_usd": {
+            "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+            "mean_effect": 0.0,
+            "paired_record_count": 1
+          },
+          "processing_cost_usd": {
+            "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+            "mean_effect": 57.98,
+            "paired_record_count": 1
+          },
+          "reopened_90d": {
+            "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+            "mean_effect": 0.0,
+            "paired_record_count": 1
+          }
+        }
+      },
+      "rule": "policy_type=life AND claimed_amount_usd>=25000 AND documentation_complete=true",
+      "true_effect": {
+        "affected_n": 1,
+        "affected_support": 0.0001,
+        "configured_effect": {
+          "fraud_loss_delta_usd": 50,
+          "processing_cost_delta_usd": 65
+        },
+        "direction": "increase_is_harm",
+        "economic_impact_sign_convention": "positive means realized harm; harm_multiplier=1 from domain harm_direction",
+        "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+        "pattern_id": "I08",
+        "realized_economic_impact": 57.97,
+        "realized_effect": 57.97,
+        "relevant_outcome": "net_claim_cost_usd",
+        "valid_time_interval": {
+          "end_inclusive": "2025-12-31",
+          "start_inclusive": "2024-01-01"
+        }
+      }
+    },
+    {
+      "affected_record_ids": [
+        "INS-00045",
+        "INS-00116",
+        "INS-00118",
+        "INS-00123",
+        "INS-00323",
+        "INS-00371",
+        "INS-00513",
+        "INS-00527",
+        "INS-00560",
+        "INS-00631",
+        "INS-00645",
+        "INS-00730",
+        "INS-00773",
+        "INS-00877",
+        "INS-00894",
+        "INS-01125",
+        "INS-01260",
+        "INS-01293",
+        "INS-01724",
+        "INS-01895",
+        "INS-01928",
+        "INS-02035",
+        "INS-02117",
+        "INS-02176",
+        "INS-02211",
+        "INS-02250",
+        "INS-02356",
+        "INS-02429",
+        "INS-02528",
+        "INS-02648",
+        "INS-02759",
+        "INS-02783",
+        "INS-02845",
+        "INS-02902",
+        "INS-02977",
+        "INS-02991",
+        "INS-03024",
+        "INS-03084",
+        "INS-03143",
+        "INS-03167",
+        "INS-03253",
+        "INS-03394",
+        "INS-03419",
+        "INS-03553",
+        "INS-03611",
+        "INS-03649",
+        "INS-03659",
+        "INS-03690",
+        "INS-03704",
+        "INS-03741",
+        "INS-03861",
+        "INS-03873",
+        "INS-03902",
+        "INS-04028",
+        "INS-04155",
+        "INS-04274",
+        "INS-04318",
+        "INS-04372",
+        "INS-04408",
+        "INS-04448",
+        "INS-04567",
+        "INS-04627",
+        "INS-04661",
+        "INS-04662",
+        "INS-04912",
+        "INS-05083",
+        "INS-05170",
+        "INS-05209",
+        "INS-05224",
+        "INS-05302",
+        "INS-05342",
+        "INS-05468",
+        "INS-05892",
+        "INS-05950",
+        "INS-06058",
+        "INS-06293",
+        "INS-06315",
+        "INS-06481",
+        "INS-06493",
+        "INS-06498",
+        "INS-06575",
+        "INS-06643",
+        "INS-06659",
+        "INS-06741",
+        "INS-06944",
+        "INS-07324",
+        "INS-07365",
+        "INS-07367",
+        "INS-07482",
+        "INS-07571",
+        "INS-07594",
+        "INS-07629",
+        "INS-07693",
+        "INS-07733",
+        "INS-07750",
+        "INS-07761",
+        "INS-07805",
+        "INS-07821",
+        "INS-07886",
+        "INS-07980",
+        "INS-08027",
+        "INS-08192",
+        "INS-08203",
+        "INS-08259",
+        "INS-08304",
+        "INS-08315",
+        "INS-08443",
+        "INS-08484",
+        "INS-08516",
+        "INS-08518",
+        "INS-08577",
+        "INS-08839",
+        "INS-08938",
+        "INS-09096",
+        "INS-09124",
+        "INS-09125",
+        "INS-09138",
+        "INS-09342",
+        "INS-09480",
+        "INS-09490",
+        "INS-09527",
+        "INS-09568",
+        "INS-09599"
+      ],
+      "behavior": "heterogeneous",
+      "id": "I09",
+      "name": "Region B spring bulk heterogeneous by age band",
+      "realized_counterfactual_effects": {
+        "affected_record_count": 123,
+        "outcomes": {
+          "denied": {
+            "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+            "mean_effect": 0.0,
+            "paired_record_count": 123
+          },
+          "fraud_flagged": {
+            "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+            "mean_effect": 0.0,
+            "paired_record_count": 123
+          },
+          "fraud_loss_usd": {
+            "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+            "mean_effect": 4.353902,
+            "paired_record_count": 123
+          },
+          "net_claim_cost_usd": {
+            "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+            "mean_effect": 56.382276,
+            "paired_record_count": 123
+          },
+          "payout_amount_usd": {
+            "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+            "mean_effect": 0.0,
+            "paired_record_count": 123
+          },
+          "processing_cost_usd": {
+            "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+            "mean_effect": 52.02813,
+            "paired_record_count": 123
+          },
+          "reopened_90d": {
+            "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+            "mean_effect": 0.0,
+            "paired_record_count": 113
+          }
+        }
+      },
+      "rule": "region=Region B AND month IN [3,4,5] AND claimed_amount_usd>=10000",
+      "true_effect": {
+        "affected_n": 123,
+        "affected_support": 0.0123,
+        "configured_effect": {
+          "fraud_loss_delta_usd": {
+            "by_policyholder_age_band": {
+              "otherwise": 80,
+              "senior": 30
+            }
+          },
+          "processing_cost_delta_usd": {
+            "by_policyholder_age_band": {
+              "otherwise": 35,
+              "senior": 95
+            }
+          }
+        },
+        "direction": "increase_is_harm",
+        "economic_impact_sign_convention": "positive means realized harm; harm_multiplier=1 from domain harm_direction",
+        "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+        "pattern_id": "I09",
+        "realized_economic_impact": 6935.02,
+        "realized_effect": 56.382276,
+        "relevant_outcome": "net_claim_cost_usd",
+        "valid_time_interval": {
+          "active_months": [
+            3,
+            4,
+            5
+          ],
+          "end_inclusive": "2025-12-31",
+          "start_inclusive": "2024-01-01"
+        }
+      }
+    }
+  ],
+  "seed": 20260818,
+  "warning": "RESTRICTED: do not expose to ML Discovery before candidate persistence."
+}

@@ -1,0 +1,42 @@
+{
+  "active_patterns": [],
+  "active_traps": [
+    "IT01",
+    "IT02",
+    "IT03"
+  ],
+  "benchmark_version": "1.0.0",
+  "confounding_traps": [
+    {
+      "apparent_feature": "adjuster=Adjuster 2",
+      "confounded_by": [
+        "claimed_amount_usd"
+      ],
+      "direct_effect": 0,
+      "id": "IT01",
+      "note": "High-value claims route to Adjuster 2; claimed_amount_usd drives payout directly."
+    },
+    {
+      "apparent_feature": "region=Region A",
+      "confounded_by": [
+        "claim_type"
+      ],
+      "direct_effect": 0,
+      "id": "IT02",
+      "note": "Region A skews toward fire/theft claims, which carry a higher direct base cost."
+    },
+    {
+      "apparent_feature": "claim_channel=online",
+      "confounded_by": [
+        "deductible_usd"
+      ],
+      "direct_effect": 0,
+      "id": "IT03",
+      "note": "Online filers skew toward low-deductible policies, which directly raises net payout."
+    }
+  ],
+  "domain": "insurance",
+  "patterns": [],
+  "seed": 20260818,
+  "warning": "RESTRICTED: do not expose to ML Discovery before candidate persistence."
+}

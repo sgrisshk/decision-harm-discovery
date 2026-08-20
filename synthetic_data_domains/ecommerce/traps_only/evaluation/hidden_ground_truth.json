@@ -1,0 +1,43 @@
+{
+  "active_patterns": [],
+  "active_traps": [
+    "ET01",
+    "ET02",
+    "ET03"
+  ],
+  "benchmark_version": "1.0.0",
+  "confounding_traps": [
+    {
+      "apparent_feature": "fulfillment_agent=Agent 2",
+      "confounded_by": [
+        "product_category",
+        "items_in_cart"
+      ],
+      "direct_effect": 0,
+      "id": "ET01"
+    },
+    {
+      "apparent_feature": "warehouse_id=WH1",
+      "confounded_by": [
+        "product_category",
+        "order_month"
+      ],
+      "direct_effect": 0,
+      "id": "ET02",
+      "note": "order_month's WH1 boost is a genuine summer (Jun-Aug) effect, deliberately disjoint from pattern E04's winter [12,1,2] window."
+    },
+    {
+      "apparent_feature": "acquisition_channel=paid_search",
+      "confounded_by": [
+        "discount_pct"
+      ],
+      "direct_effect": 0,
+      "id": "ET03",
+      "note": "A proxy/mediator trap, not a pure non-causal assignment artifact like ET01/ET02/ET04: acquisition_channel has zero direct effect of its own, but it does causally shift discount_pct (a real, independently-discoverable DECISION_TIME feature), which then genuinely reduces margin. Tests whether a candidate condition correctly attributes the effect to discount_pct rather than to the correlated channel proxy."
+    }
+  ],
+  "domain": "ecommerce",
+  "patterns": [],
+  "seed": 20260818,
+  "warning": "RESTRICTED: do not expose to ML Discovery before candidate persistence."
+}

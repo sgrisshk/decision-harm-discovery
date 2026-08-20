@@ -1,0 +1,848 @@
+{
+  "active_patterns": [
+    "E01",
+    "E02",
+    "E03",
+    "E04",
+    "E05",
+    "E06"
+  ],
+  "active_traps": [],
+  "benchmark_version": "1.0.0",
+  "confounding_traps": [],
+  "domain": "ecommerce",
+  "patterns": [
+    {
+      "affected_record_ids": [
+        "ECM-00210",
+        "ECM-00296",
+        "ECM-00433",
+        "ECM-00777",
+        "ECM-00834",
+        "ECM-01050",
+        "ECM-01114",
+        "ECM-01496",
+        "ECM-02043",
+        "ECM-02294",
+        "ECM-02721",
+        "ECM-02861",
+        "ECM-02941",
+        "ECM-03416",
+        "ECM-03503",
+        "ECM-03894",
+        "ECM-04038",
+        "ECM-04559",
+        "ECM-05363",
+        "ECM-06148",
+        "ECM-06708",
+        "ECM-07003",
+        "ECM-07368",
+        "ECM-07410"
+      ],
+      "behavior": "stable",
+      "id": "E01",
+      "name": "WH2 high-discount BNPL",
+      "realized_counterfactual_effects": {
+        "affected_record_count": 24,
+        "outcomes": {
+          "gross_margin_usd": {
+            "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+            "mean_effect": 0.0,
+            "paired_record_count": 24
+          },
+          "net_contribution_usd": {
+            "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+            "mean_effect": -34.115417,
+            "paired_record_count": 24
+          },
+          "refund_processing_cost_usd": {
+            "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+            "mean_effect": 2.743333,
+            "paired_record_count": 24
+          },
+          "repeat_purchase_90d": {
+            "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+            "mean_effect": 0.0,
+            "paired_record_count": 22
+          },
+          "restocking_cost_usd": {
+            "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+            "mean_effect": 31.372917,
+            "paired_record_count": 24
+          },
+          "return_amount_usd": {
+            "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+            "mean_effect": 0.0,
+            "paired_record_count": 24
+          },
+          "returned": {
+            "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+            "mean_effect": 0.0,
+            "paired_record_count": 24
+          }
+        }
+      },
+      "rule": "warehouse_id=WH2 AND discount_pct>=0.35 AND payment_method=buy_now_pay_later",
+      "true_effect": {
+        "affected_n": 24,
+        "affected_support": 0.0024,
+        "configured_effect": {
+          "restocking_cost_delta_usd": 32,
+          "return_logit_delta": 1.0,
+          "support_ticket_rate_delta": 0.6
+        },
+        "direction": "decrease_is_harm",
+        "economic_impact_sign_convention": "positive means realized harm; harm_multiplier=-1 from domain harm_direction",
+        "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+        "pattern_id": "E01",
+        "realized_economic_impact": 818.77,
+        "realized_effect": -34.115417,
+        "relevant_outcome": "net_contribution_usd",
+        "valid_time_interval": {
+          "end_inclusive": "2025-12-31",
+          "start_inclusive": "2024-01-01"
+        }
+      }
+    },
+    {
+      "affected_record_ids": [
+        "ECM-00466",
+        "ECM-00762",
+        "ECM-01902",
+        "ECM-03044",
+        "ECM-04594",
+        "ECM-05058",
+        "ECM-06167",
+        "ECM-06673",
+        "ECM-07579",
+        "ECM-08170",
+        "ECM-09700"
+      ],
+      "behavior": "seasonal",
+      "id": "E02",
+      "name": "Holiday apparel bulk buying",
+      "realized_counterfactual_effects": {
+        "affected_record_count": 11,
+        "outcomes": {
+          "gross_margin_usd": {
+            "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+            "mean_effect": 0.0,
+            "paired_record_count": 11
+          },
+          "net_contribution_usd": {
+            "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+            "mean_effect": -21.96,
+            "paired_record_count": 11
+          },
+          "refund_processing_cost_usd": {
+            "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+            "mean_effect": 3.396364,
+            "paired_record_count": 11
+          },
+          "repeat_purchase_90d": {
+            "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+            "mean_effect": 0.0,
+            "paired_record_count": 10
+          },
+          "restocking_cost_usd": {
+            "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+            "mean_effect": 18.565455,
+            "paired_record_count": 11
+          },
+          "return_amount_usd": {
+            "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+            "mean_effect": 0.0,
+            "paired_record_count": 11
+          },
+          "returned": {
+            "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+            "mean_effect": 0.0,
+            "paired_record_count": 11
+          }
+        }
+      },
+      "rule": "product_category=apparel AND quantity>=5 AND discount_pct>=0.30 AND month IN [11,12]",
+      "true_effect": {
+        "affected_n": 11,
+        "affected_support": 0.0011,
+        "configured_effect": {
+          "restocking_cost_delta_usd": {
+            "formula": "40 + 4 * quantity",
+            "intercept": 14.0,
+            "quantity_coefficient": 1.4
+          },
+          "support_ticket_rate_delta": 0.27999999999999997
+        },
+        "direction": "decrease_is_harm",
+        "economic_impact_sign_convention": "positive means realized harm; harm_multiplier=-1 from domain harm_direction",
+        "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+        "pattern_id": "E02",
+        "realized_economic_impact": 241.56,
+        "realized_effect": -21.96,
+        "relevant_outcome": "net_contribution_usd",
+        "valid_time_interval": {
+          "active_months": [
+            11,
+            12
+          ],
+          "end_inclusive": "2025-12-31",
+          "start_inclusive": "2024-01-01"
+        }
+      }
+    },
+    {
+      "affected_record_ids": [
+        "ECM-00015",
+        "ECM-00049",
+        "ECM-00075",
+        "ECM-00087",
+        "ECM-00090",
+        "ECM-00169",
+        "ECM-00267",
+        "ECM-00359",
+        "ECM-00378",
+        "ECM-00406",
+        "ECM-00408",
+        "ECM-00453",
+        "ECM-00513",
+        "ECM-00525",
+        "ECM-00528",
+        "ECM-00564",
+        "ECM-00630",
+        "ECM-00644",
+        "ECM-00650",
+        "ECM-00658",
+        "ECM-00686",
+        "ECM-00802",
+        "ECM-00806",
+        "ECM-00834",
+        "ECM-00840",
+        "ECM-00972",
+        "ECM-00983",
+        "ECM-00986",
+        "ECM-01029",
+        "ECM-01041",
+        "ECM-01060",
+        "ECM-01092",
+        "ECM-01103",
+        "ECM-01123",
+        "ECM-01153",
+        "ECM-01162",
+        "ECM-01213",
+        "ECM-01252",
+        "ECM-01281",
+        "ECM-01282",
+        "ECM-01330",
+        "ECM-01353",
+        "ECM-01389",
+        "ECM-01412",
+        "ECM-01422",
+        "ECM-01438",
+        "ECM-01488",
+        "ECM-01496",
+        "ECM-01517",
+        "ECM-01536",
+        "ECM-01540",
+        "ECM-01541",
+        "ECM-01597",
+        "ECM-01653",
+        "ECM-01664",
+        "ECM-01668",
+        "ECM-01672",
+        "ECM-01739",
+        "ECM-01793",
+        "ECM-01803",
+        "ECM-01913",
+        "ECM-01934",
+        "ECM-01969",
+        "ECM-02001",
+        "ECM-02007",
+        "ECM-02023",
+        "ECM-02122",
+        "ECM-02189",
+        "ECM-02194",
+        "ECM-02202",
+        "ECM-02277",
+        "ECM-02313",
+        "ECM-02375",
+        "ECM-02385",
+        "ECM-02388",
+        "ECM-02434",
+        "ECM-02487",
+        "ECM-02520",
+        "ECM-02573",
+        "ECM-02593",
+        "ECM-02598",
+        "ECM-02619",
+        "ECM-02661",
+        "ECM-02664",
+        "ECM-02672",
+        "ECM-02686",
+        "ECM-02692",
+        "ECM-02797",
+        "ECM-02861",
+        "ECM-02875",
+        "ECM-02967",
+        "ECM-03014",
+        "ECM-03015",
+        "ECM-03108",
+        "ECM-03201",
+        "ECM-03226",
+        "ECM-03254",
+        "ECM-03262",
+        "ECM-03326",
+        "ECM-03372",
+        "ECM-03416",
+        "ECM-03460",
+        "ECM-03463",
+        "ECM-03516",
+        "ECM-03540",
+        "ECM-03553",
+        "ECM-03563",
+        "ECM-03587",
+        "ECM-03602",
+        "ECM-03771",
+        "ECM-03779",
+        "ECM-03835",
+        "ECM-03847",
+        "ECM-03897",
+        "ECM-03925",
+        "ECM-03939",
+        "ECM-03963",
+        "ECM-03968",
+        "ECM-03971",
+        "ECM-04025",
+        "ECM-04100",
+        "ECM-04109",
+        "ECM-04110",
+        "ECM-04119",
+        "ECM-04151",
+        "ECM-04213",
+        "ECM-04242",
+        "ECM-04320",
+        "ECM-04333",
+        "ECM-04336",
+        "ECM-04357",
+        "ECM-04372",
+        "ECM-04392",
+        "ECM-04451",
+        "ECM-04497",
+        "ECM-04515",
+        "ECM-04524",
+        "ECM-04535",
+        "ECM-04709",
+        "ECM-04721",
+        "ECM-04726",
+        "ECM-04747",
+        "ECM-04766",
+        "ECM-04857",
+        "ECM-04938",
+        "ECM-04944",
+        "ECM-04951",
+        "ECM-04991",
+        "ECM-05150",
+        "ECM-05214",
+        "ECM-05269",
+        "ECM-05326",
+        "ECM-05338",
+        "ECM-05343",
+        "ECM-05357",
+        "ECM-05414",
+        "ECM-05441",
+        "ECM-05456",
+        "ECM-05568",
+        "ECM-05572",
+        "ECM-05614",
+        "ECM-05677",
+        "ECM-05705",
+        "ECM-05719",
+        "ECM-05725",
+        "ECM-05766",
+        "ECM-05770",
+        "ECM-05811",
+        "ECM-05846",
+        "ECM-05847",
+        "ECM-05868",
+        "ECM-05898",
+        "ECM-05920",
+        "ECM-05921",
+        "ECM-05975",
+        "ECM-05991",
+        "ECM-06020",
+        "ECM-06047",
+        "ECM-06055",
+        "ECM-06085",
+        "ECM-06136",
+        "ECM-06154",
+        "ECM-06160",
+        "ECM-06333",
+        "ECM-06425",
+        "ECM-06449",
+        "ECM-06478",
+        "ECM-06547",
+        "ECM-06597",
+        "ECM-06600",
+        "ECM-06625",
+        "ECM-06649",
+        "ECM-06667",
+        "ECM-06670",
+        "ECM-06687",
+        "ECM-06691",
+        "ECM-06775",
+        "ECM-06841",
+        "ECM-06870",
+        "ECM-06909",
+        "ECM-06910",
+        "ECM-06925",
+        "ECM-07003",
+        "ECM-07021",
+        "ECM-07029",
+        "ECM-07078",
+        "ECM-07091",
+        "ECM-07123",
+        "ECM-07158",
+        "ECM-07173",
+        "ECM-07179",
+        "ECM-07190",
+        "ECM-07226",
+        "ECM-07246",
+        "ECM-07313",
+        "ECM-07465",
+        "ECM-07471",
+        "ECM-07515",
+        "ECM-07532",
+        "ECM-07582",
+        "ECM-07653",
+        "ECM-07664",
+        "ECM-07789",
+        "ECM-07830",
+        "ECM-07850",
+        "ECM-07855",
+        "ECM-07998",
+        "ECM-08008",
+        "ECM-08009",
+        "ECM-08098",
+        "ECM-08136",
+        "ECM-08193",
+        "ECM-08200",
+        "ECM-08259",
+        "ECM-08277",
+        "ECM-08295",
+        "ECM-08304",
+        "ECM-08312",
+        "ECM-08336",
+        "ECM-08349",
+        "ECM-08367",
+        "ECM-08370",
+        "ECM-08379",
+        "ECM-08386",
+        "ECM-08441",
+        "ECM-08535",
+        "ECM-08554",
+        "ECM-08613",
+        "ECM-08649",
+        "ECM-08659",
+        "ECM-08670",
+        "ECM-08702",
+        "ECM-08714",
+        "ECM-08734",
+        "ECM-08761",
+        "ECM-08774",
+        "ECM-08802",
+        "ECM-08819",
+        "ECM-08912",
+        "ECM-08928",
+        "ECM-08959",
+        "ECM-08964",
+        "ECM-09092",
+        "ECM-09095",
+        "ECM-09117",
+        "ECM-09173",
+        "ECM-09195",
+        "ECM-09213",
+        "ECM-09281",
+        "ECM-09369",
+        "ECM-09385",
+        "ECM-09438",
+        "ECM-09448",
+        "ECM-09487",
+        "ECM-09519",
+        "ECM-09634",
+        "ECM-09668",
+        "ECM-09686",
+        "ECM-09745",
+        "ECM-09785",
+        "ECM-09797",
+        "ECM-09878",
+        "ECM-09926",
+        "ECM-09962"
+      ],
+      "behavior": "stable",
+      "id": "E03",
+      "name": "BNPL new-customer paid-search risk",
+      "realized_counterfactual_effects": {
+        "affected_record_count": 284,
+        "outcomes": {
+          "gross_margin_usd": {
+            "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+            "mean_effect": -3.071514,
+            "paired_record_count": 284
+          },
+          "net_contribution_usd": {
+            "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+            "mean_effect": -8.361725,
+            "paired_record_count": 284
+          },
+          "refund_processing_cost_usd": {
+            "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+            "mean_effect": 0.0,
+            "paired_record_count": 284
+          },
+          "repeat_purchase_90d": {
+            "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+            "mean_effect": -0.011321,
+            "paired_record_count": 265
+          },
+          "restocking_cost_usd": {
+            "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+            "mean_effect": 5.307746,
+            "paired_record_count": 284
+          },
+          "return_amount_usd": {
+            "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+            "mean_effect": 2.938697,
+            "paired_record_count": 284
+          },
+          "returned": {
+            "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+            "mean_effect": 0.028169,
+            "paired_record_count": 284
+          }
+        }
+      },
+      "rule": "payment_method=buy_now_pay_later AND customer_segment=new AND acquisition_channel=paid_search",
+      "true_effect": {
+        "affected_n": 284,
+        "affected_support": 0.0284,
+        "configured_effect": {
+          "restocking_cost_delta_usd": 6.3,
+          "return_logit_delta": 0.238
+        },
+        "direction": "decrease_is_harm",
+        "economic_impact_sign_convention": "positive means realized harm; harm_multiplier=-1 from domain harm_direction",
+        "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+        "pattern_id": "E03",
+        "realized_economic_impact": 2374.73,
+        "realized_effect": -8.361725,
+        "relevant_outcome": "net_contribution_usd",
+        "valid_time_interval": {
+          "end_inclusive": "2025-12-31",
+          "start_inclusive": "2024-01-01"
+        }
+      }
+    },
+    {
+      "affected_record_ids": [
+        "ECM-00361",
+        "ECM-00955",
+        "ECM-01407",
+        "ECM-01586",
+        "ECM-02069",
+        "ECM-02178",
+        "ECM-02364",
+        "ECM-02386",
+        "ECM-02650",
+        "ECM-03499",
+        "ECM-03600",
+        "ECM-04873",
+        "ECM-05086",
+        "ECM-05176",
+        "ECM-05427",
+        "ECM-06206",
+        "ECM-06385",
+        "ECM-06473",
+        "ECM-07058",
+        "ECM-07392",
+        "ECM-07703",
+        "ECM-08090",
+        "ECM-08382",
+        "ECM-08471",
+        "ECM-08610",
+        "ECM-08642",
+        "ECM-08744",
+        "ECM-09331",
+        "ECM-09588",
+        "ECM-09909",
+        "ECM-09934",
+        "ECM-09938"
+      ],
+      "behavior": "seasonal",
+      "id": "E04",
+      "name": "WH1 winter heavy electronics",
+      "realized_counterfactual_effects": {
+        "affected_record_count": 32,
+        "outcomes": {
+          "gross_margin_usd": {
+            "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+            "mean_effect": 0.0,
+            "paired_record_count": 32
+          },
+          "net_contribution_usd": {
+            "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+            "mean_effect": -9.799375,
+            "paired_record_count": 32
+          },
+          "refund_processing_cost_usd": {
+            "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+            "mean_effect": 1.6,
+            "paired_record_count": 32
+          },
+          "repeat_purchase_90d": {
+            "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+            "mean_effect": 0.0,
+            "paired_record_count": 27
+          },
+          "restocking_cost_usd": {
+            "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+            "mean_effect": 8.200313,
+            "paired_record_count": 32
+          },
+          "return_amount_usd": {
+            "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+            "mean_effect": 0.0,
+            "paired_record_count": 32
+          },
+          "returned": {
+            "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+            "mean_effect": 0.0,
+            "paired_record_count": 32
+          }
+        }
+      },
+      "rule": "warehouse_id=WH1 AND product_category=electronics AND items_in_cart>=4 AND month IN [12,1,2]",
+      "true_effect": {
+        "affected_n": 32,
+        "affected_support": 0.0032,
+        "configured_effect": {
+          "restocking_cost_delta_usd": 9.799999999999999,
+          "support_ticket_rate_delta": 0.175
+        },
+        "direction": "decrease_is_harm",
+        "economic_impact_sign_convention": "positive means realized harm; harm_multiplier=-1 from domain harm_direction",
+        "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+        "pattern_id": "E04",
+        "realized_economic_impact": 313.58,
+        "realized_effect": -9.799375,
+        "relevant_outcome": "net_contribution_usd",
+        "valid_time_interval": {
+          "active_months": [
+            12,
+            1,
+            2
+          ],
+          "end_inclusive": "2025-12-31",
+          "start_inclusive": "2024-01-01"
+        }
+      }
+    },
+    {
+      "affected_record_ids": [
+        "ECM-00028",
+        "ECM-09781",
+        "ECM-09934"
+      ],
+      "behavior": "stable",
+      "id": "E05",
+      "name": "Agent 4 coupon price override",
+      "realized_counterfactual_effects": {
+        "affected_record_count": 3,
+        "outcomes": {
+          "gross_margin_usd": {
+            "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+            "mean_effect": 0.0,
+            "paired_record_count": 3
+          },
+          "net_contribution_usd": {
+            "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+            "mean_effect": -12.753333,
+            "paired_record_count": 3
+          },
+          "refund_processing_cost_usd": {
+            "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+            "mean_effect": 0.0,
+            "paired_record_count": 3
+          },
+          "repeat_purchase_90d": {
+            "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+            "mean_effect": 0.0,
+            "paired_record_count": 3
+          },
+          "restocking_cost_usd": {
+            "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+            "mean_effect": 12.75,
+            "paired_record_count": 3
+          },
+          "return_amount_usd": {
+            "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+            "mean_effect": 0.0,
+            "paired_record_count": 3
+          },
+          "returned": {
+            "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+            "mean_effect": 0.0,
+            "paired_record_count": 3
+          }
+        }
+      },
+      "rule": "fulfillment_agent=Agent 4 AND coupon_used=true AND product_price_usd>=250",
+      "true_effect": {
+        "affected_n": 3,
+        "affected_support": 0.0003,
+        "configured_effect": {
+          "restocking_cost_delta_usd": 12.6
+        },
+        "direction": "decrease_is_harm",
+        "economic_impact_sign_convention": "positive means realized harm; harm_multiplier=-1 from domain harm_direction",
+        "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+        "pattern_id": "E05",
+        "realized_economic_impact": 38.26,
+        "realized_effect": -12.753333,
+        "relevant_outcome": "net_contribution_usd",
+        "valid_time_interval": {
+          "end_inclusive": "2025-12-31",
+          "start_inclusive": "2024-01-01"
+        }
+      }
+    },
+    {
+      "affected_record_ids": [
+        "ECM-00286",
+        "ECM-00594",
+        "ECM-00785",
+        "ECM-00882",
+        "ECM-01283",
+        "ECM-01454",
+        "ECM-01503",
+        "ECM-01558",
+        "ECM-02010",
+        "ECM-02071",
+        "ECM-02193",
+        "ECM-02228",
+        "ECM-02597",
+        "ECM-02622",
+        "ECM-02694",
+        "ECM-02727",
+        "ECM-02814",
+        "ECM-02836",
+        "ECM-02891",
+        "ECM-03099",
+        "ECM-03211",
+        "ECM-03300",
+        "ECM-03404",
+        "ECM-03440",
+        "ECM-03475",
+        "ECM-03496",
+        "ECM-03900",
+        "ECM-04662",
+        "ECM-04850",
+        "ECM-05001",
+        "ECM-05097",
+        "ECM-06111",
+        "ECM-06518",
+        "ECM-06664",
+        "ECM-06724",
+        "ECM-06989",
+        "ECM-07020",
+        "ECM-07096",
+        "ECM-07133",
+        "ECM-07214",
+        "ECM-07356",
+        "ECM-07610",
+        "ECM-07626",
+        "ECM-07784",
+        "ECM-08000",
+        "ECM-08063",
+        "ECM-08134",
+        "ECM-08210",
+        "ECM-08316",
+        "ECM-08438",
+        "ECM-08511",
+        "ECM-08624",
+        "ECM-09122",
+        "ECM-09136",
+        "ECM-09225",
+        "ECM-09315",
+        "ECM-09338",
+        "ECM-09488",
+        "ECM-09635",
+        "ECM-09811",
+        "ECM-09897"
+      ],
+      "behavior": "stable",
+      "id": "E06",
+      "name": "Mobile next-day gift-card checkout errors",
+      "realized_counterfactual_effects": {
+        "affected_record_count": 61,
+        "outcomes": {
+          "gross_margin_usd": {
+            "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+            "mean_effect": -9.415574,
+            "paired_record_count": 61
+          },
+          "net_contribution_usd": {
+            "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+            "mean_effect": -15.890656,
+            "paired_record_count": 61
+          },
+          "refund_processing_cost_usd": {
+            "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+            "mean_effect": 0.0,
+            "paired_record_count": 61
+          },
+          "repeat_purchase_90d": {
+            "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+            "mean_effect": 0.0,
+            "paired_record_count": 53
+          },
+          "restocking_cost_usd": {
+            "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+            "mean_effect": 6.475738,
+            "paired_record_count": 61
+          },
+          "return_amount_usd": {
+            "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+            "mean_effect": 9.415574,
+            "paired_record_count": 61
+          },
+          "returned": {
+            "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+            "mean_effect": 0.04918,
+            "paired_record_count": 61
+          }
+        }
+      },
+      "rule": "device_type=mobile AND shipping_method=next_day AND payment_method=gift_card",
+      "true_effect": {
+        "affected_n": 61,
+        "affected_support": 0.0061,
+        "configured_effect": {
+          "restocking_cost_delta_usd": 7.699999999999999,
+          "return_logit_delta": 0.33249999999999996
+        },
+        "direction": "decrease_is_harm",
+        "economic_impact_sign_convention": "positive means realized harm; harm_multiplier=-1 from domain harm_direction",
+        "estimand": "mean(factual - counterfactual_with_only_this_pattern_disabled)",
+        "pattern_id": "E06",
+        "realized_economic_impact": 969.33,
+        "realized_effect": -15.890656,
+        "relevant_outcome": "net_contribution_usd",
+        "valid_time_interval": {
+          "end_inclusive": "2025-12-31",
+          "start_inclusive": "2024-01-01"
+        }
+      }
+    }
+  ],
+  "seed": 20260818,
+  "warning": "RESTRICTED: do not expose to ML Discovery before candidate persistence."
+}
