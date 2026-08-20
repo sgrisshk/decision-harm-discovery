@@ -1,0 +1,180 @@
+{
+  "columns": [
+    {
+      "classification": "IDENTIFIER",
+      "discovery_feature_allowed": false,
+      "leakage_risk": "NONE",
+      "name": "batch_id",
+      "semantic_meaning": "Unique production batch identifier"
+    },
+    {
+      "classification": "IDENTIFIER",
+      "discovery_feature_allowed": false,
+      "leakage_risk": "NONE",
+      "name": "production_line_id",
+      "semantic_meaning": "Stable production-line identifier"
+    },
+    {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "NONE",
+      "name": "batch_date",
+      "semantic_meaning": "Decision timestamp"
+    },
+    {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "NONE",
+      "name": "product_line",
+      "semantic_meaning": "Product line"
+    },
+    {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "NONE",
+      "name": "raw_material_supplier",
+      "semantic_meaning": "Raw material supplier for this batch"
+    },
+    {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "NONE",
+      "name": "shift",
+      "semantic_meaning": "Production shift"
+    },
+    {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "NONE",
+      "name": "batch_size_units",
+      "semantic_meaning": "Units produced in this batch"
+    },
+    {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "NONE",
+      "name": "operator",
+      "semantic_meaning": "Operator of record for this batch"
+    },
+    {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "NONE",
+      "name": "machine_id",
+      "semantic_meaning": "Machine used for this batch"
+    },
+    {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "NONE",
+      "name": "planned_cycle_time_min",
+      "semantic_meaning": "Planned per-unit cycle time in minutes"
+    },
+    {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "NONE",
+      "name": "material_grade",
+      "semantic_meaning": "Raw material grade on file"
+    },
+    {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "NONE",
+      "name": "humidity_pct",
+      "semantic_meaning": "Facility humidity at batch start"
+    },
+    {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "NONE",
+      "name": "temperature_c",
+      "semantic_meaning": "Facility temperature at batch start"
+    },
+    {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "NONE",
+      "name": "rush_order",
+      "semantic_meaning": "Whether this batch was a rush order"
+    },
+    {
+      "classification": "METADATA",
+      "discovery_feature_allowed": false,
+      "leakage_risk": "NONE",
+      "name": "currency",
+      "semantic_meaning": "Cost currency"
+    },
+    {
+      "classification": "OUTCOME",
+      "discovery_feature_allowed": false,
+      "leakage_risk": "HIGH",
+      "name": "defective",
+      "semantic_meaning": "Whether the batch failed QA inspection"
+    },
+    {
+      "classification": "OUTCOME",
+      "discovery_feature_allowed": false,
+      "leakage_risk": "HIGH",
+      "name": "scrap_cost_usd",
+      "semantic_meaning": "Realized scrap cost"
+    },
+    {
+      "classification": "OUTCOME",
+      "discovery_feature_allowed": false,
+      "leakage_risk": "HIGH",
+      "name": "rework_cost_usd",
+      "semantic_meaning": "Realized rework cost"
+    },
+    {
+      "classification": "OUTCOME",
+      "discovery_feature_allowed": false,
+      "leakage_risk": "HIGH",
+      "name": "downtime_cost_usd",
+      "semantic_meaning": "Realized unplanned-downtime cost"
+    },
+    {
+      "classification": "OUTCOME",
+      "discovery_feature_allowed": false,
+      "leakage_risk": "HIGH",
+      "name": "yield_loss_usd",
+      "semantic_meaning": "Realized yield-loss cost"
+    },
+    {
+      "classification": "OUTCOME",
+      "discovery_feature_allowed": false,
+      "leakage_risk": "HIGH",
+      "name": "total_quality_cost_usd",
+      "semantic_meaning": "Realized total quality cost (scrap+rework+downtime+yield)"
+    },
+    {
+      "classification": "OUTCOME",
+      "discovery_feature_allowed": false,
+      "leakage_risk": "HIGH",
+      "name": "recurrence_90d",
+      "semantic_meaning": "Defect recurrence within 90 days"
+    },
+    {
+      "classification": "POST_DECISION",
+      "discovery_feature_allowed": false,
+      "leakage_risk": "HIGH",
+      "name": "inspection_completed_date",
+      "semantic_meaning": "Date QA inspection completed"
+    },
+    {
+      "classification": "POST_DECISION",
+      "discovery_feature_allowed": false,
+      "leakage_risk": "HIGH",
+      "name": "quality_notes_count",
+      "semantic_meaning": "QA note events after batch completion"
+    },
+    {
+      "classification": "POST_DECISION",
+      "discovery_feature_allowed": false,
+      "leakage_risk": "HIGH",
+      "name": "last_modified_at",
+      "semantic_meaning": "Operational update timestamp; leakage field"
+    }
+  ],
+  "schema_version": "manufacturing-canonical-v1.0.0"
+}

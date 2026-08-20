@@ -1,0 +1,42 @@
+{
+  "active_patterns": [],
+  "active_traps": [
+    "MT01",
+    "MT02",
+    "MT03"
+  ],
+  "benchmark_version": "1.0.0",
+  "confounding_traps": [
+    {
+      "apparent_feature": "operator=Operator 2",
+      "confounded_by": [
+        "batch_size_units"
+      ],
+      "direct_effect": 0,
+      "id": "MT01",
+      "note": "Operator 2 is routed disproportionately large batches; batch size directly scales scrap/rework cost through per-unit defect economics."
+    },
+    {
+      "apparent_feature": "raw_material_supplier=Supplier 3",
+      "confounded_by": [
+        "planned_cycle_time_min"
+      ],
+      "direct_effect": 0,
+      "id": "MT02",
+      "note": "Supplier 3 batches are disproportionately scheduled on tight, expedited cycle times; a tight planned cycle time directly raises downtime cost independent of this trap. (Not material_grade \u2014 that is MT05's own apparent feature, and a trap's apparent feature must carry zero baseline effect of its own, per HANDOFF-053.)"
+    },
+    {
+      "apparent_feature": "shift=night",
+      "confounded_by": [
+        "rush_order"
+      ],
+      "direct_effect": 0,
+      "id": "MT03",
+      "note": "Proxy/mediator trap: night shift exists largely to absorb rush turnaround demand, so it correlates with rush_order, which directly raises cost \u2014 not a pure non-causal confound like MT01/MT02/MT04."
+    }
+  ],
+  "domain": "manufacturing",
+  "patterns": [],
+  "seed": 20260818,
+  "warning": "RESTRICTED: do not expose to ML Discovery before candidate persistence."
+}

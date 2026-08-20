@@ -15,7 +15,7 @@ instruction), verified by never importing from that module.
 | E-commerce/retail | **Done** — 9 patterns, 5 traps (empirically verified live, `HANDOFF-053`), 4 variants generated |
 | SaaS subscription/churn | **Done** — 9 patterns, 5 traps (live-trap-verified from the first design pass), 4 variants generated |
 | Insurance claims | **Done** — 9 patterns, 5 traps (live-trap-verified, one iteration needed), 4 variants generated |
-| Manufacturing QA | Not started |
+| Manufacturing QA | **Done** — 9 patterns, 5 traps (live-trap-verified, one design conflict caught and fixed), 4 variants generated |
 | B2B sales pipeline | Not started |
 | Healthcare scheduling | Not started |
 
@@ -198,6 +198,44 @@ four variants (`synthetic_data_domains/insurance/`, ~3.4 MB per variant). Full p
 verified against a live database (459 passed); `ruff format`/`ruff check`/`pyright` clean on every
 touched file (the one pre-existing `ruff format` finding in the repo, `discovery/engine.py`, is
 `TASK-060`/ML_DISCOVERY-owned and untouched by this work).
+
+## Domain 4: Manufacturing QA
+
+Production-batch quality/scrap/downtime cost
+(`packages/analytics/src/policy_analytics/domain_benchmarks/manufacturing.py`). The unit of
+analysis is a *batch*, not a customer transaction/account/claim; the decision-time surface is
+process/environmental (machine, shift, material grade, humidity/temperature) rather than
+customer-facing; the confounding source is operator/supplier/machine routing.
+`harm_direction="increase_is_harm"`, same convention as insurance.
+
+- **9 patterns** (`M01`–`M09`): rush-order standard-material large-batch scrap, a summer humidity
+  Line B defect surge, a single-machine night short-cycle downtime pattern, a winter cold-temperature
+  Line D defect pattern, a single-operator premium-large-batch inexperience anomaly, a rushed-night
+  Line C downtime pattern, a late-period (drift) premium-grade supplier pattern, a large-batch
+  grade-mismatch pattern, and a spring high-humidity pattern heterogeneous by product line.
+- **5 confounding traps** (`MT01`–`MT05`), designed from the start against `HANDOFF-053`'s lessons
+  and domain 3's magnitude lesson.
+- **A real design conflict caught before being declared, a fourth distinct failure mode:** the
+  first draft wired `MT02` (`raw_material_supplier=Supplier 3`) to `material_grade` as its real
+  confounder — but `material_grade` is `MT05`'s own *apparent feature*. Giving it a real effect to
+  satisfy `MT02` would have made `MT05` a genuine pattern, not a trap, violating "a trap's apparent
+  feature must carry zero baseline effect of its own." Caught by the empirical check itself (`MT05`
+  showed live signal with *all traps off*, an immediate tell), not by inspection. Fixed by
+  rewiring `MT02` onto `planned_cycle_time_min` (previously unwired to any outcome) instead, and
+  separately wiring real always-on effects for `rush_order` (`MT03`'s confounder) and
+  `planned_cycle_time_min` (`MT02`'s) into `downtime_cost`, which the first draft had also
+  omitted entirely — `MT03` initially showed zero signal even when active because `rush_order` had
+  no real effect on any cost outcome at all, the same "declared confounder never wired" defect
+  `HANDOFF-053` originally found in ecommerce. `MT05`'s split threshold was also moved to align
+  exactly with the outcome formula's own pivot point, since a misaligned threshold (domain 3's
+  `IT03` lesson) leaves most of the conditional population's effect at zero.
+- Active traps range `|z|` 11.10–16.31 (`traps_only`, 3 traps) and comparably wide when all 5 are
+  active; the `noise` variant ranges `|z|` 0.28–1.46, both comfortably on the correct side.
+
+**Verified, not assumed:** all 20 generic tests pass for all four domains (80 total); ground-truth
+arithmetic consistency confirmed for all 9 patterns; generated at full 10,000-row scale for all
+four variants (`synthetic_data_domains/manufacturing/`). Full project suite verified against a live
+database (479 passed); `ruff`/`pyright` clean.
 
 ## Isolation from TASK-060
 

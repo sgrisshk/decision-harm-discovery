@@ -7,11 +7,12 @@ automatically pick up every registered domain, no per-domain test/CLI code requi
 
 from __future__ import annotations
 
-from policy_analytics.domain_benchmarks import ecommerce, insurance, saas
+from policy_analytics.domain_benchmarks import ecommerce, insurance, manufacturing, saas
 from policy_analytics.domain_benchmarks.common import DomainSpec
 
 DOMAIN_REGISTRY: dict[str, DomainSpec] = {
     ecommerce.DOMAIN_ID: ecommerce.SPEC,
     saas.DOMAIN_ID: saas.SPEC,
     insurance.DOMAIN_ID: insurance.SPEC,
+    manufacturing.DOMAIN_ID: manufacturing.SPEC,
 }
