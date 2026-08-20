@@ -147,10 +147,58 @@ name "P02 Zanzibar family summer"), alongside the already-known `supplier == Blu
 `destination == Tokyo`. Mean support fell a further ~33% (0.1787→0.1202) and total reported
 exposure a further ~36% (3.56M→2.28M) on top of `TASK-058`'s reduction. **Caution flagged for
 Statistics:** `CAND-012` uses `acquisition_channel == paid_search`, a feature the validation
-contract's own trap taxonomy associates with a confounding-composition trap (T02) — diversity
-surfacing a previously-never-selected feature is exactly the intended effect, but this specific
-one needs G06/trap-rejection scrutiny, not an assumption it is a genuine pattern. `TASK-019`/
-`TASK-028` against this run are requested in `HANDOFF-052`; not yet scored as of this writing.
+contract's own trap taxonomy associates with a confounding-composition trap (originally
+mislabeled `T02` here — corrected below to `T03`) — diversity surfacing a previously-never-selected
+feature is exactly the intended effect, but this specific one needs G06/trap-rejection scrutiny,
+not an assumption it is a genuine pattern.
+
+**Verdict (2026-08-20, Statistics, `ADR-036`, `HANDOFF-052`): done condition NOT met, on all three
+parts.** `TASK-019`/`TASK-028` ran for real against `task-060-remediation-20260818-001`. (1) Unique
+true patterns recovered: still 2 (recall unchanged at 45.2%). (2) Top-10 precision: **90% → 40%**.
+(3) Trap rejection: **`T03` promoted** — `CAND-012` reached `PASS`/`shadow_policy`, a hard
+decision-gate disqualifier (the correction above: `T02` is `supplier == Atlas`, `T03` is
+`acquisition_channel == paid_search`). Root cause: `CAND-012` clears gate G06 cleanly because G06's
+fixed adjustment set (`manager`, `supplier`) doesn't cover `T03`'s actual confounders
+(`customer_type`, `discount_rate`, `installments`) — a previously-latent gate limitation, first
+triggered now that diversity explores more of the feature space, not a new defect and explicitly
+*not* patched in response (would tune validation methodology to a result seen only after opening
+`hidden_ground_truth.json`, exactly what `ADR-007` forbids). Does not affect the standing PROMISING
+decision-gate verdict, anchored to `task-058-remediation-20260817-001` and untouched. `TASK-060`
+stays `IN_PROGRESS`.
+
+## Diversity iteration v0.3.1 (`TASK-060`, 2026-08-20)
+
+The verdict above traces to a real property of `_greedy_diverse_select` itself, separate from the
+G06 gap Statistics declined to patch: nothing in pure overlap-based marginal gain requires a
+low-overlap pick to be any *good* — a statistically thin, disjoint rule can out-rank a reasonable
+near-duplicate purely by being untouched by anything else, once the strongest low-overlap
+candidates are exhausted. This is the standard failure mode diversity/maximal-marginal-relevance
+methods hit without a relevance floor, and it is addressed generically here — no reference to
+`T03`, `acquisition_channel`, or any other specific feature enters the fix, matching the same
+discipline `ADR-036` held validation to.
+
+Two changes, both in `DiscoveryConfig`:
+
+- **`diversity_discount_weight` default lowered `1.0` → `0.5`.** At full strength, a rule with
+  near-zero overlap keeps ~all of its own raw score regardless of how weak that score is; `0.5`
+  still rewards genuine diversity without letting overlap alone override raw quality completely.
+- **`min_diversity_relevance_ratio` (new, default `0.5`).** A rule must reach this fraction of the
+  strongest score in its own selection phase (interactions or singletons, scored independently)
+  before the greedy-diverse loop will consider it at all — computed once per phase, not
+  re-evaluated as selection proceeds. `0.0` disables the floor (the original, too-permissive
+  `v0.3.0` behavior).
+
+`tests/analytics/test_discovery_engine.py` proves both properties on fully generic fixtures (a
+"strong distinct pattern" that the default still correctly prefers over a near-duplicate, and a
+"weak disjoint noise" rule the floor now excludes that the original full-strength configuration
+would have admitted) and that `diversity_discount_weight=1.0`/`min_diversity_relevance_ratio=0.0`
+reproduces `v0.3.0`'s exact original behavior, for regression comparison.
+`DISCOVERY_METHOD_VERSION` bumps `"discovery-engine-v0.3.0"` → `"discovery-engine-v0.3.1"`.
+
+**New official blind run (2026-08-20, ML Discovery):** issued/verified/launched/frozen/committed
+under the same `ADR-008` protocol, before any evaluation opened `hidden_ground_truth.json` — see
+`TASKS.md` `TASK-060` for the run ID and public comparison; `TASK-019`/`TASK-028` against it are
+requested in a new handoff, not yet scored as of this writing.
 
 ## Reproduction
 

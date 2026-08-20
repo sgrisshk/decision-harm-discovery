@@ -148,7 +148,7 @@ def test_discover_candidates_with_exponent_one_matches_manual_pure_exposure_repr
         )
         assert result["candidate_count"] > 0
         assert all(candidate["fit_split"] == "development" for candidate in result["candidates"])
-        assert result["methodology_version"] == "discovery-engine-v0.3.0"
+        assert result["methodology_version"] == "discovery-engine-v0.3.1"
 
 
 # --- TASK-060: greedy marginal-gain diversity in top-K selection ---
@@ -199,10 +199,14 @@ def _dominant_and_distinct_fixture() -> tuple[
     return scored, exposures
 
 
-def test_diversity_default_prefers_distinct_pattern_over_a_near_duplicate() -> None:
+def test_diversity_weight_one_prefers_distinct_pattern_over_a_near_duplicate() -> None:
+    """Full-strength diversity (v0.3.0's original default) still has this correct property in
+    isolation — the TASK-060 iteration lowered the default, it did not invalidate the mechanism."""
     scored, exposures = _dominant_and_distinct_fixture()
     pool = list(scored)
-    config = DiscoveryConfig(top_k=2)  # diversity_discount_weight defaults to 1.0
+    config = DiscoveryConfig(
+        top_k=2, diversity_discount_weight=1.0, min_diversity_relevance_ratio=0.0
+    )
     selected = _run_select(pool, scored, exposures, config)
     assert selected == [_rule("price", "ge_1"), _rule("segment", "Y")]
 
@@ -210,7 +214,9 @@ def test_diversity_default_prefers_distinct_pattern_over_a_near_duplicate() -> N
 def test_diversity_weight_zero_reproduces_pure_score_and_hard_cap_selection() -> None:
     scored, exposures = _dominant_and_distinct_fixture()
     pool = list(scored)
-    config = DiscoveryConfig(top_k=2, diversity_discount_weight=0.0)
+    config = DiscoveryConfig(
+        top_k=2, diversity_discount_weight=0.0, min_diversity_relevance_ratio=0.0
+    )
     selected = _run_select(pool, scored, exposures, config)
     assert selected == [_rule("price", "ge_1"), _rule("price", "ge_2")]
 
@@ -229,7 +235,9 @@ def test_max_candidate_jaccard_hard_cap_applies_regardless_of_diversity_weight()
     }
     pool = list(scored)
     for weight in (0.0, 1.0):
-        config = DiscoveryConfig(top_k=2, diversity_discount_weight=weight)
+        config = DiscoveryConfig(
+            top_k=2, diversity_discount_weight=weight, min_diversity_relevance_ratio=0.0
+        )
         selected = _run_select(pool, scored, exposures, config)
         assert d2 not in selected  # over the hard ceiling either way, never merely deprioritized
         assert selected == [d1, w]
@@ -241,6 +249,70 @@ def test_diversity_discount_weight_must_be_in_zero_to_one_range() -> None:
             DiscoveryConfig(diversity_discount_weight=bad_weight)
     DiscoveryConfig(diversity_discount_weight=0.0)  # bounds inclusive, neither raises
     DiscoveryConfig(diversity_discount_weight=1.0)
+
+
+# --- TASK-060 iteration (2026-08-20): relevance floor, less aggressive default weight ---
+#
+# A live TASK-019/TASK-028 run against task-060-remediation-20260818-001 found the original
+# full-strength mechanism let a statistically thin, low-overlap-only candidate into the top-K
+# (Top-10 precision 90%->40%, a confounding trap reached PASS — ADR-036, HANDOFF-052). These tests
+# use only generic fixtures (a "strong distinct pattern" and a "weak disjoint noise" rule), never
+# referencing that trap's specific features, matching the ADR's own discipline of not tuning to a
+# result seen after opening hidden_ground_truth.json.
+
+
+def test_default_config_still_prefers_a_strong_distinct_pattern() -> None:
+    d1, d2, w_strong = _rule("price", "ge_1"), _rule("price", "ge_2"), _rule("segment", "Y")
+    scored = {
+        d1: (100.0, _metric(80, 10.0)),
+        d2: (95.0, _metric(64, 10.0)),  # jaccard vs d1 = 0.8
+        w_strong: (90.0, _metric(60, 10.0)),  # distinct, disjoint, and nearly as strong as d1
+    }
+    exposures = {
+        d1: frozenset(range(0, 80)),
+        d2: frozenset(range(0, 64)),
+        w_strong: frozenset(range(500, 560)),
+    }
+    selected = _run_select(list(scored), scored, exposures, DiscoveryConfig(top_k=2))
+    assert selected == [d1, w_strong]
+
+
+def test_default_config_relevance_floor_blocks_weak_disjoint_noise() -> None:
+    d1, d2, weak_noise = _rule("price", "ge_1"), _rule("price", "ge_2"), _rule("segment", "Y")
+    scored = {
+        d1: (100.0, _metric(80, 10.0)),
+        d2: (95.0, _metric(64, 10.0)),  # jaccard vs d1 = 0.8
+        weak_noise: (20.0, _metric(60, 10.0)),  # disjoint, but far too weak on its own merits
+    }
+    exposures = {
+        d1: frozenset(range(0, 80)),
+        d2: frozenset(range(0, 64)),
+        weak_noise: frozenset(range(500, 560)),
+    }
+    pool = list(scored)
+
+    # Default (weight=0.5, floor=0.5): the floor excludes weak_noise (20 < 0.5*100) before
+    # selection even starts, so the near-duplicate D2 is kept over the noise.
+    selected_default = _run_select(pool, scored, exposures, DiscoveryConfig(top_k=2))
+    assert weak_noise not in selected_default
+    assert selected_default == [d1, d2]
+
+    # Contrast with the original v0.3.0 full-strength, no-floor configuration: weak_noise's zero
+    # overlap lets it outrank d2's discounted score (19 < 20) purely for being untouched — exactly
+    # the failure mode the live evaluation caught.
+    original_config = DiscoveryConfig(
+        top_k=2, diversity_discount_weight=1.0, min_diversity_relevance_ratio=0.0
+    )
+    selected_original = _run_select(pool, scored, exposures, original_config)
+    assert selected_original == [d1, weak_noise]
+
+
+def test_min_diversity_relevance_ratio_must_be_in_zero_to_one_range() -> None:
+    for bad_ratio in (-0.1, 1.1):
+        with pytest.raises(ValueError, match="min_diversity_relevance_ratio"):
+            DiscoveryConfig(min_diversity_relevance_ratio=bad_ratio)
+    DiscoveryConfig(min_diversity_relevance_ratio=0.0)  # bounds inclusive, neither raises
+    DiscoveryConfig(min_diversity_relevance_ratio=1.0)
 
 
 def test_discover_candidates_still_prefers_interactions_with_default_diversity() -> None:

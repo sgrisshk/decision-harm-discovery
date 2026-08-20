@@ -7,8 +7,12 @@ beam-survival score (`_development_score`) so candidates are not selected on raw
 alone. `TASK-060` added greedy marginal-gain diversity to top-K *selection*
 (`_greedy_diverse_select`) — a distinct concern from `_development_score`: fixing how well one rule
 scores does not stop the reported set from being dominated by near-duplicate rescalings of the
-single strongest mechanism. See both functions' docstrings and
-`docs/analytics/discovery-engine-v0.md`.
+single strongest mechanism. A live evaluation of that mechanism found it, at full strength, could
+admit a statistically thin, low-quality-but-low-overlap candidate (including one that reached a
+confounding trap validation's fixed adjustment set does not catch — see `ADR-036`); `v0.3.1` adds a
+relevance floor (`min_diversity_relevance_ratio`) and a less aggressive default discount weight,
+addressing the search side generically without touching validation. See both functions' docstrings
+and `docs/analytics/discovery-engine-v0.md`.
 """
 
 from __future__ import annotations
@@ -39,7 +43,7 @@ class OutcomeDefinition(Protocol):
 
 
 Operator = Literal["eq", "ge", "lt"]
-DISCOVERY_METHOD_VERSION = "discovery-engine-v0.3.0"
+DISCOVERY_METHOD_VERSION = "discovery-engine-v0.3.1"
 
 
 @dataclass(frozen=True, slots=True, order=True)
@@ -79,13 +83,35 @@ class DiscoveryConfig:
     #: already selected can contribute nothing further to the top-K regardless of its own raw
     #: score. `max_candidate_jaccard` remains a hard ceiling independent of this weight — a rule
     #: over that ceiling is skipped outright, never merely deprioritized.
-    diversity_discount_weight: float = 1.0
+    #:
+    #: **v0.3.1 (TASK-060 iteration):** default lowered `1.0` -> `0.5`. At full strength, a rule
+    #: with near-zero overlap against everything already selected keeps ~all of its own raw score
+    #: regardless of how weak that raw score is — the classic failure mode of pure diversity
+    #: search (maximal-marginal-relevance literature): once the strong, low-overlap candidates are
+    #: exhausted, an obscure, statistically thin corner of the search space can out-rank a
+    #: perfectly reasonable near-duplicate purely by being untouched by anything else, not by
+    #: being a good candidate. `0.5` still rewards genuine diversity (see
+    #: `min_diversity_relevance_ratio` below for the complementary floor) without letting overlap
+    #: alone override raw quality as completely.
+    diversity_discount_weight: float = 0.5
+    #: Minimum raw `_development_score`, as a fraction of the strongest score in the same selection
+    #: phase (interactions or singletons, scored independently), a rule must reach before the
+    #: greedy-diverse loop will consider it at all (TASK-060 iteration). Diversity picks a rule
+    #: because it does not overlap what is already selected; nothing in that criterion requires the
+    #: rule to be any good on its own, so an otherwise-eligible but statistically thin rule can win
+    #: a round purely by being in an unexplored corner of the search space. The floor blocks that:
+    #: a rule below `min_diversity_relevance_ratio * best_score_in_phase` never enters the
+    #: candidate pool for selection, however low its overlap. `0.0` disables the floor (the
+    #: original TASK-060 behavior, too permissive on its own); must be in `[0.0, 1.0]`.
+    min_diversity_relevance_ratio: float = 0.5
 
     def __post_init__(self) -> None:
         if not 0.0 < self.population_score_exponent <= 1.0:
             raise ValueError("population_score_exponent must be in (0.0, 1.0]")
         if not 0.0 <= self.diversity_discount_weight <= 1.0:
             raise ValueError("diversity_discount_weight must be in [0.0, 1.0]")
+        if not 0.0 <= self.min_diversity_relevance_ratio <= 1.0:
+            raise ValueError("min_diversity_relevance_ratio must be in [0.0, 1.0]")
 
 
 @dataclass(frozen=True, slots=True)
@@ -246,8 +272,24 @@ def _greedy_diverse_select(
     per pool) can share running state — `discover_candidates` uses this to keep the existing
     interactions-before-singletons preference: interactions fill the top-K first, singletons only
     considered for slots interactions didn't fill, exactly as before TASK-060.
+
+    **v0.3.1 (TASK-060 iteration):** a live `TASK-019`/`TASK-028` run against
+    `task-060-remediation-20260818-001` found this mechanism, at its original full strength,
+    let a statistically thin, low-overlap-only candidate (`CAND-012`) into the top-K — Top-10
+    precision fell 90%->40% and a confounding trap (`T03`) reached `PASS` (`ADR-036`,
+    `HANDOFF-052`). Root cause diagnosed there is a validation-gate gap (`G06`'s fixed adjustment
+    set), explicitly *not* patched here or in `apply.py` — doing so would tune methodology to a
+    result seen only after opening `hidden_ground_truth.json`, exactly what `ADR-007` forbids. This
+    function's own contribution to the failure — nothing in pure overlap-based marginal gain
+    requires a "diverse" pick to be any good on its own — is addressed generically below via
+    `min_diversity_relevance_ratio`, motivated by the general maximal-marginal-relevance lesson
+    (diversity needs a relevance floor), not by this specific trap's features or confounders.
     """
-    remaining = list(pool)
+    if not pool:
+        return
+    best_pool_score = max(scored[rule][0] for rule in pool)
+    score_floor = config.min_diversity_relevance_ratio * best_pool_score
+    remaining = [rule for rule in pool if scored[rule][0] >= score_floor]
     while remaining and len(selected) < config.top_k:
         best_rule: tuple[Condition, ...] | None = None
         best_marginal = float("-inf")
