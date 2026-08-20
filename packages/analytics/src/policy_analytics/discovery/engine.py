@@ -11,8 +11,12 @@ single strongest mechanism. A live evaluation of that mechanism found it, at ful
 admit a statistically thin, low-quality-but-low-overlap candidate (including one that reached a
 confounding trap validation's fixed adjustment set does not catch — see `ADR-036`); `v0.3.1` adds a
 relevance floor (`min_diversity_relevance_ratio`) and a less aggressive default discount weight,
-addressing the search side generically without touching validation. See both functions' docstrings
-and `docs/analytics/discovery-engine-v0.md`.
+addressing the search side generically without touching validation. A follow-up diagnostic
+(`scripts/diagnose_candidate_pool_recall.py`, `ADR-038`) then found that floor itself also excludes
+genuine weak signal, not just the noise it was built to stop; `v0.4.0` (`ADR-039`) credits a rule's
+cross-split stability (`_temporal_consistency`) before the floor/marginal-gain formula ever see its
+score, rather than moving the floor itself. See all three functions' docstrings and
+`docs/analytics/discovery-engine-v0.md`.
 """
 
 from __future__ import annotations
@@ -43,7 +47,7 @@ class OutcomeDefinition(Protocol):
 
 
 Operator = Literal["eq", "ge", "lt"]
-DISCOVERY_METHOD_VERSION = "discovery-engine-v0.3.1"
+DISCOVERY_METHOD_VERSION = "discovery-engine-v0.4.0"
 
 
 @dataclass(frozen=True, slots=True, order=True)
@@ -103,7 +107,26 @@ class DiscoveryConfig:
     #: a rule below `min_diversity_relevance_ratio * best_score_in_phase` never enters the
     #: candidate pool for selection, however low its overlap. `0.0` disables the floor (the
     #: original TASK-060 behavior, too permissive on its own); must be in `[0.0, 1.0]`.
+    #:
+    #: **Unchanged by the `v0.4.0` stability-credit iteration below.** A live diagnostic
+    #: (`scripts/diagnose_candidate_pool_recall.py`, `ADR-038`) found this floor's genuine cost:
+    #: several true patterns' best-matching pool candidates sit at 0.11-0.33 of their phase's best
+    #: raw score, well under `0.5`, so the floor that stops noise also blocks them. Lowering this
+    #: ratio globally was considered and rejected (`ADR-039`) — it reopens the same noise/trap risk
+    #: `v0.3.1` fixed. `stability_credit_weight` instead changes what gets compared against this
+    #: same, unmoved floor.
     min_diversity_relevance_ratio: float = 0.5
+    #: Credit applied to a rule's raw `_development_score` before either the relevance floor or the
+    #: marginal-gain formula sees it (`TASK-060` iteration, `ADR-039`):
+    #: `effective_score = development_score * (1 + stability_credit_weight * temporal_consistency)`,
+    #: where `temporal_consistency` is the same later-split direction-agreement fraction already
+    #: reported on every final candidate (`Candidate.temporal_direction_consistency`), just computed
+    #: earlier so selection can use it too. A rule with no later-split exposure gets `0.0` credit,
+    #: never treated as stable — the same conservative convention `TASK-016`'s ranking module uses.
+    #: References no specific feature or trap; the same formula applies to every rule regardless of
+    #: which columns its conditions touch. `0.0` reproduces `v0.3.1` exactly (regression-tested);
+    #: must be in `[0.0, 1.0]`.
+    stability_credit_weight: float = 0.5
 
     def __post_init__(self) -> None:
         if not 0.0 < self.population_score_exponent <= 1.0:
@@ -112,6 +135,8 @@ class DiscoveryConfig:
             raise ValueError("diversity_discount_weight must be in [0.0, 1.0]")
         if not 0.0 <= self.min_diversity_relevance_ratio <= 1.0:
             raise ValueError("min_diversity_relevance_ratio must be in [0.0, 1.0]")
+        if not 0.0 <= self.stability_credit_weight <= 1.0:
+            raise ValueError("stability_credit_weight must be in [0.0, 1.0]")
 
 
 @dataclass(frozen=True, slots=True)
@@ -241,9 +266,47 @@ def _jaccard(left: frozenset[int], right: frozenset[int]) -> float:
     return len(left & right) / len(union) if union else 1.0
 
 
+@dataclass(frozen=True, slots=True)
+class _Stability:
+    validation: SplitMetric | None
+    future_holdout: SplitMetric | None
+    consistency: float
+
+
+def _temporal_consistency(
+    frame: pl.DataFrame, rule: tuple[Condition, ...], outcome: OutcomeDefinition
+) -> _Stability:
+    """Share of available later chronological splits whose harm direction agrees with development
+    (which is uniformly harmful for anything in `scored` — `_eligible` already requires
+    `harm_per_booking > 0`, so no separate reference sign is needed). `0.0`, never omitted or
+    treated as passing, when neither later split has any exposure — the same conservative
+    convention `TASK-016`'s ranking module uses for missing stability.
+    """
+    validation = _metric(frame, rule, outcome, "validation")
+    future = _metric(frame, rule, outcome, "future_holdout")
+    available = [metric for metric in (validation, future) if metric is not None]
+    consistency = (
+        sum(metric.harm_per_booking > 0 for metric in available) / len(available)
+        if available
+        else 0.0
+    )
+    return _Stability(validation, future, consistency)
+
+
+def _apply_stability_credit(raw_score: float, consistency: float, weight: float) -> float:
+    """`effective_score` fed to top-K selection (`_greedy_diverse_select`), not to the beam search
+    itself: a rule's raw `_development_score` credited by its own cross-split stability, so a
+    weak-but-consistent rule can compete for a selection slot a raw-score-only comparison would
+    never let it reach (`TASK-060` iteration, `ADR-039`). References no specific feature, trap, or
+    pattern — the identical formula applies to every rule regardless of which columns its
+    conditions touch. `weight=0.0` returns `raw_score` unchanged exactly, for any `consistency`.
+    """
+    return raw_score * (1.0 + weight * consistency)
+
+
 def _greedy_diverse_select(
     pool: list[tuple[Condition, ...]],
-    scored: dict[tuple[Condition, ...], tuple[float, SplitMetric]],
+    effective_score: dict[tuple[Condition, ...], float],
     exposures: dict[tuple[Condition, ...], frozenset[int]],
     config: DiscoveryConfig,
     selected: list[tuple[Condition, ...]],
@@ -284,12 +347,18 @@ def _greedy_diverse_select(
     requires a "diverse" pick to be any good on its own — is addressed generically below via
     `min_diversity_relevance_ratio`, motivated by the general maximal-marginal-relevance lesson
     (diversity needs a relevance floor), not by this specific trap's features or confounders.
+
+    **v0.4.0 (`TASK-060` iteration, `ADR-039`):** takes `effective_score`, not the raw
+    `_development_score` — see `discover_candidates`, which blends in each rule's cross-split
+    stability (`_temporal_consistency`) before either the floor or the marginal-gain formula ever
+    sees a score. `min_diversity_relevance_ratio` and `diversity_discount_weight` are themselves
+    unchanged; only what gets compared against them changed.
     """
     if not pool:
         return
-    best_pool_score = max(scored[rule][0] for rule in pool)
+    best_pool_score = max(effective_score[rule] for rule in pool)
     score_floor = config.min_diversity_relevance_ratio * best_pool_score
-    remaining = [rule for rule in pool if scored[rule][0] >= score_floor]
+    remaining = [rule for rule in pool if effective_score[rule] >= score_floor]
     while remaining and len(selected) < config.top_k:
         best_rule: tuple[Condition, ...] | None = None
         best_marginal = float("-inf")
@@ -302,7 +371,7 @@ def _greedy_diverse_select(
             ):
                 continue
             discount = config.diversity_discount_weight * max_overlap[rule]
-            marginal = scored[rule][0] * (1.0 - discount)
+            marginal = effective_score[rule] * (1.0 - discount)
             if best_rule is None or marginal > best_marginal or (
                 marginal == best_marginal and rule < best_rule
             ):
@@ -390,40 +459,45 @@ def discover_candidates(
     atom_usage: dict[Condition, int] = {}
     max_overlap: dict[tuple[Condition, ...], float] = {}
     exposures: dict[tuple[Condition, ...], frozenset[int]] = {}
+    stability: dict[tuple[Condition, ...], _Stability] = {}
+    effective_score: dict[tuple[Condition, ...], float] = {}
 
     def _prepare(pool: list[tuple[Condition, ...]]) -> None:
-        # Exposure is only computed once per rule, and only for rules a phase actually needs —
-        # singles are never touched at all when interactions alone already fill the top-K (the
-        # common case), matching the pre-TASK-060 cost profile.
+        # Exposure/stability are only computed once per rule, and only for rules a phase actually
+        # needs — singles are never touched at all when interactions alone already fill the top-K
+        # (the common case), matching the pre-TASK-060 cost profile. Stability is computed here,
+        # not only after selection, specifically so it can inform selection itself (v0.4.0) — the
+        # final assembly loop below reuses the same cache rather than recomputing it.
         for rule in pool:
             if rule not in exposures:
                 exposures[rule] = _exposed_rows(development, rule)
                 max_overlap[rule] = 0.0
+                info = _temporal_consistency(frame, rule, outcome)
+                stability[rule] = info
+                effective_score[rule] = _apply_stability_credit(
+                    scored[rule][0], info.consistency, config.stability_credit_weight
+                )
 
     # Two phases, not one combined greedy pass, so interactions still fill the top-K before any
     # singleton is considered regardless of relative score (matches pre-TASK-060 ordering exactly).
     _prepare(interactions)
     _greedy_diverse_select(
-        interactions, scored, exposures, config, selected, selected_exposures, atom_usage,
-        max_overlap,
+        interactions, effective_score, exposures, config, selected, selected_exposures,
+        atom_usage, max_overlap,
     )
     if len(selected) < config.top_k:
         _prepare(singles)
         _greedy_diverse_select(
-            singles, scored, exposures, config, selected, selected_exposures, atom_usage,
-            max_overlap,
+            singles, effective_score, exposures, config, selected, selected_exposures,
+            atom_usage, max_overlap,
         )
     candidates: list[Candidate] = []
     for index, rule in enumerate(selected, start=1):
         score, development_metric = scored[rule]
-        validation = _metric(frame, rule, outcome, "validation")
-        future = _metric(frame, rule, outcome, "future_holdout")
-        available = [metric for metric in (validation, future) if metric is not None]
-        consistency = (
-            sum(metric.harm_per_booking > 0 for metric in available) / len(available)
-            if available
-            else 0.0
-        )
+        info = stability[rule]
+        validation = info.validation
+        future = info.future_holdout
+        consistency = info.consistency
         warnings = ["Raw descriptive association; not adjusted and not causal."]
         if consistency < 1.0:
             warnings.append("Harm direction is not stable across all later chronological splits.")

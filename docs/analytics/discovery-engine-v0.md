@@ -1,7 +1,7 @@
 # Discovery Engine v0 methodology
 
 **Owner:** ML Discovery · **Task:** TASK-015, TASK-058, TASK-060 · **Methodology version:**
-`discovery-engine-v0.3.0`
+`discovery-engine-v0.4.0`
 
 ## Scope and evidence boundary
 
@@ -199,6 +199,104 @@ reproduces `v0.3.0`'s exact original behavior, for regression comparison.
 under the same `ADR-008` protocol, before any evaluation opened `hidden_ground_truth.json` — see
 `TASKS.md` `TASK-060` for the run ID and public comparison; `TASK-019`/`TASK-028` against it are
 requested in a new handoff, not yet scored as of this writing.
+
+**Verdict (2026-08-20, Statistics, `HANDOFF-054`):** safety held (90% Top-10 precision, 100%
+direction accuracy, no trap promoted, `T03` specifically no longer reaching `PASS`), but unique
+matched patterns stayed at 2 — unchanged across every run to date, including before `TASK-058`.
+Handed back one diagnostic question: is the ceiling a selection-stage artifact, or upstream in the
+beam search?
+
+## Diagnostic: the ceiling is selection-stage (`ADR-038`, `HANDOFF-055`)
+
+`scripts/diagnose_candidate_pool_recall.py` (new, committed, not part of the official pipeline)
+locally reproduced `task-060-iteration-20260820-002`'s exact search — byte-faithful,
+`evaluated_hypotheses` matched exactly — but stopped before `_greedy_diverse_select` ever ran. The
+full **5,197-candidate eligible pool** (vs. 15 persisted) contains a partial-or-better match for
+every one of the 6 missing patterns, several with 15–84 independently redundant full matches — not
+one lucky rule. Opening `hidden_ground_truth.json` here is the same established
+post-hoc-analysis-of-an-already-committed-run discipline `TASK-028` uses (`ADR-025`).
+
+Two findings narrowed *where* the fix should point, not just the headline answer: every hit sits at
+0.106–0.328 of its phase's best score — well under `min_diversity_relevance_ratio=0.5` — confirming
+the floor built to stop the `T03` regression is also excluding genuine weak signal. Separately,
+`P03`'s best-matching rule shares `T03`'s exact apparent feature
+(`acquisition_channel = paid_search`, confirmed programmatically) — structurally unsafe to chase by
+loosening selection at any ranking, since it would very likely re-trigger the same `G06` gap
+`ADR-036` declined to patch reactively; `P04` has zero full-match candidates anywhere in the pool, a
+beam-search question, not a selection one. Recommendation: scope the next iteration to `P02`/`P08`/
+`P09` specifically (real, redundant, trap-free signal), not a uniform floor change.
+
+## Stability-credited effective score, v0.4.0 (`TASK-060`, `ADR-039`)
+
+**Constraint carried over from the diagnostic:** do not raise or lower
+`min_diversity_relevance_ratio` globally — `ADR-038` already showed that reaching `P02`/`P08`/`P09`
+this way would also reopen the `T03` risk `v0.3.1` fixed, since a single global ratio cannot tell
+"weak because it's genuinely thin" apart from "weak because it's a rescaling nobody has looked at
+yet." The floor itself, and `diversity_discount_weight`, are unchanged by this iteration.
+
+**Fix: change what gets compared against that same, unmoved floor.** Every rule's raw
+`_development_score` is now credited by its own cross-split stability
+(`_temporal_consistency` — the same later-split direction-agreement fraction already reported as
+`Candidate.temporal_direction_consistency`, just computed earlier so selection can use it too, not
+only the final report):
+
+```text
+effective_score = development_score × (1 + stability_credit_weight × temporal_consistency)
+```
+
+`stability_credit_weight` defaults to `0.5`; `0.0` reproduces `v0.3.1` exactly (regression-tested —
+`effective_score == development_score` for any consistency value at weight `0.0`). A rule with no
+later-split exposure gets `0.0` consistency, never treated as stable — the same conservative
+convention `TASK-016`'s ranking module already uses for missing stability. This `effective_score`,
+not the raw score, is what both the relevance floor and the marginal-gain formula compare from this
+version on.
+
+**Alternatives considered (chose one, not both, per this iteration's own scope):**
+
+- **Pattern-shape-aware relaxation** (a lower floor specifically for candidates whose condition
+  features don't overlap features previously seen in trap-suspicious candidates) — considered,
+  rejected. Any workable version of this either (a) tracks which features were flagged by past
+  runs' actual trap findings — which is exactly the reactive, ground-truth-informed tuning
+  `ADR-007`/`ADR-036` forbid, since it would encode `T03`'s already-known identity into future
+  behavior even if phrased as "feature shape" rather than "acquisition_channel" by name — or (b)
+  requires inventing a new a-priori "assignment-type vs. commercial-term" feature taxonomy with no
+  existing basis in this codebase, whose boundary would need its own separate justification and
+  carries a real risk of being retrofitted to match a split (`customer_segment`/`party_size` vs.
+  `acquisition_channel`) this session already knows from the `ADR-038` diagnostic — a much harder
+  discipline to hold cleanly than a feature-identity-agnostic formula.
+- **Stability-weighted marginal gain (chosen).** References no feature, trap, or pattern identity;
+  the identical formula applies to every rule regardless of which columns its conditions touch.
+  Reuses an already-established, already-computed statistic rather than inventing a new signal, and
+  is well-motivated independent of this benchmark: a weak effect that repeats across independent
+  time periods is standard evidence of a genuine mechanism rather than a development-split
+  artifact — the same logic the validation contract's own temporal-stability gate (G10) applies
+  downstream, pulled one stage earlier into search.
+
+**Honest limitation, not hidden:** stability credit cannot promise to exclude `P03`/`T03` specifically
+if that trap's association is itself stable across splits — plausible, since `ADR-036` described it
+as a structural composition effect, not sampling noise. This iteration does not depend on that
+exclusion happening by construction: `T03` promotion is independently re-checked by `TASK-028`
+against `hidden_ground_truth.json` regardless of what this formula does, exactly as it was for
+`v0.3.0` and `v0.3.1`. If a `P03`/`T03`-shaped candidate reaches the top-15 again and gets promoted,
+this iteration's own done condition (no trap promoted) fails and it is reported as such — not
+declared safe by assumption.
+
+**New official blind run, and an honest null result (`ADR-039`, `HANDOFF-056`):**
+`task-060-iteration-20260820-003` was issued/verified/launched/frozen/committed under the same
+`ADR-008` protocol, before any evaluation opened `hidden_ground_truth.json` — and is **byte-
+identical, condition-for-condition, to `task-060-iteration-20260820-002`** (verified by direct
+diff). `TASK-019`/`TASK-028` were not re-requested — identical candidates imply an identical
+already-known outcome. Root cause, checked directly against the analytical dataset (not
+`hidden_ground_truth.json`): the dominant pattern's rescalings and `customer_segment == family`
+(`P02`/`P09`'s best pool candidate) are *both* fully stable (`consistency = 1.0`) — a uniform
+credit cannot differentiate two equally stable candidates, so ranking doesn't move. `party_size <
+2.0` (`P08`'s best candidate) is only partially stable (`0.5`), *less* stable than the dominant
+pattern, so uniform credit would if anything worsen its position. The mechanism's premise — weak
+true patterns are differentially more stable than the dominant rescaling family — does not hold on
+this data: the dominant pattern is itself genuinely stable, not a fragile artifact. `TASK-060`
+remains `IN_PROGRESS`; the next iteration needs a mechanism beyond the two `ADR-038` scoped
+between (see `ADR-039`'s closing note on a possible floor-reference-point change, not itself
+authorized or implemented here).
 
 ## Reproduction
 

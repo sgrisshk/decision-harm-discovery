@@ -6,8 +6,10 @@ from policy_analytics.discovery.engine import (
     Condition,
     DiscoveryConfig,
     SplitMetric,
+    _apply_stability_credit,
     _development_score,
     _greedy_diverse_select,
+    _temporal_consistency,
     discover_candidates,
 )
 from policy_analytics.outcomes import primary_outcome
@@ -148,7 +150,7 @@ def test_discover_candidates_with_exponent_one_matches_manual_pure_exposure_repr
         )
         assert result["candidate_count"] > 0
         assert all(candidate["fit_split"] == "development" for candidate in result["candidates"])
-        assert result["methodology_version"] == "discovery-engine-v0.3.1"
+        assert result["methodology_version"] == "discovery-engine-v0.4.0"
 
 
 # --- TASK-060: greedy marginal-gain diversity in top-K selection ---
@@ -164,10 +166,15 @@ def _run_select(
     exposures: dict[tuple[Condition, ...], frozenset[int]],
     config: DiscoveryConfig,
 ) -> list[tuple[Condition, ...]]:
+    """Test helper: `_greedy_diverse_select` takes an `effective_score` map (raw score already
+    blended with stability by `discover_candidates`); these tests exercise pure selection
+    mechanics, so they pass the raw `_development_score` through unchanged (equivalent to
+    `stability_credit_weight=0.0`, i.e. no stability opinion either way)."""
     selected: list[tuple[Condition, ...]] = []
+    effective_score = {rule: score for rule, (score, _metric) in scored.items()}
     _greedy_diverse_select(
         pool,
-        scored,
+        effective_score,
         exposures,
         config,
         selected,
@@ -344,3 +351,157 @@ def test_discover_candidates_still_prefers_interactions_with_default_diversity()
     )
     assert result["candidate_count"] > 0
     assert all(len(candidate["conditions"]) >= 2 for candidate in result["candidates"])
+
+
+# --- TASK-060 iteration (2026-08-20, ADR-039): stability-credited effective score ---
+#
+# HANDOFF-055/ADR-038 found the ceiling is selection-stage: several true patterns' best-matching
+# candidates sit well under min_diversity_relevance_ratio=0.5. Rather than lowering that floor
+# globally (rejected in ADR-038/039 -- reopens the T03 regression risk), a rule's cross-split
+# stability now credits its score before either the floor or marginal gain sees it. These tests use
+# only generic fixtures (never referencing T03/acquisition_channel or any real benchmark feature).
+
+
+def _split_frame(rule_feature: str, agrees: dict[str, bool | None]) -> pl.DataFrame:
+    """One rule (`{rule_feature} eq True`), harmful in development. `agrees[split]` controls each
+    later split: `True` = same harmful direction as development, `False` = reversed direction,
+    `None` = no exposed rows at all for that split (rule_feature is always False there)."""
+    rows: list[tuple[bool, float, str]] = []
+    for split in ("development", "validation", "future_holdout"):
+        agreement = agrees.get(split)
+        for index in range(40):
+            if split == "development":
+                flag = index < 20
+                margin = 100.0 - (50.0 if flag else 0.0)  # flag=True is harmful (lower margin)
+            elif agreement is None:
+                flag = False
+                margin = 100.0
+            elif agreement:
+                flag = index < 20
+                margin = 100.0 - (50.0 if flag else 0.0)
+            else:
+                flag = index < 20
+                margin = 100.0 + (50.0 if flag else 0.0)  # reversed: flag=True now helps
+            rows.append((flag, margin, split))
+    return pl.DataFrame(
+        rows, schema=[rule_feature, "contribution_margin_eur", "split_label"], orient="row"
+    )
+
+
+def test_temporal_consistency_full_agreement() -> None:
+    frame = _split_frame("flag", {"validation": True, "future_holdout": True})
+    rule = (Condition("flag", "eq", True),)
+    result = _temporal_consistency(frame, rule, primary_outcome())
+    assert result.consistency == pytest.approx(1.0)
+    assert result.validation is not None
+    assert result.future_holdout is not None
+
+
+def test_temporal_consistency_partial_agreement() -> None:
+    frame = _split_frame("flag", {"validation": True, "future_holdout": False})
+    rule = (Condition("flag", "eq", True),)
+    result = _temporal_consistency(frame, rule, primary_outcome())
+    assert result.consistency == pytest.approx(0.5)
+
+
+def test_temporal_consistency_no_later_exposure_is_zero_not_omitted() -> None:
+    frame = _split_frame("flag", {"validation": None, "future_holdout": None})
+    rule = (Condition("flag", "eq", True),)
+    result = _temporal_consistency(frame, rule, primary_outcome())
+    assert result.consistency == 0.0
+    assert result.validation is None
+    assert result.future_holdout is None
+
+
+def test_apply_stability_credit_zero_weight_is_a_no_op() -> None:
+    for consistency in (0.0, 0.3, 0.5, 1.0):
+        assert _apply_stability_credit(123.4, consistency, weight=0.0) == pytest.approx(123.4)
+
+
+def test_apply_stability_credit_rewards_consistency_and_never_penalizes() -> None:
+    base = 100.0
+    unstable = _apply_stability_credit(base, consistency=0.0, weight=0.5)
+    partial = _apply_stability_credit(base, consistency=0.5, weight=0.5)
+    stable = _apply_stability_credit(base, consistency=1.0, weight=0.5)
+    assert unstable == pytest.approx(base)  # no credit, but never discounted below raw either
+    assert partial == pytest.approx(125.0)
+    assert stable == pytest.approx(150.0)
+    assert unstable <= partial <= stable
+
+
+def test_stability_credit_weight_must_be_in_zero_to_one_range() -> None:
+    for bad_weight in (-0.1, 1.1):
+        with pytest.raises(ValueError, match="stability_credit_weight"):
+            DiscoveryConfig(stability_credit_weight=bad_weight)
+    DiscoveryConfig(stability_credit_weight=0.0)  # bounds inclusive, neither raises
+    DiscoveryConfig(stability_credit_weight=1.0)
+
+
+def test_stability_credit_lets_a_weak_stable_rule_beat_a_stronger_unstable_one() -> None:
+    """The scenario ADR-039 exists for: two rules below what a raw-score floor alone would ever
+    admit, but one is stable across later splits and the other is not. Credited scores are what
+    _greedy_diverse_select actually sees (mirroring how discover_candidates builds them)."""
+    weak_stable, weak_unstable = (
+        (Condition("segment", "eq", "family"),),
+        (Condition("channel", "eq", "x"),),
+    )
+    raw_scores = {weak_stable: 100.0, weak_unstable: 100.0}
+    consistency = {weak_stable: 1.0, weak_unstable: 0.0}
+    weight = 0.5
+    effective_score = {
+        rule: _apply_stability_credit(raw_scores[rule], consistency[rule], weight)
+        for rule in raw_scores
+    }
+    exposures = {
+        weak_stable: frozenset(range(0, 50)),
+        weak_unstable: frozenset(range(500, 550)),
+    }
+    selected: list[tuple[Condition, ...]] = []
+    _greedy_diverse_select(
+        [weak_stable, weak_unstable],
+        effective_score,
+        exposures,
+        DiscoveryConfig(top_k=1),
+        selected,
+        [],
+        {},
+        dict.fromkeys(raw_scores, 0.0),
+    )
+    assert selected == [weak_stable]
+
+
+def test_discover_candidates_final_candidates_reuse_cached_stability() -> None:
+    """Regression for the v0.4.0 refactor: temporal_direction_consistency/validation/future_holdout
+    on the final Candidate now come from the same cache _prepare fills for selection, not a fresh
+    post-selection recomputation — must still match what a full-data fixture implies."""
+    rows = []
+    for split in ("development", "validation", "future_holdout"):
+        for index in range(400):
+            supplier = "A" if index % 2 == 0 else "B"
+            discount = (index % 10) / 100
+            harm = 80.0 if supplier == "A" and discount >= 0.05 else 0.0
+            rows.append((supplier, discount, index % 3, 200.0 - harm, split))
+    frame = pl.DataFrame(
+        rows,
+        schema=[
+            "supplier",
+            "discount_rate",
+            "party_size",
+            "contribution_margin_eur",
+            "split_label",
+        ],
+        orient="row",
+    )
+    result = discover_candidates(
+        frame,
+        ("supplier", "discount_rate", "party_size"),
+        primary_outcome(),
+        DiscoveryConfig(min_n=20, beam_width=30, top_k=5),
+    )
+    for candidate in result["candidates"]:
+        assert 0.0 <= candidate["temporal_direction_consistency"] <= 1.0
+        # The fixture's harmful pattern is identical and noiseless in every split, so every
+        # reported candidate should show full temporal agreement.
+        assert candidate["temporal_direction_consistency"] == pytest.approx(1.0)
+        assert candidate["validation"] is not None
+        assert candidate["future_holdout"] is not None
