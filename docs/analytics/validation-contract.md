@@ -1,4 +1,4 @@
-# Validation and Evidence Contract v1.1.0
+# Validation and Evidence Contract v1.2.0
 
 **Owner:** Statistics · **Task:** TASK-018 · **Status:** approved for use by TASK-019 onward
 
@@ -17,6 +17,12 @@ same evidence-level and readiness rules. The one 2026-08-14 dry run graded under
 here. §2's rule against post-hoc threshold tuning still applies — this is a versioned estimator
 fix for a defect proven independent of any candidate's data, not a threshold adjusted because a
 result was inconvenient. See §4a for the full account.
+
+**v1.2.0 change note (2026-08-20/21, `ADR-036`/`ADR-042`, `TASK-063`).** Gate G06's adjustment set
+generalized from a fixed pair (`manager`, `supplier`) to every eligible `DECISION_TIME` covariate
+the development split can jointly support; see §4b. Nothing else in this contract changed — G05
+and every other gate, threshold, and evidence/readiness rule are exactly as v1.1.0 left them.
+Findings graded under v1.1.0 or earlier keep that grading; they are not re-graded here.
 
 ## 1. Purpose and standing assumption
 
@@ -79,10 +85,14 @@ evaluated, not the number it reported.** A search over 500 rules that returns it
 family of 500; `benjamini_hochberg_adjusted(..., family_size=500)` enforces this. When the
 evaluated count is unavailable, no candidate can pass G05 and nothing exceeds level 1.
 
-**Adjustment.** The simplest defensible method that fits the candidate: stratification or
-regression on the prespecified minimal adjustment set. The adjustment set is declared from the DAG
-*before* estimation and recorded in the report. Adding covariates after seeing the estimate is
-prohibited.
+**Adjustment (CONTRACT_VERSION >= 1.2.0, §4b).** Joint stratification over every eligible
+`DECISION_TIME` covariate outside the candidate's own condition set, greedily included in
+ascending-cardinality order up to whatever the development split's `confounder_stratum_coverage`
+can support — not a single hand-picked minimal set. The selection *rule* (cardinality order,
+coverage floor) is fixed before any candidate is evaluated and applies identically to every
+candidate; the resulting *set* of columns actually used is per-candidate and recorded in the
+report (`adjustment_columns_considered`/`adjustment_columns_used`). Adding covariates after seeing
+the estimate is still prohibited — the rule, not a person, chooses the set.
 
 **Unmeasured confounding.** Every adjusted estimate reports an E-value. The E-value must be at
 least `min_e_value = 1.5` and must exceed the strongest measured confounder–outcome association;
@@ -204,6 +214,89 @@ pins this derivation as an executable check, not just prose.
   not manufacture validated findings: `TASK-017`/ADR-008 compliance and the founder readiness
   block on `TASK-015`/`TASK-016` are unrelated prerequisites this fix does not touch. `TASK-019`
   stays `IN_PROGRESS` until a genuinely compliant `TASK-017` artifact exists.
+
+## 4b. G06 adjustment-set generalization (v1.2.0, `ADR-036`/`ADR-042`, `TASK-063`)
+
+### The defect
+
+Through v1.1.0, G06's adjustment set was a fixed pair, `("manager", "supplier")`, chosen once by
+hand from ordinary booking-domain reasoning before any candidate existed (`ADR-007`'s own
+discipline — never picked to fit a result). That discipline was sound; the fixed *set* was not
+future-proof. A fixed two-variable set structurally cannot see a confounder outside it, no matter
+how well the two chosen variables were reasoned about. `ADR-036` found this gap made concrete:
+across four `TASK-060` diversity-search iterations, confounding trap `T03` (real travel benchmark)
+reached `PASS`/`shadow_policy` twice, because `T03`'s true confounders are not `manager` or
+`supplier` — G06 was never looking in the right place, by construction, regardless of how strong
+the search's own candidates were.
+
+### The replacement method
+
+G06's adjustment set is now computed **per candidate**, not fixed once for the whole contract:
+
+1. **Pool.** Every `DECISION_TIME` feature except the candidate's own condition features (adjusting
+   for the treatment itself is circular — unchanged from v1.1.0) and the two calendar-date columns
+   (`booking_date`, `travel_date` — not usable as a stratification group without their own binning
+   design, and temporal effects already have a dedicated gate, G10; a disclosed scope limit, not an
+   oversight).
+2. **Binning.** A numeric pool column with more than 6 distinct values in the development split is
+   quartile-binned (4 groups, same index-based quantile convention as `percentile_ci` elsewhere in
+   this module); a numeric column with 6 or fewer distinct values (`installments`, `party_size`) is
+   used as-is, since binning it further would only discard information. Categorical/boolean columns
+   are used as-is.
+3. **Greedy, coverage-gated joint stratification.** Pool columns are tried in ascending order of
+   their own distinct-value count in the development split (ties broken alphabetically) — a
+   dataset-level property fixed before any candidate is evaluated, never a per-candidate or
+   per-feature-identity choice. Each column is added to the running joint stratification only if
+   doing so keeps the resulting `confounder_stratum_coverage` at or above
+   `min_confounder_stratum_coverage` (0.50, the same value the `0.5` literal already used in
+   v1.1.0, now named); a column that would push coverage below the floor is left out, and the next
+   one (in cardinality order) is tried instead. Low-cardinality columns go first because each
+   additional column multiplies the number of joint strata by roughly its own cardinality — trying
+   cheap ones first lets more columns fit before the development split runs out of usable strata.
+
+**No gate logic anywhere in this method references `T03`, `acquisition_channel`, or any other
+specific feature or trap by name.** The selection rule is a function of cardinality and coverage
+only — the same rule runs identically whether or not a candidate happens to be trap-shaped, and
+would run identically on a dataset that had never heard of the travel benchmark's specific traps.
+`tests/analytics/test_validation_apply.py`'s regression tests use deliberately neutral synthetic
+column names (`real_confound`, `irrelevant_a`, `irrelevant_b`) for exactly this reason — proving the
+*rule* generalizes, not that it was special-cased for one known trap.
+
+**What did not change:** `MIN_STRATUM_CELL = 5` (both exposed and comparison sides of a stratum),
+the E-value check, the attenuation ceiling, the same-sign requirement, and the heterogeneity-check
+covariate (`customer_segment`, still fixed generically, unrelated to this generalization).
+
+### Why greedy-and-stop, not full joint stratification of everything
+
+Naively cross-tabulating *every* eligible covariate at once (rather than growing the set only as
+far as coverage allows) would combinatorially fragment the development split into mostly-singleton
+strata — `coverage` would collapse toward zero for nearly every candidate, and G06 would fail
+almost universally, which is a broken gate, not a stricter one. The greedy, coverage-gated process
+is the minimal change that satisfies "adjust for every eligible covariate the sample can actually
+support" without needing a new estimation method (multivariate regression, propensity scoring):
+`_stratified_adjustment`, the underlying cross-tabulation function, is unchanged from v1.1.0 — only
+*how many and which* columns get passed to it, per candidate, is new.
+
+### Real-data confirmation (not just synthetic)
+
+Run against `task-060-iteration-20260820-004` (the last `TASK-060` iteration where trap `T03`
+reached `PASS`/`shadow_policy` under v1.1.0's fixed adjustment pair): §5's gate-by-gate detail for
+the affected candidate, and whether it is now rejected on the new general grounds rather than by
+the search stage simply not proposing it, is recorded in `HANDOFF-058`/`ADR-042` rather than
+repeated here, since it is evidence about one specific run, not a property of the contract itself.
+
+### Migration from v1.1.0
+
+- Findings graded under `CONTRACT_VERSION = "1.1.0"` or earlier keep that grading — not
+  retroactively re-graded. The frozen artifact's own `validation_contract_version` field records
+  which version produced it, permanently.
+- Any *new* validation run automatically uses v1.2.0 and must be labeled as such.
+- No gate other than G06 changed in this version — including G05, still governed by v1.1.0's
+  normal-approximation fix (§4a).
+- `CONFOUNDER_COLUMNS` no longer exists as a module constant; `adjustment_columns_considered`
+  (the eligible pool) and `adjustment_columns_used` (what the greedy process actually selected) are
+  now per-candidate diagnostics fields, not a single run-level constant — a candidate's own report
+  is the source of truth for what it was actually adjusted for.
 
 ## 5. Gate sequence
 
@@ -377,3 +470,18 @@ this explicitly, and a false-positive trap is weighted more heavily than a misse
 - Thresholds are pilot defaults calibrated to a 10k-booking, 24-month benchmark. The materiality
   thresholds in particular are placeholders until a real customer's economics are known, and
   re-setting them is a versioned change, not a per-finding adjustment.
+- **G06's generalized adjustment set (v1.2.0, §4b) is still not exhaustive**, by disclosed
+  construction, not oversight: it excludes calendar-date columns, it only adjusts jointly for as
+  many covariates as the development split's sample size can support before coverage collapses
+  (a candidate with a small exposed group will get a *narrower* adjustment set than one with a
+  large exposed group, purely from sample size, not from any judgment about which confounders
+  matter more), and it captures each covariate's own main effect, not interactions between
+  adjustment covariates beyond what the joint strata already are. A confounder requiring more
+  covariates than a given candidate's sample can jointly support remains invisible to G06, the
+  same class of limitation the fixed pair had, at a wider but still finite boundary. `ADR-043`
+  checked, empirically, whether replacing joint stratification with additive multivariate
+  regression would close this gap — it would not: a confound that only appears once covariates are
+  *jointly* stratified (an interaction) is invisible to an additive (main-effects-only) regression
+  by construction, regardless of how many covariates it includes. This is a genuine ceiling of
+  simple, closed-form adjustment methods at finite sample sizes, not a defect specific to this
+  contract's implementation.

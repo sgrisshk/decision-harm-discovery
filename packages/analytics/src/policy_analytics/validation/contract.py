@@ -18,6 +18,19 @@ gate, threshold, or evidence rule changed. Findings graded under v1.0.0 (before 
 keep their v1.0.0 grading; they are not, and must not be, retroactively re-graded under v1.1.0. See
 ``docs/analytics/validation-contract.md`` §4a for the full defect description, the replacement
 method, and its precision proof.
+
+**v1.2.0 (ADR-036/ADR-042, TASK-063).** Gate G06's adjustment set is no longer a fixed pair chosen
+once by hand (``manager``, ``supplier``) — it is computed per candidate as every eligible
+``DECISION_TIME`` covariate outside the candidate's own condition set, greedily included in
+ascending-cardinality order up to whatever the development split can jointly support without
+``confounder_stratum_coverage`` collapsing below the new, now-named
+``min_confounder_stratum_coverage`` threshold (previously an unnamed ``0.5`` literal). A fixed
+two-variable set structurally cannot see a confounder outside it — exactly the gap that let
+confounding trap ``T03`` (real travel benchmark, not referenced anywhere in the gate logic itself)
+reach ``PASS``/``shadow_policy`` twice under v1.1.0. See
+``docs/analytics/validation-contract.md`` §4b for the full design, the selection rule, and its
+synthetic-only regression tests. Findings graded under v1.1.0 keep their v1.1.0 grading; they are
+not, and must not be, retroactively re-graded under v1.2.0.
 """
 
 from __future__ import annotations
@@ -27,7 +40,7 @@ from enum import StrEnum
 
 from policy_schemas.domain import EvidenceLevel
 
-CONTRACT_VERSION = "1.1.0"
+CONTRACT_VERSION = "1.2.0"
 
 
 class BiasClass(StrEnum):
@@ -135,6 +148,11 @@ class ValidationThresholds:
     # Confounding
     max_adjusted_attenuation: float = 0.50
     min_e_value: float = 1.50
+    # Minimum share of the exposed development-split group that must survive the joint G06
+    # stratification (both exposed and comparison sides clearing MIN_STRATUM_CELL). Also the floor
+    # `_select_adjustment_columns` (apply.py) greedily grows the adjustment set up to, in
+    # ascending-cardinality order — was an unnamed 0.5 literal before v1.2.0; same value, now named.
+    min_confounder_stratum_coverage: float = 0.50
     # Selection
     max_outcome_missingness_rate: float = 0.20
     max_outcome_missingness_gap: float = 0.05

@@ -540,9 +540,7 @@ def _outlier_typical_target_pool() -> tuple[
     typical_scores = [100.0, 98.0, 96.0, 94.0, 92.0, 90.0, 88.0, 86.0]
     effective_score = {outlier: 1000.0, target: 60.0}
     effective_score.update(zip(typical, typical_scores, strict=True))
-    exposures = {
-        rule: frozenset({index}) for index, rule in enumerate([outlier, target, *typical])
-    }
+    exposures = {rule: frozenset({index}) for index, rule in enumerate([outlier, target, *typical])}
     return effective_score, exposures
 
 

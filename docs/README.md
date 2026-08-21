@@ -77,6 +77,7 @@ When moving or renaming a document, update all code, task, decision, handoff, me
 ### Strategy
 
 - `docs/strategy/30-day-validation-plan.md`
+- `docs/strategy/founder-narrative.md`
 
 ### Operations
 

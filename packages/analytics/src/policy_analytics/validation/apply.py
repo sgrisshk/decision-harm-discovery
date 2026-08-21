@@ -5,11 +5,19 @@ survive uncertainty, confounding, temporal/segment stability, robustness, and mu
 scrutiny — and if so, at what evidence level? It never opens hidden ground truth, never chooses a
 candidate, and never runs discovery; it grades what `TASK-015` already froze.
 
-**Confounding-adjustment discipline.** The adjustment set (`manager`, `supplier`) and the
-heterogeneity-check covariate (`customer_segment`) are fixed *generically*, from ordinary
-booking-domain reasoning (assignment covariates a real analyst would control for before ever
-seeing a result), not from any knowledge of which mechanisms the benchmark generator injected.
-This module does not import, read, or reference `synthetic_benchmark.py` or
+**Confounding-adjustment discipline (CONTRACT_VERSION >= 1.2.0, `ADR-036`/`ADR-042`, `TASK-063`).**
+G06's adjustment set is no longer a fixed pair chosen once by hand — it is computed per candidate as
+every eligible `DECISION_TIME` covariate outside the candidate's own condition set, greedily
+included in ascending-cardinality order up to whatever the sample can jointly support
+(`_select_adjustment_columns`). The *rule* is fixed generically (cardinality-ordered, coverage-
+gated, applies identically to every candidate and every dataset); the resulting *set* varies by
+candidate, which is the point — a fixed two-variable set structurally cannot see a confounder
+outside it, exactly the gap `ADR-036` diagnosed in the travel benchmark's trap `T03`. No gate logic
+here references `T03`, `acquisition_channel`, or any other specific feature/trap by name — the
+generalization is a property of the selection *rule*, not a patch for one candidate. See
+`docs/analytics/validation-contract.md` §4b for the full design and its synthetic-only regression
+tests. The heterogeneity-check covariate (`customer_segment`) is unchanged and still fixed
+generically. This module does not import, read, or reference `synthetic_benchmark.py` or
 `hidden_ground_truth.json`, and must not be edited to do so.
 
 Flow: `validate_family` computes gates G00-G04 and G06-G15 per candidate (everything that does not
@@ -23,6 +31,7 @@ discovery run manifest, not the 15 reported candidates) to fill in G05, and fina
 
 from __future__ import annotations
 
+import bisect
 import json
 import math
 import random
@@ -66,7 +75,6 @@ from policy_analytics.validation.report import EffectEstimate, ValidationReport
 Z_95 = 1.959964  # two-sided 95% normal quantile
 Z_POWER_80 = 0.841621  # one-sided 80% normal quantile (matches DEFAULT_THRESHOLDS.power_target)
 
-CONFOUNDER_COLUMNS: tuple[str, ...] = ("manager", "supplier")
 HETEROGENEITY_COLUMN = "customer_segment"
 SPLITS: tuple[str, ...] = ("development", "validation", "future_holdout")
 DEV_BOOTSTRAP_REPS = 2000
@@ -74,6 +82,20 @@ DIAGNOSTIC_BOOTSTRAP_REPS = 1000
 BOOTSTRAP_SEED = 20260813
 PERTURBATION_QUANTILES: tuple[float, float] = (0.15, 0.25)  # one bin below / above each threshold
 MIN_STRATUM_CELL = 5
+
+#: G06's adjustment pool is every `DECISION_TIME` feature except these two: both are calendar-date
+#: strings, not usable as a stratification group without a separate binning design of their own,
+#: and temporal effects already have a dedicated gate (G09, temporal stability) — excluding them
+#: here is a disclosed scope limit, not an oversight (`docs/analytics/validation-contract.md` §4b).
+ADJUSTMENT_POOL_EXCLUDED: frozenset[str] = frozenset({"booking_date", "travel_date"})
+#: A numeric column with this many or fewer distinct values in the development split is already
+#: effectively categorical (e.g. `installments`, `party_size`) and is used as-is; only numeric
+#: columns with more distinct values than this get quantile-binned.
+ADJUSTMENT_NUMERIC_RAW_LEVELS_MAX = 6
+#: Quartiles: enough resolution to separate a numeric confounder's groups without consuming more
+#: degrees of freedom per covariate than a typical categorical feature in this dataset already does
+#: (`destination`, `supplier`, `product_category` are all in the 3-5 level range).
+ADJUSTMENT_QUANTILE_BINS = 4
 
 
 class Verdict:
@@ -301,10 +323,17 @@ def split_stats(
     )
 
 
-def _stratified_two_way_adjustment(
+def _stratified_adjustment(
     frame: pl.DataFrame, mask: pl.Series, outcome: OutcomeDefinition, columns: tuple[str, ...]
 ) -> tuple[float, float]:
-    """Exposure-weighted stratified effect over `columns`. Returns (adjusted_diff, coverage)."""
+    """Exposure-weighted stratified effect, jointly cross-tabulated over `columns` (any count —
+    despite the historical name, this was never actually limited to two). Returns
+    `(adjusted_diff, coverage)`. Genuinely N-way joint stratification is combinatorially fragile as
+    `columns` grows (`coverage` collapses toward 0 once strata get too small to clear
+    `MIN_STRATUM_CELL` on both sides) — `_select_adjustment_columns` exists specifically to grow
+    `columns` only as far as this function's own `coverage` output tolerates, not to work around a
+    limitation in this function itself.
+    """
     if not columns:
         summary_e = summarize_group(frame.filter(mask)[outcome.column].to_list(), outcome)  # pyright: ignore[reportUnknownMemberType]
         summary_c = summarize_group(frame.filter(~mask)[outcome.column].to_list(), outcome)  # pyright: ignore[reportUnknownMemberType]
@@ -339,6 +368,96 @@ def _stratified_two_way_adjustment(
     )
     coverage = total_exposed_usable / total_exposed_all if total_exposed_all else 0.0
     return adjusted_diff, coverage
+
+
+def _adjustment_pool(condition_features: frozenset[str]) -> tuple[str, ...]:
+    """Every `DECISION_TIME` feature eligible for G06 adjustment on one candidate: not one of the
+    candidate's own conditions (adjusting for the treatment itself is circular), not a date column
+    (`ADJUSTMENT_POOL_EXCLUDED`). Sorted for a deterministic, auditable order independent of set
+    iteration order — the actual selection order used by `_select_adjustment_columns` is by
+    cardinality, computed separately; this is just the eligible pool.
+    """
+    return tuple(sorted(DECISION_TIME_FEATURES - ADJUSTMENT_POOL_EXCLUDED - condition_features))
+
+
+def _quantile_breakpoints(values: Sequence[float], bins: int) -> list[float]:
+    """`bins - 1` cut points splitting `values` into `bins` roughly-equal-sized groups. Same
+    index-based approach as `percentile_ci`/`baseline_statistics.numeric_summary` elsewhere in
+    this codebase, not a new quantile convention.
+    """
+    ordered = sorted(values)
+    n = len(ordered)
+    if n == 0:
+        return []
+    return [ordered[min(n - 1, max(0, int(n * i / bins)))] for i in range(1, bins)]
+
+
+def _binned_group_label(frame: pl.DataFrame, column: str) -> pl.Series | None:
+    """A small-cardinality string label for `column`, or `None` if `column` should be used as-is
+    (already categorical/boolean, or numeric with few enough distinct values that binning it would
+    only throw away information — `installments`, `party_size`). Binning is quartile-based
+    (`ADJUSTMENT_QUANTILE_BINS`) on `column`'s own present values, computed fresh from whatever
+    frame is passed in (always the development split, at the call site) — never from a value
+    learned about any specific candidate or feature identity.
+    """
+    if not frame.schema[column].is_numeric():
+        return None
+    values = [value for value in frame[column].to_list() if value is not None]
+    if len({round(float(value), 9) for value in values}) <= ADJUSTMENT_NUMERIC_RAW_LEVELS_MAX:
+        return None
+    breakpoints = _quantile_breakpoints(values, ADJUSTMENT_QUANTILE_BINS)
+    labels = [
+        None if value is None else f"q{bisect.bisect_right(breakpoints, float(value))}"
+        for value in frame[column].to_list()
+    ]
+    return pl.Series(column, labels)
+
+
+def _binned_adjustment_frame(frame: pl.DataFrame, columns: tuple[str, ...]) -> pl.DataFrame:
+    """`frame` with every high-cardinality numeric column in `columns` replaced by a quartile-bin
+    label, so any eligible covariate — numeric or categorical — can be used as a stratification
+    group by `_stratified_adjustment`. Columns not in `columns`, and columns that don't need
+    binning, pass through unchanged.
+    """
+    result = frame
+    for column in columns:
+        label = _binned_group_label(frame, column)
+        if label is not None:
+            result = result.with_columns(label)
+    return result
+
+
+def _select_adjustment_columns(
+    binned_frame: pl.DataFrame,
+    mask: pl.Series,
+    outcome: OutcomeDefinition,
+    pool: tuple[str, ...],
+    min_coverage: float,
+) -> tuple[str, ...]:
+    """Greedily grow the joint G06 stratification set from `pool` — the generalization of the old
+    fixed two-column `CONFOUNDER_COLUMNS` to "every eligible covariate the sample can actually
+    support" (`ADR-036`/`ADR-042`, `TASK-063`).
+
+    Covariates are tried in ascending order of their own distinct-value count in `binned_frame`
+    (ties broken alphabetically for determinism) — a dataset-level property fixed before any
+    candidate is evaluated, not a per-candidate or per-feature-identity choice. Each covariate is
+    added to the running joint stratification only if doing so keeps `_stratified_adjustment`'s
+    `coverage` at or above `min_coverage`; a covariate that would push coverage below the floor is
+    left out and the next one (in cardinality order) is tried instead — low-cardinality covariates
+    are tried first because each additional covariate multiplies the number of joint strata by
+    roughly its own cardinality, so trying cheap ones first lets more covariates fit before the
+    sample runs out. No covariate is ever included or excluded because of what it *is* — only
+    because of how much of the exposed group survives stratifying on it jointly with whatever is
+    already selected.
+    """
+    ordering = sorted(pool, key=lambda column: (binned_frame[column].n_unique(), column))
+    selected: list[str] = []
+    for column in ordering:
+        trial = (*selected, column)
+        _, coverage = _stratified_adjustment(binned_frame, mask, outcome, trial)
+        if coverage >= min_coverage:
+            selected.append(column)
+    return tuple(selected)
 
 
 def _gate(gate_id: GateId, satisfied: bool, detail: str, warn: bool = False) -> GateResult:
@@ -405,7 +524,17 @@ def _validate_one(
         else f"Non-decision-time features: {sorted(non_decision_time)}",
     )
 
-    adjustment_set = tuple(c for c in CONFOUNDER_COLUMNS if c not in condition_features)
+    adjustment_pool = _adjustment_pool(condition_features)
+    binned_dev_frame = _binned_adjustment_frame(dev_frame, adjustment_pool)
+    adjustment_set = _select_adjustment_columns(
+        binned_dev_frame,
+        dev_mask,
+        outcome,
+        adjustment_pool,
+        DEFAULT_THRESHOLDS.min_confounder_stratum_coverage,
+    )
+    diagnostics["adjustment_columns_considered"] = list(adjustment_pool)
+    diagnostics["adjustment_columns_used"] = list(adjustment_set)
     gates[GateId.POST_TREATMENT] = _gate(
         GateId.POST_TREATMENT,
         True,
@@ -461,8 +590,8 @@ def _validate_one(
     diagnostics["p_value_normal_approx_bootstrap_se"] = p_value
     diagnostics["p_value_empirical_bootstrap_floor_limited"] = bootstrap_two_sided_p(dev_reps_raw)
 
-    adjusted_diff, coverage = _stratified_two_way_adjustment(
-        dev_frame, dev_mask, outcome, adjustment_set
+    adjusted_diff, coverage = _stratified_adjustment(
+        binned_dev_frame, dev_mask, outcome, adjustment_set
     )
     adjusted_harm = adjusted_diff * outcome.harm_multiplier
     attenuation = 1.0 - (adjusted_harm / dev.harm_per_booking if dev.harm_per_booking else 1.0)
@@ -471,7 +600,7 @@ def _validate_one(
     diagnostics["confounder_stratum_coverage"] = coverage
     diagnostics["e_value"] = ev
     confounding_ok = (
-        coverage >= 0.5
+        coverage >= DEFAULT_THRESHOLDS.min_confounder_stratum_coverage
         and (adjusted_harm > 0) == (dev.harm_per_booking > 0)
         and attenuation <= DEFAULT_THRESHOLDS.max_adjusted_attenuation
         and ev >= DEFAULT_THRESHOLDS.min_e_value
@@ -490,7 +619,7 @@ def _validate_one(
         dev_effect.ci_low + shift,
         dev_effect.ci_high + shift,
         DEFAULT_THRESHOLDS.confidence_level,
-        "stratified_manager_supplier",
+        "stratified_generalized_adjustment",
         outcome.unit,
     )
 
@@ -952,7 +1081,13 @@ def run_validation(
         "bootstrap_seed": bootstrap_seed,
         "development_bootstrap_reps": DEV_BOOTSTRAP_REPS,
         "diagnostic_bootstrap_reps": DIAGNOSTIC_BOOTSTRAP_REPS,
-        "adjustment_columns_considered": list(CONFOUNDER_COLUMNS),
+        # CONTRACT_VERSION >= 1.2.0: the adjustment set is per-candidate, not a fixed run-level
+        # pair (ADR-036/ADR-042) — this is the full eligible pool before any candidate's own
+        # conditions are excluded from it; each candidate's actually-used subset is in its own
+        # diagnostics ("adjustment_columns_considered"/"adjustment_columns_used").
+        "adjustment_pool_all_decision_time_features": sorted(
+            DECISION_TIME_FEATURES - ADJUSTMENT_POOL_EXCLUDED
+        ),
         "heterogeneity_column": HETEROGENEITY_COLUMN,
     }
     return results, manifest

@@ -10,8 +10,13 @@ from policy_analytics.validation.apply import (
     ClusterCell,
     Condition,
     Verdict,
+    _adjustment_pool,
+    _binned_adjustment_frame,
+    _binned_group_label,
     _evaluated_hypotheses,
-    _stratified_two_way_adjustment,
+    _quantile_breakpoints,
+    _select_adjustment_columns,
+    _stratified_adjustment,
     cluster_bootstrap_replicates,
     cluster_cells,
     e_value,
@@ -22,7 +27,7 @@ from policy_analytics.validation.apply import (
     split_stats,
     verdict_for,
 )
-from policy_analytics.validation.contract import GateId
+from policy_analytics.validation.contract import DEFAULT_THRESHOLDS, GateId
 
 pytestmark = pytest.mark.analytics
 
@@ -132,7 +137,7 @@ def test_stratified_adjustment_removes_a_confound_the_raw_difference_carries() -
     )
     assert raw is not None and raw < -400  # large apparent raw effect
 
-    adjusted_diff, coverage = _stratified_two_way_adjustment(frame, mask, outcome, ("manager",))
+    adjusted_diff, coverage = _stratified_adjustment(frame, mask, outcome, ("manager",))
     assert coverage == 0.0  # every manager X row is exposed, every manager Y row is comparison:
     # no stratum contains both exposed and comparison members, so no stratum is usable.
     assert adjusted_diff == 0.0
@@ -149,9 +154,178 @@ def test_stratified_adjustment_with_balanced_strata_finds_the_true_effect() -> N
         }
     )
     mask = pl.Series([True] * 10 + [False] * 10 + [True] * 10 + [False] * 10)
-    adjusted_diff, coverage = _stratified_two_way_adjustment(frame, mask, outcome, ("manager",))
+    adjusted_diff, coverage = _stratified_adjustment(frame, mask, outcome, ("manager",))
     assert adjusted_diff == pytest.approx(-30.0)
     assert coverage == pytest.approx(1.0)
+
+
+# --- G06 generalization: adjustment-set selection (TASK-063, ADR-036/ADR-042) -------------------
+#
+# Synthetic fixtures only, deliberately neutral column names (never "manager"/"supplier"/
+# "acquisition_channel" or any other real feature/trap identity) — this proves the *rule*
+# generalizes, not that it was special-cased for one known trap.
+
+
+def test_adjustment_pool_excludes_condition_features_and_date_columns() -> None:
+    pool = _adjustment_pool(frozenset({"supplier", "discount_rate"}))
+    assert "supplier" not in pool
+    assert "discount_rate" not in pool
+    assert "booking_date" not in pool
+    assert "travel_date" not in pool
+    assert "manager" in pool  # an eligible DECISION_TIME feature untouched by the condition
+    assert pool == tuple(sorted(pool))  # deterministic order
+
+
+def test_quantile_breakpoints_split_a_known_list_into_even_thirds() -> None:
+    values = list(range(1, 31))  # 1..30
+    breakpoints = _quantile_breakpoints(values, bins=3)
+    assert len(breakpoints) == 2
+    # index-based, same convention as percentile_ci: cut near the 1/3 and 2/3 marks.
+    assert breakpoints[0] == 11
+    assert breakpoints[1] == 21
+
+
+def test_binned_group_label_bins_a_high_cardinality_numeric_column() -> None:
+    frame = pl.DataFrame({"spend": [float(i) for i in range(40)]})
+    label = _binned_group_label(frame, "spend")
+    assert label is not None
+    assert label.n_unique() <= 4  # ADJUSTMENT_QUANTILE_BINS
+
+
+def test_binned_group_label_passes_through_a_low_cardinality_numeric_column() -> None:
+    frame = pl.DataFrame({"installments_like": [1, 2, 3, 4] * 10})
+    assert _binned_group_label(frame, "installments_like") is None
+
+
+def test_binned_group_label_passes_through_a_categorical_column() -> None:
+    frame = pl.DataFrame({"channel_like": ["a", "b", "c"] * 10})
+    assert _binned_group_label(frame, "channel_like") is None
+
+
+def test_binned_adjustment_frame_only_touches_columns_that_need_binning() -> None:
+    frame = pl.DataFrame(
+        {
+            "spend": [float(i) for i in range(40)],
+            "channel_like": ["a", "b"] * 20,
+        }
+    )
+    binned = _binned_adjustment_frame(frame, ("spend", "channel_like"))
+    assert binned["spend"].n_unique() <= 4
+    assert binned["channel_like"].to_list() == frame["channel_like"].to_list()
+
+
+def _confounded_trap_fixture() -> tuple[pl.DataFrame, pl.Series]:
+    """200 synthetic rows where `flag_feature` (the candidate's own condition — analogous to a
+    trap's apparent_feature) has *zero* true direct effect on the outcome, but is disproportionately
+    common when `real_confound == "hi"`, and `real_confound` alone fully determines the outcome
+    (100.0 when "hi", 50.0 when "lo", no noise — deterministic so the adjusted result is exact, not
+    approximate). `irrelevant_a`/`irrelevant_b` are present, low-cardinality, and genuinely
+    unrelated to both `flag_feature` and the outcome — standing in for whatever a fixed, narrow,
+    hand-picked adjustment pair might have been, to show that adjusting for *only* them does not
+    catch this confound, while the general "every eligible covariate" selection does.
+    """
+    rows = []
+    for i in range(200):
+        real_confound = "hi" if i < 100 else "lo"
+        flag = i % 3 == 0 if real_confound == "hi" else i % 10 == 0  # 34/100 vs 10/100 true
+        outcome_value = 100.0 if real_confound == "hi" else 50.0
+        rows.append(
+            {
+                "flag_feature": flag,
+                "real_confound": real_confound,
+                "irrelevant_a": "x" if i % 2 == 0 else "y",
+                "irrelevant_b": "p" if i % 4 < 2 else "q",
+                "contribution_margin_eur": outcome_value,
+            }
+        )
+    frame = pl.DataFrame(rows)
+    mask = frame["flag_feature"]
+    return frame, mask
+
+
+def test_a_fixed_narrow_adjustment_pair_does_not_catch_the_synthetic_confound() -> None:
+    """The old-style failure mode: adjusting only for two columns that happen not to include the
+    real confounder leaves the spurious raw association almost entirely intact.
+    """
+    outcome = OUTCOME_BY_ID["contribution_margin_eur"]
+    frame, mask = _confounded_trap_fixture()
+    raw_diff, _ = _stratified_adjustment(frame, mask, outcome, ())
+    assert raw_diff == pytest.approx(17.4825, abs=1e-3)  # real, meaningful spurious raw effect
+
+    narrow_diff, narrow_coverage = _stratified_adjustment(
+        frame, mask, outcome, ("irrelevant_a", "irrelevant_b")
+    )
+    assert narrow_coverage > 0  # strata are usable...
+    assert narrow_diff == pytest.approx(raw_diff, abs=2.0)  # ...but the confound is still there
+
+
+def test_select_adjustment_columns_discovers_a_confound_outside_a_narrow_fixed_guess() -> None:
+    """The actual regression: given the full eligible pool (not told which column matters),
+    `_select_adjustment_columns` finds and includes `real_confound`, and the resulting joint
+    adjustment removes the spurious effect entirely — proving the *general* rule catches a
+    confounder a fixed, hand-picked pair would have missed, without ever being told its name.
+    """
+    outcome = OUTCOME_BY_ID["contribution_margin_eur"]
+    frame, mask = _confounded_trap_fixture()
+    pool = ("irrelevant_a", "irrelevant_b", "real_confound")
+
+    selected = _select_adjustment_columns(
+        frame, mask, outcome, pool, DEFAULT_THRESHOLDS.min_confounder_stratum_coverage
+    )
+    assert "real_confound" in selected
+
+    adjusted_diff, coverage = _stratified_adjustment(frame, mask, outcome, selected)
+    # Within each real_confound stratum the outcome is constant regardless of flag_feature, so the
+    # confound-adjusted effect is exactly zero, not merely attenuated.
+    assert adjusted_diff == pytest.approx(0.0, abs=1e-9)
+    assert coverage >= DEFAULT_THRESHOLDS.min_confounder_stratum_coverage
+
+
+def test_select_adjustment_columns_tries_lower_cardinality_columns_first() -> None:
+    """Ascending-cardinality ordering, verified directly rather than only inferred from the result:
+    a 2-level column must be selected before a 6-level column when both would otherwise fit,
+    because the selection order itself (not just the outcome) is a claim this test makes.
+    """
+    outcome = OUTCOME_BY_ID["contribution_margin_eur"]
+    rows = []
+    for i in range(120):
+        rows.append(
+            {
+                "low_card": "a" if i % 2 == 0 else "b",
+                "high_card": f"g{i % 6}",
+                "contribution_margin_eur": 10.0 if i % 2 == 0 else 12.0,
+            }
+        )
+    frame = pl.DataFrame(rows)
+    mask = pl.Series([i % 3 == 0 for i in range(120)])
+    binned = _binned_adjustment_frame(frame, ("low_card", "high_card"))
+    selected = _select_adjustment_columns(
+        binned, mask, outcome, ("high_card", "low_card"), min_coverage=0.0
+    )
+    assert selected.index("low_card") < selected.index("high_card")
+
+
+def test_select_adjustment_columns_stops_before_coverage_collapses() -> None:
+    """A column whose strata are too small to clear MIN_STRATUM_CELL on both sides must not be
+    added even though it is in the pool — the greedy process should leave it out rather than let
+    coverage collapse.
+    """
+    outcome = OUTCOME_BY_ID["contribution_margin_eur"]
+    # "sparse" has 40 distinct levels over 40 rows: every stratum has exactly 1 row, so no stratum
+    # can ever clear MIN_STRATUM_CELL=5 on both sides once it's included.
+    rows = [
+        {
+            "sparse": f"level_{i}",
+            "contribution_margin_eur": 10.0 if i % 2 == 0 else 12.0,
+        }
+        for i in range(40)
+    ]
+    frame = pl.DataFrame(rows)
+    mask = pl.Series([i % 2 == 0 for i in range(40)])
+    selected = _select_adjustment_columns(
+        frame, mask, outcome, ("sparse",), DEFAULT_THRESHOLDS.min_confounder_stratum_coverage
+    )
+    assert selected == ()
 
 
 def test_verdict_for_reject_when_evidence_level_is_none() -> None:

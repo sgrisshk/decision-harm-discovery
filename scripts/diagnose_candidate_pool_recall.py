@@ -106,9 +106,7 @@ def _reproduce_eligible_pool(
                         )
                         for removed in rule
                     ]
-                    if any(
-                        p and p.n_exposed == metric.n_exposed for p in parent_metrics
-                    ):
+                    if any(p and p.n_exposed == metric.n_exposed for p in parent_metrics):
                         continue
                 scored[rule] = (_development_score(metric, depth, config), metric)
         beam = [

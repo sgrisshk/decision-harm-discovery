@@ -431,14 +431,15 @@ def _greedy_diverse_select(
             if max_overlap[rule] > config.max_candidate_jaccard:
                 continue
             if any(
-                atom_usage.get(condition, 0) >= config.max_candidates_per_atom
-                for condition in rule
+                atom_usage.get(condition, 0) >= config.max_candidates_per_atom for condition in rule
             ):
                 continue
             discount = config.diversity_discount_weight * max_overlap[rule]
             marginal = effective_score[rule] * (1.0 - discount)
-            if best_rule is None or marginal > best_marginal or (
-                marginal == best_marginal and rule < best_rule
+            if (
+                best_rule is None
+                or marginal > best_marginal
+                or (marginal == best_marginal and rule < best_rule)
             ):
                 best_rule, best_marginal = rule, marginal
         if best_rule is None:
@@ -547,14 +548,26 @@ def discover_candidates(
     # singleton is considered regardless of relative score (matches pre-TASK-060 ordering exactly).
     _prepare(interactions)
     _greedy_diverse_select(
-        interactions, effective_score, exposures, config, selected, selected_exposures,
-        atom_usage, max_overlap,
+        interactions,
+        effective_score,
+        exposures,
+        config,
+        selected,
+        selected_exposures,
+        atom_usage,
+        max_overlap,
     )
     if len(selected) < config.top_k:
         _prepare(singles)
         _greedy_diverse_select(
-            singles, effective_score, exposures, config, selected, selected_exposures,
-            atom_usage, max_overlap,
+            singles,
+            effective_score,
+            exposures,
+            config,
+            selected,
+            selected_exposures,
+            atom_usage,
+            max_overlap,
         )
     candidates: list[Candidate] = []
     for index, rule in enumerate(selected, start=1):
