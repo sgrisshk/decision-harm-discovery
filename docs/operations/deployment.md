@@ -1,8 +1,41 @@
 # Deployment interface
 
-The **API's** provider is intentionally undecided. CI builds and verifies both images with immutable `${GITHUB_SHA}` tags. Once a registry/host is selected, staging deployment from `main` must consume those exact digests; production promotion is a manual protected-environment action that promotes the same digest rather than rebuilding it.
+## API backend: Render + Neon, free tier (decided, 2026-08-21)
 
-Provider decisions still required: registry, managed PostgreSQL, object storage, secret manager, migration runner, log/metric destination, backups, regional/data-residency constraints, and rollback mechanism. Do not add credentials or pretend deploy steps until those decisions are made.
+Chosen specifically to cost **$0** pre-customer — Fly.io was considered first but no longer has a genuine free tier (usage-based billing, card required). `render.yaml` (repo root, Render's Blueprint format) builds `infra/docker/api.Dockerfile` directly — the same image CI already builds and verifies in the `images` job, no second Dockerfile. Postgres is **not** Render's own (its free Postgres is deleted after 30 days) — it's [Neon](https://neon.tech), a separately-provisioned free serverless Postgres with no forced expiry.
+
+**Free-tier trade-offs, disclosed, not hidden:**
+- Render's free web service **spins down after ~15 minutes idle** and takes roughly a minute to wake on the next request. Acceptable for a pre-customer demo; not acceptable once `TASK-057` produces a live customer conversation happening in real time — upgrade the plan first.
+- Render's free plan has **no persistent disk** — `INGESTION_STORAGE_ROOT`'s uploaded raw files do **not** survive a restart or redeploy. Fine now (no real data at stake); a real blocker for `TASK-038` (real customer data) — either a paid plan with a persistent disk, or move raw storage to object storage (Cloudflare R2 has a free tier too, and the founder already has a Cloudflare account) before that task.
+- No autoscaling, one instance only — irrelevant at current traffic (zero).
+
+**Still real decisions/actions, not yet made — this is the config, not the account:**
+- Neon project itself — not provisioned by this commit; needs a free Neon account.
+- Secrets (`DATABASE_URL`, `CORS_ORIGINS`) — set in the Render dashboard (or `render env:set`), never committed.
+- `autoDeploy` is `false` in `render.yaml` on purpose — deploy stays a manual, reviewed action for now rather than firing on every push to `main`, since a bad migration would hit the same database every time. Revisit once there's a staging/production split worth the complexity.
+
+**First deploy, manual (needs free accounts on both services):**
+```sh
+# 1. Neon: neon.tech -> new project -> copy the connection string (use the "pooled" one).
+#    Driver prefix must match Settings.require_postgres: postgresql+psycopg://...
+
+# 2. Render: render.com -> New -> Blueprint -> point at this repo (reads render.yaml).
+#    Before first deploy, set in the dashboard's Environment tab:
+#      DATABASE_URL      = <the Neon connection string, postgresql+psycopg:// prefix>
+#      CORS_ORIGINS      = ["https://app.grisshk.work"]
+
+# 3. First deploy, then run the migration once via Render's Shell tab (or a one-off Job):
+cd apps/api && uv run alembic check && uv run alembic upgrade head
+
+# 4. Smoke check:
+curl https://<service-name>.onrender.com/health
+curl https://<service-name>.onrender.com/ready
+```
+Then point the frontend at it: set the `NEXT_PUBLIC_API_URL` GitHub Actions repository variable (currently the `https://api.grisshk.work` placeholder, `.github/workflows/pages.yml`) to the real Render URL, then re-run the Pages workflow (`output: "export"` bakes the URL in at build time, so the site must rebuild, not just the API redeploy). A custom `api.grisshk.work` domain pointed at Render via Cloudflare DNS works too, once the free-tier wake-up latency is judged acceptable for that URL.
+
+Deploy order once both are live: migration (`alembic check && upgrade head`, run manually per above) → API redeploy → web rebuild → smoke checks (`.../health`, `.../ready`, then a real page load). Rollback: Render's dashboard keeps prior deploys one click away; forward-fix schema when a migration is not safely reversible, per the general rule below.
+
+**Still undecided, unaffected by this choice:** secret manager beyond Render's own env vars, log/metric destination beyond Render's built-in dashboard, regional/data-residency constraints (picked Frankfurt only as a default near the founder, not a considered residency decision), backups/PITR policy on the Neon project.
 
 Deploy order: backup/readiness checks → backward-compatible migration job → API → web → smoke checks. Rollback application images independently; forward-fix schema when a migration is not safely reversible.
 

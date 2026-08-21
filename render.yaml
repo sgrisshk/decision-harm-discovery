@@ -1,0 +1,37 @@
+# Render Blueprint for the API backend (docs/operations/deployment.md).
+# Free-tier path: this service + a free Neon Postgres instance (Neon isn't a Render
+# add-on -- provisioned separately, connection string pasted in as a secret, see docs).
+# Frontend is unaffected -- stays static on GitHub Pages, DNS on Cloudflare.
+# Same infra/docker/api.Dockerfile CI already builds and verifies, no second Dockerfile.
+
+services:
+  - type: web
+    name: policy-discovery-api
+    runtime: docker
+    dockerfilePath: ./infra/docker/api.Dockerfile
+    dockerContext: .
+    plan: free
+    region: frankfurt
+    healthCheckPath: /health
+    autoDeploy: false   # flip to true once the first manual deploy is verified working
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: LOG_LEVEL
+        value: INFO
+      - key: INGESTION_STORAGE_ROOT
+        value: /app/data/raw
+      # DATABASE_URL and CORS_ORIGINS are secrets -- set in the Render dashboard
+      # (or `render env:set`), never committed. DATABASE_URL comes from Neon (below);
+      # CORS_ORIGINS is a JSON array string, e.g. ["https://app.grisshk.work"].
+    # Free-tier limitation, disclosed not hidden: Render's free plan has no persistent
+    # disk. INGESTION_STORAGE_ROOT's uploaded raw files do NOT survive a restart or
+    # redeploy on this plan -- acceptable pre-customer (no real data at stake yet), but
+    # a real blocker for TASK-038. Revisit with a paid plan + persistent disk, or move
+    # raw storage to object storage (e.g. Cloudflare R2, already have the account),
+    # before any real customer upload.
+
+# Pre-deploy migration step (Render "Deploy Hooks" don't support arbitrary release
+# commands the way Fly does -- run this manually after the first deploy, and after any
+# migration-adding change, via the Render dashboard's Shell tab or a one-off Job):
+#   cd apps/api && uv run alembic check && uv run alembic upgrade head
