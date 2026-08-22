@@ -47,6 +47,18 @@ references any `b2b_sales` pattern or trap identity.
 
 Usage:
   uv run python scripts/diagnose_g06_task065_b2b.py
+
+**Fix history (`TASK-067`, run for real 2026-08-22):** this script was written but never executed
+by the session that authored it. On first real run, `_eta_squared` and `_fwl_additive_coefficient`
+both used `polars.Series.to_numpy()`, which panics (`ModuleNotFoundError: No module named 'numpy'`)
+in this project's actual `.venv` — numpy is not, and per `ADR-042`'s own alternatives-considered
+text ("no `numpy`/`scipy` dependency currently exists to lean on") was never meant to be, a
+dependency of this codebase; `git grep -l -E "to_numpy|import numpy"` across `packages/`,
+`scripts/`, `tests/` before this fix returned only this file. Fixed by rewriting both functions to
+do the exact same arithmetic (grand-mean/between-group sum of squares for eta-squared; iterative
+alternating group-demeaning for the FWL partialling-out) over plain Python lists/dicts instead of
+numpy arrays — same numerics, same result, no new dependency, consistent with this codebase's
+existing discipline. No other logic in this script changed.
 """
 
 # pyright: reportPrivateUsage=false
@@ -190,14 +202,24 @@ def _fwl_additive_coefficient(
     variables until convergence. Same technique `ADR-043` used for travel's own residual G06 case
     (there: harm 157.2 -> 158.9 EUR additive vs. 47.7 EUR fully joint-stratified). Returns
     `(coefficient, iterations)`. Diagnostic-only; not a new production estimator."""
-    y = frame[outcome_column].to_numpy().astype(float).copy()
-    t = mask.to_numpy().astype(float).copy()
+    # Pure-Python lists, not numpy arrays: this codebase deliberately carries no numpy/scipy
+    # dependency (`ADR-042`'s own alternatives-considered text: "no numpy/scipy dependency
+    # currently exists to lean on"), and this project's `.venv` in fact does not have numpy
+    # installed. An earlier draft of this function used `pl.Series.to_numpy()`, which panics with
+    # `ModuleNotFoundError: No module named 'numpy'` in this environment — a real bug, fixed here
+    # (see this script's own module docstring "Fix history" note) by doing the same alternating
+    # group-demeaning arithmetic with plain lists/dicts instead, with identical numerics.
+    y = [float(v) for v in frame[outcome_column].to_list()]
+    t = [float(v) for v in mask.to_list()]
     if not columns:
         # No covariates: the additive "coefficient" is just the raw mean difference.
-        exposed = y[t == 1]
-        comparison = y[t == 0]
-        return float(exposed.mean() - comparison.mean()), 0
-    group_arrays = [frame[c].to_numpy() for c in columns]
+        exposed = [v for v, m in zip(y, t, strict=True) if m == 1.0]
+        comparison = [v for v, m in zip(y, t, strict=True) if m == 0.0]
+        if not exposed or not comparison:
+            return 0.0, 0
+        return (sum(exposed) / len(exposed)) - (sum(comparison) / len(comparison)), 0
+    group_arrays = [frame[c].to_list() for c in columns]
+    iteration = 0
     for iteration in range(1, max_iter + 1):
         max_shift = 0.0
         for group in group_arrays:
@@ -210,17 +232,19 @@ def _fwl_additive_coefficient(
                     sums[k] = sums.get(k, 0.0) + v
                     counts[k] = counts.get(k, 0) + 1
                 means = {k: sums[k] / counts[k] for k in sums}
-                before = series.copy()
+                before = list(series)
                 for i, k in enumerate(keys):
                     series[i] -= means[k]
-                shift = float(abs(series - before).max()) if len(series) else 0.0
+                shift = max(
+                    (abs(a - b) for a, b in zip(series, before, strict=True)), default=0.0
+                )
                 max_shift = max(max_shift, shift)
         if max_shift < tol:
             break
-    var_t = float((t * t).sum())
+    var_t = sum(v * v for v in t)
     if var_t == 0:
         return 0.0, iteration
-    coefficient = float((t * y).sum() / var_t)
+    coefficient = sum(a * b for a, b in zip(t, y, strict=True)) / var_t
     return coefficient, iteration
 
 
@@ -229,18 +253,23 @@ def _eta_squared(frame: pl.DataFrame, numeric_column: str, group_column: str) ->
     `group_column` membership, computed on the development split alone. 0 = no relationship,
     1 = `group_column` fully determines `numeric_column`. A dataset-level, public-data-only
     collinearity check -- not per-candidate, not dependent on any candidate's condition."""
-    values = frame[numeric_column].to_numpy().astype(float)
-    groups = frame[group_column].to_numpy()
-    grand_mean = float(values.mean())
-    ss_total = float(((values - grand_mean) ** 2).sum())
+    # Pure-Python lists, not numpy arrays -- see the fix note in `_fwl_additive_coefficient` above;
+    # same underlying environment/dependency reason.
+    values = [float(v) for v in frame[numeric_column].to_list()]
+    groups = frame[group_column].to_list()
+    grand_mean = sum(values) / len(values)
+    ss_total = sum((v - grand_mean) ** 2 for v in values)
     if ss_total == 0:
         return 0.0
+    by_group: dict[Any, list[float]] = {}
+    for v, g in zip(values, groups, strict=True):
+        by_group.setdefault(g, []).append(v)
     ss_between = 0.0
-    for level in set(groups.tolist()):
-        subset = values[groups == level]
-        if len(subset) == 0:
+    for subset in by_group.values():
+        if not subset:
             continue
-        ss_between += len(subset) * (float(subset.mean()) - grand_mean) ** 2
+        subset_mean = sum(subset) / len(subset)
+        ss_between += len(subset) * (subset_mean - grand_mean) ** 2
     return ss_between / ss_total
 
 
