@@ -1,0 +1,87 @@
+{
+  "analytical_dataset_identity_sha256": "72c5ce99e97bb56bc8831653bc8820ad92610ad114b53589c3ac580bd2c15493",
+  "analytical_dataset_version": "b2b_sales-analytical-v1.0.0",
+  "assignment_invariants": {
+    "exactly_one_split_per_record": true,
+    "overlap_count": 0,
+    "random_shuffle": false,
+    "row_order_changed": false,
+    "unassigned_count": 0
+  },
+  "config": {
+    "assignment_rule": "closed intervals on deal_created_date; no random shuffle",
+    "development_end": "2024-12-31",
+    "development_start": "2024-01-01",
+    "future_holdout_end": "2025-12-31",
+    "future_holdout_start": "2025-07-01",
+    "identifier_column": "deal_id",
+    "outcome_availability_mode": "CLOSED_SYNTHETIC_BENCHMARK",
+    "reproducibility_command": "uv run python scripts/build_domain_temporal_splits.py --domain b2b_sales",
+    "timestamp_column": "deal_created_date",
+    "validation_end": "2025-06-30",
+    "validation_start": "2025-01-01",
+    "version": "b2b-sales-temporal-split-v1.0.0"
+  },
+  "discovery_usage": {
+    "diagnostic_only_splits": [
+      "validation",
+      "future_holdout"
+    ],
+    "permitted_development_rows": 5028,
+    "search_fit_split": "development"
+  },
+  "membership_artifact": {
+    "columns": [
+      "deal_id",
+      "deal_created_date",
+      "split_label",
+      "outcomes_final"
+    ],
+    "path": "split_membership.csv",
+    "sha256": "2a7c93e6f012a8eceac9be07995e61666432765d6f25715207792bb202b054af"
+  },
+  "outcome_availability": {
+    "all_rows_final": true,
+    "basis": "The generated 24-month synthetic benchmark is closed: downstream outcomes were fully realized before export, so it has no right-censoring.",
+    "contract_version": "0.1.0-provisional",
+    "mode": "CLOSED_SYNTHETIC_BENCHMARK",
+    "outcomes": [
+      {
+        "column": "net_deal_contribution_usd",
+        "final_for_all_rows": true,
+        "missing_data_policy": "not_yet_classified",
+        "outcome_id": "net_deal_contribution_usd"
+      }
+    ],
+    "production_guard": "Do not reuse CLOSED_SYNTHETIC_BENCHMARK for live data. A future customer outcome contract must provide an observation cutoff and per-outcome maturation window; immature records must be marked outcomes_final=false and excluded from final-outcome estimation, never coerced to zero or treated as final."
+  },
+  "reproducibility_command": "uv run python scripts/build_domain_temporal_splits.py --domain b2b_sales",
+  "schema_version": "b2b-sales-canonical-v1.0.0",
+  "split_config_version": "b2b-sales-temporal-split-v1.0.0",
+  "splits": {
+    "development": {
+      "all_outcomes_final": true,
+      "end_inclusive": "2024-12-31",
+      "first_decision_date": "2024-01-01",
+      "last_decision_date": "2024-12-31",
+      "row_count": 5028,
+      "start_inclusive": "2024-01-01"
+    },
+    "future_holdout": {
+      "all_outcomes_final": true,
+      "end_inclusive": "2025-12-31",
+      "first_decision_date": "2025-07-01",
+      "last_decision_date": "2025-12-31",
+      "row_count": 2481,
+      "start_inclusive": "2025-07-01"
+    },
+    "validation": {
+      "all_outcomes_final": true,
+      "end_inclusive": "2025-06-30",
+      "first_decision_date": "2025-01-01",
+      "last_decision_date": "2025-06-30",
+      "row_count": 2491,
+      "start_inclusive": "2025-01-01"
+    }
+  }
+}

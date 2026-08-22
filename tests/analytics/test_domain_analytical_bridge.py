@@ -22,6 +22,7 @@ from policy_analytics.domain_benchmarks.analytical_bridge import (
     analytical_dataset_config,
     provisional_outcome_contract,
     provisional_primary_outcome,
+    temporal_split_config,
 )
 from policy_analytics.domain_benchmarks.common import (
     DomainSpec,
@@ -29,6 +30,7 @@ from policy_analytics.domain_benchmarks.common import (
     standard_variant_config,
 )
 from policy_analytics.domain_benchmarks.registry import DOMAIN_REGISTRY
+from policy_analytics.temporal_splits import build_temporal_split_manifest
 
 DOMAINS = sorted(DOMAIN_REGISTRY.items())
 DOMAIN_IDS = [domain_id for domain_id, _ in DOMAINS]
@@ -48,6 +50,7 @@ def _build(spec: DomainSpec, tmp_path: Path) -> tuple[dict[str, Any], Path]:
         provisional_outcome_contract(spec),
     )
     root = tmp_path / "analytical" / manifest["dataset_version"]
+    build_temporal_split_manifest(root, temporal_split_config(spec))
     return manifest, root
 
 
@@ -85,6 +88,8 @@ def test_bridge_separates_roles_and_blocks_leakage(
     assert all(
         frame.height == _TEST_ROW_COUNT for frame in (features, outcomes, identifiers, metadata)
     )
+    assert (root / "split_manifest.json").is_file()
+    assert (root / "split_membership.csv").is_file()
 
 
 @pytest.mark.analytics
@@ -130,9 +135,10 @@ def test_bridge_never_touches_the_travel_default_config() -> None:
     travel path (`build_analytical_dataset` called with no `config`/`outcome_contract`) must still
     resolve to its own unchanged defaults, not anything from this bridge."""
     default = AnalyticalDatasetConfig()
-    assert default.dataset_version == DATASET_VERSION == "travel-bookings-analytical-v1.0.0"
+    assert default.dataset_version == DATASET_VERSION == "travel-bookings-analytical-v1.1.0"
     assert default.identifier_column == "booking_id"
     assert default.currency_column == "currency"
+    assert default.calendar_source_column == "travel_date"
 
 
 @pytest.mark.analytics

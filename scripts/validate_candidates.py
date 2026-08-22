@@ -46,7 +46,7 @@ REPOSITORY = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPOSITORY / "packages/analytics/src"))
 sys.path.insert(0, str(REPOSITORY / "packages/schemas/src"))
 
-from policy_analytics.outcomes import OUTCOME_CONTRACT_VERSION, primary_outcome  # noqa: E402
+from policy_analytics.outcomes import outcome_definition_from_manifest  # noqa: E402
 from policy_analytics.validation.apply import run_validation  # noqa: E402
 from policy_analytics.validation.contract import CONTRACT_VERSION  # noqa: E402
 
@@ -106,6 +106,7 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
 
 def main(argv: list[str] | None = None) -> None:
     args = _parse_args(argv if argv is not None else sys.argv[1:])
+    is_default_run = args.candidates == DEFAULT_CANDIDATES_PATH
 
     if args.output.exists() and not args.force:
         print(
@@ -122,22 +123,39 @@ def main(argv: list[str] | None = None) -> None:
     candidates_payload = json.loads(args.candidates.read_text(encoding="utf-8"))
     candidates_identity = candidates_payload.get("dataset_identity_sha256")
     identity_note = None
-    if candidates_identity is not None and candidates_identity != frozen_identity:
+    if candidates_identity != frozen_identity:
+        if not is_default_run:
+            raise ValueError(
+                f"candidate dataset identity {candidates_identity!r} does not match analytical "
+                f"dataset identity {frozen_identity!r}"
+            )
         identity_note = (
-            f"Candidate artifact pins dataset_identity_sha256={candidates_identity}, current "
-            f"manifest reports {frozen_identity}. This must be reconciled by hand before trusting "
-            "the result — confirm whether the underlying row-level partitions actually match "
-            "(e.g. via `git diff` on features.csv/outcomes.csv/identifiers.csv) or whether this "
-            "candidate set was genuinely computed against different data, in which case it cannot "
-            "be validated against this dataset_root at all."
+            "Historical default artifact predates the value-preserving analytical identity repin; "
+            "this compatibility exception is limited to the fixed non-blind default run."
         )
+    if not is_default_run and candidates_payload.get("dataset_version") != manifest.get(
+        "dataset_version"
+    ):
+        raise ValueError("candidate dataset version does not match analytical dataset manifest")
+
+    # HANDOFF-065: bound to whichever primary outcome *this* dataset's own manifest pins, not a
+    # hardcoded travel constant — a byte-identical pass-through to the real primary_outcome() for
+    # travel itself (checked by outcome_definition_from_manifest's own dataset_version guard), a
+    # real but disclosed-provisional OutcomeDefinition for any other registered dataset.
+    outcome, outcome_definition_version = outcome_definition_from_manifest(
+        manifest, args.dataset_root
+    )
+    if not is_default_run and (
+        candidates_payload.get("outcome_contract_version") != outcome_definition_version
+    ):
+        raise ValueError("candidate outcome contract does not match analytical dataset manifest")
 
     results, run_manifest = run_validation(
         dataset_root=args.dataset_root,
         candidates_path=args.candidates,
-        outcome=primary_outcome(),
+        outcome=outcome,
         dataset_version=manifest["dataset_version"],
-        outcome_definition_version=OUTCOME_CONTRACT_VERSION,
+        outcome_definition_version=outcome_definition_version,
         analysis_run_id=args.analysis_run_id,
         metrics_path=args.metrics,
     )
@@ -151,7 +169,8 @@ def main(argv: list[str] | None = None) -> None:
         "frozen_at": datetime.now(UTC).isoformat(),
         "analysis_run_id": args.analysis_run_id,
         "validation_contract_version": CONTRACT_VERSION,
-        "outcome_contract_version": OUTCOME_CONTRACT_VERSION,
+        "outcome_contract_version": outcome_definition_version,
+        "outcome_id": outcome.outcome_id,
         "dataset_version": manifest["dataset_version"],
         "dataset_identity_sha256": frozen_identity,
         "dataset_identity_reconciliation": identity_note,

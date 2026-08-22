@@ -12,7 +12,7 @@ respectively. Every number here is `descriptive_observation`, the lowest evidenc
 Does not open `hidden_ground_truth.json` — there is no legitimate reason for a baseline profiling
 pass to ever touch it, and it does not.
 
-Reuses, rather than re-implements: `load_analytical_frame`/`DECISION_TIME_FEATURES`/`SPLITS`
+Reuses, rather than re-implements: `load_analytical_frame`/manifest feature roles/`SPLITS`
 (`validation.apply`) and `summarize_group`/`mnar_bounds`/`OUTCOME_DEFINITIONS`
 (`outcomes.aggregation`/`outcomes.contract`) — the same primitives `TASK-013`/`TASK-018` already
 use and already have test coverage, so this script adds no new outcome-handling logic, only new
@@ -47,13 +47,14 @@ from policy_analytics.outcomes import (  # noqa: E402
 )
 from policy_analytics.outcomes.contract import MissingDataPolicy  # noqa: E402
 from policy_analytics.validation.apply import (  # noqa: E402
-    DECISION_TIME_FEATURES,
     SPLITS,
     load_analytical_frame,
 )
+from policy_analytics.validation.input_contract import validation_input_from_manifest  # noqa: E402
 
 DEFAULT_DATASET_ROOT = REPOSITORY / "synthetic_data/analytical/travel-bookings-analytical-v1.0.0"
 DEFAULT_OUTPUT_PATH = REPOSITORY / "artifacts/baseline/task-014-baseline-statistics.json"
+DECISION_TIME_FEATURES = validation_input_from_manifest(DEFAULT_DATASET_ROOT).decision_time_features
 
 #: booking_date/travel_date are DECISION_TIME features but calendar dates, not a distribution to
 #: bucket by value — reported as a min/max range instead of a (huge-cardinality) value-count table.

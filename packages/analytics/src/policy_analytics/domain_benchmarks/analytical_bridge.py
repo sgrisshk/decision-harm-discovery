@@ -25,6 +25,7 @@ from dataclasses import dataclass
 
 from policy_analytics.analytical_dataset import AnalyticalDatasetConfig, OutcomeContractInputs
 from policy_analytics.domain_benchmarks.common import DomainSpec
+from policy_analytics.temporal_splits import TemporalSplitConfig
 
 #: `DomainSpec` version this bridge was written against — every `TASK-061` domain's
 #: `dataset_version` is derived from `domain_id`, not restated per domain.
@@ -54,13 +55,36 @@ def analytical_dataset_config(spec: DomainSpec) -> AnalyticalDatasetConfig:
     return AnalyticalDatasetConfig(
         dataset_version=f"{spec.domain_id}-analytical-v1.0.0",
         canonical_schema_version=spec.schema_version,
+        analytical_schema_version=spec.schema_version,
         decision_timestamp_column=spec.decision_timestamp_column,
         identifier_column=spec.primary_id_column,
         clustering_key=spec.clustering_key,
         currency_column=_currency_column(spec),
+        calendar_source_column=None,
+        heterogeneity_column=None,
+        robustness_group_column=None,
+        alternative_outcome_id=None,
         development_end=spec.development_end,
         validation_end=spec.validation_end,
         future_holdout_end=spec.future_holdout_end,
+    )
+
+
+def temporal_split_config(spec: DomainSpec) -> TemporalSplitConfig:
+    """Build the public chronological split contract from the registered domain contract."""
+    return TemporalSplitConfig(
+        version=f"{spec.domain_id.replace('_', '-')}-temporal-split-v1.0.0",
+        timestamp_column=spec.decision_timestamp_column,
+        identifier_column=spec.primary_id_column,
+        development_end=spec.development_end,
+        validation_end=spec.validation_end,
+        future_holdout_end=spec.future_holdout_end,
+        assignment_rule=(
+            f"closed intervals on {spec.decision_timestamp_column}; no random shuffle"
+        ),
+        reproducibility_command=(
+            f"uv run python scripts/build_domain_temporal_splits.py --domain {spec.domain_id}"
+        ),
     )
 
 

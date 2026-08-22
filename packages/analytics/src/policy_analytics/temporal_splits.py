@@ -11,11 +11,7 @@ from typing import Any, cast
 
 import polars as pl
 
-from policy_analytics.outcomes.contract import (
-    DISCOVERY_CONTRACT,
-    OUTCOME_CONTRACT_VERSION,
-    OUTCOME_DEFINITIONS,
-)
+from policy_analytics.outcomes.contract import DISCOVERY_CONTRACT
 
 SPLIT_CONFIG_VERSION = "travel-bookings-temporal-split-v1.0.0"
 
@@ -24,6 +20,7 @@ SPLIT_CONFIG_VERSION = "travel-bookings-temporal-split-v1.0.0"
 class TemporalSplitConfig:
     version: str = SPLIT_CONFIG_VERSION
     timestamp_column: str = "booking_date"
+    identifier_column: str = "booking_id"
     development_start: str = "2024-01-01"
     development_end: str = "2024-12-31"
     validation_start: str = "2025-01-01"
@@ -32,6 +29,7 @@ class TemporalSplitConfig:
     future_holdout_end: str = "2025-12-31"
     assignment_rule: str = "closed intervals on booking_date; no random shuffle"
     outcome_availability_mode: str = "CLOSED_SYNTHETIC_BENCHMARK"
+    reproducibility_command: str = "make temporal-splits"
 
 
 def _sha256(path: Path) -> str:
@@ -122,7 +120,7 @@ def build_temporal_split_manifest(
         dict[str, Any], json.loads((dataset_root / "manifest.json").read_text(encoding="utf-8"))
     )
     features = pl.read_csv(dataset_root / "features.csv", columns=[config.timestamp_column])
-    identifiers = pl.read_csv(dataset_root / "identifiers.csv", columns=["booking_id"])
+    identifiers = pl.read_csv(dataset_root / "identifiers.csv", columns=[config.identifier_column])
     outcomes = pl.read_csv(dataset_root / "outcomes.csv")
     existing_metadata = pl.read_csv(dataset_root / "metadata.csv", columns=["split_label"])
     if not (
@@ -138,8 +136,8 @@ def build_temporal_split_manifest(
         raise ValueError("TASK-011 metadata split labels disagree with TASK-012 assignment")
     membership = pl.DataFrame(
         {
-            "booking_id": identifiers["booking_id"],
-            "booking_date": features[config.timestamp_column],
+            config.identifier_column: identifiers[config.identifier_column],
+            config.timestamp_column: features[config.timestamp_column],
             "split_label": labels,
             "outcomes_final": pl.Series([True] * features.height),
         }
@@ -156,10 +154,12 @@ def build_temporal_split_manifest(
             "start_inclusive": getattr(config, f"{split}_start"),
             "end_inclusive": getattr(config, f"{split}_end"),
             "row_count": subset.height,
-            "first_booking_date": subset["booking_date"].min(),
-            "last_booking_date": subset["booking_date"].max(),
+            "first_decision_date": subset[config.timestamp_column].min(),
+            "last_decision_date": subset[config.timestamp_column].max(),
             "all_outcomes_final": bool(subset["outcomes_final"].all()),
         }
+    outcome_contract = cast(dict[str, Any], aggregate["outcome_contract"])
+    outcome_definitions = cast(list[dict[str, Any]], outcome_contract["definitions"])
     manifest: dict[str, Any] = {
         "split_config_version": config.version,
         "analytical_dataset_version": aggregate["dataset_version"],
@@ -181,20 +181,22 @@ def build_temporal_split_manifest(
         },
         "outcome_availability": {
             "mode": config.outcome_availability_mode,
-            "contract_version": OUTCOME_CONTRACT_VERSION,
+            "contract_version": outcome_contract["version"],
             "all_rows_final": True,
             "basis": (
-                "TASK-013 defines this generated 24-month benchmark as closed: downstream costs "
-                "and outcomes were fully realized before export, so it has no right-censoring."
+                "The generated 24-month synthetic benchmark is closed: downstream outcomes were "
+                "fully realized before export, so it has no right-censoring."
             ),
             "outcomes": [
                 {
-                    "outcome_id": definition.outcome_id,
-                    "column": definition.column,
+                    "outcome_id": definition["outcome_id"],
+                    "column": definition["column"],
                     "final_for_all_rows": True,
-                    "missing_data_policy": definition.missing_data_policy.value,
+                    "missing_data_policy": definition.get(
+                        "missing_data_policy", "not_yet_classified"
+                    ),
                 }
-                for definition in OUTCOME_DEFINITIONS
+                for definition in outcome_definitions
             ],
             "production_guard": (
                 "Do not reuse CLOSED_SYNTHETIC_BENCHMARK for live data. A future customer outcome "
@@ -208,7 +210,7 @@ def build_temporal_split_manifest(
             "sha256": _sha256(membership_path),
             "columns": membership.columns,
         },
-        "reproducibility_command": "make temporal-splits",
+        "reproducibility_command": config.reproducibility_command,
     }
     _write_json(dataset_root / "split_manifest.json", manifest)
     return manifest

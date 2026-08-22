@@ -1,0 +1,63 @@
+{
+  "canonical_schema_version": "travel-booking-canonical-v1.0.0",
+  "dataset_identity_sha256": "b6128eb3c1bdb36515c90570aa4ccabfc3dff8d1026d9002f1c832774b60a683",
+  "dataset_version": "travel-bookings-analytical-v1.1.0",
+  "identity_payload": {
+    "canonical_schema_version": "travel-booking-canonical-v1.0.0",
+    "dataset_version": "travel-bookings-analytical-v1.1.0",
+    "feature_timing_sha256": "71a94071f7fbec5915e896f408137a9c33e39da0c3e58bfb569b63c66f5d83e0",
+    "outcome_contract_version": "1.1.0",
+    "partition_sha256": {
+      "features": "dcadea6b5f21ebdf24f965288d00e9b4f9b89106e83713a60c6c26c049fb05d3",
+      "identifiers": "e730e8b2c005a4b0fb3ed9d96f448dc206d9053b866a332cf63a0e673b199ec4",
+      "metadata": "37c175397f0d7cda72b30280cbffd833d21af8e561aaafe77094f3f44d9d2224",
+      "outcomes": "e56b8bd6f02e135f38a21c68577fd8ce953b51e094208c190c86e73bdb58948e"
+    },
+    "schema_version": "travel-bookings-analytical-schema-v1.1.0",
+    "source_sha256": "a95b1de87038d941e912b7e2a145a6d9bb5db083879d67d35b9d5eb87ffcd325",
+    "transformation_config": {
+      "analytical_schema_version": "travel-bookings-analytical-schema-v1.1.0",
+      "canonical_schema_version": "travel-booking-canonical-v1.0.0",
+      "clustering_key": "customer_id",
+      "dataset_version": "travel-bookings-analytical-v1.1.0",
+      "decision_timestamp_column": "booking_date",
+      "derived_calendar_features": [
+        {
+          "name": "travel_month",
+          "source_column": "travel_date",
+          "transform": "gregorian_month_1_to_12"
+        }
+      ],
+      "development_end": "2024-12-31",
+      "future_holdout_end": "2025-12-31",
+      "transformation_version": "1.1.0",
+      "validation_end": "2025-06-30"
+    }
+  },
+  "reproducibility_command": "make analytical-dataset",
+  "schema_version": "travel-bookings-analytical-schema-v1.1.0",
+  "source_dataset_reference": {
+    "feature_timing_path": "synthetic_data/metadata/feature_timing.json",
+    "feature_timing_sha256": "71a94071f7fbec5915e896f408137a9c33e39da0c3e58bfb569b63c66f5d83e0",
+    "path": "synthetic_data/reference/travel_bookings_clean.csv",
+    "sha256": "a95b1de87038d941e912b7e2a145a6d9bb5db083879d67d35b9d5eb87ffcd325"
+  },
+  "transformation_config": {
+    "analytical_schema_version": "travel-bookings-analytical-schema-v1.1.0",
+    "canonical_schema_version": "travel-booking-canonical-v1.0.0",
+    "clustering_key": "customer_id",
+    "dataset_version": "travel-bookings-analytical-v1.1.0",
+    "decision_timestamp_column": "booking_date",
+    "derived_calendar_features": [
+      {
+        "name": "travel_month",
+        "source_column": "travel_date",
+        "transform": "gregorian_month_1_to_12"
+      }
+    ],
+    "development_end": "2024-12-31",
+    "future_holdout_end": "2025-12-31",
+    "transformation_version": "1.1.0",
+    "validation_end": "2025-06-30"
+  }
+}

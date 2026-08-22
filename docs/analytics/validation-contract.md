@@ -233,11 +233,10 @@ the search's own candidates were.
 
 G06's adjustment set is now computed **per candidate**, not fixed once for the whole contract:
 
-1. **Pool.** Every `DECISION_TIME` feature except the candidate's own condition features (adjusting
-   for the treatment itself is circular — unchanged from v1.1.0) and the two calendar-date columns
-   (`booking_date`, `travel_date` — not usable as a stratification group without their own binning
-   design, and temporal effects already have a dedicated gate, G10; a disclosed scope limit, not an
-   oversight).
+1. **Pool.** Every manifest-declared adjustment-eligible `DECISION_TIME` feature except the
+   candidate's own condition features (adjusting for the treatment itself is circular — unchanged
+   from v1.1.0). Date-like or otherwise unsupported decision-time fields are excluded explicitly
+   by the versioned analytical manifest, never by a validation-module column-name list.
 2. **Binning.** A numeric pool column with more than 6 distinct values in the development split is
    quartile-binned (4 groups, same index-based quantile convention as `percentile_ci` elsewhere in
    this module); a numeric column with 6 or fewer distinct values (`installments`, `party_size`) is
@@ -263,8 +262,26 @@ column names (`real_confound`, `irrelevant_a`, `irrelevant_b`) for exactly this 
 *rule* generalizes, not that it was special-cased for one known trap.
 
 **What did not change:** `MIN_STRATUM_CELL = 5` (both exposed and comparison sides of a stratum),
-the E-value check, the attenuation ceiling, the same-sign requirement, and the heterogeneity-check
-covariate (`customer_segment`, still fixed generically, unrelated to this generalization).
+the E-value check, the attenuation ceiling, the same-sign requirement, and travel's reviewed
+heterogeneity role. TASK-066 moved that role from code into the analytical manifest without
+changing travel's selected column or results.
+
+### Domain-aware gate inputs (TASK-066)
+
+The selected analytical dataset's `manifest.json` owns a typed `validation_roles` v1.0.0 block:
+the adjustment-eligible subset, optional G09 heterogeneity column, optional G11 decision-known
+calendar column, clustering column (from the existing `clustering` block), and optional robustness
+group/alternative outcome. Every referenced field must have a compatible role in `feature_timing`
+and must exist in exactly one hash-verified physical partition. Candidate condition fields must
+also exist in that same physical/role contract.
+
+G01 permits only `DECISION_TIME`; `UNKNOWN`, `POST_DECISION`, `OUTCOME`, `IDENTIFIER`, and
+`METADATA` fail closed. G06 draws only from the manifest allowlist and always removes the
+candidate's own condition fields. A missing reviewed G09 or G11 role produces `NOT_EVALUATED`, not
+PASS and not a guessed proxy. Missing manifests, unsupported role-contract versions, unknown
+roles, incompatible semantic-role assignments, partition hash drift, and unknown candidate fields
+are validation errors. Travel's manifest declares its already-reviewed roles, so validation v1.2.0
+semantics and thresholds are unchanged; no validation-contract version bump is required.
 
 ### Why greedy-and-stop, not full joint stratification of everything
 

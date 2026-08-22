@@ -25,8 +25,10 @@ from policy_analytics.analytical_dataset import build_analytical_dataset  # noqa
 from policy_analytics.domain_benchmarks.analytical_bridge import (  # noqa: E402
     analytical_dataset_config,
     provisional_outcome_contract,
+    temporal_split_config,
 )
 from policy_analytics.domain_benchmarks.registry import DOMAIN_REGISTRY  # noqa: E402
+from policy_analytics.temporal_splits import build_temporal_split_manifest  # noqa: E402
 
 DEFAULT_BENCHMARK_ROOT = REPOSITORY / "synthetic_data_domains"
 
@@ -61,9 +63,12 @@ def main() -> None:
     manifest = build_analytical_dataset(
         source_csv, feature_timing_path, output_root, config, outcome_contract
     )
+    dataset_root = output_root / str(manifest["dataset_version"])
+    split_manifest = build_temporal_split_manifest(dataset_root, temporal_split_config(spec))
     print(
         f"Built {manifest['dataset_version']} ({manifest['dataset_identity_sha256'][:12]}) "
-        f"under {output_root} from {args.domain}/{args.variant}"
+        f"under {output_root} from {args.domain}/{args.variant}; "
+        f"split={split_manifest['split_config_version']}"
     )
 
 

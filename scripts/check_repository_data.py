@@ -15,6 +15,13 @@ ALLOWED_DATA_FILES = {
     "synthetic_data/analytical/travel-bookings-analytical-v1.0.0/identifiers.csv",
     "synthetic_data/analytical/travel-bookings-analytical-v1.0.0/metadata.csv",
     "synthetic_data/analytical/travel-bookings-analytical-v1.0.0/split_membership.csv",
+    # TASK-011 v1.1.0 is an additive, versioned successor. v1.0.0 remains tracked because frozen
+    # benchmark runs reference it and must remain reproducible.
+    "synthetic_data/analytical/travel-bookings-analytical-v1.1.0/features.csv",
+    "synthetic_data/analytical/travel-bookings-analytical-v1.1.0/outcomes.csv",
+    "synthetic_data/analytical/travel-bookings-analytical-v1.1.0/identifiers.csv",
+    "synthetic_data/analytical/travel-bookings-analytical-v1.1.0/metadata.csv",
+    "synthetic_data/analytical/travel-bookings-analytical-v1.1.0/split_membership.csv",
     # TASK-061/TASK-062: six-domain generalization benchmark suite, all synthetic,
     # generated deterministically by policy_analytics.domain_benchmarks -- same public,
     # non-customer status as the travel-benchmark files above.
@@ -22,6 +29,7 @@ ALLOWED_DATA_FILES = {
     "synthetic_data_domains/b2b_sales/analytical/b2b_sales-analytical-v1.0.0/identifiers.csv",
     "synthetic_data_domains/b2b_sales/analytical/b2b_sales-analytical-v1.0.0/metadata.csv",
     "synthetic_data_domains/b2b_sales/analytical/b2b_sales-analytical-v1.0.0/outcomes.csv",
+    "synthetic_data_domains/b2b_sales/analytical/b2b_sales-analytical-v1.0.0/split_membership.csv",
     "synthetic_data_domains/b2b_sales/comparable/raw/b2b_sales_dirty.csv",
     "synthetic_data_domains/b2b_sales/comparable/reference/b2b_sales_clean.csv",
     "synthetic_data_domains/b2b_sales/dominant_weak/raw/b2b_sales_dirty.csv",

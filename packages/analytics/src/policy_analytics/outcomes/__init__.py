@@ -31,6 +31,7 @@ from policy_analytics.outcomes.contract import (
     primary_outcome,
     secondary_outcomes,
 )
+from policy_analytics.outcomes.manifest_binding import outcome_definition_from_manifest
 
 __all__ = [
     "DATASET_IDENTITY_SHA256",
@@ -52,6 +53,7 @@ __all__ = [
     "historical_exposure",
     "missingness_gap",
     "mnar_bounds",
+    "outcome_definition_from_manifest",
     "primary_outcome",
     "raw_difference",
     "secondary_outcomes",

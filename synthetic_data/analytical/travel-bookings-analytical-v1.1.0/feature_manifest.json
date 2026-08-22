@@ -1,0 +1,152 @@
+{
+  "canonical_schema_version": "travel-booking-canonical-v1.0.0",
+  "columns": [
+    {
+      "discovery_feature_allowed": true,
+      "dtype": "String",
+      "leakage_risk": "NONE",
+      "name": "booking_date",
+      "semantic_meaning": "Decision timestamp"
+    },
+    {
+      "discovery_feature_allowed": true,
+      "dtype": "String",
+      "leakage_risk": "NONE",
+      "name": "travel_date",
+      "semantic_meaning": "Known scheduled travel date"
+    },
+    {
+      "discovery_feature_allowed": true,
+      "dtype": "String",
+      "leakage_risk": "NONE",
+      "name": "destination",
+      "semantic_meaning": "Quoted destination"
+    },
+    {
+      "discovery_feature_allowed": true,
+      "dtype": "String",
+      "leakage_risk": "NONE",
+      "name": "supplier",
+      "semantic_meaning": "Supplier selected at booking"
+    },
+    {
+      "discovery_feature_allowed": true,
+      "dtype": "String",
+      "leakage_risk": "NONE",
+      "name": "product_category",
+      "semantic_meaning": "Booked product tier"
+    },
+    {
+      "discovery_feature_allowed": true,
+      "dtype": "Float64",
+      "leakage_risk": "NONE",
+      "name": "customer_price_eur",
+      "semantic_meaning": "Quoted gross price"
+    },
+    {
+      "discovery_feature_allowed": true,
+      "dtype": "Float64",
+      "leakage_risk": "NONE",
+      "name": "quoted_cost_eur",
+      "semantic_meaning": "Cost estimate available at booking"
+    },
+    {
+      "discovery_feature_allowed": true,
+      "dtype": "Float64",
+      "leakage_risk": "NONE",
+      "name": "discount_rate",
+      "semantic_meaning": "Discount approved at booking"
+    },
+    {
+      "discovery_feature_allowed": true,
+      "dtype": "String",
+      "leakage_risk": "NONE",
+      "name": "manager",
+      "semantic_meaning": "Booking owner"
+    },
+    {
+      "discovery_feature_allowed": true,
+      "dtype": "String",
+      "leakage_risk": "NONE",
+      "name": "acquisition_channel",
+      "semantic_meaning": "Acquisition source"
+    },
+    {
+      "discovery_feature_allowed": true,
+      "dtype": "String",
+      "leakage_risk": "NONE",
+      "name": "customer_segment",
+      "semantic_meaning": "Pre-existing customer segment"
+    },
+    {
+      "discovery_feature_allowed": true,
+      "dtype": "String",
+      "leakage_risk": "NONE",
+      "name": "customer_type",
+      "semantic_meaning": "New or returning at booking"
+    },
+    {
+      "discovery_feature_allowed": true,
+      "dtype": "Int64",
+      "leakage_risk": "NONE",
+      "name": "party_size",
+      "semantic_meaning": "Booked travellers"
+    },
+    {
+      "discovery_feature_allowed": true,
+      "dtype": "Int64",
+      "leakage_risk": "NONE",
+      "name": "trip_duration_days",
+      "semantic_meaning": "Scheduled duration"
+    },
+    {
+      "discovery_feature_allowed": true,
+      "dtype": "Int64",
+      "leakage_risk": "NONE",
+      "name": "booking_lead_days",
+      "semantic_meaning": "Days between booking and travel"
+    },
+    {
+      "discovery_feature_allowed": true,
+      "dtype": "String",
+      "leakage_risk": "NONE",
+      "name": "payment_method",
+      "semantic_meaning": "Chosen payment method"
+    },
+    {
+      "discovery_feature_allowed": true,
+      "dtype": "Int64",
+      "leakage_risk": "NONE",
+      "name": "installments",
+      "semantic_meaning": "Agreed installment count"
+    },
+    {
+      "discovery_feature_allowed": true,
+      "dtype": "Boolean",
+      "leakage_risk": "NONE",
+      "name": "manual_exception",
+      "semantic_meaning": "Exception recorded during approval"
+    },
+    {
+      "discovery_feature_allowed": true,
+      "dtype": "Int8",
+      "leakage_risk": "LOW",
+      "lineage": {
+        "calendar": "proleptic Gregorian",
+        "invalid_value_policy": "fail closed",
+        "null_policy": "fail closed",
+        "source_columns": [
+          "travel_date"
+        ],
+        "timezone": "not applicable: source is a date without a time-of-day",
+        "transform": "parse ISO-8601 calendar date and extract Gregorian month (1-12)",
+        "transformation_version": "1.1.0"
+      },
+      "name": "travel_month",
+      "semantic_meaning": "Scheduled travel month known when the booking decision is made."
+    }
+  ],
+  "dataset_version": "travel-bookings-analytical-v1.1.0",
+  "role": "DECISION_TIME",
+  "schema_version": "travel-bookings-analytical-schema-v1.1.0"
+}

@@ -1,0 +1,575 @@
+{
+  "canonical_schema_version": "travel-booking-canonical-v1.0.0",
+  "clustering": {
+    "column": "customer_id",
+    "partition": "identifiers"
+  },
+  "dataset_identity_sha256": "b6128eb3c1bdb36515c90570aa4ccabfc3dff8d1026d9002f1c832774b60a683",
+  "dataset_version": "travel-bookings-analytical-v1.1.0",
+  "derived_feature_lineage": {
+    "travel_month": {
+      "calendar": "proleptic Gregorian",
+      "invalid_value_policy": "fail closed",
+      "null_policy": "fail closed",
+      "source_columns": [
+        "travel_date"
+      ],
+      "timezone": "not applicable: source is a date without a time-of-day",
+      "transform": "parse ISO-8601 calendar date and extract Gregorian month (1-12)",
+      "transformation_version": "1.1.0"
+    }
+  },
+  "derived_metadata_columns": {
+    "source_currency": "Renamed from the source METADATA field currency.",
+    "source_row_number": "One-based row lineage in the clean reference CSV.",
+    "split_label": "Deterministic chronological split derived from booking_date."
+  },
+  "excluded_post_decision_columns": [
+    "refund_date",
+    "booking_changes",
+    "support_cases",
+    "last_modified_at"
+  ],
+  "feature_timing": {
+    "acquisition_channel": {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "NONE"
+    },
+    "additional_cost_eur": {
+      "classification": "OUTCOME",
+      "discovery_feature_allowed": false,
+      "leakage_risk": "HIGH"
+    },
+    "booking_changes": {
+      "classification": "POST_DECISION",
+      "discovery_feature_allowed": false,
+      "leakage_risk": "HIGH"
+    },
+    "booking_date": {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "NONE"
+    },
+    "booking_id": {
+      "classification": "IDENTIFIER",
+      "discovery_feature_allowed": false,
+      "leakage_risk": "NONE"
+    },
+    "booking_lead_days": {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "NONE"
+    },
+    "cancellation": {
+      "classification": "OUTCOME",
+      "discovery_feature_allowed": false,
+      "leakage_risk": "HIGH"
+    },
+    "contribution_margin_eur": {
+      "classification": "OUTCOME",
+      "discovery_feature_allowed": false,
+      "leakage_risk": "HIGH"
+    },
+    "currency": {
+      "classification": "METADATA",
+      "discovery_feature_allowed": false,
+      "leakage_risk": "NONE"
+    },
+    "customer_id": {
+      "classification": "IDENTIFIER",
+      "discovery_feature_allowed": false,
+      "leakage_risk": "NONE"
+    },
+    "customer_price_eur": {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "NONE"
+    },
+    "customer_segment": {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "NONE"
+    },
+    "customer_type": {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "NONE"
+    },
+    "destination": {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "NONE"
+    },
+    "discount_rate": {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "NONE"
+    },
+    "gross_profit_eur": {
+      "classification": "OUTCOME",
+      "discovery_feature_allowed": false,
+      "leakage_risk": "HIGH"
+    },
+    "installments": {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "NONE"
+    },
+    "last_modified_at": {
+      "classification": "POST_DECISION",
+      "discovery_feature_allowed": false,
+      "leakage_risk": "HIGH"
+    },
+    "manager": {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "NONE"
+    },
+    "manual_exception": {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "NONE"
+    },
+    "party_size": {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "NONE"
+    },
+    "payment_method": {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "NONE"
+    },
+    "product_category": {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "NONE"
+    },
+    "quoted_cost_eur": {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "NONE"
+    },
+    "refund_amount_eur": {
+      "classification": "OUTCOME",
+      "discovery_feature_allowed": false,
+      "leakage_risk": "HIGH"
+    },
+    "refund_date": {
+      "classification": "POST_DECISION",
+      "discovery_feature_allowed": false,
+      "leakage_risk": "HIGH"
+    },
+    "repeat_purchase_180d": {
+      "classification": "OUTCOME",
+      "discovery_feature_allowed": false,
+      "leakage_risk": "HIGH"
+    },
+    "supplier": {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "NONE"
+    },
+    "support_cases": {
+      "classification": "POST_DECISION",
+      "discovery_feature_allowed": false,
+      "leakage_risk": "HIGH"
+    },
+    "support_cost_eur": {
+      "classification": "OUTCOME",
+      "discovery_feature_allowed": false,
+      "leakage_risk": "HIGH"
+    },
+    "travel_date": {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "NONE"
+    },
+    "travel_month": {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "LOW"
+    },
+    "trip_duration_days": {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "NONE"
+    }
+  },
+  "limitations": [
+    "Candidate-specific exposure-group missingness is computed only after immutable candidate conditions exist.",
+    "This benchmark analytical layer does not replace the blocked production TASK-010 customer-input canonicalization pipeline."
+  ],
+  "outcome_contract": {
+    "available_columns": [
+      "cancellation",
+      "refund_amount_eur",
+      "support_cost_eur",
+      "additional_cost_eur",
+      "gross_profit_eur",
+      "contribution_margin_eur",
+      "repeat_purchase_180d"
+    ],
+    "dataset_scope": "travel-bookings-analytical-v1.1.0",
+    "default_comparison_rule": "complement of the candidate condition within the eligible cohort",
+    "definitions": [
+      {
+        "column": "contribution_margin_eur",
+        "decomposition_of": null,
+        "higher_is_worse": false,
+        "missing_data_policy": "complete_no_missingness_expected",
+        "outcome_id": "contribution_margin_eur",
+        "role": "primary",
+        "unit": "EUR per booking (nominal; single currency; no inflation or FX adjustment)"
+      },
+      {
+        "column": "gross_profit_eur",
+        "decomposition_of": "contribution_margin_eur",
+        "higher_is_worse": false,
+        "missing_data_policy": "complete_no_missingness_expected",
+        "outcome_id": "gross_profit_eur",
+        "role": "secondary",
+        "unit": "EUR per booking (nominal)"
+      },
+      {
+        "column": "contribution_margin_eur / customer_price_eur",
+        "decomposition_of": "contribution_margin_eur",
+        "higher_is_worse": false,
+        "missing_data_policy": "complete_no_missingness_expected",
+        "outcome_id": "contribution_margin_rate",
+        "role": "secondary",
+        "unit": "ratio, dimensionless (contribution margin \u00f7 quoted price; not stored, computed at analysis time)"
+      },
+      {
+        "column": "cancellation",
+        "decomposition_of": null,
+        "higher_is_worse": true,
+        "missing_data_policy": "complete_no_missingness_expected",
+        "outcome_id": "cancellation",
+        "role": "secondary",
+        "unit": "rate, proportion in [0, 1]"
+      },
+      {
+        "column": "refund_amount_eur",
+        "decomposition_of": "contribution_margin_eur",
+        "higher_is_worse": true,
+        "missing_data_policy": "complete_no_missingness_expected",
+        "outcome_id": "refund_amount_eur",
+        "role": "secondary",
+        "unit": "EUR per booking (nominal)"
+      },
+      {
+        "column": "support_cost_eur",
+        "decomposition_of": "contribution_margin_eur",
+        "higher_is_worse": true,
+        "missing_data_policy": "complete_no_missingness_expected",
+        "outcome_id": "support_cost_eur",
+        "role": "secondary",
+        "unit": "EUR per booking (nominal)"
+      },
+      {
+        "column": "additional_cost_eur",
+        "decomposition_of": "contribution_margin_eur",
+        "higher_is_worse": true,
+        "missing_data_policy": "complete_no_missingness_expected",
+        "outcome_id": "additional_cost_eur",
+        "role": "secondary",
+        "unit": "EUR per booking (nominal)"
+      },
+      {
+        "column": "repeat_purchase_180d",
+        "decomposition_of": null,
+        "higher_is_worse": false,
+        "missing_data_policy": "missing_not_at_random_report_bounds",
+        "outcome_id": "repeat_purchase_180d",
+        "role": "secondary",
+        "unit": "rate, proportion in [0, 1]; not economically commensurable with the EUR outcomes"
+      }
+    ],
+    "eligible_cohort_rule": "booking_date within [2024-01-01, 2025-12-31]; no filter on cancellation, refund, support activity, booking_changes, or repeat_purchase_180d.",
+    "owner": "STATISTICS",
+    "primary_outcome_id": "contribution_margin_eur",
+    "status": "ATTACHED",
+    "task": "TASK-013",
+    "version": "1.1.0"
+  },
+  "partitions": {
+    "features": {
+      "columns": [
+        "booking_date",
+        "travel_date",
+        "destination",
+        "supplier",
+        "product_category",
+        "customer_price_eur",
+        "quoted_cost_eur",
+        "discount_rate",
+        "manager",
+        "acquisition_channel",
+        "customer_segment",
+        "customer_type",
+        "party_size",
+        "trip_duration_days",
+        "booking_lead_days",
+        "payment_method",
+        "installments",
+        "manual_exception",
+        "travel_month"
+      ],
+      "path": "features.csv",
+      "schema": [
+        {
+          "dtype": "String",
+          "name": "booking_date"
+        },
+        {
+          "dtype": "String",
+          "name": "travel_date"
+        },
+        {
+          "dtype": "String",
+          "name": "destination"
+        },
+        {
+          "dtype": "String",
+          "name": "supplier"
+        },
+        {
+          "dtype": "String",
+          "name": "product_category"
+        },
+        {
+          "dtype": "Float64",
+          "name": "customer_price_eur"
+        },
+        {
+          "dtype": "Float64",
+          "name": "quoted_cost_eur"
+        },
+        {
+          "dtype": "Float64",
+          "name": "discount_rate"
+        },
+        {
+          "dtype": "String",
+          "name": "manager"
+        },
+        {
+          "dtype": "String",
+          "name": "acquisition_channel"
+        },
+        {
+          "dtype": "String",
+          "name": "customer_segment"
+        },
+        {
+          "dtype": "String",
+          "name": "customer_type"
+        },
+        {
+          "dtype": "Int64",
+          "name": "party_size"
+        },
+        {
+          "dtype": "Int64",
+          "name": "trip_duration_days"
+        },
+        {
+          "dtype": "Int64",
+          "name": "booking_lead_days"
+        },
+        {
+          "dtype": "String",
+          "name": "payment_method"
+        },
+        {
+          "dtype": "Int64",
+          "name": "installments"
+        },
+        {
+          "dtype": "Boolean",
+          "name": "manual_exception"
+        },
+        {
+          "dtype": "Int8",
+          "name": "travel_month"
+        }
+      ],
+      "sha256": "dcadea6b5f21ebdf24f965288d00e9b4f9b89106e83713a60c6c26c049fb05d3"
+    },
+    "identifiers": {
+      "columns": [
+        "booking_id",
+        "customer_id"
+      ],
+      "path": "identifiers.csv",
+      "schema": [
+        {
+          "dtype": "String",
+          "name": "booking_id"
+        },
+        {
+          "dtype": "String",
+          "name": "customer_id"
+        }
+      ],
+      "sha256": "e730e8b2c005a4b0fb3ed9d96f448dc206d9053b866a332cf63a0e673b199ec4"
+    },
+    "metadata": {
+      "columns": [
+        "source_row_number",
+        "split_label",
+        "source_currency"
+      ],
+      "path": "metadata.csv",
+      "schema": [
+        {
+          "dtype": "Int64",
+          "name": "source_row_number"
+        },
+        {
+          "dtype": "String",
+          "name": "split_label"
+        },
+        {
+          "dtype": "String",
+          "name": "source_currency"
+        }
+      ],
+      "sha256": "37c175397f0d7cda72b30280cbffd833d21af8e561aaafe77094f3f44d9d2224"
+    },
+    "outcomes": {
+      "columns": [
+        "cancellation",
+        "refund_amount_eur",
+        "support_cost_eur",
+        "additional_cost_eur",
+        "gross_profit_eur",
+        "contribution_margin_eur",
+        "repeat_purchase_180d"
+      ],
+      "path": "outcomes.csv",
+      "schema": [
+        {
+          "dtype": "Boolean",
+          "name": "cancellation"
+        },
+        {
+          "dtype": "Float64",
+          "name": "refund_amount_eur"
+        },
+        {
+          "dtype": "Float64",
+          "name": "support_cost_eur"
+        },
+        {
+          "dtype": "Float64",
+          "name": "additional_cost_eur"
+        },
+        {
+          "dtype": "Float64",
+          "name": "gross_profit_eur"
+        },
+        {
+          "dtype": "Float64",
+          "name": "contribution_margin_eur"
+        },
+        {
+          "dtype": "Boolean",
+          "name": "repeat_purchase_180d"
+        }
+      ],
+      "sha256": "e56b8bd6f02e135f38a21c68577fd8ce953b51e094208c190c86e73bdb58948e"
+    }
+  },
+  "primary_outcome": "contribution_margin_eur",
+  "record_count": 10000,
+  "reproducibility_command": "make analytical-dataset",
+  "row_alignment": "All CSV partitions preserve identical source row order.",
+  "schema_version": "travel-bookings-analytical-schema-v1.1.0",
+  "source": {
+    "feature_timing_path": "synthetic_data/metadata/feature_timing.json",
+    "feature_timing_sha256": "71a94071f7fbec5915e896f408137a9c33e39da0c3e58bfb569b63c66f5d83e0",
+    "path": "synthetic_data/reference/travel_bookings_clean.csv",
+    "sha256": "a95b1de87038d941e912b7e2a145a6d9bb5db083879d67d35b9d5eb87ffcd325"
+  },
+  "status": "READY",
+  "supporting_artifacts": {
+    "excluded_columns_manifest": {
+      "path": "excluded_columns_manifest.json",
+      "sha256": "cbdfd5d3ee927bfc98a2323060d64e7c4e21ae112e26324c8941518542ce0c26"
+    },
+    "feature_manifest": {
+      "path": "feature_manifest.json",
+      "sha256": "c2d3efe88d2625827d523b3981f607e6a63efa869292a19450dad6b697390c2d"
+    },
+    "missingness": {
+      "path": "missingness.json",
+      "sha256": "55712bd379100ff534397a564674656a6414cfecceacb51e9582bff2d2193996"
+    },
+    "outcome_columns_manifest": {
+      "path": "outcome_columns_manifest.json",
+      "sha256": "bb3a18b86b1ffed07a65cda4049631488b45f91d11f60630d8894ac8fbd64474"
+    },
+    "version_metadata": {
+      "path": "version_metadata.json",
+      "sha256": "e7d8fb772866727f12a87e649ec61be26d19bcc5bb54b84ac5df624bca833a2e"
+    }
+  },
+  "temporal_splits": {
+    "boundaries": {
+      "development": [
+        "2024-01-01",
+        "2024-12-31"
+      ],
+      "future_holdout": [
+        "2025-07-01",
+        "2025-12-31"
+      ],
+      "validation": [
+        "2025-01-01",
+        "2025-06-30"
+      ]
+    },
+    "column": "split_label",
+    "counts": {
+      "development": 4999,
+      "future_holdout": 2539,
+      "validation": 2462
+    },
+    "partition": "metadata",
+    "strategy": "chronological; no random shuffling"
+  },
+  "transformation": {
+    "analytical_schema_version": "travel-bookings-analytical-schema-v1.1.0",
+    "canonical_schema_version": "travel-booking-canonical-v1.0.0",
+    "clustering_key": "customer_id",
+    "dataset_version": "travel-bookings-analytical-v1.1.0",
+    "decision_timestamp_column": "booking_date",
+    "derived_calendar_features": [
+      {
+        "name": "travel_month",
+        "source_column": "travel_date",
+        "transform": "gregorian_month_1_to_12"
+      }
+    ],
+    "development_end": "2024-12-31",
+    "future_holdout_end": "2025-12-31",
+    "transformation_version": "1.1.0",
+    "validation_end": "2025-06-30"
+  },
+  "validation_roles": {
+    "adjustment_eligible": [
+      "acquisition_channel", "booking_lead_days", "customer_price_eur", "customer_segment",
+      "customer_type", "destination", "discount_rate", "installments", "manager",
+      "manual_exception", "party_size", "payment_method", "product_category", "quoted_cost_eur",
+      "supplier", "trip_duration_days"
+    ],
+    "alternative_outcome_id": "gross_profit_eur",
+    "heterogeneity_column": "customer_segment",
+    "robustness_group_column": "manager",
+    "seasonality_column": "booking_date",
+    "version": "1.0.0"
+  }
+}

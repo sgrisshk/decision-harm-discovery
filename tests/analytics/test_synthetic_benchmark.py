@@ -11,7 +11,7 @@ from policy_analytics.blind_isolation import (
     prepare_blind_workspace,
     validate_blind_workspace,
 )
-from policy_analytics.outcomes.contract import DATASET_IDENTITY_SHA256
+from policy_analytics.outcomes.contract import OUTCOME_CONTRACT_VERSION
 from policy_analytics.synthetic_benchmark import (
     BenchmarkConfig,
     evaluate_persisted_candidates,
@@ -102,12 +102,17 @@ def test_blind_workspace_is_allowlisted_and_rejects_restricted_files(tmp_path: P
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(f"public input: {relative}\n", encoding="utf-8")
     analytical_manifest = (
-        repository / "synthetic_data/analytical/travel-bookings-analytical-v1.0.0/manifest.json"
+        repository / "synthetic_data/analytical/travel-bookings-analytical-v1.1.0/manifest.json"
     )
     analytical_manifest.write_text(
         json.dumps(
             {
-                "dataset_identity_sha256": DATASET_IDENTITY_SHA256,
+                "dataset_version": "travel-bookings-analytical-v1.1.0",
+                "dataset_identity_sha256": "a" * 64,
+                "outcome_contract": {
+                    "dataset_scope": "travel-bookings-analytical-v1.1.0",
+                    "version": OUTCOME_CONTRACT_VERSION,
+                },
                 "record_count": 10,
                 "partitions": {
                     name: {"columns": [name], "schema": [{"name": name, "dtype": "String"}]}
@@ -169,12 +174,17 @@ def test_evaluator_requires_signed_immutable_commitment(tmp_path: Path) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(f"public input: {relative}\n", encoding="utf-8")
     analytical_manifest = (
-        repository / "synthetic_data/analytical/travel-bookings-analytical-v1.0.0/manifest.json"
+        repository / "synthetic_data/analytical/travel-bookings-analytical-v1.1.0/manifest.json"
     )
     analytical_manifest.write_text(
         json.dumps(
             {
-                "dataset_identity_sha256": DATASET_IDENTITY_SHA256,
+                "dataset_version": "travel-bookings-analytical-v1.1.0",
+                "dataset_identity_sha256": "a" * 64,
+                "outcome_contract": {
+                    "dataset_scope": "travel-bookings-analytical-v1.1.0",
+                    "version": OUTCOME_CONTRACT_VERSION,
+                },
                 "record_count": 10,
                 "partitions": {
                     name: {"columns": [name], "schema": [{"name": name, "dtype": "String"}]}

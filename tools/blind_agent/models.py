@@ -6,6 +6,9 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 OUTPUT_SCHEMA_VERSION = "1.1.0"
+FeatureTimingClass = Literal[
+    "DECISION_TIME", "POST_DECISION", "OUTCOME", "IDENTIFIER", "METADATA", "UNKNOWN"
+]
 
 
 class Condition(BaseModel):
@@ -56,7 +59,7 @@ class CandidatesDocument(BaseModel):
     diagnostic_only_splits: list[str]
     selection_used_only_fit_split: bool
     input_provenance_hashes: dict[str, str]
-    feature_timing_classes: dict[str, str]
+    feature_timing_classes: dict[str, FeatureTimingClass]
     insufficiency_reason: str | None = None
     candidates: list[Candidate]
 
@@ -70,6 +73,15 @@ class CandidatesDocument(BaseModel):
                 raise ValueError("INSUFFICIENT_CANDIDATES output must contain fewer than 10")
             if not self.insufficiency_reason or not self.insufficiency_reason.strip():
                 raise ValueError("insufficient candidate output requires insufficiency_reason")
+        for candidate in self.candidates:
+            for condition in candidate.conditions:
+                if (
+                    self.feature_timing_classes
+                    and self.feature_timing_classes.get(condition.feature) != "DECISION_TIME"
+                ):
+                    raise ValueError(
+                        f"candidate condition uses non-decision-time feature: {condition.feature}"
+                    )
         return self
 
 

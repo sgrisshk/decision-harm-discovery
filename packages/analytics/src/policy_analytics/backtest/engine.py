@@ -133,7 +133,7 @@ def backtest_from_mask(
     avoided_bad = sum(1 for value in affected_values if value < BAD_OUTCOME_THRESHOLD)
     suppressed_good = sum(1 for value in affected_values if value >= BAD_OUTCOME_THRESHOLD)
 
-    clusters = cluster_cells(holdout_frame, rule_mask, outcome.column)
+    clusters = cluster_cells(holdout_frame, rule_mask, outcome.column, "customer_id")
     raw_reps = cluster_bootstrap_replicates(clusters, bootstrap_reps, rng)
     confidence_level = DEFAULT_THRESHOLDS.confidence_level
 

@@ -62,7 +62,7 @@ def test_cluster_cells_and_bootstrap_replicates_recover_the_true_difference() ->
         }
     )
     mask = frame["customer_id"] == "A"
-    cells = cluster_cells(frame, mask, "outcome")
+    cells = cluster_cells(frame, mask, "outcome", "customer_id")
     assert cells["A"] == ClusterCell(
         exposed_sum=1000.0, exposed_n=10, comparison_sum=0.0, comparison_n=0
     )
@@ -166,13 +166,12 @@ def test_stratified_adjustment_with_balanced_strata_finds_the_true_effect() -> N
 # generalizes, not that it was special-cased for one known trap.
 
 
-def test_adjustment_pool_excludes_condition_features_and_date_columns() -> None:
-    pool = _adjustment_pool(frozenset({"supplier", "discount_rate"}))
-    assert "supplier" not in pool
-    assert "discount_rate" not in pool
-    assert "booking_date" not in pool
-    assert "travel_date" not in pool
-    assert "manager" in pool  # an eligible DECISION_TIME feature untouched by the condition
+def test_adjustment_pool_excludes_condition_features_from_manifest_eligibility() -> None:
+    eligible = frozenset({"neutral_a", "neutral_b", "neutral_c"})
+    pool = _adjustment_pool(eligible, frozenset({"neutral_b"}))
+    assert "neutral_b" not in pool
+    assert "neutral_a" in pool
+    assert "neutral_c" in pool
     assert pool == tuple(sorted(pool))  # deterministic order
 
 
@@ -394,6 +393,26 @@ def test_run_validation_against_the_real_frozen_candidates() -> None:
     # At least one real candidate's G05 must actually pass under the fixed method, given effects
     # this large and consistent — otherwise the "fix" would be untested against real data.
     assert passing_candidates > 0
+    # TASK-066 regression pin: manifest-owned roles must preserve the immediately preceding
+    # validation-v1.2.0 travel behavior exactly. The v1.0.0 frozen dry-run report predates G05/G06
+    # contract changes and is intentionally not the comparison baseline here.
+    assert {result.candidate_id: result.verdict for result in results} == {
+        "CAND-001": Verdict.DOWNGRADE,
+        "CAND-002": Verdict.DOWNGRADE,
+        "CAND-003": Verdict.DOWNGRADE,
+        "CAND-004": Verdict.PASS,
+        "CAND-005": Verdict.DOWNGRADE,
+        "CAND-006": Verdict.DOWNGRADE,
+        "CAND-007": Verdict.PASS,
+        "CAND-008": Verdict.DOWNGRADE,
+        "CAND-009": Verdict.PASS,
+        "CAND-010": Verdict.PASS,
+        "CAND-011": Verdict.DOWNGRADE,
+        "CAND-012": Verdict.DOWNGRADE,
+        "CAND-013": Verdict.DOWNGRADE,
+        "CAND-014": Verdict.DOWNGRADE,
+        "CAND-015": Verdict.PASS,
+    }
 
 
 # --- Blind-agent output schema compatibility (TASK-019 closing-run readiness) --------------------

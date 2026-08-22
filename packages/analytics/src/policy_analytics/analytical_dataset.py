@@ -14,9 +14,6 @@ from policy_analytics.cleaning.canonical_schema import (
     CANONICAL_SCHEMA_VERSION,
 )
 from policy_analytics.outcomes.contract import (
-    DATASET_VERSION as OUTCOME_CONTRACT_DATASET_SCOPE,
-)
-from policy_analytics.outcomes.contract import (
     DEFAULT_COMPARISON_RULE,
     ELIGIBLE_COHORT_RULE,
     OUTCOME_CONTRACT_VERSION,
@@ -24,7 +21,8 @@ from policy_analytics.outcomes.contract import (
     PRIMARY_OUTCOME_ID,
 )
 
-DATASET_VERSION = "travel-bookings-analytical-v1.0.0"
+DATASET_VERSION = "travel-bookings-analytical-v1.1.0"
+ANALYTICAL_SCHEMA_VERSION = "travel-bookings-analytical-schema-v1.1.0"
 #: TASK-010 now formally defines this schema (`policy_analytics.cleaning.canonical_schema`) —
 #: re-exported here unchanged (same version string, same target shape) so existing importers of
 #: `analytical_dataset.CANONICAL_SCHEMA_VERSION` are unaffected.
@@ -42,6 +40,7 @@ ALLOWED_CLASSIFICATIONS = {
 class AnalyticalDatasetConfig:
     dataset_version: str = DATASET_VERSION
     canonical_schema_version: str = CANONICAL_SCHEMA_VERSION
+    analytical_schema_version: str = ANALYTICAL_SCHEMA_VERSION
     decision_timestamp_column: str = "booking_date"
     #: TASK-061 generalization: was a hardcoded `frame["booking_id"]` literal. Defaulted to
     #: `"booking_id"` so the travel caller (`scripts/build_synthetic_analytical_dataset.py`, which
@@ -52,10 +51,15 @@ class AnalyticalDatasetConfig:
     #: literal. `None` skips the metadata currency rename entirely (a domain with no currency
     #: METADATA column). Defaulted to `"currency"` so the travel caller is unaffected.
     currency_column: str | None = "currency"
+    calendar_source_column: str | None = "travel_date"
+    calendar_month_column: str = "travel_month"
+    heterogeneity_column: str | None = "customer_segment"
+    robustness_group_column: str | None = "manager"
+    alternative_outcome_id: str | None = "gross_profit_eur"
     development_end: str = "2024-12-31"
     validation_end: str = "2025-06-30"
     future_holdout_end: str = "2025-12-31"
-    transformation_version: str = "1.0.0"
+    transformation_version: str = "1.1.0"
 
 
 @dataclass(frozen=True, slots=True)
@@ -85,7 +89,7 @@ class OutcomeContractInputs:
     definitions: tuple[dict[str, Any], ...]
 
 
-def _default_travel_outcome_contract() -> OutcomeContractInputs:
+def _default_travel_outcome_contract(dataset_scope: str) -> OutcomeContractInputs:
     """The real, STATISTICS-reviewed `TASK-013` contract — unchanged from what this module always
     embedded, just relocated behind the new pluggable `outcome_contract` parameter so a caller with
     no equivalent contract (every `TASK-061` domain) is not forced to fabricate one that looks
@@ -107,7 +111,7 @@ def _default_travel_outcome_contract() -> OutcomeContractInputs:
         owner="STATISTICS",
         task="TASK-013",
         version=OUTCOME_CONTRACT_VERSION,
-        dataset_scope=OUTCOME_CONTRACT_DATASET_SCOPE,
+        dataset_scope=dataset_scope,
         primary_outcome_id=PRIMARY_OUTCOME_ID,
         eligible_cohort_rule=ELIGIBLE_COHORT_RULE,
         default_comparison_rule=DEFAULT_COMPARISON_RULE,
@@ -163,6 +167,47 @@ def _split_expression(config: AnalyticalDatasetConfig) -> pl.Expr:
 
 def _schema_for(frame: pl.DataFrame) -> list[dict[str, str]]:
     return [{"name": name, "dtype": str(dtype)} for name, dtype in frame.schema.items()]
+
+
+def _calendar_features(
+    frame: pl.DataFrame, timing: dict[str, dict[str, Any]], config: AnalyticalDatasetConfig
+) -> tuple[pl.DataFrame, dict[str, dict[str, Any]]]:
+    """Derive reusable decision-known calendar semantics, failing closed on invalid dates."""
+    source = config.calendar_source_column
+    if source is None:
+        return frame, {}
+    if source not in frame.columns or source not in timing:
+        raise ValueError(f"calendar source column is missing: {source}")
+    if timing[source]["classification"] != "DECISION_TIME":
+        raise ValueError("calendar features may only derive from a DECISION_TIME source")
+    output = config.calendar_month_column
+    if output in frame.columns:
+        raise ValueError(f"derived calendar column already exists: {output}")
+    if frame[source].null_count():
+        raise ValueError(f"calendar source column contains null values: {source}")
+    try:
+        derived = frame.with_columns(
+            pl.col(source).str.to_date(strict=True).dt.month().cast(pl.Int8).alias(output)
+        )
+    except (pl.exceptions.ComputeError, pl.exceptions.InvalidOperationError) as exc:
+        raise ValueError(f"calendar source column contains invalid ISO dates: {source}") from exc
+    return derived, {
+        output: {
+            "classification": "DECISION_TIME",
+            "semantic_meaning": "Scheduled travel month known when the booking decision is made.",
+            "discovery_feature_allowed": True,
+            "leakage_risk": "LOW",
+            "lineage": {
+                "source_columns": [source],
+                "transform": "parse ISO-8601 calendar date and extract Gregorian month (1-12)",
+                "calendar": "proleptic Gregorian",
+                "timezone": "not applicable: source is a date without a time-of-day",
+                "null_policy": "fail closed",
+                "invalid_value_policy": "fail closed",
+                "transformation_version": config.transformation_version,
+            },
+        }
+    }
 
 
 def _missingness(frame: pl.DataFrame, split_labels: pl.Series) -> dict[str, Any]:
@@ -225,12 +270,24 @@ def _config_summary(config: AnalyticalDatasetConfig) -> dict[str, Any]:
     return {
         "dataset_version": config.dataset_version,
         "canonical_schema_version": config.canonical_schema_version,
+        "analytical_schema_version": config.analytical_schema_version,
         "decision_timestamp_column": config.decision_timestamp_column,
         "clustering_key": config.clustering_key,
         "development_end": config.development_end,
         "validation_end": config.validation_end,
         "future_holdout_end": config.future_holdout_end,
         "transformation_version": config.transformation_version,
+        "derived_calendar_features": (
+            []
+            if config.calendar_source_column is None
+            else [
+                {
+                    "name": config.calendar_month_column,
+                    "source_column": config.calendar_source_column,
+                    "transform": "gregorian_month_1_to_12",
+                }
+            ]
+        ),
     }
 
 
@@ -249,7 +306,7 @@ def build_analytical_dataset(
     builds both from any registered domain's `DomainSpec`.
     """
     config = config or AnalyticalDatasetConfig()
-    outcome_contract = outcome_contract or _default_travel_outcome_contract()
+    outcome_contract = outcome_contract or _default_travel_outcome_contract(config.dataset_version)
     timing = _load_timing(feature_timing_path)
     frame = pl.read_csv(source_csv, try_parse_dates=False, null_values=[""])
     missing_timing = sorted(set(frame.columns) - set(timing))
@@ -262,6 +319,9 @@ def build_analytical_dataset(
         raise ValueError(f"{config.identifier_column} must be unique")
     if frame[config.clustering_key].null_count() or frame[config.clustering_key].n_unique() < 5:
         raise ValueError("clustering key must be complete and contain at least five clusters")
+
+    frame, derived_timing = _calendar_features(frame, timing, config)
+    timing = {**timing, **derived_timing}
 
     columns_by_classification = {
         classification: [
@@ -334,7 +394,8 @@ def build_analytical_dataset(
     # written CSV content), so freezing this sub-payload's shape loses no integrity checking.
     identity_payload = {
         "dataset_version": config.dataset_version,
-        "schema_version": config.canonical_schema_version,
+        "schema_version": config.analytical_schema_version,
+        "canonical_schema_version": config.canonical_schema_version,
         "source_sha256": source_sha256,
         "feature_timing_sha256": feature_timing_sha256,
         "transformation_config": _config_summary(config),
@@ -346,7 +407,8 @@ def build_analytical_dataset(
     ).hexdigest()
     feature_manifest = {
         "dataset_version": config.dataset_version,
-        "schema_version": config.canonical_schema_version,
+        "schema_version": config.analytical_schema_version,
+        "canonical_schema_version": config.canonical_schema_version,
         "role": "DECISION_TIME",
         "columns": [
             {
@@ -355,6 +417,7 @@ def build_analytical_dataset(
                 "semantic_meaning": timing[name]["semantic_meaning"],
                 "discovery_feature_allowed": True,
                 "leakage_risk": timing[name]["leakage_risk"],
+                **({"lineage": timing[name]["lineage"]} if "lineage" in timing[name] else {}),
             }
             for name in feature_columns
         ],
@@ -364,7 +427,8 @@ def build_analytical_dataset(
 
     outcome_columns_manifest = {
         "dataset_version": config.dataset_version,
-        "schema_version": config.canonical_schema_version,
+        "schema_version": config.analytical_schema_version,
+        "canonical_schema_version": config.canonical_schema_version,
         "role": "OUTCOME",
         "stored_columns": outcome_columns,
         "outcome_contract": {
@@ -385,7 +449,8 @@ def build_analytical_dataset(
 
     excluded_columns_manifest = {
         "dataset_version": config.dataset_version,
-        "schema_version": config.canonical_schema_version,
+        "schema_version": config.analytical_schema_version,
+        "canonical_schema_version": config.canonical_schema_version,
         "excluded_from_feature_matrix": [
             {
                 "name": name,
@@ -417,7 +482,8 @@ def build_analytical_dataset(
     reproducibility_command = "make analytical-dataset"
     version_metadata = {
         "dataset_version": config.dataset_version,
-        "schema_version": config.canonical_schema_version,
+        "schema_version": config.analytical_schema_version,
+        "canonical_schema_version": config.canonical_schema_version,
         "dataset_identity_sha256": version_identity,
         "transformation_config": _config_summary(config),
         "source_dataset_reference": {
@@ -441,7 +507,8 @@ def build_analytical_dataset(
     }
     manifest: dict[str, Any] = {
         "dataset_version": config.dataset_version,
-        "schema_version": config.canonical_schema_version,
+        "schema_version": config.analytical_schema_version,
+        "canonical_schema_version": config.canonical_schema_version,
         "dataset_identity_sha256": version_identity,
         "status": "READY",
         "record_count": frame.height,
@@ -472,6 +539,20 @@ def build_analytical_dataset(
         },
         "reproducibility_command": reproducibility_command,
         "clustering": {"column": config.clustering_key, "partition": "identifiers"},
+        "validation_roles": {
+            "version": "1.0.0",
+            "adjustment_eligible": sorted(
+                name
+                for name in partitions["features"].columns
+                if name != config.decision_timestamp_column
+                and name != config.calendar_source_column
+                and name != config.calendar_month_column
+            ),
+            "heterogeneity_column": config.heterogeneity_column,
+            "seasonality_column": config.decision_timestamp_column,
+            "robustness_group_column": config.robustness_group_column,
+            "alternative_outcome_id": config.alternative_outcome_id,
+        },
         "temporal_splits": {
             "column": "split_label",
             "partition": "metadata",
@@ -490,6 +571,9 @@ def build_analytical_dataset(
                 "leakage_risk": timing[name]["leakage_risk"],
             }
             for name in frame.columns
+        },
+        "derived_feature_lineage": {
+            name: metadata["lineage"] for name, metadata in derived_timing.items()
         },
         "derived_metadata_columns": {
             "source_row_number": "One-based row lineage in the clean reference CSV.",

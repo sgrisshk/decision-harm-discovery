@@ -16,8 +16,8 @@ outside it, exactly the gap `ADR-036` diagnosed in the travel benchmark's trap `
 here references `T03`, `acquisition_channel`, or any other specific feature/trap by name — the
 generalization is a property of the selection *rule*, not a patch for one candidate. See
 `docs/analytics/validation-contract.md` §4b for the full design and its synthetic-only regression
-tests. The heterogeneity-check covariate (`customer_segment`) is unchanged and still fixed
-generically. This module does not import, read, or reference `synthetic_benchmark.py` or
+tests. Heterogeneity and seasonality roles are declared by the selected analytical manifest.
+This module does not import, read, or reference `synthetic_benchmark.py` or
 `hidden_ground_truth.json`, and must not be edited to do so.
 
 Flow: `validate_family` computes gates G00-G04 and G06-G15 per candidate (everything that does not
@@ -70,12 +70,17 @@ from policy_analytics.validation.grading import (
     classify_evidence_level,
     normal_approx_two_sided_p,
 )
+from policy_analytics.validation.input_contract import (
+    FeatureRole,
+    ValidationInput,
+    validate_candidate_fields,
+    validation_input_from_manifest,
+)
 from policy_analytics.validation.report import EffectEstimate, ValidationReport
 
 Z_95 = 1.959964  # two-sided 95% normal quantile
 Z_POWER_80 = 0.841621  # one-sided 80% normal quantile (matches DEFAULT_THRESHOLDS.power_target)
 
-HETEROGENEITY_COLUMN = "customer_segment"
 SPLITS: tuple[str, ...] = ("development", "validation", "future_holdout")
 DEV_BOOTSTRAP_REPS = 2000
 DIAGNOSTIC_BOOTSTRAP_REPS = 1000
@@ -87,14 +92,12 @@ MIN_STRATUM_CELL = 5
 #: strings, not usable as a stratification group without a separate binning design of their own,
 #: and temporal effects already have a dedicated gate (G09, temporal stability) — excluding them
 #: here is a disclosed scope limit, not an oversight (`docs/analytics/validation-contract.md` §4b).
-ADJUSTMENT_POOL_EXCLUDED: frozenset[str] = frozenset({"booking_date", "travel_date"})
 #: A numeric column with this many or fewer distinct values in the development split is already
 #: effectively categorical (e.g. `installments`, `party_size`) and is used as-is; only numeric
 #: columns with more distinct values than this get quantile-binned.
 ADJUSTMENT_NUMERIC_RAW_LEVELS_MAX = 6
 #: Quartiles: enough resolution to separate a numeric confounder's groups without consuming more
-#: degrees of freedom per covariate than a typical categorical feature in this dataset already does
-#: (`destination`, `supplier`, `product_category` are all in the 3-5 level range).
+#: degrees of freedom per covariate than a typical low-cardinality categorical feature does.
 ADJUSTMENT_QUANTILE_BINS = 4
 
 
@@ -130,32 +133,8 @@ def rule_expr(conditions: Sequence[Condition]) -> pl.Expr:
     return expression
 
 
-DECISION_TIME_FEATURES: frozenset[str] = frozenset(
-    {
-        "booking_date",
-        "travel_date",
-        "destination",
-        "supplier",
-        "product_category",
-        "customer_price_eur",
-        "quoted_cost_eur",
-        "discount_rate",
-        "manager",
-        "acquisition_channel",
-        "customer_segment",
-        "customer_type",
-        "party_size",
-        "trip_duration_days",
-        "booking_lead_days",
-        "payment_method",
-        "installments",
-        "manual_exception",
-    }
-)
-
-
 def load_analytical_frame(dataset_root: Path) -> pl.DataFrame:
-    """Join the four row-aligned partitions into one frame with a derived booking_month."""
+    """Join the four manifest-verified, row-aligned analytical partitions."""
     features = pl.read_csv(dataset_root / "features.csv")
     outcomes = pl.read_csv(dataset_root / "outcomes.csv")
     identifiers = pl.read_csv(dataset_root / "identifiers.csv")
@@ -167,10 +146,7 @@ def load_analytical_frame(dataset_root: Path) -> pl.DataFrame:
     ):
         if frame.height != features.height:
             raise ValueError(f"partition {name} is not row-aligned with features.csv")
-    frame = pl.concat([features, outcomes, identifiers, metadata], how="horizontal")
-    return frame.with_columns(
-        pl.col("booking_date").str.slice(5, 2).cast(pl.Int64).alias("booking_month")
-    )
+    return pl.concat([features, outcomes, identifiers, metadata], how="horizontal")
 
 
 @dataclass(frozen=True, slots=True)
@@ -182,7 +158,7 @@ class ClusterCell:
 
 
 def cluster_cells(
-    frame: pl.DataFrame, mask: pl.Series, outcome_column: str, cluster_column: str = "customer_id"
+    frame: pl.DataFrame, mask: pl.Series, outcome_column: str, cluster_column: str
 ) -> dict[str, ClusterCell]:
     working = frame.select([cluster_column, outcome_column]).with_columns(mask.alias("_exposed"))
     grouped = working.group_by([cluster_column, "_exposed"]).agg(
@@ -370,14 +346,16 @@ def _stratified_adjustment(
     return adjusted_diff, coverage
 
 
-def _adjustment_pool(condition_features: frozenset[str]) -> tuple[str, ...]:
+def _adjustment_pool(
+    eligible_features: frozenset[str], condition_features: frozenset[str]
+) -> tuple[str, ...]:
     """Every `DECISION_TIME` feature eligible for G06 adjustment on one candidate: not one of the
-    candidate's own conditions (adjusting for the treatment itself is circular), not a date column
-    (`ADJUSTMENT_POOL_EXCLUDED`). Sorted for a deterministic, auditable order independent of set
-    iteration order — the actual selection order used by `_select_adjustment_columns` is by
+    candidate's own conditions (adjusting for the treatment itself is circular). Sorted for a
+    deterministic, auditable order independent of set iteration order — the actual selection
+    order used by `_select_adjustment_columns` is by
     cardinality, computed separately; this is just the eligible pool.
     """
-    return tuple(sorted(DECISION_TIME_FEATURES - ADJUSTMENT_POOL_EXCLUDED - condition_features))
+    return tuple(sorted(eligible_features - condition_features))
 
 
 def _quantile_breakpoints(values: Sequence[float], bins: int) -> list[float]:
@@ -485,7 +463,11 @@ class CandidateInterim:
 
 
 def _validate_one(
-    frame: pl.DataFrame, candidate: dict[str, Any], outcome: OutcomeDefinition, rng: random.Random
+    frame: pl.DataFrame,
+    candidate: dict[str, Any],
+    outcome: OutcomeDefinition,
+    inputs: ValidationInput,
+    rng: random.Random,
 ) -> CandidateInterim | None:
     candidate_id = candidate["candidate_id"]
     conditions = tuple(
@@ -515,7 +497,11 @@ def _validate_one(
         GateId.LINEAGE, True, "Candidate is PERSISTED with a resolvable dataset/outcome reference."
     )
 
-    non_decision_time = condition_features - DECISION_TIME_FEATURES
+    non_decision_time = {
+        feature
+        for feature in condition_features
+        if inputs.feature_roles.get(feature) is not FeatureRole.DECISION_TIME
+    }
     gates[GateId.TARGET_LEAKAGE] = _gate(
         GateId.TARGET_LEAKAGE,
         not non_decision_time,
@@ -524,7 +510,7 @@ def _validate_one(
         else f"Non-decision-time features: {sorted(non_decision_time)}",
     )
 
-    adjustment_pool = _adjustment_pool(condition_features)
+    adjustment_pool = _adjustment_pool(inputs.adjustment_features, condition_features)
     binned_dev_frame = _binned_adjustment_frame(dev_frame, adjustment_pool)
     adjustment_set = _select_adjustment_columns(
         binned_dev_frame,
@@ -541,7 +527,7 @@ def _validate_one(
         f"Adjustment set {adjustment_set} is decision-time and excludes condition features.",
     )
 
-    dev_clusters = cluster_cells(dev_frame, dev_mask, outcome.column)
+    dev_clusters = cluster_cells(dev_frame, dev_mask, outcome.column, inputs.clustering_column)
     n_clusters_touched = len(dev_clusters)
     mde = minimum_detectable_effect(dev.n_exposed, dev.n_comparison, dev.pooled_sd)
     diagnostics["minimum_detectable_effect_eur"] = mde
@@ -571,7 +557,7 @@ def _validate_one(
         ci_low,
         ci_high,
         DEFAULT_THRESHOLDS.confidence_level,
-        "cluster_bootstrap_customer_id",
+        f"cluster_bootstrap_{inputs.clustering_column}",
         outcome.unit,
     )
     gates[GateId.UNCERTAINTY] = _gate(
@@ -634,39 +620,48 @@ def _validate_one(
         GateId.SURVIVORSHIP, True, "Full eligible cohort; no post-decision filter applied."
     )
 
-    seg_frame_grouped = dev_frame.select([HETEROGENEITY_COLUMN, outcome.column]).with_columns(
-        dev_mask.alias("_exposed")
-    )
-    seg_grouped = seg_frame_grouped.group_by([HETEROGENEITY_COLUMN, "_exposed"]).agg(
-        pl.col(outcome.column).sum().alias("_sum"), pl.col(outcome.column).count().alias("_n")
-    )
-    seg_cells: dict[str, dict[str, float]] = {}
-    for row in seg_grouped.iter_rows(named=True):
-        cell = seg_cells.setdefault(
-            row[HETEROGENEITY_COLUMN], {"es": 0.0, "en": 0, "cs": 0.0, "cn": 0}
+    heterogeneity_column = inputs.heterogeneity_column
+    if heterogeneity_column is None:
+        diagnostics["segment_reversal_exposure_share"] = None
+        gates[GateId.SIMPSON] = GateResult(
+            gate_id=GateId.SIMPSON,
+            outcome=GateOutcome.NOT_EVALUATED,
+            detail="Manifest declares no reviewed heterogeneity role; G09 cannot be evaluated.",
         )
-        if row["_exposed"]:
-            cell["es"] += row["_sum"]
-            cell["en"] += row["_n"]
-        else:
-            cell["cs"] += row["_sum"]
-            cell["cn"] += row["_n"]
-    reversed_exposure = sum(
-        cell["en"]
-        for cell in seg_cells.values()
-        if cell["en"]
-        and cell["cn"]
-        and ((cell["es"] / cell["en"] - cell["cs"] / cell["cn"]) * outcome.harm_multiplier > 0)
-        != (dev.harm_per_booking > 0)
-    )
-    reversal_share = reversed_exposure / dev.n_exposed if dev.n_exposed else 0.0
-    diagnostics["segment_reversal_exposure_share"] = reversal_share
-    gates[GateId.SIMPSON] = _gate(
-        GateId.SIMPSON,
-        reversal_share < DEFAULT_THRESHOLDS.simpson_reversal_exposure_share,
-        f"Sign reverses in {HETEROGENEITY_COLUMN} strata covering {reversal_share:.1%} of exposure "
-        f"(threshold {DEFAULT_THRESHOLDS.simpson_reversal_exposure_share:.0%}).",
-    )
+    else:
+        seg_frame_grouped = dev_frame.select([heterogeneity_column, outcome.column]).with_columns(
+            dev_mask.alias("_exposed")
+        )
+        seg_grouped = seg_frame_grouped.group_by([heterogeneity_column, "_exposed"]).agg(
+            pl.col(outcome.column).sum().alias("_sum"), pl.col(outcome.column).count().alias("_n")
+        )
+        seg_cells: dict[str, dict[str, float]] = {}
+        for row in seg_grouped.iter_rows(named=True):
+            cell = seg_cells.setdefault(
+                str(row[heterogeneity_column]), {"es": 0.0, "en": 0, "cs": 0.0, "cn": 0}
+            )
+            if row["_exposed"]:
+                cell["es"] += row["_sum"]
+                cell["en"] += row["_n"]
+            else:
+                cell["cs"] += row["_sum"]
+                cell["cn"] += row["_n"]
+        reversed_exposure = sum(
+            cell["en"]
+            for cell in seg_cells.values()
+            if cell["en"]
+            and cell["cn"]
+            and ((cell["es"] / cell["en"] - cell["cs"] / cell["cn"]) * outcome.harm_multiplier > 0)
+            != (dev.harm_per_booking > 0)
+        )
+        reversal_share = reversed_exposure / dev.n_exposed if dev.n_exposed else 0.0
+        diagnostics["segment_reversal_exposure_share"] = reversal_share
+        gates[GateId.SIMPSON] = _gate(
+            GateId.SIMPSON,
+            reversal_share < DEFAULT_THRESHOLDS.simpson_reversal_exposure_share,
+            f"Sign reverses in {heterogeneity_column} strata covering {reversal_share:.1%} of "
+            f"exposure (threshold {DEFAULT_THRESHOLDS.simpson_reversal_exposure_share:.0%}).",
+        )
 
     signs = [s.harm_per_booking > 0 for s in split_results.values()]
     same_sign = len(split_results) == len(SPLITS) and (all(signs) or not any(signs))
@@ -686,34 +681,51 @@ def _validate_one(
         f"development magnitude (floor {DEFAULT_THRESHOLDS.min_holdout_effect_retention:.0%}).",
     )
 
-    month_cohort = dev_frame.group_by("booking_month").agg(pl.len().alias("n"))
-    month_exposed = dev_frame.filter(dev_mask).group_by("booking_month").agg(pl.len().alias("n"))  # pyright: ignore[reportUnknownMemberType]
-    cohort_by_month = dict(
-        zip(month_cohort["booking_month"].to_list(), month_cohort["n"].to_list(), strict=True)
-    )
-    exposed_by_month = dict(
-        zip(month_exposed["booking_month"].to_list(), month_exposed["n"].to_list(), strict=True)
-    )
-    total_cohort_n, total_exposed_n = sum(cohort_by_month.values()), sum(exposed_by_month.values())
-    concentration = (
-        max(
-            (exposed_by_month.get(m, 0) / total_exposed_n) / (cohort_by_month[m] / total_cohort_n)
-            for m in cohort_by_month
+    seasonality_column = inputs.seasonality_column
+    if seasonality_column is None:
+        diagnostics["seasonal_concentration_index"] = None
+        gates[GateId.SEASONALITY] = GateResult(
+            gate_id=GateId.SEASONALITY,
+            outcome=GateOutcome.NOT_EVALUATED,
+            detail="Manifest declares no reviewed seasonality role; G11 cannot be evaluated.",
         )
-        if total_exposed_n and total_cohort_n
-        else 1.0
-    )
-    diagnostics["seasonal_concentration_index"] = concentration
-    seasonal_ok = concentration <= DEFAULT_THRESHOLDS.seasonal_concentration_index
-    gates[GateId.SEASONALITY] = _gate(
-        GateId.SEASONALITY,
-        seasonal_ok,
-        f"Max monthly exposure/cohort concentration ratio {concentration:.2f} "
-        f"(threshold {DEFAULT_THRESHOLDS.seasonal_concentration_index}).",
-    )
+    else:
+        seasonal_frame = dev_frame.with_columns(
+            pl.col(seasonality_column)
+            .cast(pl.String)
+            .str.slice(5, 2)
+            .cast(pl.Int64)
+            .alias("_month")
+        )
+        month_cohort = seasonal_frame.group_by("_month").agg(pl.len().alias("n"))
+        month_exposed = seasonal_frame.filter(dev_mask).group_by("_month").agg(pl.len().alias("n"))  # pyright: ignore[reportUnknownMemberType]
+        cohort_by_month = dict(
+            zip(month_cohort["_month"].to_list(), month_cohort["n"].to_list(), strict=True)
+        )
+        exposed_by_month = dict(
+            zip(month_exposed["_month"].to_list(), month_exposed["n"].to_list(), strict=True)
+        )
+        total_cohort_n = sum(cohort_by_month.values())
+        total_exposed_n = sum(exposed_by_month.values())
+        concentration = (
+            max(
+                (exposed_by_month.get(month, 0) / total_exposed_n)
+                / (cohort_by_month[month] / total_cohort_n)
+                for month in cohort_by_month
+            )
+            if total_exposed_n and total_cohort_n
+            else 1.0
+        )
+        diagnostics["seasonal_concentration_index"] = concentration
+        gates[GateId.SEASONALITY] = _gate(
+            GateId.SEASONALITY,
+            concentration <= DEFAULT_THRESHOLDS.seasonal_concentration_index,
+            f"Max monthly exposure/cohort concentration ratio {concentration:.2f} "
+            f"(threshold {DEFAULT_THRESHOLDS.seasonal_concentration_index}).",
+        )
 
     sign_agree, magnitude_dev_max, checks_run = _robustness_battery(
-        dev_frame, conditions, dev_mask, outcome, dev
+        dev_frame, conditions, dev_mask, outcome, dev, inputs
     )
     diagnostics["robustness_sign_agreement"] = sign_agree
     diagnostics["robustness_max_magnitude_deviation"] = magnitude_dev_max
@@ -746,7 +758,9 @@ def _validate_one(
     # cohort, not the development-only split evidence grading uses above. `combined_stats` is the
     # real, unresampled point estimate; the bootstrap below supplies its interval only.
     combined_stats = split_stats(frame, combined_mask, outcome, "combined")
-    combined_clusters = cluster_cells(frame, combined_mask, outcome.column)
+    combined_clusters = cluster_cells(
+        frame, combined_mask, outcome.column, inputs.clustering_column
+    )
     combined_reps = cluster_bootstrap_replicates(combined_clusters, DIAGNOSTIC_BOOTSTRAP_REPS, rng)
     exposed_total = combined_stats.n_exposed if combined_stats else 0
     per_record_value = combined_stats.harm_per_booking if combined_stats else 0.0
@@ -804,6 +818,7 @@ def _robustness_battery(
     dev_mask: pl.Series,
     outcome: OutcomeDefinition,
     dev: SplitStats,
+    inputs: ValidationInput,
 ) -> tuple[float, float, int]:
     sign_agree = 0
     checks_run = 0
@@ -818,10 +833,12 @@ def _robustness_battery(
             sign_agree += 1
         magnitude_ratios.append(abs(stats.harm_per_booking / dev.harm_per_booking))
 
-    for manager in dev_frame["manager"].unique().to_list():
-        subset = dev_frame.filter(pl.col("manager") != manager)  # pyright: ignore[reportUnknownMemberType]
-        submask = subset.select(rule_expr(conditions).alias("m"))["m"]
-        _record(split_stats(subset, submask, outcome, "development"))
+    if inputs.robustness_group_column is not None:
+        group_column = inputs.robustness_group_column
+        for group_value in dev_frame[group_column].unique().to_list():
+            subset = dev_frame.filter(pl.col(group_column) != group_value)  # pyright: ignore[reportUnknownMemberType]
+            submask = subset.select(rule_expr(conditions).alias("m"))["m"]
+            _record(split_stats(subset, submask, outcome, "development"))
 
     low, high = dev_frame[outcome.column].quantile(0.01), dev_frame[outcome.column].quantile(0.99)
     winsor_frame = dev_frame.with_columns(
@@ -829,8 +846,14 @@ def _robustness_battery(
     )
     _record(split_stats(winsor_frame, dev_mask, outcome, "development"))
 
-    alt_outcome = OUTCOME_BY_ID["gross_profit_eur"]
-    _record(split_stats(dev_frame, dev_mask, alt_outcome, "development"))
+    if inputs.alternative_outcome_id is not None:
+        alt_outcome = OUTCOME_BY_ID.get(inputs.alternative_outcome_id)
+        if alt_outcome is None:
+            raise ValueError(
+                f"no reviewed OutcomeDefinition for alternative outcome "
+                f"{inputs.alternative_outcome_id!r}"
+            )
+        _record(split_stats(dev_frame, dev_mask, alt_outcome, "development"))
 
     for condition in conditions:
         if not isinstance(condition.value, int | float) or isinstance(condition.value, bool):
@@ -928,8 +951,22 @@ def run_validation(
         raise ValueError(f"candidates run reported INSUFFICIENT_CANDIDATES: {reason}")
     if status != "PERSISTED":
         raise ValueError(f"candidates must have status=PERSISTED to be validated, got {status!r}")
+    inputs = validation_input_from_manifest(dataset_root)
+    if inputs.dataset_version != dataset_version:
+        raise ValueError(
+            f"manifest dataset_version {inputs.dataset_version!r} conflicts with validation input "
+            f"{dataset_version!r}"
+        )
     family_size = _evaluated_hypotheses(payload, metrics_path)
-    candidates = payload["candidates"]
+    raw_candidates = payload["candidates"]
+    if not isinstance(raw_candidates, list):
+        raise ValueError("candidates payload must contain a candidates list")
+    candidates: list[dict[str, Any]] = []
+    for raw_candidate in cast(list[object], raw_candidates):
+        if not isinstance(raw_candidate, dict):
+            raise ValueError("candidates payload must contain candidate objects")
+        candidates.append(cast(dict[str, Any], raw_candidate))
+    validate_candidate_fields(candidates, inputs)
 
     payload_outcome_id = (
         payload.get("outcome", {}).get("outcome_id")
@@ -958,7 +995,7 @@ def run_validation(
     frame = load_analytical_frame(dataset_root)
     rng = random.Random(bootstrap_seed)
     interims: list[CandidateInterim | None] = [
-        _validate_one(frame, candidate, outcome, rng) for candidate in candidates
+        _validate_one(frame, candidate, outcome, inputs, rng) for candidate in candidates
     ]
 
     reported_p_values = [interim.p_value if interim else 1.0 for interim in interims]
@@ -988,7 +1025,7 @@ def run_validation(
                 outcome_definition=outcome.outcome_id,
                 exposed_records=0,
                 comparison_records=0,
-                clustering_key="customer_id",
+                clustering_key=inputs.clustering_column,
                 raw_effect=EffectEstimate(0.0, 0.0, 0.0, 0.95, "unavailable", outcome.unit),
                 identification_design=IdentificationDesign.OBSERVATIONAL,
                 gate_results=gate_results,
@@ -1027,7 +1064,7 @@ def run_validation(
             outcome_definition=outcome.outcome_id,
             exposed_records=dev.n_exposed,
             comparison_records=dev.n_comparison,
-            clustering_key="customer_id",
+            clustering_key=inputs.clustering_column,
             raw_effect=interim.dev_effect,
             identification_design=design,
             gate_results=gate_results,
@@ -1046,11 +1083,19 @@ def run_validation(
             adjusted_p_value=adjusted_p,
             family_size=family_size,
             controlled_variables=interim.adjustment_set,
-            potential_confounders=("manager", "supplier", "customer_segment", "booking_month"),
+            potential_confounders=tuple(sorted(inputs.adjustment_features)),
             robustness_tests=(
-                "leave_one_manager_out",
+                *(
+                    (f"leave_one_{inputs.robustness_group_column}_out",)
+                    if inputs.robustness_group_column
+                    else ()
+                ),
                 "winsorize_top_bottom_1pct",
-                "alternative_outcome_gross_profit",
+                *(
+                    (f"alternative_outcome_{inputs.alternative_outcome_id}",)
+                    if inputs.alternative_outcome_id
+                    else ()
+                ),
                 "numeric_threshold_perturbation",
             ),
             temporal_stability=(
@@ -1085,9 +1130,9 @@ def run_validation(
         # pair (ADR-036/ADR-042) — this is the full eligible pool before any candidate's own
         # conditions are excluded from it; each candidate's actually-used subset is in its own
         # diagnostics ("adjustment_columns_considered"/"adjustment_columns_used").
-        "adjustment_pool_all_decision_time_features": sorted(
-            DECISION_TIME_FEATURES - ADJUSTMENT_POOL_EXCLUDED
-        ),
-        "heterogeneity_column": HETEROGENEITY_COLUMN,
+        "adjustment_pool_all_decision_time_features": sorted(inputs.adjustment_features),
+        "heterogeneity_column": inputs.heterogeneity_column,
+        "seasonality_column": inputs.seasonality_column,
+        "clustering_column": inputs.clustering_column,
     }
     return results, manifest

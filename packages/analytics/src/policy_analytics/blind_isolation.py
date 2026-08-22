@@ -14,8 +14,6 @@ from pathlib import Path
 from typing import Any, cast
 
 from policy_analytics.outcomes.contract import (
-    DATASET_IDENTITY_SHA256,
-    DATASET_VERSION,
     DEFAULT_COMPARISON_RULE,
     ELIGIBLE_COHORT_RULE,
     OUTCOME_CONTRACT_VERSION,
@@ -25,12 +23,12 @@ from policy_analytics.outcomes.contract import (
 
 BLIND_PROTOCOL_VERSION = "1.0.0"
 PERMITTED_FILES = (
-    "synthetic_data/analytical/travel-bookings-analytical-v1.0.0/features.csv",
-    "synthetic_data/analytical/travel-bookings-analytical-v1.0.0/outcomes.csv",
-    "synthetic_data/analytical/travel-bookings-analytical-v1.0.0/identifiers.csv",
-    "synthetic_data/analytical/travel-bookings-analytical-v1.0.0/metadata.csv",
-    "synthetic_data/analytical/travel-bookings-analytical-v1.0.0/split_manifest.json",
-    "synthetic_data/analytical/travel-bookings-analytical-v1.0.0/split_membership.csv",
+    "synthetic_data/analytical/travel-bookings-analytical-v1.1.0/features.csv",
+    "synthetic_data/analytical/travel-bookings-analytical-v1.1.0/outcomes.csv",
+    "synthetic_data/analytical/travel-bookings-analytical-v1.1.0/identifiers.csv",
+    "synthetic_data/analytical/travel-bookings-analytical-v1.1.0/metadata.csv",
+    "synthetic_data/analytical/travel-bookings-analytical-v1.1.0/split_manifest.json",
+    "synthetic_data/analytical/travel-bookings-analytical-v1.1.0/split_membership.csv",
 )
 PUBLIC_METADATA_FILES = (
     "public/schema.json",
@@ -134,16 +132,27 @@ def _verify_issued_manifest(manifest: dict[str, Any], signing_key: bytes) -> dic
 
 def _write_public_metadata(repository: Path, destination: Path) -> dict[str, str]:
     analytical_manifest_path = (
-        repository / "synthetic_data/analytical/travel-bookings-analytical-v1.0.0/manifest.json"
+        repository / "synthetic_data/analytical/travel-bookings-analytical-v1.1.0/manifest.json"
     )
     analytical_manifest = json.loads(analytical_manifest_path.read_text(encoding="utf-8"))
-    if analytical_manifest.get("dataset_identity_sha256") != DATASET_IDENTITY_SHA256:
-        raise ValueError("analytical dataset does not match the approved outcome contract")
+    dataset_version = analytical_manifest.get("dataset_version")
+    dataset_identity = analytical_manifest.get("dataset_identity_sha256")
+    raw_outcome_contract: object = analytical_manifest.get("outcome_contract")
+    if not isinstance(dataset_version, str) or not isinstance(dataset_identity, str):
+        raise ValueError("analytical dataset identity is missing")
+    if not isinstance(raw_outcome_contract, dict):
+        raise ValueError("analytical dataset outcome contract is missing")
+    outcome_contract = cast(dict[str, Any], raw_outcome_contract)
+    if (
+        outcome_contract.get("dataset_scope") != dataset_version
+        or outcome_contract.get("version") != OUTCOME_CONTRACT_VERSION
+    ):
+        raise ValueError("analytical dataset does not match its attached outcome contract")
 
     public_payloads: dict[str, dict[str, Any]] = {
         "public/schema.json": {
-            "dataset_version": DATASET_VERSION,
-            "dataset_identity_sha256": DATASET_IDENTITY_SHA256,
+            "dataset_version": dataset_version,
+            "dataset_identity_sha256": dataset_identity,
             "record_count": analytical_manifest["record_count"],
             "partitions": {
                 name: {
@@ -154,14 +163,14 @@ def _write_public_metadata(repository: Path, destination: Path) -> dict[str, str
             },
         },
         "public/feature_timing.json": {
-            "dataset_version": DATASET_VERSION,
+            "dataset_version": dataset_version,
             "columns": analytical_manifest["feature_timing"],
             "excluded_post_decision_columns": analytical_manifest["excluded_post_decision_columns"],
         },
         "public/outcome_metadata.json": {
             "contract_version": OUTCOME_CONTRACT_VERSION,
-            "dataset_version": DATASET_VERSION,
-            "dataset_identity_sha256": DATASET_IDENTITY_SHA256,
+            "dataset_version": dataset_version,
+            "dataset_identity_sha256": dataset_identity,
             "primary_outcome_id": PRIMARY_OUTCOME_ID,
             "eligible_cohort_rule": ELIGIBLE_COHORT_RULE,
             "default_comparison_rule": DEFAULT_COMPARISON_RULE,
@@ -169,8 +178,8 @@ def _write_public_metadata(repository: Path, destination: Path) -> dict[str, str
         },
         "public/run_config.json": {
             "blind_protocol_version": BLIND_PROTOCOL_VERSION,
-            "dataset_version": DATASET_VERSION,
-            "dataset_identity_sha256": DATASET_IDENTITY_SHA256,
+            "dataset_version": dataset_version,
+            "dataset_identity_sha256": dataset_identity,
             "analytical_partitions": {
                 Path(relative).stem: relative for relative in PERMITTED_FILES
             },
