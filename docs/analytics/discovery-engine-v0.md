@@ -1,7 +1,7 @@
 # Discovery Engine v0 methodology
 
-**Owner:** ML Discovery · **Task:** TASK-015, TASK-058, TASK-060, TASK-064 · **Methodology version:**
-`discovery-engine-v0.5.0`
+**Owner:** ML Discovery · **Task:** TASK-015, TASK-058, TASK-060, TASK-064, TASK-068 · **Methodology
+version:** `discovery-engine-v0.6.0`
 
 ## Scope and evidence boundary
 
@@ -362,6 +362,72 @@ The same trace established a separate hard limitation: seasonal P04 is not repre
 raw dates are excluded and the analytical contract supplies no decision-time month/season feature.
 This method does not pretend beam coverage can recover a missing atom. Adding a generic temporal
 feature, if desired, is separate Data Engineering/architecture work and a new input contract.
+
+## Feature-identity diversity cap at final selection, v0.6.0 (`TASK-068`, `ADR-056`/`ADR-057`)
+
+**Diagnosis:** a `b2b_sales/comparable` portability postmortem (`ADR-055`) found every one of 15
+committed candidates from that domain's run anchored on the same one or two features (their
+public identities are irrelevant to the mechanism and are not repeated here). Neither existing
+diversity control guards this axis: `_greedy_diverse_select`'s population-overlap discount
+(`TASK-060`) does not stop many candidates from differing only in threshold/category on the same
+dominant feature — two rules can select almost entirely different rows while still sharing a
+feature — and the expansion beam's `(feature, operator)`-structure reserve (`TASK-064`) operates
+during *search*, on which rules are allowed to reach a deeper depth, not on which features the
+*final* selected set ends up representing. `ADR-056` concurred this crowding is a general,
+domain-neutral selection-stage gap, distinct from and not a fix to gate G06's own separately-
+diagnosed adjustment-richness limitation (`ADR-036`/`ADR-042`/`ADR-043`).
+
+**Fix:** a new `max_feature_identity_fraction` (default `1.0`, disabled) caps the fraction of
+`top_k` final selected slots any single feature identity — a condition's `feature` string,
+independent of operator, value, or threshold — may occupy. Applied by `_apply_feature_identity_cap`
+strictly *after* `_greedy_diverse_select` returns, as a pure post-filter over an already-ranked,
+already-diversified selection:
+
+1. When the cap is active, `discover_candidates` calls `_greedy_diverse_select` completely
+   unmodified — same overlap discount, same relevance floor, same stability credit, same
+   atom-usage cap — but with its own pre-existing `top_k` parameter temporarily set higher
+   (`_IDENTITY_CAP_OVERSELECT_MULTIPLIER = 5`), so there are genuinely different alternatives to
+   fall back on afterward instead of only being able to shrink the final set.
+2. `_apply_feature_identity_cap` then walks that longer, already-ordered list once, admitting each
+   rule in order unless doing so would push any feature it touches past
+   `max(1, floor(max_feature_identity_fraction * top_k))` uses, until `top_k` is reached or the
+   list is exhausted.
+
+Every feature a rule's conditions touch counts toward that feature's own tally — not one
+designated "primary" feature per rule. A per-rule "anchor" chosen by, e.g., canonical sort order
+was considered and rejected: `Condition`'s sort key is alphabetical, unrelated to which feature
+actually drives a rule's effect, so it would crown an arbitrary feature rather than a meaningful
+one. Counting every touched feature directly caps how often any feature can co-occur in the final
+set at all, without needing a dominance heuristic.
+
+`max_feature_identity_fraction=1.0` is a no-op by construction: the resulting per-feature cap
+equals `top_k` itself, which no feature's count can reach before the final list already holds
+`top_k` entries and the filter has stopped — so the default reproduces `discovery-engine-v0.5.0`
+selection exactly (regression-tested: implicit default, explicit `1.0`, and a direct call to the
+unmodified `_greedy_diverse_select` primitive bypassing every line of `TASK-068` code all agree).
+References no specific feature, domain, or dataset anywhere in the mechanism or its tests. Only
+features the caller already classified `DECISION_TIME` can appear in `feature_columns` at all
+(enforced upstream of this module, unchanged), so the cap structurally cannot see a
+`POST_DECISION`/`OUTCOME`/`UNKNOWN` field — proven directly by a test that includes such a column
+in the underlying frame but withholds it from `feature_columns`.
+
+**Truth-free synthetic proof (required before review, `ADR-056`):**
+`tests/analytics/test_discovery_engine.py`'s `test_identity_cap_*`/`test_apply_feature_identity_cap_*`
+tests build one fixture — invented feature names, `DECISION_TIME`-only inputs, no real domain or
+hidden ground truth — where one dominant feature can pair with several effect-free "filler"
+features (structurally necessary padding, since a rule can never combine two conditions on the
+same feature) to fill an entire top-K, crowding out independently strong alternatives. They prove,
+in order: (a) the disabled default lets the dominant feature crowd every slot, admitting at most
+one alternative; (b) enabling the cap strictly increases distinct signal-feature representation
+while still returning a full `top_k`, with the dominant feature's own count capped exactly as
+configured; (c) determinism, both at the full-pipeline level (identical rerun) and directly against
+`_apply_feature_identity_cap` (fixed tie order survives repeated `PYTHONHASHSEED`-varying
+processes); (d) the disabled path reproduces `v0.5.0` exactly, checked three independent ways; (e)
+a column withheld from `feature_columns` never appears in any candidate, cap enabled or not.
+
+**Not yet run:** this is implementation only. No domain is selected and no official blind run is
+authorized by this section — `ADR-055`/`ADR-056` require a separate preregistration, after Code
+Reviewer approval, naming exactly one still-untouched `TASK-061` domain before any run begins.
 
 ## Reproduction
 

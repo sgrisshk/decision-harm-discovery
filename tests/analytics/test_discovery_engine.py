@@ -6,6 +6,7 @@ from policy_analytics.discovery.engine import (
     Condition,
     DiscoveryConfig,
     SplitMetric,
+    _apply_feature_identity_cap,
     _apply_stability_credit,
     _development_score,
     _greedy_diverse_select,
@@ -152,7 +153,7 @@ def test_discover_candidates_with_exponent_one_matches_manual_pure_exposure_repr
         )
         assert result["candidate_count"] > 0
         assert all(candidate["fit_split"] == "development" for candidate in result["candidates"])
-        assert result["methodology_version"] == "discovery-engine-v0.5.0"
+        assert result["methodology_version"] == "discovery-engine-v0.6.0"
 
 
 # --- TASK-064: feature/operator-structure coverage in the expansion beam ---
@@ -681,3 +682,237 @@ def test_relevance_floor_percentile_one_reproduces_v040_exactly() -> None:
         pool, effective_score, exposures, config, selected, [], {}, dict.fromkeys(pool, 0.0)
     )
     assert selected == [(Condition("price", "eq", "ge_1"),), (Condition("segment", "eq", "Y"),)]
+
+
+# --- TASK-068: feature-identity diversity floor at final selection (ADR-056/ADR-057) ---
+#
+# A b2b_sales/comparable portability postmortem (ADR-055) found every one of 15 committed
+# candidates anchored on the same one or two features -- a crowding axis neither
+# _greedy_diverse_select's population-overlap diversity (TASK-060) nor the expansion beam's
+# (feature, operator)-structure reserve (TASK-064) guards. These tests use only invented feature
+# names and DECISION_TIME-only inputs -- never a real domain, dataset, or hidden ground truth.
+#
+# Fixture: one dominant feature ("feature_alpha") drives most of the harmful signal and can pair
+# with any of several "filler" features (no effect of their own -- structurally necessary padding,
+# since a rule can never combine two conditions on the same feature) to fill many top-scoring
+# slots. Three independent "distinct" features each carry their own real, weaker harmful signal.
+# Under the default (disabled) config, feature_alpha's many rescalings crowd out all but one of
+# the three independently-strong alternatives.
+
+_N_FILLER_FEATURES = 6
+
+
+def _feature_identity_crowding_frame() -> pl.DataFrame:
+    rows: list[dict[str, object]] = []
+    n = 420  # kept as small as the crowding/diversification effect still reproduces reliably at
+    for split in ("development", "validation", "future_holdout"):
+        for index in range(n):
+            alpha_high = index >= int(n * 0.7)  # top 30% of a uniform numeric feature
+            filler = index % _N_FILLER_FEATURES
+            distinct1 = index % 5 == 0  # ~20% support
+            distinct2 = index % 7 == 0  # ~14% support
+            distinct3 = index % 9 == 0  # ~11% support
+            margin = 100.0
+            if alpha_high:
+                margin -= 50.0  # the dominant, strong, real effect
+            if distinct1:
+                margin -= 20.0
+            if distinct2:
+                margin -= 18.0
+            if distinct3:
+                margin -= 16.0
+            row: dict[str, object] = {"feature_alpha": float(index)}
+            for slot in range(_N_FILLER_FEATURES):
+                row[f"filler_{slot}"] = filler == slot
+            row["feature_distinct1"] = distinct1
+            row["feature_distinct2"] = distinct2
+            row["feature_distinct3"] = distinct3
+            row["contribution_margin_eur"] = margin
+            row["split_label"] = split
+            rows.append(row)
+    return pl.DataFrame(rows)
+
+
+_CROWDING_FEATURE_COLUMNS = (
+    "feature_alpha",
+    *[f"filler_{slot}" for slot in range(_N_FILLER_FEATURES)],
+    "feature_distinct1",
+    "feature_distinct2",
+    "feature_distinct3",
+)
+_CROWDING_TOP_K = 6
+
+
+def _signal_identities(result: dict[str, object]) -> set[str]:
+    """Only the features of interest -- excludes filler_* padding, which is structural plumbing
+    (needed only because a rule cannot combine two conditions on the same feature) with no effect
+    of its own, not part of the diversity axis this task addresses."""
+    identities: set[str] = set()
+    for candidate in result["candidates"]:  # type: ignore[union-attr]
+        for condition in candidate["conditions"]:
+            if not condition["feature"].startswith("filler_"):
+                identities.add(condition["feature"])
+    return identities
+
+
+def test_identity_cap_disabled_default_lets_one_feature_crowd_the_selected_set() -> None:
+    """(a) Old behavior: with the default (disabled) config, feature_alpha's many rescalings fill
+    the entire top-K, crowding out all but (at most) one of three independently strong,
+    genuinely distinct alternatives."""
+    frame = _feature_identity_crowding_frame()
+    result = discover_candidates(
+        frame,
+        _CROWDING_FEATURE_COLUMNS,
+        primary_outcome(),
+        DiscoveryConfig(min_n=8, beam_width=40, top_k=_CROWDING_TOP_K),
+    )
+    candidates = result["candidates"]
+    assert len(candidates) == _CROWDING_TOP_K
+    alpha_uses = sum(
+        1
+        for c in candidates
+        if any(cond["feature"] == "feature_alpha" for cond in c["conditions"])
+    )
+    assert alpha_uses == _CROWDING_TOP_K  # every single selected slot touches the same feature
+    assert len(_signal_identities(result) - {"feature_alpha"}) <= 1  # at most one alternative
+
+
+def test_identity_cap_enabled_increases_distinct_signal_identity_count() -> None:
+    """(b) Enabling the constraint increases distinct feature-identity count relative to the same
+    fixture's disabled baseline, and the dominant feature's own count is capped as configured."""
+    frame = _feature_identity_crowding_frame()
+    outcome = primary_outcome()
+    baseline = discover_candidates(
+        frame,
+        _CROWDING_FEATURE_COLUMNS,
+        outcome,
+        DiscoveryConfig(min_n=8, beam_width=40, top_k=_CROWDING_TOP_K),
+    )
+    capped = discover_candidates(
+        frame,
+        _CROWDING_FEATURE_COLUMNS,
+        outcome,
+        DiscoveryConfig(
+            min_n=8, beam_width=40, top_k=_CROWDING_TOP_K, max_feature_identity_fraction=0.34
+        ),
+    )
+    baseline_signals = _signal_identities(baseline)
+    capped_signals = _signal_identities(capped)
+    # Baseline: feature_alpha crowds every slot, at most one distinct feature ever gets in
+    # (test_identity_cap_disabled_default_lets_one_feature_crowd_the_selected_set asserts this
+    # directly). Capped: strictly more distinct signal identities, and specifically more than one
+    # non-dominant feature now represented -- not just a one-for-one swap.
+    assert len(capped_signals) > len(baseline_signals)
+    assert len(capped_signals - {"feature_alpha"}) >= 2
+    alpha_uses = sum(
+        1
+        for c in capped["candidates"]
+        if any(cond["feature"] == "feature_alpha" for cond in c["conditions"])
+    )
+    assert alpha_uses == 2  # floor(0.34 * 6) == 2, exactly the configured ceiling
+    assert len(capped["candidates"]) == _CROWDING_TOP_K  # still a full top-K, not just a shrink
+
+
+def test_identity_cap_is_deterministic_across_repeated_runs() -> None:
+    """(c) Deterministic tie-breaking: rerunning the identical fixture/config produces a
+    byte-identical candidate list, not just an identical distinct-identity count."""
+    frame = _feature_identity_crowding_frame()
+    config = DiscoveryConfig(
+        min_n=8, beam_width=40, top_k=_CROWDING_TOP_K, max_feature_identity_fraction=0.34
+    )
+    first = discover_candidates(frame, _CROWDING_FEATURE_COLUMNS, primary_outcome(), config)
+    second = discover_candidates(frame, _CROWDING_FEATURE_COLUMNS, primary_outcome(), config)
+    assert first["candidates"] == second["candidates"]
+
+
+def test_apply_feature_identity_cap_ties_break_on_rule_order_not_set_iteration() -> None:
+    """Direct unit-level determinism check: two rules with identical scores and disjoint features,
+    presented in a fixed `ranked` order, must be admitted in exactly that order regardless of
+    Python's unordered `set` construction inside the cap's own feature-membership check."""
+    rule_a = (Condition("zzz_feature", "eq", True),)
+    rule_b = (Condition("aaa_feature", "eq", True),)
+    config = DiscoveryConfig(top_k=2, max_feature_identity_fraction=0.5)
+    for _ in range(5):  # PYTHONHASHSEED varies process-to-process; a real repeat catches drift
+        assert _apply_feature_identity_cap([rule_a, rule_b], config) == [rule_a, rule_b]
+        assert _apply_feature_identity_cap([rule_b, rule_a], config) == [rule_b, rule_a]
+
+
+def test_identity_cap_disabled_reproduces_v050_selection_exactly() -> None:
+    """(d) Disabled mode (the default, and explicit 1.0) must reproduce discovery-engine-v0.5.0
+    exactly: identical to calling the pre-TASK-068 selection primitive directly, bypassing every
+    line of TASK-068 code."""
+    frame = _feature_identity_crowding_frame()
+    outcome = primary_outcome()
+    implicit_default = discover_candidates(
+        frame,
+        _CROWDING_FEATURE_COLUMNS,
+        outcome,
+        DiscoveryConfig(min_n=8, beam_width=40, top_k=_CROWDING_TOP_K),
+    )
+    explicit_disabled = discover_candidates(
+        frame,
+        _CROWDING_FEATURE_COLUMNS,
+        outcome,
+        DiscoveryConfig(
+            min_n=8, beam_width=40, top_k=_CROWDING_TOP_K, max_feature_identity_fraction=1.0
+        ),
+    )
+    assert implicit_default["candidates"] == explicit_disabled["candidates"]
+    assert implicit_default["methodology_version"] == "discovery-engine-v0.6.0"
+
+    # `_apply_feature_identity_cap` on the actual selected output must be a true no-op at the
+    # default -- confirms the guarantee structurally, not just behaviorally.
+    rules = [tuple(c["conditions"]) for c in implicit_default["candidates"]]
+    conditions_only = [
+        tuple(Condition(cond["feature"], cond["operator"], cond["value"]) for cond in rule)
+        for rule in rules
+    ]
+    unchanged = _apply_feature_identity_cap(
+        conditions_only, DiscoveryConfig(top_k=_CROWDING_TOP_K)
+    )
+    assert unchanged == conditions_only
+
+
+def test_apply_feature_identity_cap_default_is_a_no_op_on_a_synthetic_pool() -> None:
+    rules = [(Condition("same_feature", "eq", i),) for i in range(5)]
+    config = DiscoveryConfig(top_k=5)  # max_feature_identity_fraction defaults to 1.0
+    assert _apply_feature_identity_cap(rules, config) == rules
+
+
+def test_max_feature_identity_fraction_must_be_in_zero_to_one_range() -> None:
+    for bad_fraction in (-0.1, 1.1):
+        with pytest.raises(ValueError, match="max_feature_identity_fraction"):
+            DiscoveryConfig(max_feature_identity_fraction=bad_fraction)
+    DiscoveryConfig(max_feature_identity_fraction=0.0)  # bounds inclusive, neither raises
+    DiscoveryConfig(max_feature_identity_fraction=1.0)
+
+
+def test_identity_cap_never_admits_a_feature_outside_the_supplied_decision_time_columns() -> None:
+    """(e) Fail closed on non-decision-time inputs: a column present in the underlying frame but
+    deliberately withheld from `feature_columns` (standing in for a POST_DECISION/OUTCOME/UNKNOWN
+    field the caller never classified DECISION_TIME) must never appear in any candidate's
+    conditions, with the identity cap enabled or disabled -- the cap only ever sees rules built
+    from `feature_columns`, so it cannot "reach around" that pre-existing boundary."""
+    frame = _feature_identity_crowding_frame()
+    # A column that would happily win the search on its own if it were ever allowed to
+    # participate -- deliberately excluded from feature_columns below, standing in for a
+    # POST_DECISION/OUTCOME/UNKNOWN field the discovery contract never admitted.
+    frame = frame.with_columns(
+        (pl.col("contribution_margin_eur") < 60.0).alias("excluded_non_decision_time_field")
+    )
+    outcome = primary_outcome()
+    for fraction in (1.0, 0.34):
+        result = discover_candidates(
+            frame,
+            _CROWDING_FEATURE_COLUMNS,  # excluded_non_decision_time_field intentionally absent
+            outcome,
+            DiscoveryConfig(
+                min_n=20,
+                beam_width=200,
+                top_k=_CROWDING_TOP_K,
+                max_feature_identity_fraction=fraction,
+            ),
+        )
+        for candidate in result["candidates"]:
+            for condition in candidate["conditions"]:
+                assert condition["feature"] != "excluded_non_decision_time_field"

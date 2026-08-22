@@ -25,11 +25,25 @@ four functions' docstrings and `docs/analytics/discovery-engine-v0.md`.
 is supplemented by a bounded reserve for feature/operator structures, so an eligible lower-score
 pair can form a third condition instead of every expansion right going to dominant rescalings.
 It does not change eligibility, scoring, depth, or final selection.
+
+`v0.6.0` (`TASK-068`, `ADR-056`/`ADR-057`) adds a feature-identity diversity cap at final
+candidate selection — orthogonal to, and strictly additive over, `_greedy_diverse_select`
+(`TASK-060`) and the expansion beam (`TASK-064`), neither of which is modified. A
+`b2b_sales/comparable` portability postmortem (`ADR-055`) found every one of 15 committed
+candidates anchored on the same one or two features, a crowding axis neither existing mechanism
+guards: population-overlap diversity does not stop many candidates from differing only in
+threshold/category on the same dominant feature, and the expansion beam's structural reserve
+operates on `(feature, operator)` shape only during search, not on final-selection feature
+identity. `_apply_feature_identity_cap` runs strictly after `_greedy_diverse_select` returns,
+trimming an already-ranked, already-diversified selection down to `top_k` while capping how many
+final slots any single feature name may occupy — never re-ranking, never reconsidering a rule
+`_greedy_diverse_select` already excluded. See its docstring and
+`docs/analytics/discovery-engine-v0.md`.
 """
 
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from typing import Any, Literal, Protocol, cast
 
 import polars as pl
@@ -55,7 +69,7 @@ class OutcomeDefinition(Protocol):
 
 
 Operator = Literal["eq", "ge", "lt"]
-DISCOVERY_METHOD_VERSION = "discovery-engine-v0.5.0"
+DISCOVERY_METHOD_VERSION = "discovery-engine-v0.6.0"
 
 
 @dataclass(frozen=True, slots=True, order=True)
@@ -174,6 +188,27 @@ class DiscoveryConfig:
     #: distribution only. Must be in `(0.0, 1.0]`; `1.0` reproduces `v0.4.0` exactly
     #: (regression-tested).
     relevance_floor_percentile: float = 0.75
+    #: Maximum fraction of `top_k` final selected slots any single feature identity — a condition's
+    #: `feature` string, independent of its operator/value/threshold — may occupy
+    #: (`TASK-068`, `ADR-056`/`ADR-057`). `1.0` (default) never binds: the resulting per-feature cap
+    #: equals `top_k` itself, which no feature can exceed within a `top_k`-sized final set, so the
+    #: default reproduces `discovery-engine-v0.5.0` selection exactly (regression-tested). A
+    #: `b2b_sales/comparable` portability postmortem (`ADR-055`) found every one of 15 committed
+    #: candidates anchored on the same one or two features — a crowding axis neither
+    #: `_greedy_diverse_select`'s population-overlap diversity (`TASK-060`) nor the expansion beam's
+    #: `(feature, operator)`-structure reserve (`TASK-064`) guards: many candidates can differ only
+    #: in threshold/category on the same dominant feature without ever having high row-level
+    #: overlap or sharing an exact atom. Every feature a rule's conditions touch counts toward that
+    #: feature's own tally (not one designated "primary" feature per rule — see
+    #: `_apply_feature_identity_cap`'s docstring for why); a rule is skipped once *any* of its
+    #: features would exceed `max(1, floor(max_feature_identity_fraction * top_k))` uses. Applied
+    #: strictly after `_greedy_diverse_select` returns, as a pure post-filter over an
+    #: already-ranked, already-diversified selection — it never reconsiders a rule that mechanism
+    #: excluded and never changes its overlap/relevance-floor/stability computations. References no
+    #: specific feature, domain, or dataset; only features the caller already classified
+    #: `DECISION_TIME` can appear in any rule's conditions at all, so this cap can never see a
+    #: `POST_DECISION`/`OUTCOME`/`UNKNOWN` field. Must be in `[0.0, 1.0]`.
+    max_feature_identity_fraction: float = 1.0
 
     def __post_init__(self) -> None:
         if self.beam_width < 1:
@@ -192,6 +227,8 @@ class DiscoveryConfig:
             raise ValueError("stability_credit_weight must be in [0.0, 1.0]")
         if not 0.0 < self.relevance_floor_percentile <= 1.0:
             raise ValueError("relevance_floor_percentile must be in (0.0, 1.0]")
+        if not 0.0 <= self.max_feature_identity_fraction <= 1.0:
+            raise ValueError("max_feature_identity_fraction must be in [0.0, 1.0]")
 
 
 @dataclass(frozen=True, slots=True)
@@ -522,6 +559,59 @@ def _greedy_diverse_select(
                 max_overlap[rule] = overlap
 
 
+#: How many multiples of `top_k` worth of extra candidates `discover_candidates` asks
+#: `_greedy_diverse_select` for when `max_feature_identity_fraction` is active, so
+#: `_apply_feature_identity_cap` has genuinely different alternatives to fall back on instead of
+#: only being able to shrink the final set. A fixed, generic bound (not tuned to any domain's
+#: result) trading a modest, predictable extra cost for headroom; `_greedy_diverse_select` itself
+#: is called completely unmodified — only its own pre-existing `top_k` parameter is set higher for
+#: this one internal call, exactly as it would be for any other caller requesting more candidates.
+_IDENTITY_CAP_OVERSELECT_MULTIPLIER = 5
+
+
+def _apply_feature_identity_cap(
+    ranked: list[tuple[Condition, ...]], config: DiscoveryConfig
+) -> list[tuple[Condition, ...]]:
+    """Trim an already-ranked, already-diversified candidate list down to `config.top_k`, capping
+    how many final slots any single feature identity may occupy (`TASK-068`, `ADR-056`/`ADR-057`).
+
+    Pure post-filter: `ranked` is exactly `_greedy_diverse_select`'s own output (in the priority
+    order it picked things, typically overselected beyond `top_k` — see
+    `_IDENTITY_CAP_OVERSELECT_MULTIPLIER`) and this function never re-scores, re-ranks, or
+    reconsiders a rule that mechanism already excluded via its overlap/relevance-floor/stability
+    logic. It only decides which already-eligible, already-ordered rules make the final `top_k`.
+
+    Every feature a rule's conditions touch counts toward that feature's own tally — not one
+    designated "primary" feature per rule. A per-condition designation (e.g. "the first feature in
+    canonical sorted order is the anchor") was considered and rejected: canonical order is
+    alphabetical, an artifact of `Condition`'s own sort key with no relationship to which feature
+    actually drives a rule's effect, so it would crown an arbitrary "anchor" rather than a
+    meaningful one. Counting every feature a rule touches instead directly caps how often any
+    feature can co-occur in the final set at all, which is what a crowding axis defined at the
+    *feature* level (not the "one anchor per rule" level) requires, and needs no dominance
+    heuristic — only feature identity as a string key, exactly as `ADR-056` specifies.
+
+    `max_feature_identity_fraction=1.0` (default) is a no-op: `max_per_feature` equals `top_k`,
+    which no single feature's count can reach before `final` itself already holds `top_k` entries
+    and the loop has stopped — so this reproduces `discovery-engine-v0.5.0` selection exactly.
+    """
+    if not ranked:
+        return ranked
+    max_per_feature = max(1, int(config.max_feature_identity_fraction * config.top_k))
+    feature_usage: dict[str, int] = {}
+    final: list[tuple[Condition, ...]] = []
+    for rule in ranked:
+        features = {condition.feature for condition in rule}
+        if any(feature_usage.get(feature, 0) >= max_per_feature for feature in features):
+            continue
+        final.append(rule)
+        for feature in features:
+            feature_usage[feature] = feature_usage.get(feature, 0) + 1
+        if len(final) == config.top_k:
+            break
+    return final
+
+
 def discover_candidates(
     frame: pl.DataFrame,
     feature_columns: tuple[str, ...],
@@ -608,29 +698,45 @@ def discover_candidates(
 
     # Two phases, not one combined greedy pass, so interactions still fill the top-K before any
     # singleton is considered regardless of relative score (matches pre-TASK-060 ordering exactly).
+    #
+    # TASK-068: when the feature-identity cap is active, _greedy_diverse_select is called
+    # completely unmodified but with a temporarily larger top_k (its own pre-existing parameter),
+    # so _apply_feature_identity_cap has real alternatives to fall back on afterward instead of
+    # only being able to shrink the final set. `search_config` never leaves this block — the
+    # `search` metadata below reports the caller's real `config`, not this internal widening.
+    identity_cap_active = config.max_feature_identity_fraction < 1.0
+    search_config = config
+    if identity_cap_active:
+        overselect_target = min(
+            len(interactions) + len(singles), config.top_k * _IDENTITY_CAP_OVERSELECT_MULTIPLIER
+        )
+        search_config = replace(config, top_k=max(overselect_target, config.top_k))
+
     _prepare(interactions)
     _greedy_diverse_select(
         interactions,
         effective_score,
         exposures,
-        config,
+        search_config,
         selected,
         selected_exposures,
         atom_usage,
         max_overlap,
     )
-    if len(selected) < config.top_k:
+    if len(selected) < search_config.top_k:
         _prepare(singles)
         _greedy_diverse_select(
             singles,
             effective_score,
             exposures,
-            config,
+            search_config,
             selected,
             selected_exposures,
             atom_usage,
             max_overlap,
         )
+    if identity_cap_active:
+        selected = _apply_feature_identity_cap(selected, config)
     candidates: list[Candidate] = []
     for index, rule in enumerate(selected, start=1):
         score, development_metric = scored[rule]
