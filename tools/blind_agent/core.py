@@ -720,6 +720,7 @@ def _validated_freeze(run_root: Path, signing_key: bytes) -> Path:
             shutil.copy2(path, target)
             target.chmod(stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH)
     _write(frozen / "hashes.json", hashes)
+    (frozen / "hashes.json").chmod(stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH)
     provenance_path = run_root / "provenance.json"
     provenance = json.loads(provenance_path.read_text())
     provenance.update({"finish_timestamp": now(), "output_hashes": hashes})

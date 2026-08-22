@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import shutil
+import stat
 from collections.abc import Callable
 from pathlib import Path
 from types import SimpleNamespace
@@ -472,6 +473,42 @@ def test_freeze_validates_and_closes_run(tmp_path: Path) -> None:
     assert json.loads((run / "state.json").read_text())["state"] == "FROZEN"
     with pytest.raises(ValueError, match="FROZEN"):
         transition(run, RunState.RUNNING)
+
+
+def test_freeze_makes_every_frozen_file_read_only(tmp_path: Path) -> None:
+    repository, allowlist = fixture_repo(tmp_path)
+    run = prepare(
+        repository,
+        tmp_path / "runs",
+        "run-001",
+        allowlist,
+        1,
+        SIGNING_KEY,
+        TEST_RUNTIME,
+        "deterministic",
+        None,
+    )
+    launch(
+        run,
+        SIGNING_KEY,
+        "deterministic",
+        TEST_IMAGE,
+        model=None,
+        execute=False,
+        repository=repository,
+        allowlist=allowlist,
+        dataset_selector="travel",
+    )
+    transition(run, RunState.RUNNING)
+    write_valid_outputs(run)
+    frozen = freeze(run, SIGNING_KEY)
+    read_only_mode = stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH
+    files = [path for path in frozen.iterdir() if path.is_file()]
+    assert files, "expected at least one file under frozen/"
+    assert any(path.name == "hashes.json" for path in files)
+    for path in files:
+        mode = stat.S_IMODE(path.stat().st_mode)
+        assert mode == read_only_mode, f"{path.name} is mode {oct(mode)}, expected {oct(read_only_mode)}"
 
 
 def test_malformed_candidates_are_rejected(tmp_path: Path) -> None:
