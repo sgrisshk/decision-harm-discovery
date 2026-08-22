@@ -28,13 +28,13 @@ It does not change eligibility, scoring, depth, or final selection.
 
 `v0.6.0` (`TASK-068`, `ADR-056`/`ADR-057`) adds a feature-identity diversity cap at final
 candidate selection — orthogonal to, and strictly additive over, `_greedy_diverse_select`
-(`TASK-060`) and the expansion beam (`TASK-064`), neither of which is modified. A
-`b2b_sales/comparable` portability postmortem (`ADR-055`) found every one of 15 committed
-candidates anchored on the same one or two features, a crowding axis neither existing mechanism
-guards: population-overlap diversity does not stop many candidates from differing only in
-threshold/category on the same dominant feature, and the expansion beam's structural reserve
-operates on `(feature, operator)` shape only during search, not on final-selection feature
-identity. `_apply_feature_identity_cap` runs strictly after `_greedy_diverse_select` returns,
+(`TASK-060`) and the expansion beam (`TASK-064`), neither of which is modified. A portability
+postmortem (`ADR-055`) found every one of a run's committed candidates anchored on the same one
+or two features, a crowding axis neither existing mechanism guards: population-overlap diversity
+does not stop many candidates from differing only in threshold/category on the same dominant
+feature, and the expansion beam's structural reserve operates on `(feature, operator)` shape only
+during search, not on final-selection feature identity. `_apply_feature_identity_cap` runs
+strictly after `_greedy_diverse_select` returns,
 trimming an already-ranked, already-diversified selection down to `top_k` while capping how many
 final slots any single feature name may occupy — never re-ranking, never reconsidering a rule
 `_greedy_diverse_select` already excluded. See its docstring and
@@ -193,9 +193,9 @@ class DiscoveryConfig:
     #: (`TASK-068`, `ADR-056`/`ADR-057`). `1.0` (default) never binds: the resulting per-feature cap
     #: equals `top_k` itself, which no feature can exceed within a `top_k`-sized final set, so the
     #: default reproduces `discovery-engine-v0.5.0` selection exactly (regression-tested). A
-    #: `b2b_sales/comparable` portability postmortem (`ADR-055`) found every one of 15 committed
-    #: candidates anchored on the same one or two features — a crowding axis neither
-    #: `_greedy_diverse_select`'s population-overlap diversity (`TASK-060`) nor the expansion beam's
+    #: portability postmortem (`ADR-055`) found every one of a run's committed candidates anchored
+    #: on the same one or two features — a crowding axis neither `_greedy_diverse_select`'s
+    #: population-overlap diversity (`TASK-060`) nor the expansion beam's
     #: `(feature, operator)`-structure reserve (`TASK-064`) guards: many candidates can differ only
     #: in threshold/category on the same dominant feature without ever having high row-level
     #: overlap or sharing an exact atom. Every feature a rule's conditions touch counts toward that

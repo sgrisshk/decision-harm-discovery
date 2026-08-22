@@ -365,9 +365,10 @@ feature, if desired, is separate Data Engineering/architecture work and a new in
 
 ## Feature-identity diversity cap at final selection, v0.6.0 (`TASK-068`, `ADR-056`/`ADR-057`)
 
-**Diagnosis:** a `b2b_sales/comparable` portability postmortem (`ADR-055`) found every one of 15
-committed candidates from that domain's run anchored on the same one or two features (their
-public identities are irrelevant to the mechanism and are not repeated here). Neither existing
+**Diagnosis:** a portability postmortem (`ADR-055`) found every one of a run's committed
+candidates anchored on the same one or two features (the run's domain and the features' public
+identities are irrelevant to the mechanism and are not repeated here — see `ADR-055` for the full
+account). Neither existing
 diversity control guards this axis: `_greedy_diverse_select`'s population-overlap discount
 (`TASK-060`) does not stop many candidates from differing only in threshold/category on the same
 dominant feature — two rules can select almost entirely different rows while still sharing a

@@ -686,8 +686,8 @@ def test_relevance_floor_percentile_one_reproduces_v040_exactly() -> None:
 
 # --- TASK-068: feature-identity diversity floor at final selection (ADR-056/ADR-057) ---
 #
-# A b2b_sales/comparable portability postmortem (ADR-055) found every one of 15 committed
-# candidates anchored on the same one or two features -- a crowding axis neither
+# A portability postmortem (ADR-055) found every one of a run's committed candidates anchored
+# on the same one or two features -- a crowding axis neither
 # _greedy_diverse_select's population-overlap diversity (TASK-060) nor the expansion beam's
 # (feature, operator)-structure reserve (TASK-064) guards. These tests use only invented feature
 # names and DECISION_TIME-only inputs -- never a real domain, dataset, or hidden ground truth.
