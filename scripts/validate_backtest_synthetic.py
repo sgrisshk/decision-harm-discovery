@@ -13,7 +13,7 @@ pattern's own true effect, on the *true* affected population) from any candidate
 error, which is `TASK-028`'s already-diagnosed, separate problem
 (`task-029-benchmark-report-v1.md` §3.6). It also runs the same engine, unadjusted, against each
 of the 5 confounding traps' `apparent_feature` condition
-(`evaluate_benchmark.TRAP_APPARENT_CONDITIONS`, reused rather than re-parsed) — traps have a
+(`evaluate_benchmark._trap_apparent_conditions`, reused rather than re-parsed) — traps have a
 *known-zero* `direct_effect`, so a nonzero raw `benefit` there is an expected, disclosed
 consequence of this being a mechanical, unadjusted replay, not a failure of the engine; it is
 reported to keep that disclosure honest, not graded pass/fail.
@@ -27,6 +27,10 @@ is homogeneous across time — the same category of assumption already used thro
 benchmark, stated as an approximation here, not presented as exact.
 """
 
+# pyright: reportPrivateUsage=false
+# Reuses evaluate_benchmark's private _trap_apparent_conditions verbatim (module docstring's
+# "reused rather than re-parsed" note) rather than re-deriving the same trap-condition parse here —
+# deliberate, not a layering violation to silently ignore case-by-case.
 from __future__ import annotations
 
 import json
@@ -42,7 +46,7 @@ sys.path.insert(0, str(REPOSITORY / "packages/schemas/src"))
 sys.path.insert(0, str(REPOSITORY / "scripts"))
 
 import polars as pl  # noqa: E402
-from evaluate_benchmark import TRAP_APPARENT_CONDITIONS  # noqa: E402
+from evaluate_benchmark import _trap_apparent_conditions  # noqa: E402
 from policy_analytics.backtest import BACKTEST_CONTRACT_VERSION, backtest_from_mask  # noqa: E402
 from policy_analytics.outcomes import OutcomeDefinition, primary_outcome  # noqa: E402
 from policy_analytics.validation.apply import (  # noqa: E402
@@ -161,7 +165,7 @@ def main() -> None:
     ]
     traps = [
         _trap_result(trap_id, condition, frame, outcome, rng)
-        for trap_id, condition in TRAP_APPARENT_CONDITIONS.items()
+        for trap_id, condition in _trap_apparent_conditions(ground_truth).items()
     ]
 
     scored_patterns = [

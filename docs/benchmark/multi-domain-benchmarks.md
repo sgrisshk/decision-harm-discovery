@@ -360,6 +360,25 @@ Full detail, including the regression and its fix, in `TASKS.md`'s `TASK-062` en
 scope: a `TASK-013`-grade outcome contract per domain, or generalizing `evaluate_benchmark.py`
 itself (both remain real, separate, explicitly out-of-scope follow-up work).
 
+### B2B temporal-selection contract (`HANDOFF-064`)
+
+The preregistered `b2b_sales/comparable` analytical artifact now also publishes the generic
+temporal interface required by blind discovery:
+
+- split contract `b2b-sales-temporal-split-v1.0.0`, pinned to analytical dataset identity
+  `72c5ce99e97bb56bc8831653bc8820ad92610ad114b53589c3ac580bd2c15493`;
+- closed, inclusive decision-time windows on `deal_created_date`: development `2024-01-01` through
+  `2024-12-31` (5,028 rows), validation `2025-01-01` through `2025-06-30` (2,491), and future
+  holdout `2025-07-01` through `2025-12-31` (2,481), with no shuffle, overlap, or unassigned rows;
+- discovery selection is allowed only on development; validation and future holdout are explicitly
+  diagnostic-only;
+- `outcomes_final` is true because the exported synthetic benchmark is closed and all downstream
+  outcomes were realized before export. This mode is forbidden for live data without an explicit
+  observation cutoff and maturation policy.
+
+Reproduce the public `split_manifest.json` and `split_membership.csv` without reading raw or hidden
+truth using `uv run python scripts/build_domain_temporal_splits.py --domain b2b_sales`.
+
 ## How to generate
 
 ```sh

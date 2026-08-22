@@ -1,8 +1,12 @@
 """CLI: score a frozen TASK-019 validation report against hidden ground truth (TASK-028).
 
-Opens `synthetic_data/evaluation/hidden_ground_truth.json` — legitimate only because this runs
-strictly after candidate commitment and validation are already frozen (the blind boundary this
-protects is upstream, at discovery and validation time, not here). Computes the six metrics
+Opens a `hidden_ground_truth.json` (`--ground-truth`, default: the travel benchmark's) — legitimate
+only because this runs strictly after candidate commitment and validation are already frozen (the
+blind boundary this protects is upstream, at discovery and validation time, not here). `--dataset-
+root`/`--ground-truth` (mirroring `--validation-report`/`--output`, `ADR-025`) let this evaluator
+run against any domain's own analytical dataset and ground truth instead of hardcoding travel's —
+purely an input-source change; the matching statistic and all six metrics below are untouched.
+Computes the six metrics
 `docs/benchmark/decision-gate.md` is scoped against: Top-K precision, economic-weighted recall,
 confounder trap rejection, leakage violations, effect direction accuracy, and economic impact
 estimation error. Writes one frozen, versioned report; does not edit the decision gate document.
@@ -17,6 +21,24 @@ injected condition — a rule capturing most of a pattern's affected population 
 even if it also covers unrelated bookings; that dilution is instead visible in the impact-error
 metric, where it belongs.
 
+**`HANDOFF-065` (domain-neutral trap/pattern mapping, `TASK-028` half):** the historical
+`TRAP_APPARENT_CONDITIONS`/`SCOREABLE_PATTERN_IDS` module constants were travel-hardcoded — a
+literal `{feature: (feature, "eq", value)}` dict transcribed by hand from travel's own
+`hidden_ground_truth.json`, and a literal 7-of-9 pattern-id tuple. Both are now computed from
+whichever `ground_truth`/`frame` `--ground-truth`/`--dataset-root` point at, at run time:
+`_trap_apparent_conditions` parses every `confounding_traps[].apparent_feature` string generically
+(`"col=value"`, with `"true"`/`"false"` string coercion to `bool` — the same coercion travel's own
+five trap entries already needed by hand); `_scoreable_pattern_ids` reimplements this file's own
+`§"Fixed denominators"` rule generically (`affected_n >= ValidationThresholds.min_exposed_records`
+*and* the pattern has at least one affected record in the `development` split) instead of a frozen
+travel-specific tuple. Both were checked to reproduce travel's exact historical values byte-for-byte
+before replacing the constants (`tests/analytics/test_evaluate_benchmark.py`). Two more small
+generalizations ride along, needed for the same reason: the record-id column is read from
+`manifest.json`'s own `partitions.identifiers.columns[0]` instead of a hardcoded `"booking_id"`
+literal, and each pattern's affected-id list is located by key pattern (`affected_.*_ids`) since
+travel's own key (`affected_booking_ids`) and every `TASK-061` domain's key (`affected_record_ids`)
+differ.
+
 **`TASK-059` addition (`HANDOFF-043` remediation part 1):** metric 6's governing number
 (`metrics.economic_impact_estimation_error`) is unchanged — it still compares each matched
 candidate's *whole-rule* reported historical impact against the matched pattern(s)' true impact,
@@ -24,7 +46,7 @@ exactly as `docs/benchmark/decision-gate.md` pre-registered it. A second, clearl
 diagnostic-only sibling metric
 (`metrics.economic_impact_estimation_error_attribution_narrowed_diagnostic`) is added alongside it:
 same matched-candidate population, but the reported side is recomputed over just the booking IDs a
-candidate's exposed set shares with its matched pattern's `affected_booking_ids` (only knowable
+candidate's exposed set shares with its matched pattern's affected-record-id set (only knowable
 here, against `hidden_ground_truth.json`, never for a real customer finding — `HANDOFF-043`, ML
 Discovery dissent). **This diagnostic does not govern the decision gate and must not be substituted
 for `economic_impact_estimation_error` when reading `docs/benchmark/decision-gate.md`'s bands** —
@@ -37,11 +59,14 @@ it exists to show how much of the whole-rule error is attributable to population
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
+import re
 import sys
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any, cast
 
 REPOSITORY = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPOSITORY / "packages/analytics/src"))
@@ -52,9 +77,15 @@ from policy_analytics.validation.apply import (  # noqa: E402
     load_analytical_frame,
     rule_expr,
 )
+from policy_analytics.validation.contract import DEFAULT_THRESHOLDS  # noqa: E402
 
-DATASET_ROOT = REPOSITORY / "synthetic_data/analytical/travel-bookings-analytical-v1.0.0"
-GROUND_TRUTH_PATH = REPOSITORY / "synthetic_data/evaluation/hidden_ground_truth.json"
+#: Defaults reproduce the historical travel-benchmark run exactly — `--dataset-root`/
+#: `--ground-truth` (mirroring `--validation-report`/`--output`, `ADR-025`) let this evaluator run
+#: against any other domain's analytical dataset and ground truth (e.g. a `TASK-061` domain, once
+#: it has a discovery run of its own to score) without editing this file. The metric logic itself
+#: (matching, the six metrics, the diagnostic) is untouched by this parameterization.
+DEFAULT_DATASET_ROOT = REPOSITORY / "synthetic_data/analytical/travel-bookings-analytical-v1.0.0"
+DEFAULT_GROUND_TRUTH_PATH = REPOSITORY / "synthetic_data/evaluation/hidden_ground_truth.json"
 DEFAULT_VALIDATION_REPORT_PATH = (
     REPOSITORY / "artifacts/validation/task-019-official-20260816-015.json"
 )
@@ -62,15 +93,6 @@ DEFAULT_OUTPUT_PATH = REPOSITORY / "artifacts/evaluation/task-028-benchmark-eval
 
 MATCH_RECALL_THRESHOLD = 0.5
 TOP_K = 10
-SCOREABLE_PATTERN_IDS = (
-    "P01",
-    "P02",
-    "P03",
-    "P04",
-    "P06",
-    "P08",
-    "P09",
-)  # P05, P07 excluded, §"Fixed denominators"
 VALIDATED_LEVELS = (
     "predictive_association",
     "adjusted_observational_association",
@@ -79,14 +101,126 @@ VALIDATED_LEVELS = (
 )
 PROMOTED_READINESS = ("shadow_policy", "high_confidence")
 
-TRAP_APPARENT_CONDITIONS: dict[str, tuple[str, str, object]] = {
-    # trap_id -> (feature, operator, value) matching the trap's stated "apparent_feature" exactly.
-    "T01": ("manager", "eq", "Manager 2"),
-    "T02": ("supplier", "eq", "Atlas"),
-    "T03": ("acquisition_channel", "eq", "paid_search"),
-    "T04": ("payment_method", "eq", "bank_transfer"),
-    "T05": ("manual_exception", "eq", True),
-}
+#: `SCOREABLE_PATTERN_IDS`/`TRAP_APPARENT_CONDITIONS` used to be frozen, hand-transcribed travel
+#: constants here. `HANDOFF-065` replaced both with `_scoreable_pattern_ids`/
+#: `_trap_apparent_conditions` below, computed from whichever `ground_truth`/`frame` this run is
+#: actually pointed at — see the module docstring's `HANDOFF-065` paragraph.
+_AFFECTED_IDS_KEY = re.compile(r"^affected_.*_ids$")
+
+
+def _record_id_column(manifest: dict[str, Any]) -> str:
+    """The dataset's own per-record identifier column — always the first column of
+    `manifest.json`'s `partitions.identifiers`
+    (`policy_analytics.analytical_dataset.build_analytical_dataset`, `TASK-062`), never assumed.
+    """
+    return str(manifest["partitions"]["identifiers"]["columns"][0])
+
+
+def _primary_outcome_metadata(manifest: dict[str, Any]) -> dict[str, Any]:
+    contract = manifest.get("outcome_contract")
+    if not isinstance(contract, dict):
+        raise ValueError("analytical manifest has no outcome_contract")
+    typed_contract = cast(dict[str, object], contract)
+    primary_id = typed_contract.get("primary_outcome_id")
+    definitions = typed_contract.get("definitions")
+    if not isinstance(primary_id, str) or not isinstance(definitions, list):
+        raise ValueError("analytical manifest has an invalid outcome_contract")
+    matches: list[dict[str, Any]] = []
+    for raw_definition in cast(list[object], definitions):
+        if not isinstance(raw_definition, dict):
+            continue
+        definition = cast(dict[str, Any], raw_definition)
+        if definition.get("outcome_id") == primary_id:
+            matches.append(definition)
+    if len(matches) != 1:
+        raise ValueError("analytical manifest primary outcome is not uniquely defined")
+    return matches[0]
+
+
+def _verify_evaluation_lineage(
+    manifest: dict[str, Any], validation: dict[str, Any], candidates: dict[str, Any]
+) -> None:
+    """Fail closed unless the frozen public artifacts belong to one lineage."""
+    expected = {
+        "dataset_version": manifest.get("dataset_version"),
+        "dataset_identity_sha256": manifest.get("dataset_identity_sha256"),
+        "outcome_contract_version": manifest.get("outcome_contract", {}).get("version"),
+    }
+    for field, value in expected.items():
+        if validation.get(field) != value:
+            raise ValueError(f"validation {field} does not match analytical manifest")
+        if candidates.get(field) != value:
+            raise ValueError(f"candidate {field} does not match analytical manifest")
+    if validation.get("candidates_source") is None:
+        raise ValueError("validation report does not identify its candidate source")
+    validation_ids = [item.get("candidate_id") for item in validation.get("candidates", [])]
+    candidate_ids = [item.get("candidate_id") for item in candidates.get("candidates", [])]
+    if validation_ids != candidate_ids or len(validation_ids) != len(set(validation_ids)):
+        raise ValueError("validation and candidate families do not match exactly")
+
+
+def _affected_ids(pattern: dict[str, object]) -> frozenset[str]:
+    """A ground-truth pattern's affected-record-id set, whatever its key is named — travel calls it
+    `affected_booking_ids`; every `TASK-061` domain calls it `affected_record_ids`. Locating it by
+    shape (`affected_*_ids`, exactly one match) instead of hardcoding either name is what lets this
+    generalize without special-casing travel.
+    """
+    keys = [key for key in pattern if _AFFECTED_IDS_KEY.match(key)]
+    if len(keys) != 1:
+        raise ValueError(
+            f"pattern {pattern.get('id')!r} has {len(keys)} keys matching affected_*_ids "
+            f"(expected exactly 1): {keys}"
+        )
+    return frozenset(pattern[keys[0]])  # type: ignore[arg-type]
+
+
+def _scoreable_pattern_ids(
+    ground_truth: dict[str, object], development_split_ids: frozenset[str]
+) -> tuple[str, ...]:
+    """Generalizes this file's own preregistered `§"Fixed denominators"` rule (originally computed
+    by hand once, for travel, as the frozen 7-of-9 `SCOREABLE_PATTERN_IDS` tuple):
+    a pattern is scoreable for recall purposes iff it clears the power floor
+    (`ValidationThresholds.min_exposed_records`, matching travel's stated reason for excluding P05,
+    n=23) *and* has at least one affected record in the `development` split (matching travel's
+    stated reason for excluding P07, which has zero — recall can only be computed against candidates
+    fit on the development split). Verified to reproduce travel's exact historical
+    `{P01,P02,P03,P04,P06,P08,P09}` before replacing the frozen tuple
+    (`tests/analytics/test_evaluate_benchmark.py`).
+    """
+    scoreable: list[str] = []
+    for pattern in ground_truth["patterns"]:  # type: ignore[union-attr]
+        affected = _affected_ids(pattern)  # type: ignore[arg-type]
+        if (
+            len(affected) >= DEFAULT_THRESHOLDS.min_exposed_records
+            and len(affected & development_split_ids) > 0
+        ):
+            scoreable.append(str(pattern["id"]))  # type: ignore[index]
+    return tuple(sorted(scoreable))
+
+
+def _parse_apparent_feature(raw: str) -> tuple[str, str, object]:
+    """`"col=value"` -> `(col, "eq", value)`, coercing the literal strings `"true"`/`"false"` to
+    `bool` (the only coercion travel's own five `confounding_traps` entries ever needed — T05's
+    `manual_exception=true`). Verified to reproduce travel's exact historical
+    `TRAP_APPARENT_CONDITIONS` dict before replacing it
+    (`tests/analytics/test_evaluate_benchmark.py`).
+    """
+    feature, _, value = raw.partition("=")
+    coerced: object = value
+    if value == "true":
+        coerced = True
+    elif value == "false":
+        coerced = False
+    return (feature, "eq", coerced)
+
+
+def _trap_apparent_conditions(
+    ground_truth: dict[str, object],
+) -> dict[str, tuple[str, str, object]]:
+    return {
+        str(trap["id"]): _parse_apparent_feature(str(trap["apparent_feature"]))  # type: ignore[index]
+        for trap in ground_truth["confounding_traps"]  # type: ignore[union-attr]
+    }
 
 
 @dataclass(frozen=True, slots=True)
@@ -109,13 +243,58 @@ def _condition_from_dict(raw: dict[str, object]) -> Condition:
     return Condition(str(raw["feature"]), raw["operator"], raw["value"])  # type: ignore[arg-type]
 
 
-def _matches_trap(conditions: list[dict[str, object]]) -> list[str]:
+def _display_path(path: Path) -> str:
+    """Repo-relative when possible (matches every other path already written into this payload);
+    falls back to the absolute path for a `--dataset-root`/`--ground-truth` value that lives
+    outside the repository rather than raising.
+    """
+    try:
+        return str(path.relative_to(REPOSITORY))
+    except ValueError:
+        return str(path)
+
+
+def _matches_trap(
+    conditions: list[dict[str, object]],
+    trap_apparent_conditions: dict[str, tuple[str, str, object]],
+) -> list[str]:
     condition_set = {(c["feature"], c["operator"], c["value"]) for c in conditions}
     return [
         trap_id
-        for trap_id, apparent in TRAP_APPARENT_CONDITIONS.items()
+        for trap_id, apparent in trap_apparent_conditions.items()
         if apparent in condition_set
     ]
+
+
+def _trap_rejection_note(
+    scores: list[CandidateScore], trap_appeared: dict[str, bool], historical_travel: bool
+) -> str:
+    if historical_travel:
+        return (
+            "No trap's apparent_feature appears as a literal condition in any of the 15 persisted "
+            "candidates, so no trap was promoted — but this is non-promotion by absence, not "
+            "active "
+            "rejection of a trap-shaped candidate by gate G06. All PASS candidates did "
+            "independently clear G06 (manager x supplier stratified adjustment) as part of "
+            "TASK-019, which is the closest active analog."
+        )
+    if not any(trap_appeared.values()):
+        prefix = (
+            "No trap's apparent_feature appears as a literal condition in any of the "
+            f"{len(scores)} "
+            "persisted candidates, so no trap was promoted — this is non-promotion by absence, "
+            "not active rejection of a trap-shaped candidate by gate G06."
+        )
+    else:
+        prefix = (
+            "At least one trap's apparent_feature appeared as a literal condition in a persisted "
+            "candidate — see trap_appeared_as_candidate/trap_promoted for whether a gate kept it "
+            "from reaching promoted policy_readiness."
+        )
+    return prefix + (
+        " G06 uses the manifest-bound, coverage-gated adjustment set outside the candidate's own "
+        "conditions (validation contract >= 1.2.0, ADR-036/ADR-042/TASK-063)."
+    )
 
 
 def _attribution_overlap_ids(
@@ -128,7 +307,7 @@ def _attribution_overlap_ids(
     """
     overlap: frozenset[str] = frozenset()
     for pid in matched_patterns:
-        overlap |= exposed_ids & frozenset(patterns_by_id[pid]["affected_booking_ids"])  # type: ignore[index]
+        overlap |= exposed_ids & _affected_ids(patterns_by_id[pid])
     return overlap
 
 
@@ -149,7 +328,7 @@ def _attribution_narrowed_impact(
     return point, ci
 
 
-def parse_args() -> argparse.Namespace:
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
             "CLI: score a frozen TASK-019 validation report against hidden ground truth (TASK-028)."
@@ -168,17 +347,37 @@ def parse_args() -> argparse.Namespace:
         help="where to write the frozen TASK-028 evaluation report",
     )
     parser.add_argument(
+        "--dataset-root",
+        type=Path,
+        default=DEFAULT_DATASET_ROOT,
+        help="analytical dataset root to re-evaluate candidate conditions against "
+        "(default: the travel benchmark)",
+    )
+    parser.add_argument(
+        "--ground-truth",
+        type=Path,
+        default=DEFAULT_GROUND_TRUTH_PATH,
+        help="hidden_ground_truth.json to score against (default: the travel benchmark's)",
+    )
+    parser.add_argument(
         "--force",
         action="store_true",
         help="allow overwriting an existing output file",
     )
-    return parser.parse_args()
+    return parser.parse_args(argv)
 
 
-def main() -> None:
-    args = parse_args()
+def main(argv: list[str] | None = None) -> None:
+    args = parse_args(argv)
     validation_report_path: Path = args.validation_report.resolve()
     output_path: Path = args.output.resolve()
+    dataset_root: Path = args.dataset_root.resolve()
+    ground_truth_path: Path = args.ground_truth.resolve()
+    historical_travel_regression = (
+        validation_report_path == DEFAULT_VALIDATION_REPORT_PATH.resolve()
+        and dataset_root == DEFAULT_DATASET_ROOT.resolve()
+        and ground_truth_path == DEFAULT_GROUND_TRUTH_PATH.resolve()
+    )
     if output_path.exists() and not args.force:
         raise SystemExit(
             f"{output_path} already exists and is a frozen result. Refusing to overwrite it. "
@@ -186,19 +385,31 @@ def main() -> None:
             "TASKS.md/HANDOFFS.md — do not use --force to silently regrade the same result."
         )
 
-    ground_truth = json.loads(GROUND_TRUTH_PATH.read_text(encoding="utf-8"))
+    ground_truth_bytes = ground_truth_path.read_bytes()
+    ground_truth = json.loads(ground_truth_bytes)
     validation = json.loads(validation_report_path.read_text(encoding="utf-8"))
     candidates_payload = json.loads(
         Path(validation["candidates_source"]).read_text(encoding="utf-8")
     )
+    manifest = json.loads((dataset_root / "manifest.json").read_text(encoding="utf-8"))
+    _verify_evaluation_lineage(manifest, validation, candidates_payload)
+    outcome_metadata = _primary_outcome_metadata(manifest)
+    higher_is_worse = bool(outcome_metadata["higher_is_worse"])
+    outcome_unit = str(outcome_metadata["unit"])
 
-    frame = load_analytical_frame(DATASET_ROOT)
-    booking_ids = frame["booking_id"].to_list()
+    record_id_column = _record_id_column(manifest)
+    frame = load_analytical_frame(dataset_root)
+    booking_ids = frame[record_id_column].to_list()
+    development_split_ids = frozenset(
+        frame.filter(frame["split_label"] == "development")[record_id_column].to_list()  # pyright: ignore[reportUnknownMemberType]
+    )
 
     patterns_by_id = {p["id"]: p for p in ground_truth["patterns"]}
+    scoreable_pattern_ids = _scoreable_pattern_ids(ground_truth, development_split_ids)
+    trap_apparent_conditions = _trap_apparent_conditions(ground_truth)
     scoreable_total_impact = sum(
         patterns_by_id[pid]["true_effect"]["realized_economic_impact"]
-        for pid in SCOREABLE_PATTERN_IDS
+        for pid in scoreable_pattern_ids
     )
 
     report_by_id = {c["candidate_id"]: c for c in validation["candidates"]}
@@ -216,12 +427,12 @@ def main() -> None:
 
         recalls: dict[str, float] = {}
         for pid, pattern in patterns_by_id.items():
-            affected = frozenset(pattern["affected_booking_ids"])
+            affected = _affected_ids(pattern)
             recalls[pid] = len(exposed_ids & affected) / len(affected) if affected else 0.0
         matched = sorted(pid for pid, r in recalls.items() if r >= MATCH_RECALL_THRESHOLD)
         best_recall = max(recalls.values()) if recalls else 0.0
 
-        matched_traps = _matches_trap(raw["conditions"])
+        matched_traps = _matches_trap(raw["conditions"], trap_apparent_conditions)
         report = report_by_id[candidate_id]["validation_report"]
 
         scores.append(
@@ -253,7 +464,7 @@ def main() -> None:
         for s in scores
         if s.evidence_level in VALIDATED_LEVELS and not s.is_trap
         for pid in s.matched_patterns
-        if pid in SCOREABLE_PATTERN_IDS
+        if pid in scoreable_pattern_ids
     }
     recovered_impact = sum(
         patterns_by_id[pid]["true_effect"]["realized_economic_impact"]
@@ -268,11 +479,11 @@ def main() -> None:
         trap_id: any(
             trap_id in s.matched_traps and s.policy_readiness in PROMOTED_READINESS for s in scores
         )
-        for trap_id in TRAP_APPARENT_CONDITIONS
+        for trap_id in trap_apparent_conditions
     }
     trap_appeared_as_candidate = {
         trap_id: any(trap_id in s.matched_traps for s in scores)
-        for trap_id in TRAP_APPARENT_CONDITIONS
+        for trap_id in trap_apparent_conditions
     }
     any_trap_promoted = any(trap_promoted.values())
 
@@ -291,20 +502,27 @@ def main() -> None:
     direction_results: list[dict[str, object]] = []
     for s in validated_matched:
         raw_effect = raw_by_id[s.candidate_id]["raw_effect"]
-        # Every scoreable pattern here is decrease_is_harm; candidate raw_effect < 0 means the
-        # exposed group's contribution margin is lower -> harmful -> direction-correct.
-        candidate_harmful = raw_effect < 0
+        candidate_harmful = (raw_effect > 0) if higher_is_worse else (raw_effect < 0)
         true_directions = {
             patterns_by_id[pid]["true_effect"]["direction"] for pid in s.matched_patterns
         }
-        expected_harmful = true_directions == {"decrease_is_harm"}
+        unsupported_directions = true_directions - {"increase_is_harm", "decrease_is_harm"}
+        if unsupported_directions:
+            raise ValueError(
+                f"unsupported ground-truth effect directions: {unsupported_directions}"
+            )
+        expected_raw_signs = {
+            1 if direction == "increase_is_harm" else -1 for direction in true_directions
+        }
+        raw_sign = 1 if raw_effect > 0 else -1 if raw_effect < 0 else 0
+        direction_correct = expected_raw_signs == {raw_sign}
         direction_results.append(
             {
                 "candidate_id": s.candidate_id,
                 "matched_patterns": s.matched_patterns,
                 "candidate_effect_harmful": candidate_harmful,
-                "ground_truth_harmful": expected_harmful,
-                "direction_correct": candidate_harmful == expected_harmful,
+                "ground_truth_harmful": True,
+                "direction_correct": direction_correct,
             }
         )
     direction_correct_count = sum(1 for r in direction_results if r["direction_correct"])
@@ -316,8 +534,19 @@ def main() -> None:
     impact_errors: list[dict[str, object]] = []
     relative_errors: list[float] = []
     for s in validated_matched:
-        reported = report_by_id[s.candidate_id]["diagnostics"]["historical_exposure_ci_eur"]
-        reported_point = (float(reported[0]) + float(reported[1])) / 2  # midpoint of the 95% CI
+        raw_economic_impact = report_by_id[s.candidate_id].get("economic_impact")
+        if not isinstance(raw_economic_impact, dict):
+            raise ValueError(f"candidate {s.candidate_id} has no bound economic impact")
+        historical_impact = cast(dict[str, object], raw_economic_impact).get("historical_impact")
+        if not isinstance(historical_impact, dict):
+            raise ValueError(f"candidate {s.candidate_id} has no bound historical impact")
+        typed_impact = cast(dict[str, object], historical_impact)
+        if typed_impact.get("unit") != outcome_unit:
+            raise ValueError(f"candidate {s.candidate_id} historical-impact unit mismatch")
+        ci_low, ci_high = typed_impact.get("ci_low"), typed_impact.get("ci_high")
+        if not isinstance(ci_low, int | float) or not isinstance(ci_high, int | float):
+            raise ValueError(f"candidate {s.candidate_id} historical-impact CI is invalid")
+        reported_point = (float(ci_low) + float(ci_high)) / 2  # midpoint of the 95% CI
         truth_impact = float(
             sum(
                 patterns_by_id[pid]["true_effect"]["realized_economic_impact"]
@@ -349,7 +578,7 @@ def main() -> None:
     # --- Diagnostic (TASK-059, benchmark-evaluation-only, does not govern the decision gate):
     # attribution-narrowed economic impact error. Same matched-candidate population as metric 6,
     # but the reported side uses only the bookings a candidate's exposed set shares with its
-    # matched pattern's affected_booking_ids, scaled by the candidate's own reported per-record
+    # matched pattern's affected-record-id set, scaled by the candidate's own reported per-record
     # effect — the same linear scaling `economic_impact.py` already uses for
     # `historical_impact = per_record_effect x affected_records`, just over a narrower population.
     # Only possible here, against hidden_ground_truth.json; no analog exists for a real finding.
@@ -415,7 +644,7 @@ def main() -> None:
         "methodology": {
             "match_recall_threshold": MATCH_RECALL_THRESHOLD,
             "top_k": TOP_K,
-            "scoreable_pattern_ids": list(SCOREABLE_PATTERN_IDS),
+            "scoreable_pattern_ids": list(scoreable_pattern_ids),
             "ranking_signal_for_top_k": (
                 "economic_exposure (as reported by TASK-015), descending — TASK-016 candidate "
                 "ranking has not run; this is a documented substitution, not TASK-016's output"
@@ -424,17 +653,22 @@ def main() -> None:
                 "TASK-059 (HANDOFF-043 remediation part 1): "
                 "metrics.economic_impact_estimation_error_attribution_narrowed_diagnostic is a "
                 "benchmark-evaluation-only sibling of metric 6, computed only because "
-                "hidden_ground_truth.json's affected_booking_ids are available here. It does NOT "
-                "govern docs/benchmark/decision-gate.md and must not replace "
+                "hidden_ground_truth.json's affected-record-id sets are available here. It does "
+                "NOT govern docs/benchmark/decision-gate.md and must not replace "
                 "metrics.economic_impact_estimation_error when reading that document's bands."
             ),
         },
         "inputs": {
-            "validation_report": str(validation_report_path.relative_to(REPOSITORY)),
+            "validation_report": _display_path(validation_report_path),
             "candidates_source": validation["candidates_source"],
-            "ground_truth_sha256_expected": (
-                "5c41aab8ad6765332b708fd8b91567b63839b84add2dd8aa206d87c159cab506"
-            ),
+            "dataset_root": _display_path(dataset_root),
+            "ground_truth": _display_path(ground_truth_path),
+            "ground_truth_sha256": hashlib.sha256(ground_truth_bytes).hexdigest(),
+            "dataset_version": manifest["dataset_version"],
+            "dataset_identity_sha256": manifest["dataset_identity_sha256"],
+            "outcome_contract_version": manifest["outcome_contract"]["version"],
+            "outcome_id": outcome_metadata["outcome_id"],
+            "outcome_unit": outcome_unit,
         },
         "candidate_scores": [asdict(s) for s in scores],
         "metrics": {
@@ -454,12 +688,8 @@ def main() -> None:
                 "any_trap_promoted": any_trap_promoted,
                 "trap_promoted": trap_promoted,
                 "trap_appeared_as_candidate": trap_appeared_as_candidate,
-                "note": (
-                    "No trap's apparent_feature appears as a literal condition in any of the 15 "
-                    "persisted candidates, so no trap was promoted — but this is non-promotion by "
-                    "absence, not active rejection of a trap-shaped candidate by gate G06. All "
-                    "PASS candidates did independently clear G06 (manager x supplier stratified "
-                    "adjustment) as part of TASK-019, which is the closest active analog."
+                "note": _trap_rejection_note(
+                    scores, trap_appeared_as_candidate, historical_travel_regression
                 ),
             },
             "leakage_violations": {"value": leakage_violations},
@@ -486,7 +716,7 @@ def main() -> None:
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    print(f"Wrote {output_path.relative_to(REPOSITORY)}")
+    print(f"Wrote {_display_path(output_path)}")
     print(f"Top-{TOP_K} precision: {top_k_precision:.0%} ({top_k_true_pattern_count}/{len(top_k)})")
     print(f"Economic-weighted recall: {economic_weighted_recall:.1%}")
     print(f"Any trap promoted: {any_trap_promoted}")
