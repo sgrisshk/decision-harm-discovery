@@ -10,7 +10,7 @@ REPOSITORY = Path(__file__).resolve().parents[2]
 REHEARSAL_KEY = b"truth-free-rehearsal-key-material"
 
 
-def rehearse(image: str) -> None:
+def rehearse(image: str, dataset_selector: str) -> None:
     with tempfile.TemporaryDirectory(prefix="policy-blind-rehearsal-") as raw_root:
         runs_root = Path(raw_root) / "runs"
         run_root = prepare(
@@ -23,6 +23,7 @@ def rehearse(image: str) -> None:
             resolve_image(image),
             "deterministic",
             None,
+            dataset_selector,
         )
         launch(
             run_root,
@@ -33,6 +34,7 @@ def rehearse(image: str) -> None:
             provider_network=False,
             repository=REPOSITORY,
             allowlist=REPOSITORY / "blind/allowlist.yaml",
+            dataset_selector=dataset_selector,
         )
         freeze(run_root, REHEARSAL_KEY)
     print("BLIND_REHEARSAL_VALID")
@@ -41,8 +43,9 @@ def rehearse(image: str) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--image", required=True)
+    parser.add_argument("--dataset", required=True)
     args = parser.parse_args()
-    rehearse(args.image)
+    rehearse(args.image, args.dataset)
 
 
 if __name__ == "__main__":

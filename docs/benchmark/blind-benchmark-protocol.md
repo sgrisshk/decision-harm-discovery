@@ -15,7 +15,7 @@ evaluator. Generated public inputs and restricted files currently share that che
 
 Use two execution identities and two workspaces:
 
-1. A trusted coordinator creates a fresh blind workspace from a hard-coded file allowlist.
+1. A trusted coordinator creates a fresh blind workspace from a registry-backed file allowlist.
 2. ML Discovery receives only that workspace. It does not receive the full checkout, evaluator
    signing key, generator implementation, corruption manifest, hidden truth, or evaluation code.
 3. Discovery returns a candidate JSON containing the workspace `bundle_id`.
@@ -93,9 +93,9 @@ repository:
 ```sh
 make blind-key-init RUN=run-001
 make blind-image
-make blind-rehearsal
-make blind-issue RUN=run-001
-make blind-verify RUN=run-001
+make blind-rehearsal BLIND_DATASET=travel
+make blind-issue RUN=run-001 BLIND_DATASET=travel
+make blind-verify RUN=run-001 BLIND_DATASET=travel
 ```
 
 Start ML Discovery as a separate OS/container identity with
@@ -106,10 +106,18 @@ allowlist, output acceptance contract, and immutable runtime digest. Verificatio
 compare the current allowlist and source hashes to the issued snapshot; any drift requires a new
 run ID. Candidate commitment rejects unsigned, forged, incomplete, or modified manifests.
 
+The required `BLIND_DATASET` value is a reviewed key in `blind/allowlist.yaml`, never an arbitrary
+path. Each key pins one versioned analytical root. Issuance derives the fixed six public partition
+paths from that root and signs the selector, root, acceptance fields, and copied-file hashes.
+Verification and launch require the same selector. Unknown keys, absent analytical/split manifests,
+missing partitions, selector drift, analytical/split identity or version mismatch, and declared
+partition/membership hash mismatch are terminal errors. This permits a preregistered domain to
+reuse the isolation mechanism without copying any other registered domain into its workspace.
+
 The repository provides a fail-closed container boundary for interactive execution:
 
 ```sh
-make blind-shell RUN=run-001
+make blind-shell RUN=run-001 BLIND_DATASET=travel
 ```
 
 The coordinator owns `/tmp/policy-blind-evaluator/signing.key` (mode `0600`) and invokes the

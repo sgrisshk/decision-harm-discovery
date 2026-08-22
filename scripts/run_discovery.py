@@ -47,7 +47,6 @@ def main() -> None:
     parser.add_argument(
         "--dataset",
         type=Path,
-        default=Path("synthetic_data/analytical/travel-bookings-analytical-v1.0.0"),
     )
     parser.add_argument("--manifest", type=Path, default=Path("BLIND_MANIFEST.json"))
     parser.add_argument("--output-dir", type=Path, default=Path("output"))
@@ -60,6 +59,12 @@ def main() -> None:
         raise ValueError("unsupported signed output schema version")
     if contract["discovery_method_version"] != DISCOVERY_METHOD_VERSION:
         raise ValueError("signed discovery method does not match implementation")
+    signed_dataset_root = Path(str(contract["analytical_dataset_root"]))
+    if signed_dataset_root.is_absolute() or ".." in signed_dataset_root.parts:
+        raise ValueError("signed analytical dataset root is unsafe")
+    if args.dataset is not None and args.dataset != signed_dataset_root:
+        raise ValueError("dataset argument does not match signed analytical dataset root")
+    dataset = signed_dataset_root
     outcome_metadata = cast(dict[str, Any], contract["primary_outcome_metadata"])
     outcome = SignedOutcome(
         outcome_id=str(outcome_metadata["outcome_id"]),
@@ -67,9 +72,9 @@ def main() -> None:
         unit=str(outcome_metadata["unit"]),
         higher_is_worse=bool(outcome_metadata["higher_is_worse"]),
     )
-    features = pl.read_csv(args.dataset / "features.csv", try_parse_dates=False)
-    outcomes = pl.read_csv(args.dataset / "outcomes.csv", try_parse_dates=False)
-    metadata = pl.read_csv(args.dataset / "metadata.csv", try_parse_dates=False)
+    features = pl.read_csv(dataset / "features.csv", try_parse_dates=False)
+    outcomes = pl.read_csv(dataset / "outcomes.csv", try_parse_dates=False)
+    metadata = pl.read_csv(dataset / "metadata.csv", try_parse_dates=False)
     if not (features.height == outcomes.height == metadata.height):
         raise ValueError("analytical partitions are not row-aligned")
     frame = pl.concat([features, outcomes, metadata.select("split_label")], how="horizontal")

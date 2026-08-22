@@ -39,6 +39,7 @@ def main() -> None:
     parser.add_argument("--model")
     parser.add_argument("--image", default="policy-blind-agent:local")
     parser.add_argument("--network", choices=("none", "provider"), default="none")
+    parser.add_argument("--dataset")
     args = parser.parse_args()
     run_root = args.runs_root.resolve() / args.run
     if args.command == "init-key":
@@ -48,6 +49,8 @@ def main() -> None:
         print(json.dumps(json.loads((run_root / "state.json").read_text()), indent=2))
         return
     signing_key = load_signing_key(args.key_file, REPOSITORY, args.runs_root)
+    if args.command in {"issue", "prepare", "verify", "launch", "shell"} and not args.dataset:
+        parser.error("--dataset is required for issuance, verification, and launch")
     if args.command in {"issue", "prepare"}:
         if args.agent == "deterministic" and args.model:
             parser.error("--model is forbidden for deterministic blind runs")
@@ -62,6 +65,7 @@ def main() -> None:
                 resolve_image(args.image),
                 args.agent,
                 args.model,
+                args.dataset,
             )
         )
     elif args.command == "verify":
@@ -71,6 +75,7 @@ def main() -> None:
             repository=REPOSITORY,
             allowlist=args.allowlist,
             check_source=True,
+            dataset_selector=args.dataset,
         )
         print("BLIND_WORKSPACE_VALID")
     elif args.command in {"launch", "shell"}:
@@ -83,6 +88,7 @@ def main() -> None:
             provider_network=args.network == "provider",
             repository=REPOSITORY,
             allowlist=args.allowlist,
+            dataset_selector=args.dataset,
         )
     elif args.command == "freeze":
         print(freeze(run_root, signing_key))

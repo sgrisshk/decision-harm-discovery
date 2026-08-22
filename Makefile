@@ -56,6 +56,7 @@ BLIND_AGENT_IMAGE_TAG ?= policy-blind-agent:deterministic-local
 BLIND_AGENT_IMAGE ?= policy-blind-agent@sha256:9ad6e1a78ca41a7c04895d1d99c7775e77fc2c8fbb4f23cee268ed04534c7c9b
 AGENT ?= deterministic
 BLIND_NETWORK ?= none
+BLIND_DATASET ?=
 
 blind-key-init:
 	test -n "$(RUN)"
@@ -75,23 +76,28 @@ blind-image:
 
 blind-rehearsal:
 	@test -n "$(BLIND_AGENT_IMAGE)"
-	uv run python -m tools.blind_agent.rehearsal --image "$(BLIND_AGENT_IMAGE)"
+	@test -n "$(BLIND_DATASET)"
+	uv run python -m tools.blind_agent.rehearsal --image "$(BLIND_AGENT_IMAGE)" --dataset "$(BLIND_DATASET)"
 
 blind-issue:
 	test -n "$(RUN)"
-	uv run python -m tools.blind_agent.cli issue --run "$(RUN)" --runs-root "$(BLIND_RUNS_ROOT)" --key-file "$(BLIND_EVALUATOR_KEY_FILE)" --agent "$(AGENT)" --image "$(BLIND_AGENT_IMAGE)"
+	test -n "$(BLIND_DATASET)"
+	uv run python -m tools.blind_agent.cli issue --run "$(RUN)" --runs-root "$(BLIND_RUNS_ROOT)" --key-file "$(BLIND_EVALUATOR_KEY_FILE)" --agent "$(AGENT)" --image "$(BLIND_AGENT_IMAGE)" --dataset "$(BLIND_DATASET)"
 
 blind-prepare:
 	test -n "$(RUN)"
-	uv run python -m tools.blind_agent.cli prepare --run "$(RUN)" --runs-root "$(BLIND_RUNS_ROOT)" --key-file "$(BLIND_EVALUATOR_KEY_FILE)" --agent "$(AGENT)" --image "$(BLIND_AGENT_IMAGE)"
+	test -n "$(BLIND_DATASET)"
+	uv run python -m tools.blind_agent.cli prepare --run "$(RUN)" --runs-root "$(BLIND_RUNS_ROOT)" --key-file "$(BLIND_EVALUATOR_KEY_FILE)" --agent "$(AGENT)" --image "$(BLIND_AGENT_IMAGE)" --dataset "$(BLIND_DATASET)"
 
 blind-verify:
 	test -n "$(RUN)"
-	uv run python -m tools.blind_agent.cli verify --run "$(RUN)" --runs-root "$(BLIND_RUNS_ROOT)" --key-file "$(BLIND_EVALUATOR_KEY_FILE)"
+	test -n "$(BLIND_DATASET)"
+	uv run python -m tools.blind_agent.cli verify --run "$(RUN)" --runs-root "$(BLIND_RUNS_ROOT)" --key-file "$(BLIND_EVALUATOR_KEY_FILE)" --dataset "$(BLIND_DATASET)"
 
 blind-shell:
 	test -n "$(RUN)"
-	uv run python -m tools.blind_agent.cli launch --run "$(RUN)" --runs-root "$(BLIND_RUNS_ROOT)" --key-file "$(BLIND_EVALUATOR_KEY_FILE)" --agent "$(AGENT)" --image "$(BLIND_AGENT_IMAGE)" --network "$(BLIND_NETWORK)"
+	test -n "$(BLIND_DATASET)"
+	uv run python -m tools.blind_agent.cli launch --run "$(RUN)" --runs-root "$(BLIND_RUNS_ROOT)" --key-file "$(BLIND_EVALUATOR_KEY_FILE)" --agent "$(AGENT)" --image "$(BLIND_AGENT_IMAGE)" --network "$(BLIND_NETWORK)" --dataset "$(BLIND_DATASET)"
 
 blind-freeze:
 	test -n "$(RUN)"

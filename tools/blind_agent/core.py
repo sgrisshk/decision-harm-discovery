@@ -49,6 +49,14 @@ TRANSITIONS = {
     RunState.RUNNING: {RunState.COMPLETED, RunState.FAILED},
     RunState.COMPLETED: {RunState.FROZEN, RunState.FAILED},
 }
+DATASET_FILES = (
+    "features.csv",
+    "outcomes.csv",
+    "identifiers.csv",
+    "metadata.csv",
+    "split_manifest.json",
+    "split_membership.csv",
+)
 
 
 def now() -> str:
@@ -156,6 +164,19 @@ def load_allowlist(path: Path) -> list[str]:
     return cast(list[str], values)
 
 
+def selected_allowlist(path: Path, dataset_selector: str) -> tuple[list[str], PurePosixPath]:
+    payload = cast(dict[str, Any], json.loads(path.read_text(encoding="utf-8")))
+    datasets = payload.get("datasets")
+    if not isinstance(datasets, dict):
+        raise ValueError("allowlist must contain a dataset selector mapping")
+    raw_root = cast(dict[object, object], datasets).get(dataset_selector)
+    if not isinstance(raw_root, str):
+        raise ValueError(f"unknown blind dataset selector: {dataset_selector}")
+    root = safe_relative(raw_root)
+    patterns = load_allowlist(path) + [f"{root.as_posix()}/{name}" for name in DATASET_FILES]
+    return patterns, root
+
+
 def _paths(repository: Path, patterns: list[str]) -> list[tuple[Path, Path]]:
     selected: dict[str, tuple[Path, Path]] = {}
     for pattern in patterns:
@@ -174,23 +195,59 @@ def _paths(repository: Path, patterns: list[str]) -> list[tuple[Path, Path]]:
     return [selected[key] for key in sorted(selected)]
 
 
-def _acceptance_contract(repository: Path) -> dict[str, Any] | None:
-    analytical_manifest_path = (
-        repository / "synthetic_data/analytical/travel-bookings-analytical-v1.0.0/manifest.json"
-    )
-    split_manifest_path = (
-        repository
-        / "synthetic_data/analytical/travel-bookings-analytical-v1.0.0/split_manifest.json"
-    )
+def _acceptance_contract(
+    repository: Path, dataset_selector: str, analytical_root: PurePosixPath
+) -> dict[str, Any] | None:
+    analytical_manifest_path = repository.joinpath(*analytical_root.parts, "manifest.json")
+    split_manifest_path = repository.joinpath(*analytical_root.parts, "split_manifest.json")
     if not analytical_manifest_path.is_file() or not split_manifest_path.is_file():
         return None
     analytical = cast(
         dict[str, Any], json.loads(analytical_manifest_path.read_text(encoding="utf-8"))
     )
     split = cast(dict[str, Any], json.loads(split_manifest_path.read_text(encoding="utf-8")))
+    dataset_version = analytical.get("dataset_version")
+    dataset_identity = analytical.get("dataset_identity_sha256")
+    if not isinstance(dataset_version, str) or not dataset_version:
+        raise ValueError("analytical manifest has no dataset_version")
+    if not isinstance(dataset_identity, str) or not re.fullmatch(r"[0-9a-f]{64}", dataset_identity):
+        raise ValueError("analytical manifest has an invalid dataset_identity_sha256")
+    if split.get("analytical_dataset_version") != dataset_version:
+        raise ValueError("temporal split dataset version does not match analytical manifest")
+    if split.get("analytical_dataset_identity_sha256") != dataset_identity:
+        raise ValueError("temporal split dataset identity does not match analytical manifest")
+    raw_outcome_contract = analytical.get("outcome_contract")
+    if not isinstance(raw_outcome_contract, dict):
+        raise ValueError("analytical manifest has no outcome contract")
+    outcome_contract = cast(dict[str, Any], raw_outcome_contract)
+    if outcome_contract.get("dataset_scope") != dataset_version:
+        raise ValueError("outcome contract dataset scope does not match analytical manifest")
+    raw_partitions = analytical.get("partitions")
+    if not isinstance(raw_partitions, dict):
+        raise ValueError("analytical manifest has no partition bindings")
+    partitions = cast(dict[str, dict[str, Any]], raw_partitions)
+    for role, filename in (
+        ("features", "features.csv"),
+        ("outcomes", "outcomes.csv"),
+        ("identifiers", "identifiers.csv"),
+        ("metadata", "metadata.csv"),
+    ):
+        declared = partitions.get(role)
+        if not isinstance(declared, dict) or declared.get("path") != filename:
+            raise ValueError(f"analytical manifest has an invalid {role} partition binding")
+        if declared.get("sha256") != sha256(repository.joinpath(*analytical_root.parts, filename)):
+            raise ValueError(f"analytical manifest {role} partition hash mismatch")
+    raw_membership = split.get("membership_artifact")
+    if not isinstance(raw_membership, dict):
+        raise ValueError("temporal split manifest has no membership binding")
+    membership = cast(dict[str, Any], raw_membership)
+    if membership.get("path") != "split_membership.csv" or membership.get("sha256") != sha256(
+        repository.joinpath(*analytical_root.parts, "split_membership.csv")
+    ):
+        raise ValueError("temporal split membership binding mismatch")
     timing = cast(dict[str, dict[str, Any]], analytical["feature_timing"])
-    outcome_definitions = cast(list[dict[str, Any]], analytical["outcome_contract"]["definitions"])
-    primary_outcome_id = analytical["outcome_contract"]["primary_outcome_id"]
+    outcome_definitions = cast(list[dict[str, Any]], outcome_contract["definitions"])
+    primary_outcome_id = outcome_contract["primary_outcome_id"]
     primary_outcome_metadata = next(
         definition
         for definition in outcome_definitions
@@ -202,15 +259,18 @@ def _acceptance_contract(repository: Path) -> dict[str, Any] | None:
     method_match = re.search(r'^DISCOVERY_METHOD_VERSION = "([^"]+)"$', engine_source, re.MULTILINE)
     if method_match is None:
         raise ValueError("discovery implementation does not declare DISCOVERY_METHOD_VERSION")
-    contract_version = analytical["outcome_contract"]["version"]
+    contract_version = outcome_contract["version"]
     return {
         "output_schema_version": "1.1.0",
         "run_contract_version": "blind-run-contract-v1.1.0",
-        "dataset_version": analytical["dataset_version"],
-        "dataset_identity_sha256": analytical["dataset_identity_sha256"],
-        "outcome_contract_version": analytical["outcome_contract"]["version"],
+        "dataset_version": dataset_version,
+        "dataset_selector": dataset_selector,
+        "analytical_dataset_root": analytical_root.as_posix(),
+        "dataset_identity_sha256": dataset_identity,
+        "outcome_contract_version": outcome_contract["version"],
         "discovery_contract_version": contract_version,
         "discovery_method_version": method_match.group(1),
+        "temporal_split_contract_version": split["split_config_version"],
         "primary_outcome": primary_outcome_id,
         "primary_outcome_metadata": primary_outcome_metadata,
         "search_fit_split": split["discovery_usage"]["search_fit_split"],
@@ -221,10 +281,13 @@ def _acceptance_contract(repository: Path) -> dict[str, Any] | None:
     }
 
 
-def _verify_source_snapshot(repository: Path, allowlist: Path, expected: dict[str, str]) -> None:
+def _verify_source_snapshot(
+    repository: Path, allowlist: Path, dataset_selector: str, expected: dict[str, str]
+) -> None:
+    patterns, _ = selected_allowlist(allowlist, dataset_selector)
     current = {
         relative.as_posix(): sha256(source)
-        for source, relative in _paths(repository.resolve(), load_allowlist(allowlist))
+        for source, relative in _paths(repository.resolve(), patterns)
     }
     if current != expected:
         changed = sorted(
@@ -312,6 +375,7 @@ def prepare(
     runtime_image: dict[str, str],
     runtime_agent: str = "deterministic",
     runtime_model: str | None = None,
+    dataset_selector: str = "travel",
 ) -> Path:
     validate_run_id(run_id)
     if not IMMUTABLE_IMAGE.fullmatch(runtime_image.get("requested_reference", "")):
@@ -332,13 +396,20 @@ def prepare(
     _event(run_root, "created")
     copied: dict[str, str] = {}
     try:
-        for source, relative in _paths(repository, load_allowlist(allowlist)):
+        patterns, analytical_root = selected_allowlist(allowlist, dataset_selector)
+        for source, relative in _paths(repository, patterns):
             target = workspace / relative
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(source, target, follow_symlinks=False)
             copied[relative.as_posix()] = sha256(target)
         (workspace / "output").mkdir()
         workspace_sha256 = hashlib.sha256(json.dumps(copied, sort_keys=True).encode()).hexdigest()
+        acceptance_contract = _acceptance_contract(repository, dataset_selector, analytical_root)
+        if acceptance_contract is None:
+            raise ValueError(
+                f"selected blind dataset is missing its analytical or temporal split manifest: "
+                f"{dataset_selector}"
+            )
         unsigned_manifest = {
             "schema_version": "1.0.0",
             "protocol_version": "1.0.0",
@@ -351,7 +422,8 @@ def prepare(
             "workspace_sha256": workspace_sha256,
             "bundle_id": workspace_sha256,
             "allowlist_sha256": sha256(allowlist),
-            "acceptance_contract": _acceptance_contract(repository),
+            "dataset_selector": dataset_selector,
+            "acceptance_contract": acceptance_contract,
             "runtime_image": runtime_image,
             "runtime_agent": runtime_agent,
             "runtime_model": runtime_model,
@@ -401,6 +473,7 @@ def verify(
     allowlist: Path | None = None,
     check_source: bool = False,
     advance: bool = False,
+    dataset_selector: str | None = None,
 ) -> None:
     run_root = run_root.resolve()
     if not run_root.is_dir():
@@ -417,6 +490,8 @@ def verify(
         raise ValueError(f"blind run has no issued manifest and is invalid: {run_root}")
     workspace = run_root / "workspace"
     manifest = json.loads(manifest_path.read_text())
+    if dataset_selector is not None and dataset_selector != manifest.get("dataset_selector"):
+        raise ValueError("requested dataset selector does not match the signed issued runtime")
     public_manifest_path = workspace / PUBLIC_MANIFEST
     if public_manifest_path.is_symlink() or not public_manifest_path.is_file():
         raise ValueError("signed public blind manifest is missing or is a symlink")
@@ -451,7 +526,14 @@ def verify(
             raise ValueError("source verification requires repository and allowlist")
         if sha256(allowlist) != manifest.get("allowlist_sha256"):
             raise ValueError("issued workspace allowlist source drift detected")
-        _verify_source_snapshot(repository, allowlist, expected)
+        dataset_selector = manifest.get("dataset_selector")
+        if not isinstance(dataset_selector, str):
+            raise ValueError("issued workspace has no signed dataset selector")
+        _, analytical_root = selected_allowlist(allowlist, dataset_selector)
+        current_contract = _acceptance_contract(repository, dataset_selector, analytical_root)
+        if current_contract != manifest.get("acceptance_contract"):
+            raise ValueError("issued workspace acceptance-contract source drift detected")
+        _verify_source_snapshot(repository, allowlist, dataset_selector, expected)
     if advance and _state(run_root) == RunState.PREPARED:
         transition(run_root, RunState.VERIFIED)
     else:
@@ -468,6 +550,7 @@ def launch(
     provider_network: bool = False,
     repository: Path | None = None,
     allowlist: Path | None = None,
+    dataset_selector: str | None = None,
 ) -> list[str]:
     if not IMMUTABLE_IMAGE.fullmatch(image):
         raise ValueError("blind launch requires an immutable image reference name@sha256:<digest>")
@@ -477,6 +560,7 @@ def launch(
         repository=repository,
         allowlist=allowlist,
         check_source=True,
+        dataset_selector=dataset_selector,
     )
     if _state(run_root) != RunState.VERIFIED:
         raise ValueError("only a VERIFIED run may be launched")
@@ -487,6 +571,8 @@ def launch(
         raise ValueError("launch agent does not match the signed issued runtime")
     if model != manifest.get("runtime_model"):
         raise ValueError("launch model does not match the signed issued runtime")
+    if dataset_selector != manifest.get("dataset_selector"):
+        raise ValueError("launch dataset selector does not match the signed issued runtime")
     workspace = (run_root / "workspace").resolve()
     if provider_network:
         raise ValueError("deterministic blind launch forbids provider network")

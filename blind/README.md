@@ -11,10 +11,10 @@ only an allowlist-built workspace outside the checkout. Blindness cannot be rest
 # Evaluator/coordinator identity, from the trusted checkout:
 make blind-key-init RUN=run-001
 make blind-image
-make blind-rehearsal
-make blind-issue RUN=run-001
-make blind-verify RUN=run-001
-make blind-shell RUN=run-001
+make blind-rehearsal BLIND_DATASET=travel
+make blind-issue RUN=run-001 BLIND_DATASET=travel
+make blind-verify RUN=run-001 BLIND_DATASET=travel
+make blind-shell RUN=run-001 BLIND_DATASET=travel
 make blind-freeze RUN=run-001
 make blind-status RUN=run-001
 ```
@@ -31,6 +31,17 @@ starts a new CLI process in Docker, and never resumes a session. `freeze` valida
 v1.1.0 and its signed dataset/contracts/splits/provenance/timing/language acceptance fields, records
 hashes, copies them read-only to `frozen/`, and closes the state.
 Evaluation is a separate trusted process and is not mounted or implemented here.
+
+`BLIND_DATASET` is mandatory for rehearsal, issuance, verification, and launch. It is a registry
+key from `blind/allowlist.yaml`, not a caller-supplied filesystem path. The registry maps each key
+to one versioned analytical root; the runner then adds exactly `features.csv`, `outcomes.csv`,
+`identifiers.csv`, `metadata.csv`, `split_manifest.json`, and `split_membership.csv`. The selector,
+root, dataset identity, outcome contract, temporal split contract, method version, and hashes of
+all copied files are evaluator-signed. Unknown selectors, missing partitions/contracts, selector
+drift, analytical/split identity or version mismatch, declared partition/membership hash mismatch,
+or source drift fail closed. A workspace contains common discovery code plus only the
+selected dataset partitions; it never includes another registered dataset or dataset-local
+generator/evaluation/private metadata.
 
 The official actor is deterministic Python, not a generative model or chat editor. It reads the signed
 `BLIND_MANIFEST.json`, public analytical partitions, and allowlisted discovery engine, then writes
@@ -75,10 +86,10 @@ All earlier provider-backed runs, including verified but unlaunched `…-014`, a
 audit-only artifacts and must not be reused after runtime/source drift. The deterministic runtime
 is pinned as
 `policy-blind-agent@sha256:9ad6e1a78ca41a7c04895d1d99c7775e77fc2c8fbb4f23cee268ed04534c7c9b`.
-After `make blind-rehearsal` succeeds, the evaluator issues a new unique run and launches:
+After the same selector passes rehearsal, the evaluator issues a new unique run and launches:
 
 ```sh
-make blind-shell RUN=<new-run-id>
+make blind-shell RUN=<new-run-id> BLIND_DATASET=travel
 ```
 
 The coordinator supplies neither `BLIND_EVALUATOR_KEY_FILE` nor any provider credential to the

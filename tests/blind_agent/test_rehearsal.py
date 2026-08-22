@@ -35,9 +35,10 @@ def test_rehearsal_uses_deterministic_networkless_runtime(
     monkeypatch.setattr(rehearsal, "launch", fake_launch)
     monkeypatch.setattr(rehearsal, "freeze", fake_freeze)
 
-    rehearsal.rehearse("actor@sha256:" + "a" * 64)
+    rehearsal.rehearse("actor@sha256:" + "a" * 64, "travel")
 
     assert [name for name, _, _ in calls] == ["prepare", "launch", "freeze"]
-    assert calls[0][1][-2:] == ("deterministic", None)
+    assert calls[0][1][-3:] == ("deterministic", None, "travel")
     assert calls[1][1][2] == "deterministic"
     assert calls[1][2]["provider_network"] is False
+    assert calls[1][2]["dataset_selector"] == "travel"
