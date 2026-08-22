@@ -16,6 +16,11 @@ ADR-030 then ADR-031; originally `98ad4e7e08e63ee9e31f9317ca408f2895da8bece49324
 — the underlying data is unchanged, see those entries), and Statistics-owned outcome contract
 v1.0.0. The primary outcome is `contribution_margin_eur`; a decrease is harmful.
 
+`ADR-047` subsequently publishes analytical input `travel-bookings-analytical-v1.1.0` for a
+future, separate discovery iteration. It adds generic decision-time `travel_month`; it does not
+retroactively alter this document's frozen v0.5.0 run or its dataset identity. Raw date thresholds
+remain excluded from atoms.
+
 ## Search
 
 - Inputs are only manifest-approved decision-time feature columns, the contracted primary
