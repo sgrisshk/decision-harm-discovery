@@ -20,6 +20,11 @@ stable). `v0.4.1` (`ADR-040`) instead changes the floor's reference point from t
 maximum score (always the dominant pattern) to a robust percentile of the pool's own score
 distribution (`_percentile`), still without moving `min_diversity_relevance_ratio` itself. See all
 four functions' docstrings and `docs/analytics/discovery-engine-v0.md`.
+
+`v0.5.0` (`TASK-064`, `ADR-045`/`ADR-046`) changes only the expansion beam: the global score core
+is supplemented by a bounded reserve for feature/operator structures, so an eligible lower-score
+pair can form a third condition instead of every expansion right going to dominant rescalings.
+It does not change eligibility, scoring, depth, or final selection.
 """
 
 from __future__ import annotations
@@ -50,7 +55,7 @@ class OutcomeDefinition(Protocol):
 
 
 Operator = Literal["eq", "ge", "lt"]
-DISCOVERY_METHOD_VERSION = "discovery-engine-v0.4.1"
+DISCOVERY_METHOD_VERSION = "discovery-engine-v0.5.0"
 
 
 @dataclass(frozen=True, slots=True, order=True)
@@ -68,6 +73,19 @@ class DiscoveryConfig:
     min_n: int = 40
     max_conditions: int = 3
     beam_width: int = 80
+    #: In addition to the global top-`beam_width` rules at each expandable depth, retain up to this
+    #: many best rules per structural signature (`(feature, operator)` tuples, values excluded).
+    #: This gives a lower-scoring but eligible feature/operator combination a bounded chance to
+    #: form a deeper interaction instead of allocating every expansion right to rescalings of the
+    #: globally strongest structures. `0` reproduces v0.4.1's score-only beam exactly. The default
+    #: `2` is the smallest quota that distinguishes two categorical combinations sharing the same
+    #: feature/operator structure while remaining independent of feature names and values.
+    beam_rules_per_structure: int = 2
+    #: Hard ceiling on the combined score-core plus structural reserve at every depth. Keeps the
+    #: expanded hypothesis family bounded when a future dataset has many eligible feature/operator
+    #: structures. Must be at least `beam_width`; the default leaves headroom above the 418-rule
+    #: depth-2 beam observed in the pre-code public trace without encoding any target identity.
+    max_expansion_beam_size: int = 512
     top_k: int = 15
     numeric_quantiles: tuple[float, ...] = (0.2, 0.4, 0.6, 0.8)
     max_categorical_levels: int = 12
@@ -158,6 +176,12 @@ class DiscoveryConfig:
     relevance_floor_percentile: float = 0.75
 
     def __post_init__(self) -> None:
+        if self.beam_width < 1:
+            raise ValueError("beam_width must be at least 1")
+        if self.beam_rules_per_structure < 0:
+            raise ValueError("beam_rules_per_structure must be non-negative")
+        if self.max_expansion_beam_size < self.beam_width:
+            raise ValueError("max_expansion_beam_size must be at least beam_width")
         if not 0.0 < self.population_score_exponent <= 1.0:
             raise ValueError("population_score_exponent must be in (0.0, 1.0]")
         if not 0.0 <= self.diversity_discount_weight <= 1.0:
@@ -285,6 +309,48 @@ def _development_score(metric: SplitMetric, condition_count: int, config: Discov
     population_component = metric.n_exposed**config.population_score_exponent
     magnitude = metric.harm_per_booking * population_component
     return magnitude / (1.0 + 0.15 * (condition_count - 1))
+
+
+def _beam_structure(rule: tuple[Condition, ...]) -> tuple[tuple[str, Operator], ...]:
+    """Feature/operator shape used only for beam survival; threshold/category values stay blind.
+
+    Two rules with the same columns and operator directions compete inside the same bounded bucket.
+    The signature contains no domain taxonomy, feature allow/deny list, pattern ID, or trap hint.
+    """
+    return tuple((condition.feature, condition.operator) for condition in rule)
+
+
+def _select_expansion_beam(
+    scored: dict[tuple[Condition, ...], tuple[float, SplitMetric]],
+    depth: int,
+    config: DiscoveryConfig,
+) -> list[tuple[Condition, ...]]:
+    """Select rules allowed to produce the next depth (`TASK-064`, `ADR-045`).
+
+    The score-core preserves the previous global top-`beam_width` behavior. A bounded structural
+    reserve then adds the best `beam_rules_per_structure` rules for each feature/operator shape.
+    This changes only whether an already-eligible rule may be expanded; it changes neither
+    eligibility, `_development_score`, maximum depth, nor final top-K selection.
+    """
+    ranked = [
+        rule
+        for rule, _ in sorted(scored.items(), key=lambda item: (-item[1][0], item[0]))
+        if len(rule) == depth
+    ]
+    core = ranked[: config.beam_width]
+    if config.beam_rules_per_structure == 0:
+        return core
+
+    selected = set(core)
+    structure_usage: dict[tuple[tuple[str, Operator], ...], int] = {}
+    for rule in ranked:
+        structure = _beam_structure(rule)
+        used = structure_usage.get(structure, 0)
+        if used >= config.beam_rules_per_structure:
+            continue
+        selected.add(rule)
+        structure_usage[structure] = used + 1
+    return [rule for rule in ranked if rule in selected][: config.max_expansion_beam_size]
 
 
 def _exposed_rows(frame: pl.DataFrame, rule: tuple[Condition, ...]) -> frozenset[int]:
@@ -499,11 +565,7 @@ def discover_candidates(
                         continue
                 scored[rule] = (_development_score(metric, depth, config), metric)
 
-        beam = [
-            rule
-            for rule, _ in sorted(scored.items(), key=lambda item: (-item[1][0], item[0]))
-            if len(rule) == depth
-        ][: config.beam_width]
+        beam = _select_expansion_beam(scored, depth, config)
         if depth == config.max_conditions:
             break
         for rule in beam:

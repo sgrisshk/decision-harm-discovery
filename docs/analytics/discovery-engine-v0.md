@@ -1,7 +1,7 @@
 # Discovery Engine v0 methodology
 
-**Owner:** ML Discovery · **Task:** TASK-015, TASK-058, TASK-060 · **Methodology version:**
-`discovery-engine-v0.4.1`
+**Owner:** ML Discovery · **Task:** TASK-015, TASK-058, TASK-060, TASK-064 · **Methodology version:**
+`discovery-engine-v0.5.0`
 
 ## Scope and evidence boundary
 
@@ -28,8 +28,9 @@ v1.0.0. The primary outcome is `contribution_margin_eur`; a decrease is harmful.
   conjunction must reference different features. A conjunction is rejected as tautological if it
   does not strictly reduce the exposed population relative to every immediate parent rule.
 - Development eligibility requires `N >= 40`, support between 1% and 40%, and harmful raw outcome
-  direction. Beam width is 80 and seed is 1729 (the v0 search is deterministic; the seed is
-  recorded for forward compatibility).
+  direction. The score-core beam width is 80; v0.5.0 additionally retains up to two best eligible
+  rules per feature/operator structural signature before expansion. Seed is 1729 (the search is
+  deterministic; the seed is recorded for forward compatibility).
 - Candidate selection uses development data only. Validation and future-holdout outcomes never
   select or edit a condition; they are reported after conditions are fixed as temporal direction
   diagnostics.
@@ -324,6 +325,38 @@ property of the pool's own score distribution shape only.
 **New official blind run:** issued/verified/launched/frozen/committed under the same `ADR-008`
 protocol, before any evaluation opened `hidden_ground_truth.json` — see `TASKS.md` `TASK-060` for
 the run ID, public comparison, and `TASK-019`/`TASK-028` outcome.
+
+## Structure-covered expansion beam, v0.5.0 (`TASK-064`, `ADR-045`/`ADR-046`)
+
+`TASK-064` changes the search stage, not `TASK-060`'s closed top-K selection stage. The required
+pre-code trace found that all 25 eligible depth-1 rules already fit inside the old width-80 beam,
+but depth 2 contained 1,201 eligible rules. Relevant, already-disclosed feature pairs were scored
+at ranks 319, 606, and 908–1047: valid rules with adequate support, but unable to produce a third
+condition because a global score-only top 80 owned every expansion right. Changing their
+generation order would not change their score and therefore could not fix this.
+
+The v0.5.0 expansion beam is the union of:
+
+1. the previous global top `beam_width=80` score core; and
+2. up to `beam_rules_per_structure=2` best rules for every structural signature, where a signature
+   is only the sorted tuple of `(feature, operator)` pairs and deliberately excludes values.
+
+The combined beam is sorted by the unchanged development score and hard-capped at
+`max_expansion_beam_size=512`. On the public travel analytical frame the depth-2 expansion beam is
+418 rules and the evaluated hypothesis family grows from 6,557 to 26,213; a truth-free local run
+completed in about 2m19s on the development machine. The cap prevents datasets with many
+feature/operator structures from making the reserve unbounded. Setting
+`beam_rules_per_structure=0` reproduces v0.4.1's score-only beam exactly.
+
+No eligibility threshold, support floor, score formula, maximum interaction depth, final
+selection knob, feature timing class, or candidate schema changes. No feature/pattern/trap name is
+present in the beam logic or its synthetic tests. The method only changes whether an already
+eligible rule may form a deeper conjunction.
+
+The same trace established a separate hard limitation: seasonal P04 is not representable because
+raw dates are excluded and the analytical contract supplies no decision-time month/season feature.
+This method does not pretend beam coverage can recover a missing atom. Adding a generic temporal
+feature, if desired, is separate Data Engineering/architecture work and a new input contract.
 
 ## Reproduction
 

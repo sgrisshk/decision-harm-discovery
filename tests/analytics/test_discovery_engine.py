@@ -10,6 +10,7 @@ from policy_analytics.discovery.engine import (
     _development_score,
     _greedy_diverse_select,
     _percentile,
+    _select_expansion_beam,
     _temporal_consistency,
     discover_candidates,
 )
@@ -151,7 +152,88 @@ def test_discover_candidates_with_exponent_one_matches_manual_pure_exposure_repr
         )
         assert result["candidate_count"] > 0
         assert all(candidate["fit_split"] == "development" for candidate in result["candidates"])
-        assert result["methodology_version"] == "discovery-engine-v0.4.1"
+        assert result["methodology_version"] == "discovery-engine-v0.5.0"
+
+
+# --- TASK-064: feature/operator-structure coverage in the expansion beam ---
+
+
+def test_zero_structural_beam_quota_reproduces_score_only_beam() -> None:
+    high_a = (Condition("alpha", "eq", "high"), Condition("beta", "eq", "one"))
+    high_b = (Condition("alpha", "eq", "next"), Condition("beta", "eq", "two"))
+    low_distinct = (Condition("gamma", "ge", 3.0), Condition("omega", "lt", 8.0))
+    scored = {
+        high_a: (100.0, _metric(100, 10.0)),
+        high_b: (90.0, _metric(100, 9.0)),
+        low_distinct: (10.0, _metric(100, 1.0)),
+    }
+    beam = _select_expansion_beam(
+        scored,
+        depth=2,
+        config=DiscoveryConfig(beam_width=2, beam_rules_per_structure=0),
+    )
+    assert beam == [high_a, high_b]
+
+
+def test_structural_beam_reserve_keeps_a_lower_scoring_distinct_shape() -> None:
+    high_a = (Condition("alpha", "eq", "high"), Condition("beta", "eq", "one"))
+    high_b = (Condition("alpha", "eq", "next"), Condition("beta", "eq", "two"))
+    low_distinct = (Condition("gamma", "ge", 3.0), Condition("omega", "lt", 8.0))
+    scored = {
+        high_a: (100.0, _metric(100, 10.0)),
+        high_b: (90.0, _metric(100, 9.0)),
+        low_distinct: (10.0, _metric(100, 1.0)),
+    }
+    beam = _select_expansion_beam(
+        scored,
+        depth=2,
+        config=DiscoveryConfig(beam_width=2, beam_rules_per_structure=1),
+    )
+    assert beam == [high_a, high_b, low_distinct]
+
+
+def test_structural_beam_quota_two_keeps_two_values_of_the_same_shape() -> None:
+    dominant = (Condition("alpha", "eq", "dominant"), Condition("beta", "eq", "one"))
+    second = (Condition("alpha", "eq", "second"), Condition("beta", "eq", "two"))
+    scored = {
+        dominant: (20.0, _metric(100, 2.0)),
+        second: (10.0, _metric(100, 1.0)),
+    }
+    quota_one = _select_expansion_beam(
+        scored,
+        depth=2,
+        config=DiscoveryConfig(beam_width=1, beam_rules_per_structure=1),
+    )
+    quota_two = _select_expansion_beam(
+        scored,
+        depth=2,
+        config=DiscoveryConfig(beam_width=1, beam_rules_per_structure=2),
+    )
+    assert quota_one == [dominant]
+    assert quota_two == [dominant, second]
+
+
+def test_structural_beam_quota_is_validated() -> None:
+    with pytest.raises(ValueError, match="beam_rules_per_structure"):
+        DiscoveryConfig(beam_rules_per_structure=-1)
+    with pytest.raises(ValueError, match="beam_width"):
+        DiscoveryConfig(beam_width=0)
+    with pytest.raises(ValueError, match="max_expansion_beam_size"):
+        DiscoveryConfig(beam_width=10, max_expansion_beam_size=9)
+
+
+def test_structural_beam_reserve_is_hard_capped() -> None:
+    rules = {
+        (Condition(f"feature_{index}", "eq", index),): (float(100 - index), _metric(100, 1.0))
+        for index in range(10)
+    }
+    beam = _select_expansion_beam(
+        rules,
+        depth=1,
+        config=DiscoveryConfig(beam_width=2, beam_rules_per_structure=1, max_expansion_beam_size=4),
+    )
+    assert len(beam) == 4
+    assert beam == list(rules)[:4]
 
 
 # --- TASK-060: greedy marginal-gain diversity in top-K selection ---
