@@ -52,11 +52,19 @@ class DatasetModel(TimestampMixin, Base):
     #: versioned diagnostic documents. `NULL` means profiling/classification did not complete for
     #: this dataset version (upload still succeeded — see `TASK-006`'s guarantee).
     quality_report: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    #: TASK-055. Tombstone, not a row delete — every downstream table (`analysis_runs`,
+    #: `dataset_column_profiles`, ...) points here with `ondelete="RESTRICT"`, so this row can
+    #: never be hard-deleted once any derived artifact exists. `NULL` means active. Deletion
+    #: disposition (raw-byte purge, redaction counts, actor, reason) is recorded on
+    #: `DatasetDeletionModel`, not here — this column is only the visibility gate
+    #: `list_datasets`/`get_dataset` check.
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     analysis_runs: Mapped[list["AnalysisRunModel"]] = relationship(back_populates="dataset")
     column_profiles: Mapped[list["DatasetColumnProfileModel"]] = relationship(
         back_populates="dataset"
     )
+    deletions: Mapped[list["DatasetDeletionModel"]] = relationship(back_populates="dataset")
 
 
 class DatasetColumnProfileModel(TimestampMixin, Base):
@@ -392,3 +400,41 @@ class PolicyBacktestRunModel(TimestampMixin, Base):
     #: Set only when `status == "failed"` — the engine's own disclosed reason (e.g. no
     #: `future_holdout` records under this trigger), never a raw stack trace.
     failure_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
+class DatasetDeletionModel(TimestampMixin, Base):
+    """`TASK-055`. One append-only audit row per deletion request — never updated, matching this
+    codebase's append-only precedent (`CandidatePatternModel`, `FindingFeedbackModel`,
+    `PolicyBacktestRunModel`). Computed synchronously inside the request that creates it (no
+    async/worker infrastructure exists anywhere in this codebase), so disposition fields are
+    always final by the time the row is committed — no pending state.
+
+    See `docs/architecture/dataset-deletion-contract.md` for the full contract: what "delete"
+    means against content-addressed immutable storage, why raw bytes are purged (not merely
+    tombstoned) when unreferenced but retained when another active dataset shares the same
+    content hash, and why derived artifacts are redacted in place rather than removed.
+    """
+
+    __tablename__ = "dataset_deletions"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    dataset_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("datasets.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    requested_by_user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
+    )
+    requested_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    #: Required, non-empty — a deletion with no disclosed reason is not auditable (`ADR-004`'s
+    #: disclosed-methodology spirit applied to operational actions, not just numerical claims).
+    reason: Mapped[str] = mapped_column(Text, nullable=False)
+    #: `False` when another active (non-deleted) dataset row still references the same
+    #: `checksum_sha256` — content-addressed storage means the bytes are shared, not copied, so
+    #: physically unlinking them would silently corrupt the other dataset's immutable raw file.
+    raw_bytes_purged: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    raw_bytes_retained_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    #: Count of `dataset_column_profiles` rows whose literal-content fields (`examples`,
+    #: `suspicious_values`) were cleared as part of this deletion.
+    redacted_column_profile_count: Mapped[int] = mapped_column(Integer, nullable=False)
+
+    dataset: Mapped[DatasetModel] = relationship(back_populates="deletions")

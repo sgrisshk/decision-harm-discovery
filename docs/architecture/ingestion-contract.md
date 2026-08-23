@@ -62,8 +62,10 @@ historical dedup is out of scope for v0.
 
 ## Retention
 
-Indefinite by default; no automatic expiry or deletion. Deletion is `TASK-055` (`BLOCKED`) and is
-explicitly not built here.
+Indefinite by default; no automatic expiry or time-based deletion sweep. Explicit, on-request
+deletion is implemented — `TASK-055`, `docs/architecture/dataset-deletion-contract.md`:
+`DELETE /api/v1/datasets/{id}` tombstones the dataset row, redacts literal-content derived fields,
+and physically purges the raw bytes unless another active dataset shares the same content hash.
 
 ## Storage backend
 

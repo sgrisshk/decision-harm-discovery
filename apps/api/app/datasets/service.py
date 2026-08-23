@@ -1,4 +1,5 @@
 import logging
+from datetime import UTC, datetime
 from uuid import UUID
 
 from fastapi import HTTPException, UploadFile, status
@@ -9,8 +10,13 @@ from sqlalchemy.orm import Session
 from app.core.config import Settings
 from app.datasets.quality import build_and_store_quality_report
 from app.datasets.timing import classify_dataset_timing
-from app.db.models import DatasetModel
-from app.ingestion.storage import UploadTooLargeError, read_bounded, store_immutable_csv
+from app.db.models import DatasetColumnProfileModel, DatasetDeletionModel, DatasetModel
+from app.ingestion.storage import (
+    UploadTooLargeError,
+    delete_immutable_csv,
+    read_bounded,
+    store_immutable_csv,
+)
 from app.ingestion.validation import (
     IngestionValidationError,
     sanitize_filename,
@@ -109,11 +115,110 @@ def create_dataset_from_upload(
 
 
 def list_datasets(session: Session) -> list[DatasetModel]:
-    return list(session.scalars(select(DatasetModel).order_by(DatasetModel.created_at.desc())))
+    return list(
+        session.scalars(
+            select(DatasetModel)
+            .where(DatasetModel.deleted_at.is_(None))
+            .order_by(DatasetModel.created_at.desc())
+        )
+    )
 
 
 def get_dataset(session: Session, dataset_id: UUID) -> DatasetModel:
     dataset = session.get(DatasetModel, dataset_id)
-    if dataset is None:
+    if dataset is None or dataset.deleted_at is not None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Dataset not found")
     return dataset
+
+
+def delete_dataset(
+    session: Session,
+    dataset_id: UUID,
+    requesting_user_id: UUID,
+    reason: str,
+    settings: Settings,
+) -> DatasetDeletionModel:
+    """Tombstone a dataset, redact literal-content derived artifacts, and purge raw bytes when
+    safe (`TASK-055`). See `docs/architecture/dataset-deletion-contract.md` for the full contract.
+
+    Never a row delete: every downstream table references `datasets` with `ondelete="RESTRICT"`,
+    so this only ever sets `deleted_at` plus writes one `DatasetDeletionModel` audit row. Raw bytes
+    are physically unlinked unless another active dataset still shares the same content hash
+    (content-addressed dedup) — that disposition is recorded on the audit row, not guessed at
+    read time.
+    """
+    dataset = session.get(DatasetModel, dataset_id)
+    if dataset is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Dataset not found")
+    if dataset.deleted_at is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail="Dataset is already deleted"
+        )
+    if not reason.strip():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="A deletion reason is required"
+        )
+
+    now = datetime.now(UTC)
+    dataset.deleted_at = now
+
+    profiles = list(
+        session.scalars(
+            select(DatasetColumnProfileModel).where(
+                DatasetColumnProfileModel.dataset_id == dataset_id
+            )
+        )
+    )
+    for profile in profiles:
+        # Only the fields the profiler itself treats as literal source-data content
+        # (`policy_analytics.profiling.schema_profiler`'s own PII-conservative-floor design,
+        # `examples_suppressed`) are cleared. `min_value`/`max_value`/counts are aggregate
+        # statistics by that same design, not raw examples, and are left intact.
+        profile.examples = []
+        profile.examples_suppressed = True
+        profile.suspicious_values = []
+
+    other_active_reference = session.scalars(
+        select(DatasetModel.id)
+        .where(
+            DatasetModel.checksum_sha256 == dataset.checksum_sha256,
+            DatasetModel.id != dataset_id,
+            DatasetModel.deleted_at.is_(None),
+        )
+        .limit(1)
+    ).first()
+
+    raw_bytes_purged = False
+    raw_bytes_retained_reason: str | None = None
+    if other_active_reference is None:
+        delete_immutable_csv(settings.ingestion_storage_root, dataset.storage_path)
+        raw_bytes_purged = True
+    else:
+        raw_bytes_retained_reason = (
+            "content-addressed bytes are still referenced by another active dataset version"
+        )
+
+    deletion = DatasetDeletionModel(
+        dataset_id=dataset_id,
+        requested_by_user_id=requesting_user_id,
+        requested_at=now,
+        reason=reason,
+        raw_bytes_purged=raw_bytes_purged,
+        raw_bytes_retained_reason=raw_bytes_retained_reason,
+        redacted_column_profile_count=len(profiles),
+    )
+    session.add(deletion)
+    session.commit()
+    session.refresh(deletion)
+
+    logger.info(
+        "dataset_deleted",
+        extra={
+            "fields": {
+                "dataset_id": str(dataset_id),
+                "raw_bytes_purged": raw_bytes_purged,
+                "redacted_column_profile_count": len(profiles),
+            }
+        },
+    )
+    return deletion

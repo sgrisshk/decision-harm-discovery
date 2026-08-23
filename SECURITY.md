@@ -20,9 +20,21 @@ Internal-staff login exists (`apps/api/app/auth/`): bcrypt-hashed passwords, DB-
 cookies (httpOnly, `SameSite=Lax`, real revocation on logout — no JWT). Accounts are created only
 via `scripts/create_user.py`; there is no self-serve signup endpoint.
 
-**This does not mean the MVP is locked down.** Auth exists specifically to attribute *who* records
-customer finding feedback (`POST /api/v1/findings/{id}/feedback`, `TASK-035`) — that is the only
-route that currently requires it. Every other route, including dataset upload, remains
-unauthenticated by design. Login rate-limiting and bot protection are not implemented. **Do not
-expose this MVP to untrusted networks** — most of the API still has no access control at all.
+**This does not mean the MVP is locked down.** Auth exists specifically to attribute *who* performs
+a small set of sensitive writes: customer finding feedback
+(`POST /api/v1/findings/{id}/feedback`, `TASK-035`) and dataset deletion
+(`DELETE /api/v1/datasets/{id}`, `TASK-055`, `docs/architecture/dataset-deletion-contract.md`) —
+those are the only routes that currently require it. Every other route, including dataset upload
+and read access, remains unauthenticated by design. Login rate-limiting and bot protection are not
+implemented. **Do not expose this MVP to untrusted networks** — most of the API still has no access
+control at all.
+
+## Dataset deletion (`TASK-055`)
+
+`DELETE /api/v1/datasets/{id}` requires authentication, a non-empty disclosed reason, and produces
+an append-only audit row (`dataset_deletions`) recording who, when, why, and the exact disposition
+of the raw bytes (purged, or retained because another active dataset shares the same
+content-addressed hash). See `docs/architecture/dataset-deletion-contract.md` for the full contract,
+including what happens to derived artifacts and the disclosed open questions flagged to Founder
+Strategy in `memory/HANDOFFS.md`.
 

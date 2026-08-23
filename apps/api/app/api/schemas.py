@@ -103,8 +103,30 @@ class DatasetRead(ApiModel):
     columns: list[DatasetColumn]
     column_profiles: list[DatasetColumnProfileRead]
     quality_report: DataQualityReportRead | None
+    deleted_at: datetime | None
     created_at: datetime
     updated_at: datetime
+
+
+class DatasetDeletionRequest(BaseModel):
+    """`TASK-055`. A deletion reason is required — see `DatasetDeletionModel`."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    reason: str = Field(min_length=1, max_length=2000)
+
+
+class DatasetDeletionRead(ApiModel):
+    """`TASK-055`. The audit record produced by a dataset deletion, echoed back to the caller."""
+
+    id: UUID
+    dataset_id: UUID
+    requested_by_user_id: UUID
+    requested_at: datetime
+    reason: str
+    raw_bytes_purged: bool
+    raw_bytes_retained_reason: str | None
+    redacted_column_profile_count: int
 
 
 class AnalysisRunCreate(ApiModel):

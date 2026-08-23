@@ -4,9 +4,11 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Form, UploadFile, status
 from sqlalchemy.orm import Session
 
-from app.api.schemas import DatasetRead
+from app.api.schemas import DatasetDeletionRead, DatasetDeletionRequest, DatasetRead
+from app.auth.dependencies import get_current_user
 from app.core.config import Settings, get_settings
 from app.datasets import service
+from app.db.models import UserModel
 from app.db.session import get_db
 
 router = APIRouter(prefix="/datasets", tags=["datasets"])
@@ -32,3 +34,16 @@ def list_datasets(session: Session = Depends(get_db)) -> list[DatasetRead]:
 @router.get("/{dataset_id}", response_model=DatasetRead)
 def get_dataset(dataset_id: UUID, session: Session = Depends(get_db)) -> DatasetRead:
     return DatasetRead.model_validate(service.get_dataset(session, dataset_id))
+
+
+@router.delete("/{dataset_id}", response_model=DatasetDeletionRead)
+def delete_dataset(
+    dataset_id: UUID,
+    payload: DatasetDeletionRequest,
+    current_user: UserModel = Depends(get_current_user),
+    session: Session = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+) -> DatasetDeletionRead:
+    return DatasetDeletionRead.model_validate(
+        service.delete_dataset(session, dataset_id, current_user.id, payload.reason, settings)
+    )

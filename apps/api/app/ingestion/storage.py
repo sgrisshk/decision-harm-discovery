@@ -8,6 +8,7 @@ already exist on disk is a no-op dedup, not a rewrite.
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import os
 import stat
@@ -86,4 +87,31 @@ def store_immutable_csv(root: Path, data: bytes) -> StoredFile:
     )
 
 
-__all__ = ["StoredFile", "UploadTooLargeError", "read_bounded", "store_immutable_csv"]
+def delete_immutable_csv(root: Path, storage_path: str) -> None:
+    """Physically remove a previously stored file (`TASK-055`).
+
+    Callers must first confirm no other active dataset row shares this content's checksum —
+    content-addressed storage means identical bytes are stored once and referenced by every
+    dataset that uploaded them, so unlinking here is only safe once nothing else points at
+    `storage_path`. A missing file is treated as already-deleted, not an error, so this stays
+    idempotent under retry. The now-immutable file is made writable before unlinking (it was
+    `chmod`'d read-only at store time); the digest-prefix directory is removed only if it is left
+    empty, best-effort.
+    """
+    target = root / storage_path
+    try:
+        target.chmod(stat.S_IRUSR | stat.S_IWUSR)
+        target.unlink()
+    except FileNotFoundError:
+        return
+    with contextlib.suppress(OSError):
+        target.parent.rmdir()
+
+
+__all__ = [
+    "StoredFile",
+    "UploadTooLargeError",
+    "delete_immutable_csv",
+    "read_bounded",
+    "store_immutable_csv",
+]
