@@ -59,6 +59,7 @@ When moving or renaming a document, update all code, task, decision, handoff, me
 - `docs/benchmark/difficulty-presets.md`
 - `docs/benchmark/multi-domain-benchmarks.md`
 - `docs/benchmark/simulation-report.md`
+- `docs/benchmark/task-068-ecommerce-preregistration.md`
 
 ### Customer
 
