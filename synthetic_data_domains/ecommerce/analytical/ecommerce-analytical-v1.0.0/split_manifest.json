@@ -1,0 +1,87 @@
+{
+  "analytical_dataset_identity_sha256": "fb8d049d5f81bb0d792ead8d6310e301b998f4eed7acf63a3274456b9f56c658",
+  "analytical_dataset_version": "ecommerce-analytical-v1.0.0",
+  "assignment_invariants": {
+    "exactly_one_split_per_record": true,
+    "overlap_count": 0,
+    "random_shuffle": false,
+    "row_order_changed": false,
+    "unassigned_count": 0
+  },
+  "config": {
+    "assignment_rule": "closed intervals on order_date; no random shuffle",
+    "development_end": "2024-12-31",
+    "development_start": "2024-01-01",
+    "future_holdout_end": "2025-12-31",
+    "future_holdout_start": "2025-07-01",
+    "identifier_column": "order_id",
+    "outcome_availability_mode": "CLOSED_SYNTHETIC_BENCHMARK",
+    "reproducibility_command": "uv run python scripts/build_domain_temporal_splits.py --domain ecommerce",
+    "timestamp_column": "order_date",
+    "validation_end": "2025-06-30",
+    "validation_start": "2025-01-01",
+    "version": "ecommerce-temporal-split-v1.0.0"
+  },
+  "discovery_usage": {
+    "diagnostic_only_splits": [
+      "validation",
+      "future_holdout"
+    ],
+    "permitted_development_rows": 4981,
+    "search_fit_split": "development"
+  },
+  "membership_artifact": {
+    "columns": [
+      "order_id",
+      "order_date",
+      "split_label",
+      "outcomes_final"
+    ],
+    "path": "split_membership.csv",
+    "sha256": "73300aec766c4d9a138dc5de6174a71ddd763fa4d663a7aba68753815fff9741"
+  },
+  "outcome_availability": {
+    "all_rows_final": true,
+    "basis": "The generated 24-month synthetic benchmark is closed: downstream outcomes were fully realized before export, so it has no right-censoring.",
+    "contract_version": "0.1.0-provisional",
+    "mode": "CLOSED_SYNTHETIC_BENCHMARK",
+    "outcomes": [
+      {
+        "column": "net_contribution_usd",
+        "final_for_all_rows": true,
+        "missing_data_policy": "not_yet_classified",
+        "outcome_id": "net_contribution_usd"
+      }
+    ],
+    "production_guard": "Do not reuse CLOSED_SYNTHETIC_BENCHMARK for live data. A future customer outcome contract must provide an observation cutoff and per-outcome maturation window; immature records must be marked outcomes_final=false and excluded from final-outcome estimation, never coerced to zero or treated as final."
+  },
+  "reproducibility_command": "uv run python scripts/build_domain_temporal_splits.py --domain ecommerce",
+  "schema_version": "ecommerce-canonical-v1.0.0",
+  "split_config_version": "ecommerce-temporal-split-v1.0.0",
+  "splits": {
+    "development": {
+      "all_outcomes_final": true,
+      "end_inclusive": "2024-12-31",
+      "first_decision_date": "2024-01-01",
+      "last_decision_date": "2024-12-31",
+      "row_count": 4981,
+      "start_inclusive": "2024-01-01"
+    },
+    "future_holdout": {
+      "all_outcomes_final": true,
+      "end_inclusive": "2025-12-31",
+      "first_decision_date": "2025-07-01",
+      "last_decision_date": "2025-12-31",
+      "row_count": 2588,
+      "start_inclusive": "2025-07-01"
+    },
+    "validation": {
+      "all_outcomes_final": true,
+      "end_inclusive": "2025-06-30",
+      "first_decision_date": "2025-01-01",
+      "last_decision_date": "2025-06-30",
+      "row_count": 2431,
+      "start_inclusive": "2025-01-01"
+    }
+  }
+}

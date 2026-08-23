@@ -42,6 +42,7 @@ ALLOWED_DATA_FILES = {
     "synthetic_data_domains/ecommerce/analytical/ecommerce-analytical-v1.0.0/identifiers.csv",
     "synthetic_data_domains/ecommerce/analytical/ecommerce-analytical-v1.0.0/metadata.csv",
     "synthetic_data_domains/ecommerce/analytical/ecommerce-analytical-v1.0.0/outcomes.csv",
+    "synthetic_data_domains/ecommerce/analytical/ecommerce-analytical-v1.0.0/split_membership.csv",
     "synthetic_data_domains/ecommerce/comparable/raw/ecommerce_dirty.csv",
     "synthetic_data_domains/ecommerce/comparable/reference/ecommerce_clean.csv",
     "synthetic_data_domains/ecommerce/dominant_weak/raw/ecommerce_dirty.csv",
