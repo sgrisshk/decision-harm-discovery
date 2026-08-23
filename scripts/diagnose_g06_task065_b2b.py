@@ -75,15 +75,15 @@ sys.path.insert(0, str(REPOSITORY / "packages/analytics/src"))
 sys.path.insert(0, str(REPOSITORY / "packages/schemas/src"))
 
 import polars as pl  # noqa: E402
-
 from policy_analytics.outcomes.contract import OutcomeDefinition  # noqa: E402
-from policy_analytics.outcomes.manifest_binding import outcome_definition_from_manifest  # noqa: E402
+from policy_analytics.outcomes.manifest_binding import (  # noqa: E402
+    outcome_definition_from_manifest,
+)
 from policy_analytics.validation.apply import (  # noqa: E402
-    Condition,
     MIN_STRATUM_CELL,
+    Condition,
     _adjustment_pool,
     _binned_adjustment_frame,
-    _select_adjustment_columns,
     _stratified_adjustment,
     load_analytical_frame,
     rule_expr,
@@ -91,8 +91,12 @@ from policy_analytics.validation.apply import (  # noqa: E402
 from policy_analytics.validation.contract import DEFAULT_THRESHOLDS  # noqa: E402
 from policy_analytics.validation.input_contract import validation_input_from_manifest  # noqa: E402
 
-DATASET_ROOT = REPOSITORY / "synthetic_data_domains/b2b_sales/analytical/b2b_sales-analytical-v1.0.0"
-CANDIDATES_PATH = REPOSITORY / "artifacts/blind/task-065-b2b-comparable-20260822-001.candidates.json"
+DATASET_ROOT = (
+    REPOSITORY / "synthetic_data_domains/b2b_sales/analytical/b2b_sales-analytical-v1.0.0"
+)
+CANDIDATES_PATH = (
+    REPOSITORY / "artifacts/blind/task-065-b2b-comparable-20260822-001.candidates.json"
+)
 FROZEN_VALIDATION_PATH = (
     REPOSITORY / "artifacts/validation/task-019-task-065-b2b-comparable-20260822-001.json"
 )
@@ -146,7 +150,9 @@ def _cell_stats(
     )
     total_exposed_all = sum(c["en"] for c in cells.values())
     total_exposed_usable = sum(
-        c["en"] for c in cells.values() if c["en"] >= MIN_STRATUM_CELL and c["cn"] >= MIN_STRATUM_CELL
+        c["en"]
+        for c in cells.values()
+        if c["en"] >= MIN_STRATUM_CELL and c["cn"] >= MIN_STRATUM_CELL
     )
     return {
         "n_groups": len(cells),
@@ -220,7 +226,7 @@ def _fwl_additive_coefficient(
         return (sum(exposed) / len(exposed)) - (sum(comparison) / len(comparison)), 0
     group_arrays = [frame[c].to_list() for c in columns]
     iteration = 0
-    for iteration in range(1, max_iter + 1):
+    for iteration in range(1, max_iter + 1):  # noqa: B007 -- value used below the loop
         max_shift = 0.0
         for group in group_arrays:
             for series in (y, t):
@@ -277,7 +283,10 @@ def main() -> None:
     actual_sha = _sha256(CANDIDATES_PATH)
     print(f"Candidate file: {CANDIDATES_PATH}")
     print(f"  SHA-256 (recomputed): {actual_sha}")
-    print(f"  Matches HANDOFF-067 CUSTODY_VERIFIED record: {actual_sha == EXPECTED_CANDIDATE_SHA256}")
+    print(
+        f"  Matches HANDOFF-067 CUSTODY_VERIFIED record: "
+        f"{actual_sha == EXPECTED_CANDIDATE_SHA256}"
+    )
     if actual_sha != EXPECTED_CANDIDATE_SHA256:
         raise SystemExit("candidate file does not match the frozen custody record -- aborting")
 
@@ -288,7 +297,7 @@ def main() -> None:
     outcome, outcome_contract_version = outcome_definition_from_manifest(manifest, DATASET_ROOT)
     inputs = validation_input_from_manifest(DATASET_ROOT)
     frame = load_analytical_frame(DATASET_ROOT)
-    dev_frame = frame.filter(frame["split_label"] == "development")
+    dev_frame = frame.filter(frame["split_label"] == "development")  # pyright: ignore[reportUnknownMemberType]
 
     print(f"\nDataset: {DATASET_ROOT}")
     print(f"  dataset_identity_sha256: {inputs.dataset_identity_sha256}")
@@ -299,7 +308,7 @@ def main() -> None:
 
     # Dataset-level, public-data-only collinearity check (not per-candidate).
     eta_sq_company_on_deal = _eta_squared(dev_frame, "deal_size_usd", "company_size_band")
-    print(f"\nDataset-level collinearity check (development split, public data only):")
+    print("\nDataset-level collinearity check (development split, public data only):")
     print(f"  eta^2(deal_size_usd | company_size_band) = {eta_sq_company_on_deal:.4f}")
     band_stats = (
         dev_frame.group_by("company_size_band")
@@ -365,16 +374,20 @@ def main() -> None:
         without_proxy_coverage = None
         if size_proxy is not None:
             reduced = tuple(c for c in selected if c != size_proxy)
-            reduced_diff, reduced_coverage = _stratified_adjustment(binned, dev_mask, outcome, reduced)
+            reduced_diff, reduced_coverage = _stratified_adjustment(
+                binned, dev_mask, outcome, reduced
+            )
             reduced_harm = reduced_diff * outcome.harm_multiplier
             without_proxy_attenuation = 1.0 - (reduced_harm / raw_harm if raw_harm else 1.0)
             without_proxy_coverage = reduced_coverage
 
-        e_value_pass = None  # e-value itself already frozen; not recomputed here (needs pooled_sd).
+        # Note: the e-value itself is already frozen in the official TASK-028 artifact and is not
+        # recomputed here (it needs pooled_sd, out of this diagnostic's scope).
 
+        condition_strs = [f"{c.feature} {c.operator} {c.value}" for c in conditions]
         record = {
             "candidate_id": candidate_id,
-            "conditions": [f"{c.feature} {c.operator} {c.value}" for c in conditions],
+            "conditions": condition_strs,
             "raw_harm": raw_harm,
             "adjusted_harm": adjusted_harm,
             "attenuation": attenuation,
@@ -383,7 +396,10 @@ def main() -> None:
             "adjustment_pool_size": len(pool),
             "adjustment_selected": list(selected),
             "adjustment_skipped": [
-                {"covariate": t["covariate"], "trial_coverage_if_added": t["trial_coverage_if_added"]}
+                {
+                    "covariate": t["covariate"],
+                    "trial_coverage_if_added": t["trial_coverage_if_added"],
+                }
                 for t in skipped
             ],
             "cells": cells,
@@ -397,7 +413,7 @@ def main() -> None:
         }
         results.append(record)
 
-        print(f"\n=== {candidate_id}: {' AND '.join(record['conditions'])} ===")
+        print(f"\n=== {candidate_id}: {' AND '.join(condition_strs)} ===")
         print(f"  raw_harm={raw_harm:.1f}  adjusted_harm={adjusted_harm:.1f}  "
               f"attenuation={attenuation:.4f}  same_sign={same_sign}  coverage={coverage:.4f}")
         print(f"  selected ({len(selected)}/{len(pool)} pool): {selected}")
@@ -407,7 +423,8 @@ def main() -> None:
         print(f"  cells: {cells}")
         print(f"  unrestricted (full pool, no floor): coverage={unrestricted_coverage:.4f} "
               f"attenuation={unrestricted_attenuation:.4f}")
-        print(f"  additive FWL (full pool, main-effects only): attenuation={additive_attenuation:.4f} "
+        print(f"  additive FWL (full pool, main-effects only): "
+              f"attenuation={additive_attenuation:.4f} "
               f"({fwl_iterations} iterations)")
         if size_proxy is not None:
             print(f"  size-proxy covariate in selected set: {size_proxy}")
@@ -417,9 +434,14 @@ def main() -> None:
             print("  size-proxy covariate in selected set: NONE")
 
     out_path = REPOSITORY / "docs/benchmark/task-067-g06-diagnostic-raw.json"
-    out_path.write_text(json.dumps({"candidates": results}, indent=2, default=str), encoding="utf-8")
-    print(f"\nFull raw diagnostic trace written to {out_path} (POST-HOC DIAGNOSTIC, not an official "
-          f"artifact -- documentation reference only, not consumed by any pipeline).")
+    out_path.write_text(
+        json.dumps({"candidates": results}, indent=2, default=str), encoding="utf-8"
+    )
+    print(
+        f"\nFull raw diagnostic trace written to {out_path} "
+        f"(POST-HOC DIAGNOSTIC, not an official artifact -- documentation reference only, "
+        f"not consumed by any pipeline)."
+    )
 
 
 if __name__ == "__main__":
