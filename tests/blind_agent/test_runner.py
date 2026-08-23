@@ -508,7 +508,9 @@ def test_freeze_makes_every_frozen_file_read_only(tmp_path: Path) -> None:
     assert any(path.name == "hashes.json" for path in files)
     for path in files:
         mode = stat.S_IMODE(path.stat().st_mode)
-        assert mode == read_only_mode, f"{path.name} is mode {oct(mode)}, expected {oct(read_only_mode)}"
+        assert mode == read_only_mode, (
+            f"{path.name} is mode {oct(mode)}, expected {oct(read_only_mode)}"
+        )
 
 
 def test_malformed_candidates_are_rejected(tmp_path: Path) -> None:
