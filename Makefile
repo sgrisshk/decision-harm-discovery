@@ -57,6 +57,12 @@ BLIND_AGENT_IMAGE ?= policy-blind-agent@sha256:9ad6e1a78ca41a7c04895d1d99c7775e7
 AGENT ?= deterministic
 BLIND_NETWORK ?= none
 BLIND_DATASET ?=
+# DiscoveryConfig.max_feature_identity_fraction for an issued run (TASK-068, ADR-061). The default
+# 1.0 disables the cap, so the unqualified `make blind-issue RUN=... BLIND_DATASET=...` command
+# stays exactly the cap-disabled baseline it already was; only a run that passes this variable
+# explicitly gets a different configuration, and the value is signed into that run's acceptance
+# contract. Read only by issuance -- verify/launch/freeze re-derive it from the signed manifest.
+BLIND_MAX_FEATURE_IDENTITY_FRACTION ?= 1.0
 
 blind-key-init:
 	test -n "$(RUN)"
@@ -82,12 +88,12 @@ blind-rehearsal:
 blind-issue:
 	test -n "$(RUN)"
 	test -n "$(BLIND_DATASET)"
-	uv run python -m tools.blind_agent.cli issue --run "$(RUN)" --runs-root "$(BLIND_RUNS_ROOT)" --key-file "$(BLIND_EVALUATOR_KEY_FILE)" --agent "$(AGENT)" --image "$(BLIND_AGENT_IMAGE)" --dataset "$(BLIND_DATASET)"
+	uv run python -m tools.blind_agent.cli issue --run "$(RUN)" --runs-root "$(BLIND_RUNS_ROOT)" --key-file "$(BLIND_EVALUATOR_KEY_FILE)" --agent "$(AGENT)" --image "$(BLIND_AGENT_IMAGE)" --dataset "$(BLIND_DATASET)" --max-feature-identity-fraction "$(BLIND_MAX_FEATURE_IDENTITY_FRACTION)"
 
 blind-prepare:
 	test -n "$(RUN)"
 	test -n "$(BLIND_DATASET)"
-	uv run python -m tools.blind_agent.cli prepare --run "$(RUN)" --runs-root "$(BLIND_RUNS_ROOT)" --key-file "$(BLIND_EVALUATOR_KEY_FILE)" --agent "$(AGENT)" --image "$(BLIND_AGENT_IMAGE)" --dataset "$(BLIND_DATASET)"
+	uv run python -m tools.blind_agent.cli prepare --run "$(RUN)" --runs-root "$(BLIND_RUNS_ROOT)" --key-file "$(BLIND_EVALUATOR_KEY_FILE)" --agent "$(AGENT)" --image "$(BLIND_AGENT_IMAGE)" --dataset "$(BLIND_DATASET)" --max-feature-identity-fraction "$(BLIND_MAX_FEATURE_IDENTITY_FRACTION)"
 
 blind-verify:
 	test -n "$(RUN)"

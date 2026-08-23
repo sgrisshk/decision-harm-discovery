@@ -20,6 +20,39 @@ from policy_analytics.discovery.engine import (
 )
 
 OUTPUT_SCHEMA_VERSION = "1.1.0"
+IDENTITY_FRACTION_FIELD = "max_feature_identity_fraction"
+DISABLED_IDENTITY_FRACTION = 1.0
+
+
+def _signed_identity_fraction(contract: dict[str, Any]) -> float:
+    """Read `max_feature_identity_fraction` out of the signed acceptance contract, fail-closed.
+
+    Absent -> `1.0`, the engine's own disabled default, so an omitted field can only ever mean
+    "cap disabled" and never some other value applied silently. Present but not a real number in
+    `[0.0, 1.0]` -> `ValueError`: a `bool` (an `int` in Python), a numeric string, `NaN`, `inf`,
+    or an out-of-range value all refuse to run rather than being coerced into something usable.
+
+    This parameter is the *only* difference between `TASK-068`'s two preregistered runs
+    (`ADR-061`), so a wrong value here yields a candidate set that looks like a legitimate result
+    but answers a different question — the `ADR-039` failure mode, except mistaken for the answer
+    instead of caught by diff. Refusing to run is always the correct outcome.
+
+    Deliberately duplicated from `tools.blind_agent.core.signed_identity_fraction`, exactly as
+    `OUTPUT_SCHEMA_VERSION` above is duplicated from `tools/blind_agent/models.py`: this script
+    executes inside the isolated blind workspace, which contains only `blind/allowlist.yaml`'s
+    allowlisted files and therefore cannot import that module.
+    `tests/blind_agent/test_run_discovery_signed_config.py` pins the two to identical behavior.
+    """
+    if IDENTITY_FRACTION_FIELD not in contract:
+        return DISABLED_IDENTITY_FRACTION
+    value: object = contract[IDENTITY_FRACTION_FIELD]
+    if isinstance(value, bool) or not isinstance(value, int | float):
+        raise ValueError(f"signed {IDENTITY_FRACTION_FIELD} must be a number")
+    fraction = float(value)
+    # Also rejects NaN, which compares false against every bound.
+    if not 0.0 <= fraction <= 1.0:
+        raise ValueError(f"signed {IDENTITY_FRACTION_FIELD} must be in [0.0, 1.0]")
+    return fraction
 
 
 @dataclass(frozen=True, slots=True)
@@ -87,7 +120,11 @@ def main() -> None:
     feature_columns = tuple(
         name for name in feature_columns if name not in {"booking_date", "travel_date"}
     )
-    config = DiscoveryConfig(seed=int(manifest["random_seed"]))
+    max_feature_identity_fraction = _signed_identity_fraction(contract)
+    config = DiscoveryConfig(
+        seed=int(manifest["random_seed"]),
+        max_feature_identity_fraction=max_feature_identity_fraction,
+    )
     result = discover_candidates(frame, feature_columns, outcome, config)
     raw_candidates = cast(list[dict[str, Any]], result["candidates"])
     candidates: list[dict[str, Any]] = []
@@ -135,6 +172,10 @@ def main() -> None:
         "run_id": manifest["run_id"],
         "evaluated_hypotheses": result["search"]["evaluated_hypotheses"],
         "random_seed": manifest["random_seed"],
+        # Declared from the value actually handed to `DiscoveryConfig` above, never re-read from
+        # the contract, so this records what the run did rather than what it was asked to do.
+        # `blind_agent.core._validated_freeze` refuses to freeze output where the two disagree.
+        IDENTITY_FRACTION_FIELD: max_feature_identity_fraction,
         "run_contract_version": contract["run_contract_version"],
         "dataset_identity_sha256": contract["dataset_identity_sha256"],
         "discovery_method_version": contract["discovery_method_version"],

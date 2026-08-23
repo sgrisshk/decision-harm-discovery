@@ -40,6 +40,9 @@ def main() -> None:
     parser.add_argument("--image", default="policy-blind-agent:local")
     parser.add_argument("--network", choices=("none", "provider"), default="none")
     parser.add_argument("--dataset")
+    # Issuance-only: `verify`/`launch`/`freeze` re-derive this from the signed manifest instead,
+    # so there is no way to run a container under a cap the evaluator did not sign.
+    parser.add_argument("--max-feature-identity-fraction", type=float, default=1.0)
     args = parser.parse_args()
     run_root = args.runs_root.resolve() / args.run
     if args.command == "init-key":
@@ -66,6 +69,7 @@ def main() -> None:
                 args.agent,
                 args.model,
                 args.dataset,
+                args.max_feature_identity_fraction,
             )
         )
     elif args.command == "verify":

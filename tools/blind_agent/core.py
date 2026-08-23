@@ -57,6 +57,12 @@ DATASET_FILES = (
     "split_manifest.json",
     "split_membership.csv",
 )
+IDENTITY_FRACTION_FIELD = "max_feature_identity_fraction"
+#: What `DiscoveryConfig.max_feature_identity_fraction` is when a signed acceptance contract does
+#: not carry the field at all — every run issued before `TASK-068` added the parameter. `1.0` is
+#: the engine's own disabled default, so an absent field can only ever mean "cap disabled", never
+#: some other value applied silently. A *malformed* field is a different case and always raises.
+DISABLED_IDENTITY_FRACTION = 1.0
 
 
 def now() -> str:
@@ -73,6 +79,44 @@ def sha256(path: Path) -> str:
 
 def _canonical_json(payload: dict[str, Any]) -> bytes:
     return json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+
+
+def validated_identity_fraction(value: object) -> float:
+    """Validate a `max_feature_identity_fraction` that is definitely present, fail-closed.
+
+    Anything that is not a real number in `[0.0, 1.0]` raises rather than being coerced into
+    something usable: a `bool` (which is an `int` in Python), a numeric string, `NaN`, `inf`, or
+    an out-of-range value. This parameter selects *which of two experimental configurations a run
+    actually executed*, and a silently-wrong value here is indistinguishable from a legitimate
+    result after the fact — the `ADR-039` / `task-060-iteration-20260820-003` failure mode
+    `TASK-068`'s preregistration (`ADR-061` §8 R4) exists to make impossible.
+    """
+    if isinstance(value, bool) or not isinstance(value, int | float):
+        raise ValueError(f"{IDENTITY_FRACTION_FIELD} must be a number")
+    fraction = float(value)
+    # Also rejects NaN, which compares false against every bound.
+    if not 0.0 <= fraction <= 1.0:
+        raise ValueError(f"{IDENTITY_FRACTION_FIELD} must be in [0.0, 1.0]")
+    return fraction
+
+
+def signed_identity_fraction(contract: dict[str, Any]) -> float:
+    """Read `max_feature_identity_fraction` out of a signed acceptance contract.
+
+    Absent -> `DISABLED_IDENTITY_FRACTION`; present -> `validated_identity_fraction`'s strictness.
+    Dropping the field from a signed contract cannot be used to smuggle a different configuration
+    past this default: `_verify_manifest_signature` covers the whole manifest, so an edited
+    contract fails signature verification before any reader gets here.
+
+    `scripts/run_discovery.py` carries a deliberate copy of this logic. It executes inside the
+    isolated blind workspace, which holds only `blind/allowlist.yaml`'s allowlisted files and so
+    cannot import this module — the same reason `OUTPUT_SCHEMA_VERSION` is already duplicated
+    there rather than imported. `tests/blind_agent/test_run_discovery_signed_config.py` pins the
+    two implementations to identical behavior over a shared table of inputs.
+    """
+    if IDENTITY_FRACTION_FIELD not in contract:
+        return DISABLED_IDENTITY_FRACTION
+    return validated_identity_fraction(contract[IDENTITY_FRACTION_FIELD])
 
 
 def create_signing_key(key_file: Path, repository: Path, runs_root: Path) -> Path:
@@ -196,8 +240,12 @@ def _paths(repository: Path, patterns: list[str]) -> list[tuple[Path, Path]]:
 
 
 def _acceptance_contract(
-    repository: Path, dataset_selector: str, analytical_root: PurePosixPath
+    repository: Path,
+    dataset_selector: str,
+    analytical_root: PurePosixPath,
+    max_feature_identity_fraction: float = DISABLED_IDENTITY_FRACTION,
 ) -> dict[str, Any] | None:
+    identity_fraction = validated_identity_fraction(max_feature_identity_fraction)
     analytical_manifest_path = repository.joinpath(*analytical_root.parts, "manifest.json")
     split_manifest_path = repository.joinpath(*analytical_root.parts, "split_manifest.json")
     if not analytical_manifest_path.is_file() or not split_manifest_path.is_file():
@@ -270,6 +318,12 @@ def _acceptance_contract(
         "outcome_contract_version": outcome_contract["version"],
         "discovery_contract_version": contract_version,
         "discovery_method_version": method_match.group(1),
+        # The one `DiscoveryConfig` knob an issuer chooses per run rather than inheriting from the
+        # committed default (`TASK-068`, `ADR-061`). It sits in the signed contract next to
+        # `discovery_method_version` so the frozen artifacts prove which of the two preregistered
+        # configurations produced them; `_validated_freeze` refuses output whose own declared
+        # value disagrees with this one.
+        IDENTITY_FRACTION_FIELD: identity_fraction,
         "temporal_split_contract_version": split["split_config_version"],
         "primary_outcome": primary_outcome_id,
         "primary_outcome_metadata": primary_outcome_metadata,
@@ -376,8 +430,12 @@ def prepare(
     runtime_agent: str = "deterministic",
     runtime_model: str | None = None,
     dataset_selector: str = "travel",
+    max_feature_identity_fraction: float = DISABLED_IDENTITY_FRACTION,
 ) -> Path:
     validate_run_id(run_id)
+    # Validated here, before a run directory or a run ID is consumed: a run ID is spent
+    # permanently on issuance, so a malformed cap must fail before anything is created.
+    max_feature_identity_fraction = validated_identity_fraction(max_feature_identity_fraction)
     if not IMMUTABLE_IMAGE.fullmatch(runtime_image.get("requested_reference", "")):
         raise ValueError("issuance requires immutable resolved image provenance")
     if runtime_agent not in {"deterministic", "shell"}:
@@ -404,7 +462,9 @@ def prepare(
             copied[relative.as_posix()] = sha256(target)
         (workspace / "output").mkdir()
         workspace_sha256 = hashlib.sha256(json.dumps(copied, sort_keys=True).encode()).hexdigest()
-        acceptance_contract = _acceptance_contract(repository, dataset_selector, analytical_root)
+        acceptance_contract = _acceptance_contract(
+            repository, dataset_selector, analytical_root, max_feature_identity_fraction
+        )
         if acceptance_contract is None:
             raise ValueError(
                 f"selected blind dataset is missing its analytical or temporal split manifest: "
@@ -530,8 +590,21 @@ def verify(
         if not isinstance(dataset_selector, str):
             raise ValueError("issued workspace has no signed dataset selector")
         _, analytical_root = selected_allowlist(allowlist, dataset_selector)
-        current_contract = _acceptance_contract(repository, dataset_selector, analytical_root)
-        if current_contract != manifest.get("acceptance_contract"):
+        raw_signed_contract: object = manifest.get("acceptance_contract")
+        if not isinstance(raw_signed_contract, dict):
+            raise ValueError("issued workspace has no signed acceptance contract")
+        signed_contract = cast(dict[str, Any], raw_signed_contract)
+        # The cap is an issuer choice, not repository-derived state, so — exactly like
+        # `dataset_selector` above — it is read back out of the signed manifest to recompute the
+        # contract. That is not circular: `_verify_manifest_signature` has already covered the
+        # whole manifest, so this can only ever re-derive the value the evaluator actually signed.
+        current_contract = _acceptance_contract(
+            repository,
+            dataset_selector,
+            analytical_root,
+            signed_identity_fraction(signed_contract),
+        )
+        if current_contract != signed_contract:
             raise ValueError("issued workspace acceptance-contract source drift detected")
         _verify_source_snapshot(repository, allowlist, dataset_selector, expected)
     if advance and _state(run_root) == RunState.PREPARED:
@@ -683,6 +756,12 @@ def _validated_freeze(run_root: Path, signing_key: bytes) -> Path:
         "run_contract_version": contract["run_contract_version"],
         "dataset_identity_sha256": contract["dataset_identity_sha256"],
         "discovery_method_version": contract["discovery_method_version"],
+        # Without this line the executor could ignore the signed cap entirely and still freeze a
+        # clean-looking result: the candidates would simply be the disabled-cap set, labelled as
+        # the enabled-cap run. Comparing the output's own declared value against the signed one
+        # makes that particular false experimental result unfreezable rather than merely
+        # unlikely (`TASK-068` / `ADR-061` §8 R4).
+        IDENTITY_FRACTION_FIELD: signed_identity_fraction(contract),
         "search_fit_split": contract["search_fit_split"],
         "selection_used_only_fit_split": True,
     }
