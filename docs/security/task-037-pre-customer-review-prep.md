@@ -109,3 +109,128 @@ Not a Code-Reviewer sign-off, not a claim that the pre-customer-safe portion of 
 real dataset). This is the prepared review target `ADR-058` asks for: confirmed existing posture
 plus an explicit, ranked gap list, so the real review — whenever `TASK-057` produces a customer —
 starts from here instead of from zero.
+
+---
+
+## Code Reviewer pre-customer-safe review (2026-08-23)
+
+The sign-off this document explicitly said it was not. Scope: the ingestion path (upload → storage
+→ profiling → timing classification → quality report) plus `TASK-053`'s auth boundary, per
+`agents/CODE_REVIEWER.md`, `SECURITY.md`, and this document. This is **not** `TASK-037` itself —
+`TASK-037` stays `BLOCKED` on `TASK-057` (a real dataset) per `ADR-058`; this is the pre-customer-
+safe portion `ADR-058` condition (2) asks Code Reviewer/Architect to scope, executed and recorded.
+
+**Verified directly, not read off this document's claims:** re-read
+`app.ingestion.storage`/`validation`, `app.datasets.routes`/`service`/`profiling`/`quality`,
+`app.auth.dependencies`, `app.db.models`, `app.api.schemas`, and the `20260822_0009` migration.
+Spun up a real ephemeral Postgres (`docker run postgres:16.4-alpine`, migrated with
+`alembic upgrade head`) and ran `tests/api/test_datasets_upload.py` (6 passed, including
+`test_upload_never_logs_the_filename` — `TASK-006`'s log-inspection guarantee reverified live, not
+assumed to still hold), `tests/api/test_auth.py` + `tests/api/test_dataset_deletion.py` (17 passed),
+and the full non-`blind_agent` suite (626 passed) against that database. Storage/logs/access
+(narrow surface)/local-copies/deletion claims in this document's "What already exists" section are
+all confirmed accurate. Backups and secret-manager posture are confirmed accurate by inspection of
+`docs/operations/deployment.md` (no code path to verify — these are infrastructure-configuration
+gaps, not code gaps, and are not re-litigated here beyond confirming the disclosure is current).
+
+**Two new findings, both structural, both real access-control gaps within the reviewed surface —
+not present in this document's original gap list:**
+
+### Finding 1 (HIGH): Unauthenticated read of literal source-data content via the dataset API
+
+- **Severity:** HIGH
+- **File:** `apps/api/app/datasets/routes.py:29-36` (`list_datasets`/`get_dataset`, no
+  `Depends(get_current_user)`); root cause in
+  `packages/analytics/src/policy_analytics/profiling/schema_profiler.py:33-37,181-193`
+  (`_examples`/`_SUPPRESSED_SEMANTIC_TYPES`).
+- **Evidence:** `GET /api/v1/datasets` and `GET /api/v1/datasets/{id}` require no authentication
+  (confirmed: only `DELETE /api/v1/datasets/{id}` carries `Depends(get_current_user)` in that
+  router). Both return `DatasetRead.column_profiles`, which includes
+  `DatasetColumnProfileRead.examples`/`suspicious_values` — up to 3 (or 5) **literal, unmodified
+  values copied straight from the uploaded CSV's cells**, truncated only to 80 characters, per
+  `schema_profiler.profile_column`. Suppression is not PII detection: it fires only when a column's
+  *semantic-type guess* lands on `identifier`/`free_text` **and** cardinality exceeds 0.9 — the
+  module's own docstring calls this "not a real PII detector," and `_guess_semantic_type` has no
+  path that inspects value *content* for names, emails, phone numbers, or similar. A column with
+  moderate cardinality (repeated values — e.g. a customer name column in a dataset with repeat
+  customers, or any column whose name doesn't end in `_id`/hit a currency/rate/count-name hint) is
+  classified `categorical` or `unclassified` and its literal values pass through unsuppressed.
+- **Why it matters:** The moment `TASK-038` ingests a real customer dataset, any caller with network
+  access to the API — no login, no token, nothing — can `GET /api/v1/datasets` and read literal
+  cell values from that customer's raw data. `SECURITY.md` already discloses "most of the API still
+  has no access control at all" as a general, deliberate MVP posture, but does not call out that the
+  *specific* consequence of that posture, for this specific route, is direct exposure of raw
+  source-data content gated only by a heuristic its own author disclaims as not a PII detector. This
+  is the single most consequential gap this review found relative to `TASK-037`'s goal text
+  ("review... access... before any real data enters the system").
+- **How to reproduce:** Upload any CSV with a low-to-moderate-cardinality text column (e.g. a
+  `customer_name` column with a handful of repeat names) via `POST /api/v1/datasets`. `GET
+  /api/v1/datasets/{id}` with no `Cookie` header returns that column's literal names in
+  `column_profiles[].examples`.
+- **Recommended fix:** Not this review's call to make unilaterally (`agents/CODE_REVIEWER.md`:
+  review first, recommend, don't auto-rewrite) — but the two live options are (a) require auth on
+  `GET /api/v1/datasets`/`GET /api/v1/datasets/{id}` before `TASK-038`, extending `TASK-053`'s
+  "deliberately narrow" surface the same way `TASK-055` extended it to deletion, or (b) keep reads
+  open but strip `examples`/`suspicious_values` (or the whole `column_profiles` array) from the
+  unauthenticated response shape and gate the literal-content fields behind auth specifically. Either
+  is an `ARCHITECT`-owned design decision; this finding only establishes that one is needed before
+  `TASK-038`, not which.
+
+### Finding 2 (HIGH): Unauthenticated read of real customer names/comments via the finding-feedback API
+
+- **Severity:** HIGH
+- **File:** `apps/api/app/findings/routes.py:44-51` (`list_finding_feedback`, no
+  `Depends(get_current_user)`); model at `apps/api/app/db/models.py:347-375`
+  (`FindingFeedbackModel`).
+- **Evidence:** `POST /api/v1/findings/{id}/feedback` (the write) requires auth — per `SECURITY.md`,
+  specifically so a sensitive write can be attributed to the internal staff member who made it.
+  `GET /api/v1/findings/{id}/feedback` (the read of the exact same data) requires nothing.
+  `FindingFeedbackModel.customer_comment` is documented
+  (`docs/product/finding-feedback-contract.md` §4: "the customer's own words, not a paraphrase")
+  and `customer_owner` is documented (§4: "free text (name/role)... the person on the customer side
+  who can actually approve acting on this finding") — both fields exist specifically to capture a
+  real, named customer contact's verbatim reaction. `FindingFeedbackRead` returns both unfiltered.
+- **Why it matters:** This table is empty today (no real findings/feedback exist yet), so nothing is
+  exposed *right now* — but the write path's own justification for requiring auth (attributing a
+  sensitive action) is defeated for reads: anyone can read a real customer contact's name and
+  verbatim quoted comment about a specific finding the moment `TASK-042` (customer findings review)
+  starts capturing real feedback, with no login required. This is a sharper instance of the same
+  general "reads are unauthenticated" disclosure — sharper because the write side of this exact
+  endpoint pair was deliberately hardened for a reason (`TASK-053`'s own stated goal) that the read
+  side quietly undoes.
+- **How to reproduce:** With any authenticated session, `POST
+  /api/v1/findings/{id}/feedback` with a `customer_owner`/`customer_comment`. Then `GET
+  /api/v1/findings/{id}/feedback` with no `Cookie` header returns it verbatim.
+- **Recommended fix:** Same shape as Finding 1 — extend the auth boundary to the feedback read route
+  (and/or `GET /api/v1/findings`, which returns `pattern`/`evidence`/`impact` — believed
+  non-PII by `FindingPatternRead`/`FindingEvidenceRead`/`FindingImpactRead`'s own schemas, feature
+  names and statistics only, not re-litigated here), an `ARCHITECT`-owned decision, before
+  `TASK-042` produces real rows.
+
+**Reconfirmed, not new — this document's existing gap list items 1–4 and 6–7 (no persistent disk,
+no backup/PITR policy, unverified literal-content risk in `analysis_runs`/`candidate_patterns`/
+`validation_reports`/`findings`/`policy_candidates`, no secret-manager decision, malware scanning is
+a platform hook, no login rate-limiting) all still hold as stated.** One refinement to item 3: traced
+`policy_analytics.discovery.engine._atoms` — a categorical column becomes an `eq` condition atom
+(and can therefore appear as a literal value inside `candidate_patterns.conditions` /
+`findings.pattern_snapshot`, both currently exposed read-only without auth via `GET
+/api/v1/findings`) whenever it is classified `DECISION_TIME` and has at most
+`max_categorical_levels` (default 12) distinct values — there is no check that such a column is
+*not* PII-shaped (e.g. a low-cardinality field like a coarse demographic bucket). This does not
+promote item 3 from "unverified assumption" to "confirmed leak" — whether any real dataset's
+`DECISION_TIME` classification would actually select such a column is dataset-dependent and
+unknown today — but it narrows the assumption: the *mechanism* has no guard against it, so item 3's
+resolution cannot rely on "the code doesn't allow it" and must instead be a real audit against
+whatever columns a real dataset's `TASK-008` classification admits.
+
+**Verdict:** `SHIP_WITH_FIXES` on the reviewed surface, for `TASK-037`'s pre-customer-safe purpose.
+Storage/logs/local-copies/deletion are solid — implemented as documented, independently re-verified
+against a real database, not just claimed. Findings 1 and 2 are real, structural, HIGH-severity
+access-control gaps that must close before `TASK-038` (Finding 1) and `TASK-042` (Finding 2)
+respectively, or `TASK-037`'s own goal text ("before any real data enters the system") is not met
+regardless of what this document's other sections already confirmed. Neither finding blocks
+`TASK-055` or this prep pass itself — both are recommendations for `ARCHITECT` to schedule, not
+fixes applied here (per `agents/CODE_REVIEWER.md`: review, then recommend, don't auto-rewrite).
+`TASK-037` itself is correctly still `BLOCKED` on `TASK-057` and is **not** being marked `DONE` by
+this entry — this is the prep work that makes the eventual real review fast, per that task's own
+scope, not the review itself.
