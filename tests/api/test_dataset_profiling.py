@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 import uuid
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
 from app.core.config import get_settings
+from app.db.models import UserModel
 from app.main import app
 from fastapi.testclient import TestClient
+from sqlalchemy.orm import Session
 
 pytestmark = pytest.mark.integration
 
@@ -27,7 +30,10 @@ def small_storage(tmp_path: Path):
 
 
 def test_upload_triggers_real_profiling_of_the_fixture_csv(
-    db_client: TestClient, small_storage: Path
+    db_client: TestClient,
+    small_storage: Path,
+    postgres_session: Session,
+    login_as_staff: Callable[[TestClient, Session], UserModel],
 ) -> None:
     name = f"profiling-test-{uuid.uuid4().hex}"
     with FIXTURE_CSV.open("rb") as handle:
@@ -71,7 +77,10 @@ def test_upload_triggers_real_profiling_of_the_fixture_csv(
     assert profiles["manager"]["examples_suppressed"] is False
     assert len(profiles["manager"]["examples"]) > 0
 
-    # Fetching the dataset again (a fresh GET) returns the same persisted profiles.
+    # Fetching the dataset again (a fresh GET) returns the same persisted profiles. Requires
+    # authentication (TASK-037 Code Reviewer finding 1) — these profiles carry literal source-data
+    # examples, which is exactly what that finding is about.
+    login_as_staff(db_client, postgres_session)
     fetched = db_client.get(f"/api/v1/datasets/{body['id']}").json()
     assert {p["column_name"] for p in fetched["column_profiles"]} == set(header)
 

@@ -1,7 +1,9 @@
 import uuid
+from collections.abc import Callable
 from pathlib import Path
 
 from app.core.config import get_settings
+from app.db.models import UserModel
 from app.main import app
 from fastapi.testclient import TestClient
 from sqlalchemy import text
@@ -12,7 +14,12 @@ def test_database_connection(postgres_session: Session) -> None:
     assert postgres_session.scalar(text("SELECT 1")) == 1
 
 
-def test_create_and_get_dataset(db_client: TestClient, tmp_path: Path) -> None:
+def test_create_and_get_dataset(
+    db_client: TestClient,
+    tmp_path: Path,
+    postgres_session: Session,
+    login_as_staff: Callable[[TestClient, Session], UserModel],
+) -> None:
     original = get_settings()
     app.dependency_overrides[get_settings] = lambda: original.model_copy(
         update={"ingestion_storage_root": tmp_path}
@@ -28,6 +35,8 @@ def test_create_and_get_dataset(db_client: TestClient, tmp_path: Path) -> None:
     assert created.status_code == 201
     dataset_id = created.json()["id"]
 
+    # GET /api/v1/datasets/{id} requires authentication (TASK-037 Code Reviewer finding 1).
+    login_as_staff(db_client, postgres_session)
     fetched = db_client.get(f"/api/v1/datasets/{dataset_id}")
     assert fetched.status_code == 200
     assert fetched.json()["id"] == dataset_id

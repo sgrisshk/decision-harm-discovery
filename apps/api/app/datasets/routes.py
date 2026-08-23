@@ -27,12 +27,18 @@ def create_dataset(
 
 
 @router.get("", response_model=list[DatasetRead])
-def list_datasets(session: Session = Depends(get_db)) -> list[DatasetRead]:
+def list_datasets(
+    current_user: UserModel = Depends(get_current_user), session: Session = Depends(get_db)
+) -> list[DatasetRead]:
     return [DatasetRead.model_validate(item) for item in service.list_datasets(session)]
 
 
 @router.get("/{dataset_id}", response_model=DatasetRead)
-def get_dataset(dataset_id: UUID, session: Session = Depends(get_db)) -> DatasetRead:
+def get_dataset(
+    dataset_id: UUID,
+    current_user: UserModel = Depends(get_current_user),
+    session: Session = Depends(get_db),
+) -> DatasetRead:
     return DatasetRead.model_validate(service.get_dataset(session, dataset_id))
 
 

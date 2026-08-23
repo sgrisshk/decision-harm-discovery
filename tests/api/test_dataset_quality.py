@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 import uuid
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
 from app.core.config import get_settings
+from app.db.models import UserModel
 from app.main import app
 from fastapi.testclient import TestClient
+from sqlalchemy.orm import Session
 
 pytestmark = pytest.mark.integration
 
@@ -27,7 +30,10 @@ def small_storage(tmp_path: Path):
 
 
 def test_upload_produces_a_quality_report_for_the_fixture_csv(
-    db_client: TestClient, small_storage: Path
+    db_client: TestClient,
+    small_storage: Path,
+    postgres_session: Session,
+    login_as_staff: Callable[[TestClient, Session], UserModel],
 ) -> None:
     name = f"quality-test-{uuid.uuid4().hex}"
     with FIXTURE_CSV.open("rb") as handle:
@@ -56,7 +62,9 @@ def test_upload_produces_a_quality_report_for_the_fixture_csv(
 
     assert report["rating"] in ("ready", "ready_with_limitations", "not_ready")
 
-    # Fetching the dataset again returns the same persisted report.
+    # Fetching the dataset again returns the same persisted report (GET /datasets/{id} requires
+    # authentication, TASK-037 Code Reviewer finding 1).
+    login_as_staff(db_client, postgres_session)
     fetched = db_client.get(f"/api/v1/datasets/{body['id']}").json()
     assert fetched["quality_report"] == report
 

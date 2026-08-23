@@ -20,14 +20,21 @@ Internal-staff login exists (`apps/api/app/auth/`): bcrypt-hashed passwords, DB-
 cookies (httpOnly, `SameSite=Lax`, real revocation on logout — no JWT). Accounts are created only
 via `scripts/create_user.py`; there is no self-serve signup endpoint.
 
-**This does not mean the MVP is locked down.** Auth exists specifically to attribute *who* performs
-a small set of sensitive writes: customer finding feedback
-(`POST /api/v1/findings/{id}/feedback`, `TASK-035`) and dataset deletion
-(`DELETE /api/v1/datasets/{id}`, `TASK-055`, `docs/architecture/dataset-deletion-contract.md`) —
-those are the only routes that currently require it. Every other route, including dataset upload
-and read access, remains unauthenticated by design. Login rate-limiting and bot protection are not
-implemented. **Do not expose this MVP to untrusted networks** — most of the API still has no access
-control at all.
+**This does not mean the MVP is locked down.** Auth exists to attribute *who* performs a small set
+of sensitive writes — customer finding feedback (`POST /api/v1/findings/{id}/feedback`, `TASK-035`)
+and dataset deletion (`DELETE /api/v1/datasets/{id}`, `TASK-055`,
+`docs/architecture/dataset-deletion-contract.md`) — and, since `TASK-037`'s pre-customer-safe review
+(2026-08-23, `docs/security/task-037-pre-customer-review-prep.md` findings 1/2), to gate reads that
+carry literal source content: `GET /api/v1/datasets`, `GET /api/v1/datasets/{id}`
+(`dataset_column_profiles.examples`/`suspicious_values` are literal, unmodified values copied from
+uploaded rows, suppressed only by a cardinality heuristic that is explicitly not a real PII
+detector — see `packages/analytics/src/policy_analytics/profiling/schema_profiler.py`'s module
+docstring) and `GET /api/v1/findings/{id}/feedback` (`customer_owner`/`customer_comment` are a real
+customer contact's name and verbatim words — the write side already required auth for exactly this
+reason; the read side did not, until now). Dataset upload, `GET /api/v1/findings`, and
+`GET /api/v1/findings/{id}` (feature names/thresholds/statistics only, not raw customer rows) remain
+unauthenticated by design. Login rate-limiting and bot protection are not implemented. **Do not
+expose this MVP to untrusted networks** — most of the API still has no access control at all.
 
 ## Dataset deletion (`TASK-055`)
 

@@ -43,7 +43,9 @@ def create_finding_feedback(
 
 @router.get("/{finding_id}/feedback", response_model=list[FindingFeedbackRead])
 def list_finding_feedback(
-    finding_id: UUID, session: Session = Depends(get_db)
+    finding_id: UUID,
+    current_user: UserModel = Depends(get_current_user),
+    session: Session = Depends(get_db),
 ) -> list[FindingFeedbackRead]:
     return [
         FindingFeedbackRead.model_validate(item)

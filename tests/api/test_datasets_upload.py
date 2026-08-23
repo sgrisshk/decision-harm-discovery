@@ -3,12 +3,15 @@ from __future__ import annotations
 import hashlib
 import logging
 import uuid
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
 from app.core.config import get_settings
+from app.db.models import UserModel
 from app.main import app
 from fastapi.testclient import TestClient
+from sqlalchemy.orm import Session
 
 pytestmark = pytest.mark.integration
 
@@ -75,8 +78,31 @@ def test_upload_creates_version_one_with_manifest_fields(
     assert len(stored_files) == 1
 
 
-def test_duplicate_content_upload_is_rejected_without_new_version(
+def test_list_datasets_requires_authentication(db_client: TestClient) -> None:
+    """`GET /api/v1/datasets` requires login (`TASK-037` Code Reviewer finding 1) — it returns
+    `column_profiles.examples`/`suspicious_values`, literal values copied from uploaded rows, gated
+    only by a cardinality heuristic that is explicitly not a real PII detector."""
+    response = db_client.get("/api/v1/datasets")
+    assert response.status_code == 401
+
+
+def test_get_dataset_requires_authentication(
     db_client: TestClient, small_storage: Path, dataset_name: str
+) -> None:
+    uploaded = _upload(db_client, dataset_name, "bookings.csv", b"booking_id,discount\n1,0.1\n")
+    dataset_id = uploaded.json()["id"]
+
+    response = db_client.get(f"/api/v1/datasets/{dataset_id}")
+
+    assert response.status_code == 401
+
+
+def test_duplicate_content_upload_is_rejected_without_new_version(
+    db_client: TestClient,
+    small_storage: Path,
+    dataset_name: str,
+    postgres_session: Session,
+    login_as_staff: Callable[[TestClient, Session], UserModel],
 ) -> None:
     content = b"booking_id,discount\n1,0.1\n"
     first = _upload(db_client, dataset_name, "bookings.csv", content)
@@ -85,6 +111,8 @@ def test_duplicate_content_upload_is_rejected_without_new_version(
     second = _upload(db_client, dataset_name, "bookings-again.csv", content)
     assert second.status_code == 409
 
+    # GET /api/v1/datasets requires authentication (TASK-037 Code Reviewer finding 1).
+    login_as_staff(db_client, postgres_session)
     listing = db_client.get("/api/v1/datasets").json()
     matching = [item for item in listing if item["name"] == dataset_name]
     assert len(matching) == 1

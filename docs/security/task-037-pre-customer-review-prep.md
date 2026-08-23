@@ -223,14 +223,49 @@ unknown today — but it narrows the assumption: the *mechanism* has no guard ag
 resolution cannot rely on "the code doesn't allow it" and must instead be a real audit against
 whatever columns a real dataset's `TASK-008` classification admits.
 
-**Verdict:** `SHIP_WITH_FIXES` on the reviewed surface, for `TASK-037`'s pre-customer-safe purpose.
-Storage/logs/local-copies/deletion are solid — implemented as documented, independently re-verified
-against a real database, not just claimed. Findings 1 and 2 are real, structural, HIGH-severity
-access-control gaps that must close before `TASK-038` (Finding 1) and `TASK-042` (Finding 2)
-respectively, or `TASK-037`'s own goal text ("before any real data enters the system") is not met
-regardless of what this document's other sections already confirmed. Neither finding blocks
-`TASK-055` or this prep pass itself — both are recommendations for `ARCHITECT` to schedule, not
-fixes applied here (per `agents/CODE_REVIEWER.md`: review, then recommend, don't auto-rewrite).
-`TASK-037` itself is correctly still `BLOCKED` on `TASK-057` and is **not** being marked `DONE` by
-this entry — this is the prep work that makes the eventual real review fast, per that task's own
-scope, not the review itself.
+**Verdict (as first written):** `SHIP_WITH_FIXES` on the reviewed surface, for `TASK-037`'s
+pre-customer-safe purpose. Storage/logs/local-copies/deletion are solid — implemented as documented,
+independently re-verified against a real database, not just claimed. Findings 1 and 2 are real,
+structural, HIGH-severity access-control gaps that must close before `TASK-038` (Finding 1) and
+`TASK-042` (Finding 2) respectively, or `TASK-037`'s own goal text ("before any real data enters the
+system") is not met regardless of what this document's other sections already confirmed. Neither
+finding blocks `TASK-055` or this prep pass itself — both were recommendations for `ARCHITECT` to
+schedule, not fixes applied at review time (per `agents/CODE_REVIEWER.md`: review, then recommend,
+don't auto-rewrite). `TASK-037` itself is correctly still `BLOCKED` on `TASK-057` and is **not**
+being marked `DONE` by this entry — this is the prep work that makes the eventual real review fast,
+per that task's own scope, not the review itself.
+
+**Findings 1 and 2: fixed (2026-08-23, same session, on explicit instruction to apply the
+recommended fix — option (a) from each finding's own list, not silently chosen).**
+
+- `GET /api/v1/datasets`, `GET /api/v1/datasets/{id}`
+  (`apps/api/app/datasets/routes.py::list_datasets`/`get_dataset`) and
+  `GET /api/v1/findings/{id}/feedback` (`apps/api/app/findings/routes.py::list_finding_feedback`)
+  now carry `Depends(get_current_user)`, extending `TASK-053`'s protected surface the same way
+  `TASK-055` extended it to deletion. `GET /api/v1/findings`/`GET /api/v1/findings/{id}` remain
+  unauthenticated, unchanged — believed non-PII per this document's own reconfirmation above, not
+  re-litigated by this fix.
+- Every existing call site in the test suite that hit these routes unauthenticated was updated to
+  log in first (a new shared `login_as_staff` fixture in `tests/conftest.py`, replacing the need to
+  hand-roll the create-user-then-log-in sequence per file); three new tests assert the 401 directly
+  (`test_list_datasets_requires_authentication`, `test_get_dataset_requires_authentication`,
+  `test_list_feedback_requires_authentication`). Full suite re-run against a real ephemeral Postgres:
+  629 passed (was 626 before this fix; +3 new). `ruff` and project-scoped `pyright` clean.
+- `apps/web/app/(app)/datasets/DatasetsView.tsx` — the one current frontend consumer of a now-gated
+  route — updated to detect a `401 ApiError` and show a "log in to view datasets" prompt
+  (`retryHref="/login?next=%2Fdatasets"`, matching `ReviewSessionView.tsx`'s existing pattern)
+  instead of a generic error. `apps/web/app/(app)/findings/detail/FindingDetailView.tsx`'s feedback
+  fetch was already wrapped in `.catch(() => [])` as a supplementary, non-fatal read (same treatment
+  as policy candidates and provenance on that page) — an anonymous viewer now sees an empty feedback
+  history rather than the real one, which is the correct data-exposure outcome; the page does not
+  distinguish that from "no feedback yet" in its wording, a minor, low-priority polish item, not
+  reopened here. `tsc --noEmit`, `eslint`, and `vitest run` (63 passed) all clean.
+- `SECURITY.md`'s Access section updated to name the new protected surface accurately.
+- Not touched: gap list items 1–7 (persistent disk, backup/PITR, the `analysis_runs`/
+  `candidate_patterns`/etc. literal-content assumption, secret-manager decision, malware scanning,
+  rate-limiting) — none of those are code-level access-control gaps this same fix shape applies to;
+  they stand as recorded.
+
+**Updated verdict:** `SHIP`. Findings 1 and 2 are closed, verified live against a real database and
+the frontend, not just claimed. `TASK-037` itself remains correctly `BLOCKED` on `TASK-057` and is
+**not** marked `DONE` by this entry.

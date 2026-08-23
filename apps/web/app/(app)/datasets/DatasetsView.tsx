@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import { EmptyState, ErrorState, LoadingState } from "@/components/states";
+import { ApiError } from "@/lib/api/errors";
 import { listDatasets } from "@/lib/api/datasets";
 import { toErrorDisplay } from "@/lib/api/display";
 import type { Dataset } from "@/lib/api/types";
@@ -37,6 +38,20 @@ export function DatasetsView() {
   }
 
   if ("error" in result) {
+    // GET /api/v1/datasets requires authentication (TASK-037 Code Reviewer finding 1 — dataset
+    // reads carry literal source-data examples). A generic error state would be misleading here;
+    // an anonymous viewer just needs to log in, same as the review-session flow.
+    if (result.error instanceof ApiError && result.error.status === 401) {
+      return (
+        <PageShell>
+          <ErrorState
+            title="Log in to view datasets"
+            message="Dataset details include profiled sample values from the source data, so this view requires an identified reviewer."
+            retryHref="/login?next=%2Fdatasets"
+          />
+        </PageShell>
+      );
+    }
     const { message, requestId } = toErrorDisplay(result.error);
     return (
       <PageShell>

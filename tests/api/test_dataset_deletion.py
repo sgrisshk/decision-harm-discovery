@@ -187,12 +187,12 @@ def test_delete_redacts_literal_column_profile_content(
     )
     uploaded = _upload(db_client, dataset_name, "bookings.csv", content)
     dataset_id = uploaded.json()["id"]
+    _seed_and_login(db_client, postgres_session)
     before = db_client.get(f"/api/v1/datasets/{dataset_id}").json()
     status_profile = next(p for p in before["column_profiles"] if p["column_name"] == "status")
     assert status_profile["examples"] != []
     assert status_profile["examples_suppressed"] is False
 
-    _seed_and_login(db_client, postgres_session)
     deletion = _delete(db_client, dataset_id, "customer requested erasure").json()
     assert deletion["redacted_column_profile_count"] == len(before["column_profiles"])
 

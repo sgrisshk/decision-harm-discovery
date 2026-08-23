@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 import uuid
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
 from app.core.config import get_settings
+from app.db.models import UserModel
 from app.main import app
 from fastapi.testclient import TestClient
+from sqlalchemy.orm import Session
 
 pytestmark = pytest.mark.integration
 
@@ -57,7 +60,10 @@ def small_storage(tmp_path: Path):
 
 
 def test_upload_classifies_feature_timing_for_every_column(
-    db_client: TestClient, small_storage: Path
+    db_client: TestClient,
+    small_storage: Path,
+    postgres_session: Session,
+    login_as_staff: Callable[[TestClient, Session], UserModel],
 ) -> None:
     name = f"timing-test-{uuid.uuid4().hex}"
     with FIXTURE_CSV.open("rb") as handle:
@@ -90,7 +96,9 @@ def test_upload_classifies_feature_timing_for_every_column(
     # nullable reflects observed missingness in this exact upload, not a schema guess.
     assert columns["booking_id"]["nullable"] is False
 
-    # Fetching the dataset again returns the same persisted classification.
+    # Fetching the dataset again returns the same persisted classification. Requires
+    # authentication (TASK-037 Code Reviewer finding 1).
+    login_as_staff(db_client, postgres_session)
     fetched = db_client.get(f"/api/v1/datasets/{body['id']}").json()
     assert {c["name"]: c["timing"] for c in fetched["columns"]} == {
         c["name"]: c["timing"] for c in body["columns"]

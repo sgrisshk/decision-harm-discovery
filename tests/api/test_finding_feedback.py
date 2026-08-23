@@ -239,7 +239,20 @@ def test_feedback_is_append_only_not_a_single_updated_row(
     assert {first.json()["id"], second.json()["id"]} <= ids
 
 
-def test_list_feedback_for_unknown_finding_404s(db_client: TestClient) -> None:
+def test_list_feedback_requires_authentication(db_client: TestClient) -> None:
+    """`GET .../feedback` requires login (`TASK-037` Code Reviewer finding 2) — the write side of
+    this exact endpoint pair already required it (see
+    `test_posting_feedback_requires_authentication` above) specifically to attribute a sensitive
+    action; the read side carries the same customer_owner/customer_comment content and must not
+    undo that by being open."""
+    response = db_client.get(f"/api/v1/findings/{uuid4()}/feedback")
+    assert response.status_code == 401
+
+
+def test_list_feedback_for_unknown_finding_404s(
+    db_client: TestClient, postgres_session: Session
+) -> None:
+    _seed_and_login(db_client, postgres_session)
     response = db_client.get(f"/api/v1/findings/{uuid4()}/feedback")
     assert response.status_code == 404
 
