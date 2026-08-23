@@ -91,6 +91,21 @@ class MetricsDocument(BaseModel):
     run_id: str
     evaluated_hypotheses: int = Field(ge=0)
     random_seed: int
+    #: The `DiscoveryConfig.max_feature_identity_fraction` the run actually executed with
+    #: (`TASK-068`, `ADR-061` §8 R4), declared by the executor the same way `random_seed` is, so
+    #: the frozen metrics artifact — not a human's memory of what was issued — records which of
+    #: two otherwise-identical preregistered configurations produced the candidates.
+    #: `core._validated_freeze` refuses to freeze output whose value disagrees with the signed
+    #: acceptance contract's.
+    #:
+    #: Optional at `1.0` (the engine's disabled default), and `schema_version` deliberately stays
+    #: `1.1.0`: this is a purely additive optional field, so every already-frozen `1.1.0` artifact
+    #: — `TASK-060`'s and `TASK-064`'s included — stays valid and re-readable, and the default it
+    #: takes is the true configuration those pre-`TASK-068` runs executed under. Requiring it (or
+    #: bumping the version) would invalidate them for no gain: any *new* run's contract always
+    #: carries the field, and the freeze-time equality check above already makes an executor that
+    #: omits it fail closed rather than pass at the default.
+    max_feature_identity_fraction: float = Field(default=1.0, ge=0.0, le=1.0)
     run_contract_version: str
     dataset_identity_sha256: str = Field(min_length=64, max_length=64)
     discovery_method_version: str

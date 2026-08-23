@@ -155,6 +155,17 @@ Fewer than 10 candidates are accepted only with `status=INSUFFICIENT_CANDIDATES`
 reason. Freeze rejects contract/version/provenance drift, non-`DECISION_TIME` condition features,
 unapproved outcomes/methods, incorrect split declarations, and prohibited causal language.
 
+The acceptance contract also carries `max_feature_identity_fraction`, the one `DiscoveryConfig`
+knob an issuer chooses per run (`--max-feature-identity-fraction`, default `1.0` = disabled)
+rather than inheriting from the committed defaults, added for `TASK-068` (`ADR-061` §8 R4). It is
+signed like `discovery_method_version` and echoed by the executor into `discovery_metrics.json`
+alongside `random_seed`, so which configuration produced a candidate set is provable from the
+frozen artifacts. Freeze rejects output whose declared value disagrees with the signed one —
+without that check, an executor that ignored the parameter would emit the *disabled* candidate
+set under a cap-enabled label, which is a false experimental result rather than a null one. A
+contract that omits the field entirely means `1.0`, never some other value applied silently; a
+malformed value refuses to run at all.
+
 Discovery freezes all three required outputs. Only frozen `candidates.json` crosses into the
 separate evaluation process; no later message or evaluation file returns to the blind workspace.
 

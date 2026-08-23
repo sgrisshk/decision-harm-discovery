@@ -168,6 +168,7 @@ def write_valid_outputs(run: Path) -> None:
                 "run_contract_version": contract["run_contract_version"],
                 "dataset_identity_sha256": contract["dataset_identity_sha256"],
                 "discovery_method_version": contract["discovery_method_version"],
+                "max_feature_identity_fraction": contract.get("max_feature_identity_fraction", 1.0),
                 "search_fit_split": contract["search_fit_split"],
                 "selection_used_only_fit_split": True,
             }
@@ -819,3 +820,134 @@ def test_freeze_rejects_contract_drift_and_causal_language(tmp_path: Path) -> No
         with pytest.raises(ValueError, match=error):
             freeze(run, SIGNING_KEY)
         assert json.loads((run / "state.json").read_text())["state"] == "FAILED"
+
+
+def test_issued_contract_signs_the_feature_identity_cap(tmp_path: Path) -> None:
+    """`TASK-068` / `ADR-061` §8 R4(b): the parameter under test must live in the
+    evaluator-signed acceptance contract next to `discovery_method_version`, so which of two
+    otherwise-identical preregistered configurations produced a candidate set is provable from
+    the run's own signed record rather than from a human's memory of what was issued."""
+    repository, allowlist = fixture_repo(tmp_path)
+    baseline = prepare(
+        repository,
+        tmp_path / "runs",
+        "cap-default",
+        allowlist,
+        1,
+        SIGNING_KEY,
+        TEST_RUNTIME,
+        "deterministic",
+        None,
+    )
+    capped = prepare(
+        repository,
+        tmp_path / "runs",
+        "cap-enabled",
+        allowlist,
+        1,
+        SIGNING_KEY,
+        TEST_RUNTIME,
+        "deterministic",
+        None,
+        "travel",
+        0.34,
+    )
+    baseline_manifest = json.loads((baseline / "manifest.json").read_text(encoding="utf-8"))
+    capped_manifest = json.loads((capped / "manifest.json").read_text(encoding="utf-8"))
+    # Omitting the argument means disabled, never some other value applied silently.
+    assert baseline_manifest["acceptance_contract"]["max_feature_identity_fraction"] == 1.0
+    assert capped_manifest["acceptance_contract"]["max_feature_identity_fraction"] == 0.34
+    # Signed, not merely recorded: the two runs' signatures differ on this field alone, and each
+    # still round-trips the full source-drift check.
+    assert baseline_manifest["evaluator_signature"] != capped_manifest["evaluator_signature"]
+    for run in (baseline, capped):
+        verify(
+            run,
+            SIGNING_KEY,
+            repository=repository,
+            allowlist=allowlist,
+            check_source=True,
+            dataset_selector="travel",
+        )
+
+
+@pytest.mark.parametrize("bad_fraction", [1.5, -0.1, "0.34", True, None, float("nan")])
+def test_prepare_rejects_a_malformed_cap_before_consuming_the_run_id(
+    tmp_path: Path, bad_fraction: object
+) -> None:
+    """A run ID is spent permanently on issuance, so a malformed cap must fail before anything is
+    created rather than leaving a FAILED run behind that can never be retried under the same ID."""
+    repository, allowlist = fixture_repo(tmp_path)
+    with pytest.raises(ValueError, match="max_feature_identity_fraction"):
+        prepare(
+            repository,
+            tmp_path / "runs",
+            "cap-malformed",
+            allowlist,
+            1,
+            SIGNING_KEY,
+            TEST_RUNTIME,
+            "deterministic",
+            None,
+            "travel",
+            bad_fraction,  # pyright: ignore[reportArgumentType]
+        )
+    assert not (tmp_path / "runs/cap-malformed").exists()
+
+
+def test_freeze_rejects_output_that_ignored_the_signed_cap(tmp_path: Path) -> None:
+    """The structural guarantee behind `ADR-061` §8 R4. An executor that ignored the signed cap
+    would produce the *disabled* candidate set while the run is labelled cap-enabled — a false
+    experimental result indistinguishable from a genuine null after the fact. Because the output
+    declares the fraction it actually ran with, that disagreement makes the run unfreezable
+    instead of merely unlikely."""
+    repository, allowlist = fixture_repo(tmp_path)
+    run = prepare(
+        repository,
+        tmp_path / "runs",
+        "cap-ignored",
+        allowlist,
+        1,
+        SIGNING_KEY,
+        TEST_RUNTIME,
+        "deterministic",
+        None,
+        "travel",
+        0.34,
+    )
+    transition(run, RunState.RUNNING)
+    write_valid_outputs(run)
+    metrics_path = run / "workspace/output/discovery_metrics.json"
+    metrics = json.loads(metrics_path.read_text(encoding="utf-8"))
+    assert metrics["max_feature_identity_fraction"] == 0.34
+    metrics["max_feature_identity_fraction"] = 1.0  # what an ignored cap would have produced
+    metrics_path.write_text(json.dumps(metrics), encoding="utf-8")
+    with pytest.raises(ValueError, match="metrics contract mismatch"):
+        freeze(run, SIGNING_KEY)
+    assert json.loads((run / "state.json").read_text())["state"] == "FAILED"
+
+
+def test_freeze_accepts_output_matching_the_signed_cap(tmp_path: Path) -> None:
+    """The other half of the check above: a cap-enabled run whose output declares the same
+    fraction the evaluator signed freezes normally, so the guard rejects disagreement rather than
+    rejecting non-default configurations."""
+    repository, allowlist = fixture_repo(tmp_path)
+    run = prepare(
+        repository,
+        tmp_path / "runs",
+        "cap-honoured",
+        allowlist,
+        1,
+        SIGNING_KEY,
+        TEST_RUNTIME,
+        "deterministic",
+        None,
+        "travel",
+        0.34,
+    )
+    transition(run, RunState.RUNNING)
+    write_valid_outputs(run)
+    frozen = freeze(run, SIGNING_KEY)
+    assert json.loads((run / "state.json").read_text())["state"] == "FROZEN"
+    frozen_metrics = json.loads((frozen / "discovery_metrics.json").read_text(encoding="utf-8"))
+    assert frozen_metrics["max_feature_identity_fraction"] == 0.34
