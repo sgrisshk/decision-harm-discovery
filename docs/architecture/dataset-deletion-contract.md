@@ -93,6 +93,43 @@ feedback endpoint did), `requested_at`, `reason` (required, non-empty — an und
 auditable), `raw_bytes_purged`, `raw_bytes_retained_reason`, `redacted_column_profile_count`. Never
 updated after insert.
 
+## Re-upload and concurrent-deletion interactions (`HANDOFF-074`, 2026-08-27)
+
+An independent re-verification pass (`HANDOFF-072`) found two defects in how deletion interacts
+with pre-existing `TASK-006` upload logic — neither present in this document nor caught by the
+original `TASK-055` review. Both are now resolved, not merely disclosed:
+
+- **R1 (HIGH, fixed):** `create_dataset_from_upload`'s adjacency-dedup check (the query that
+  decides whether a new upload is "identical content already exists") compared against the most
+  recent version by number *regardless of `deleted_at`*, so a deleted dataset's checksum
+  permanently blocked re-uploading identical content under the same name — deterministic, 100%
+  reproduced, a real customer path ("delete this, we'll re-send it") made permanently unusable.
+  Fixed by requiring the matched "latest" row to still be active (`deleted_at IS NULL`) before it
+  counts as a conflict; the row itself is still consulted for version numbering regardless of
+  `deleted_at`, so numbering (already correct for *differing* content after a delete) is
+  unaffected. Regression test: `test_delete_then_reupload_identical_content_succeeds` — first
+  confirmed to fail against the pre-fix code (live-reproduced the 409), then confirmed to pass
+  against the fix.
+- **R2 (MEDIUM, fixed):** the dedup-sibling check in `delete_dataset` (the query above under "Why
+  the row survives" that decides whether to physically unlink bytes) ran as a plain `SELECT` under
+  Postgres's default READ COMMITTED isolation, with no row lock. Two concurrent deletes of
+  datasets sharing content-addressed bytes could each independently see the other as still active
+  (its `deleted_at` update not yet committed) and both choose to retain — permanently orphaning
+  the file once both commit, since no retention sweep exists to reclaim it later. Fixed with
+  ordinary Postgres row locking, not new infrastructure: before evaluating "is anyone else still
+  active", the dataset row-locks every row sharing its checksum (itself included),
+  `ORDER BY id` to give concurrent transactions touching overlapping checksum groups a consistent
+  lock-acquisition order (avoids a lock-order deadlock between two overlapping deletes). A second
+  delete of a dedup-sibling now blocks until the first commits, then correctly re-evaluates against
+  its committed state. Regression test:
+  `test_concurrent_delete_of_dedup_siblings_serializes_instead_of_orphaning_bytes` — a second,
+  independent connection holds a lock on *only* one sibling's row (never touching its
+  `deleted_at`, so the pre-existing, unrelated "update the row you're deleting" write path cannot
+  be what blocks) and a genuine `delete_dataset` call for the other sibling is proven, with a short
+  `lock_timeout`, to block until that lock releases — confirmed to *not* block against the
+  pre-fix code (same test, reverted fix), confirming the test exercises this mechanism specifically
+  and not some unrelated collision.
+
 ## Verified end to end
 
 `tests/api/test_dataset_deletion.py`, run against a real ephemeral Postgres
@@ -102,12 +139,17 @@ service-container setup in `.github/workflows/ci.yml`): upload → delete → co
 just hidden) → confirm column-profile examples are redacted while counts survive → confirm a second
 active dataset sharing the same content hash keeps its bytes when the first is deleted → confirm
 re-deleting an already-deleted dataset is `409`, not a silent no-op → confirm the endpoint requires
-authentication and a non-empty reason. `alembic check` and a full `downgrade base` /
-`upgrade head` round-trip both pass against the same database.
+authentication and a non-empty reason → confirm deleting then re-uploading identical content under
+the same name succeeds (`HANDOFF-074` R1) → confirm concurrent deletion of dedup-sharing datasets
+serializes instead of orphaning bytes (`HANDOFF-074` R2). `alembic check` and a full
+`downgrade base` / `upgrade head` round-trip both pass against the same database.
 
 ## Known limitations (disclosed, not silently assumed away)
 
-- The commit-after-unlink race described above under "Ordering guarantee".
+- The commit-after-unlink race described above under "Ordering guarantee". (Distinct from R2 above:
+  this is a single transaction's unlink succeeding while its own commit then fails, not two
+  transactions disagreeing about who should unlink — row-locking the checksum group doesn't touch
+  this window, and no fix is planned; it stays disclosed as-is.)
 - No retention-expiry sweep — see "What 'delete' means here" #2. Acceptable because nothing in
   this codebase currently promises time-bound retention (`docs/architecture/ingestion-contract.md`:
   "Indefinite by default; no automatic expiry").

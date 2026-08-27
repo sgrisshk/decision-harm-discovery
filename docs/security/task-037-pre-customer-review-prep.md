@@ -372,3 +372,37 @@ satisfy its own goal text ("what happens to already-derived artifacts" implicitl
 delete-then-redo path works). R2 should be recorded as an accepted limitation or fixed; either is
 acceptable but silence is not. Routed to Architect: `HANDOFF-074`. `TASK-037` itself remains
 `BLOCKED` on `TASK-057`, unaffected by this dispute either way.
+
+## Architect resolution of R1/R2, per `HANDOFF-074` (2026-08-27, Architect)
+
+Both fixed — neither left as a recorded-but-unresolved gap. Full mechanism, code locations, and
+regression-test description: `docs/architecture/dataset-deletion-contract.md`'s "Re-upload and
+concurrent-deletion interactions" section.
+
+- **R1:** fixed. `create_dataset_from_upload`'s adjacency-dedup check now requires the matched
+  "latest" row to be active (`deleted_at IS NULL`) before it counts as a conflict; version
+  numbering is untouched (still derived from the true latest row regardless of `deleted_at`, which
+  was already correct for differing-content re-uploads). Regression test
+  `test_delete_then_reupload_identical_content_succeeds` was confirmed to fail against the
+  pre-fix code (live-reproduced the permanent 409) before the fix landed, then confirmed to pass.
+- **R2:** fixed, not merely accepted — chosen over documenting it as a limitation because the fix
+  is cheap (ordinary Postgres row locking, no new infrastructure or dependency) and permanently
+  closes a real disk-hygiene defect (orphaned bytes nothing points to any more, with no sweep
+  anywhere in this codebase to reclaim them) rather than leaving a customer-facing storage leak on
+  the books. `delete_dataset` now row-locks every dataset sharing the content hash (itself
+  included, `ORDER BY id` for consistent lock ordering across overlapping concurrent deletes)
+  before deciding whether to purge. Regression test
+  `test_concurrent_delete_of_dedup_siblings_serializes_instead_of_orphaning_bytes` was confirmed
+  to *not* block against the pre-fix code (proving it exercises this specific mechanism, not an
+  unrelated collision) before the fix landed, then confirmed to block-then-correctly-resolve
+  against the fix.
+- **Verification:** fresh ephemeral Postgres (`postgres:16.4-alpine`), `alembic upgrade head` on
+  an empty database, full repo suite, `ruff check`, `pyright` — see `TASKS.md` `TASK-055` for the
+  run record.
+- **Gap list item 8 (above):** superseded by this resolution — both R1 and R2 are now fixed, not
+  standing gaps. Left as originally written above per this document's append-only convention;
+  this section is the current status.
+- **Not addressed here, and not this handoff's scope:** `HANDOFF-072`'s dispute of `ADR-058`
+  condition 2 itself. That determination is a separate step (a new Code Reviewer pass, or a
+  continuation of `HANDOFF-072`) now that R1 is fixed and R2 is resolved rather than merely
+  recorded — not reopened, narrowed, or pre-judged by this entry.
