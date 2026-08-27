@@ -269,3 +269,106 @@ recommended fix — option (a) from each finding's own list, not silently chosen
 **Updated verdict:** `SHIP`. Findings 1 and 2 are closed, verified live against a real database and
 the frontend, not just claimed. `TASK-037` itself remains correctly `BLOCKED` on `TASK-057` and is
 **not** marked `DONE` by this entry.
+
+---
+
+## Independent re-verification, per `memory/HANDOFFS.md` HANDOFF-072 (2026-08-27, Code Reviewer)
+
+Requested explicitly as a non-rubber-stamp check: re-verify every claim above and in
+`docs/architecture/dataset-deletion-contract.md` directly, not on the strength of what was already
+written. Re-read `apps/api/app/datasets/service.py`/`routes.py`,
+`apps/api/app/ingestion/storage.py`, `apps/api/app/findings/routes.py`,
+`packages/analytics/src/policy_analytics/profiling/schema_profiler.py`,
+`packages/analytics/src/policy_analytics/discovery/engine.py`. Spun up a fresh real ephemeral
+Postgres (`postgres:16.4-alpine`, not the one prior sessions used), ran `alembic upgrade head` on an
+empty database, `alembic check`, a full `downgrade base`/`upgrade head` round-trip, and the full
+repo suite (647 passed, up from 626 at `TASK-055`'s own original commit — the +21 are the two
+findings' regression tests plus unrelated `TASK-068` work landed since). `pnpm --filter web
+typecheck`/`lint`/`test` (63 passed) also re-run clean. Live-reproduced (not just read) that
+unauthenticated `GET /api/v1/datasets` and `GET /api/v1/datasets/{id}` now correctly return `401` —
+Findings 1 and 2's fix genuinely holds, not merely claimed.
+
+**Everything in "What already exists" and the prior review's findings/fixes is confirmed accurate**
+by this independent pass — storage (content-addressing, atomic write, `chmod`, dedup no-op), logs
+(grepped every `logger.*` call site in the datasets/ingestion modules directly — IDs/counts/booleans
+only), the narrow auth boundary, backups/secret-manager disclosure against
+`docs/operations/deployment.md`, local-copies (traced `profile_dataset` — reads the stored file
+directly via `pl.read_csv`, no second copy), and the `_examples`/`max_categorical_levels` code cited
+for Finding 1 and the item-3 refinement all read exactly as described.
+
+**Two new findings, neither present in this document, `docs/architecture/dataset-deletion-contract.md`,
+or the prior review — found by testing the interaction between `TASK-055` and pre-existing `TASK-006`
+logic directly, not by re-reading either document:**
+
+### Finding R1 (HIGH): Deleting a dataset permanently blocks re-uploading identical content under the same name
+
+- **Severity:** HIGH
+- **File:** `apps/api/app/datasets/service.py:63-68` (`create_dataset_from_upload`'s `latest` query)
+- **Evidence:** Reproduced live against a real Postgres: `POST /api/v1/datasets` (name=X,
+  content=C) → `201`, version 1. `DELETE /api/v1/datasets/{id}` (authenticated) → `200`,
+  `raw_bytes_purged: true`. `POST /api/v1/datasets` (name=X, content=C again) → `409 "identical
+  content already exists as version 1"` — even though version 1 is tombstoned (invisible via `GET`,
+  which now 404s per Finding 1's fix) and its bytes are physically gone from disk. Re-uploading
+  *different* content under the same name after deletion works correctly (creates version 2,
+  independently reproduced) — only the identical-content adjacency check is broken, because
+  `latest` is fetched by `name`/`version` ordering alone, with no `DatasetModel.deleted_at.is_(None)`
+  filter, so a deleted row still counts as "the same content already exists."
+- **Why it matters:** This directly undermines `TASK-055`'s own purpose. Deleting a dataset and then
+  re-supplying the identical file under the same name is one of the most likely real actions a real
+  customer takes after a deletion request (e.g., "delete this, we'll re-send it"), and it is
+  permanently blocked with a `409` referencing a version number that resolves nowhere else in the
+  API. No test anywhere in the suite exercises this interaction, and it was missed by the review
+  recorded immediately above this section — it is a gap in that review, not only in the code.
+- **How to reproduce:** See Evidence — fully deterministic, 100% reproducible, no timing/concurrency
+  required.
+- **Recommended fix:** Not this review's call to make unilaterally (`agents/CODE_REVIEWER.md`:
+  review, recommend, don't auto-rewrite). The shape is narrow: filter the adjacency query to
+  `deleted_at.is_(None)` (or otherwise treat a deleted "latest" as no conflict) in
+  `create_dataset_from_upload`. `ARCHITECT`-owned.
+
+### Finding R2 (MEDIUM): Concurrent deletion of dedup-sharing datasets can orphan bytes permanently
+
+- **Severity:** MEDIUM
+- **File:** `apps/api/app/datasets/service.py:181-199` (`delete_dataset`'s
+  `other_active_reference` check)
+- **Evidence:** The dedup-sibling check is a plain `SELECT` under Postgres's default `READ
+  COMMITTED` isolation — no `SELECT ... FOR UPDATE`, no advisory lock (grepped the whole
+  `apps/api` tree for `isolation_level`/`FOR UPDATE`/`SERIALIZABLE`: no hits anywhere). If two
+  datasets `A`/`B` share `checksum_sha256` and two `DELETE` requests for `A` and `B` run
+  concurrently before either commits, each transaction's `SELECT` sees the other as still active
+  (its `deleted_at` update is uncommitted), so both independently choose to retain bytes. The union
+  outcome is "neither purges," even though after both commit, zero active datasets reference that
+  content. No retention sweep exists anywhere in this codebase (`ADR-060`'s own deliberate choice)
+  to reclaim it later.
+- **Why it matters:** Narrow (requires genuine concurrent requests against dedup-sharing datasets)
+  and fails in the safe direction — no wrong data exposure, no corruption, and the specific dataset
+  each caller asked to delete is still correctly tombstoned either way. It is a storage-hygiene miss
+  only: bytes nothing points to any more sit on disk forever. Not disclosed anywhere (not in this
+  gap list, not in `docs/architecture/dataset-deletion-contract.md`'s "Known limitations"), and not
+  exercised by any test (the existing suite is entirely sequential).
+- **How to reproduce:** Requires two genuinely overlapping transactions; not demonstrated as an
+  observed failure in this pass (the test suite is sequential) — established by direct code
+  inspection of the missing locking primitive, not by triggering it live.
+- **Recommended fix:** Not this review's call — options include `SELECT ... FOR UPDATE` on the
+  checksum-sibling query, a Postgres advisory lock keyed by checksum, or accepting it as a disclosed
+  limitation matching this document's own precedent (the already-accepted "unlink succeeds, commit
+  fails" gap in `docs/architecture/dataset-deletion-contract.md`). `ARCHITECT`-owned.
+
+**Gap list correction:** items 1–7 above are reconfirmed accurate as far as they go, but the list is
+**not exhaustive** as it stood before this pass — it omitted both R1 and R2, both squarely inside
+`TASK-037`'s "deletion" scope. Adding as item 8:
+
+8. **R1 (re-upload-after-delete is permanently blocked for identical content) and R2 (concurrent
+   dedup-deletion can orphan bytes)** — see above. R1 is a deterministic functional defect, not
+   merely an unverified assumption like items 3/5; it should not be treated as an acceptable standing
+   gap the way items 1–7 are. R2 is disclosable-and-acceptable in the same spirit as items 1–7, but
+   was simply missing until now.
+
+**Revised verdict:** `SHIP_WITH_FIXES`, superseding the `SHIP` verdict immediately above for the
+reviewed surface as a whole. Findings 1/2 (access control) remain correctly closed. R1 must be
+fixed (or, at minimum, explicitly accepted with a recorded decision updating this document and
+`docs/architecture/dataset-deletion-contract.md`) before `TASK-055` can be considered to actually
+satisfy its own goal text ("what happens to already-derived artifacts" implicitly assumes the
+delete-then-redo path works). R2 should be recorded as an accepted limitation or fixed; either is
+acceptable but silence is not. Routed to Architect: `HANDOFF-074`. `TASK-037` itself remains
+`BLOCKED` on `TASK-057`, unaffected by this dispute either way.
