@@ -412,5 +412,202 @@ rather than re-examined against a metric not named in §5.
 
 ## 10. Post-run record
 
-*(Empty. To be appended only after the runs described above actually execute. Nothing has been
-issued as of 2026-08-23.)*
+*(Appended 2026-08-27, after both preregistered runs executed. §1–§9 above are unedited: `git diff
+d2f1d2f -- docs/benchmark/task-068-ecommerce-preregistration.md` was empty immediately before
+issuance, and this section is the only permitted change per §9.)*
+
+### 10.1 Pre-issuance conditions re-checked at issuance time
+
+- **Executor bytes.** All five SHA-256s `HANDOFF-073`'s CODE_REVIEWER pinned still match exactly:
+  `scripts/run_discovery.py` `5548ebd2ef16f718bd0a1cf9ce0d03f88dea39391eca56eba094aa6e33e63bb1`;
+  `tools/blind_agent/core.py` `e5d3fb60118d6a14843f89a4e87ca40b3cf43ae66cc5ec0eadfe101fef358c7a`;
+  `tools/blind_agent/models.py` `8d315cb9239a3af423d9c15bea202e39544cd0404d77d6d4f526a6ed861d0a86`;
+  `tools/blind_agent/cli.py` `d156e8f37c2fadaefd8e4f29153fd8b84a1941de8d4571793c5af62a44e9694b`;
+  `packages/analytics/src/policy_analytics/discovery/engine.py`
+  `192b897088bb77568e4bac865773939ad5513d2fe6d9ed8dc8f5d3c8e9d9174b`. `blind/allowlist.yaml` is
+  also unchanged at `f35da4a8a6ed67f6fba7813f5002fd649b6a7a0c30eaa89065b407253d261fc1`. The only
+  commits between the reviewed `f0f3e62` and issuance HEAD `bea0606` are `a4e101d`/`bea0606`, which
+  touch `memory/HANDOFFS.md` and `TASKS.md` only.
+- **§7 step-1 rehearsal.** `make blind-rehearsal BLIND_DATASET=ecommerce/comparable` printed
+  `BLIND_REHEARSAL_VALID` at exit 0 against pinned image
+  `policy-blind-agent@sha256:9ad6e1a78ca41a7c04895d1d99c7775e77fc2c8fbb4f23cee268ed04534c7c9b`,
+  re-run on this tree rather than inherited from the readiness review.
+- **Run IDs.** Both preregistered stems were confirmed absent from `BLIND_RUNS_ROOT` and repository
+  artifacts immediately before issuance. A fresh evaluator signing key was created with
+  `make blind-key-init` (`/tmp/policy-blind-evaluator/signing.key` did not exist — a consequence of
+  local `/tmp` cleanup on 2026-08-24; the five historical runs' receipts are therefore no longer
+  re-verifiable against a live key, which is recorded as an observation and affects nothing here).
+
+### 10.2 The two runs as actually executed
+
+Both: `BLIND_DATASET=ecommerce/comparable`, agent `deterministic`, network `none`, `seed=1729`,
+`discovery-engine-v0.6.0`, dataset identity
+`fb8d049d5f81bb0d792ead8d6310e301b998f4eed7acf63a3274456b9f56c658`, split contract
+`ecommerce-temporal-split-v1.0.0`, search-fit split `development`, 17,523 evaluated hypotheses,
+15 candidates `PERSISTED`, bundle
+`e79c0f8017eb4be1a96b48079809e9e7055046a23b9a3aca02b1d6b4446b7391`.
+
+**§4b verified against the machinery, not asserted:** diffing the two evaluator-signed acceptance
+contracts field by field yields exactly one difference — `max_feature_identity_fraction`
+`1.0` vs `0.34`. Every other signed field is identical.
+
+| | Baseline (`1.0`) | Test (`0.34`) |
+|---|---|---|
+| Run ID | `task-068-ecommerce-baseline-20260827-001` | `task-068-ecommerce-cap-20260827-001` |
+| `frozen/candidates.json` | `ae45e637053978acd248ecf28913c5fc30c31871a251664d62de657cda6edaf8` | `57b9100a45102898d0d28a724674d615432fd29bb589962fdd5e13128dac6a0d` |
+| `frozen/discovery_metrics.json` | `43e5a4f3d348c4058cc43a7770799a17c6c6be005d3802f3a37fd2f14fbf16c5` | `90dd972bbd117411303dc101db6f6c8767d8e8c52443d6577ce6a1aace219c67` |
+| `frozen/run_report.md` | `0ad9f4088f58bc849592e81aee35ef65cc908a53a27ff6d554234ba9036411f9` | `0ad9f4088f58bc849592e81aee35ef65cc908a53a27ff6d554234ba9036411f9` |
+| `frozen/hashes.json` | `3f0ac8e7ba56c98f4695d69d9820ec4f5b3f4c028558c01087fcb872d621a635` | `25ace3bbf48690b50779c73846788331fae58883d94a4aae6e8618674b995a59` |
+| `BLIND_MANIFEST.json` | `5e5523349766a3f6962a95f523dcad0b446ef7d5b04b85681605026f70e2bfbf` | `59166245955289c4f6675f145c30b69e2a2ea799af2a20399aef3d3c3f1917c9` |
+| Receipt file | `ce83b815c9cdb9ea716023144937faa53b18ecf9bbde062350be78ae1a59e1d3` | `5a9426dea49bc17d9cac38c82980629fa9b95d177d906ea14f1dbdf617a3ae8b` |
+| Receipt HMAC | `fd45c9ebc02fe9a7575f452fdc472e90d7bb7aee8325c0b7f73854d2458eb692` | `c05c7d23802264ae2d40616330d525ad32461ad2889ae896afe8269e5a76275f` |
+| Committed at | `2026-08-27T18:07:59.570847+00:00` | `2026-08-27T18:14:49.407342+00:00` |
+| Frozen at | `2026-08-27T18:07:38.368367+00:00` | `2026-08-27T18:14:41.805632+00:00` |
+
+**The R4 failure mode did not occur.** The two candidate sets are not byte-identical, and each
+run's `discovery_metrics.json` declares the fraction its own signed contract carries (`1.0`,
+`0.34`). Which configuration produced which candidate set is provable from the frozen artifacts.
+
+Frozen originals live under `/tmp/policy-blind-runs/<run-id>/frozen/`; byte-identical archived
+copies under `artifacts/blind/<run-id>.<name>` (`0444`, each `cmp`-verified at copy time).
+
+### 10.3 Custody (§7 steps 5–6)
+
+Both runs were signed (`scripts/commit_blind_candidates.py`, evaluator-owned key, after freeze) and
+then independently custody-verified **before any ground truth was opened**. The verification pass
+recomputed, from raw bytes rather than trusting any prior command's stdout: the manifest HMAC by
+hand as well as through `_verify_manifest_signature`; `verify_candidate_commitment`; candidate,
+manifest and receipt SHA-256s; `bundle_id` recomputed from the signed `allowed_files`; candidate↔
+manifest bundle/identity binding; every signed workspace file re-hashed against its manifest entry;
+input-provenance hashes; the full signed acceptance contract against §2/§3/§4's fixed values;
+`runtime_agent=deterministic`, null model, digest-pinned image, `seed=1729`; `state=FROZEN`;
+`0444` on all four frozen artifacts and the frozen hash index's self-consistency; the absence of any
+ground-truth or evaluation artifact anywhere in the run tree; and commitment timestamps strictly
+after freeze. **43 checks, all PASS, for each run: `CUSTODY_VERIFIED`.**
+
+**Disclosed limitation, stated as plainly as `ADR-051`/`ADR-052` and §7 state it.** This session
+executed the issuing-coordinator, commitment-signer, custody-verifier and evaluator steps. It is
+therefore **not** the four-distinct-identity chain §7's actor-eligibility rule requires, and the
+custody verification, though genuinely re-derived rather than rubber-stamped, is not independent in
+the sense `ADR-051` means. The structural protections that do not depend on actor independence held
+in full — the blind actor really was an isolated, network-less, digest-pinned container that never
+saw ground truth; candidates really were signed and frozen before truth opened; and every binding
+above is checkable by anyone from the frozen bytes. What a single session cannot supply is the
+independence of the *judgment*, and that is a real limitation of this record, not a formality. It is
+the same disclosure `ADR-051`/`ADR-052` and this task's own evaluator-slot record already make.
+
+### 10.4 §7 step 7 — `TASK-019`, both runs, before any truth access
+
+| | Baseline | Test |
+|---|---|---|
+| Report | `artifacts/validation/task-019-task-068-ecommerce-baseline-20260827-001.json` | `artifacts/validation/task-019-task-068-ecommerce-cap-20260827-001.json` |
+| SHA-256 | `8fdaa7edd3e9b9863a1a089470c2242a5c3343d11dddb2d144ee301f78222752` | `f85393b302186ea78d06fa2b25a29f48096062767526254aa9765b571a993479` |
+| Mode / status | `0444`, `FROZEN` | `0444`, `FROZEN` |
+| `hidden_ground_truth_opened` | `false` | `false` |
+| Verdicts | 15 `DOWNGRADE` | 15 `DOWNGRADE` |
+| Evidence level | 15 `descriptive_observation` | 15 `descriptive_observation` |
+
+Gate profile (contract `1.2.0`), baseline → test: G06 `pass` 14→13 / `fail` 1→2; G12 `pass` 7→6 /
+`fail` 8→9; G13 and G14 `fail` 15/15 in both; G09 `not_evaluated` 15/15 in both — the accepted,
+pre-disclosed `heterogeneity_column`/`robustness_group_column` ceiling `HANDOFF-073` R3 recorded in
+advance, identical across arms and so unable to bias the comparison. G00–G05, G07, G08, G10, G11
+and G15 pass 15/15 in both. Both reports were frozen before any `TASK-028` ran.
+
+Worth recording because it differs from `TASK-065`: on `b2b_sales`, G06 failed for **all 15**
+candidates. On `ecommerce` it passes for 14/15 (baseline) and 13/15 (test). The `TASK-067` G06
+defect is therefore not what caps this domain — G13/G14 are, and those are properties of
+observational candidates, not of this mechanism.
+
+### 10.5 §5a structural check — decided truth-free, before any `TASK-028`
+
+Computed exactly as §5a fixes it: the distinct
+`{condition.feature for condition in candidate.conditions}` over all 15 frozen candidates, from
+public frozen candidate bytes only.
+
+| Feature identity | Baseline slots | Test slots |
+|---|---|---|
+| `discount_pct` | 11 | 5 |
+| `product_price_usd` | 8 | 5 |
+| `quantity` | 4 | 5 |
+| `product_category` | 0 | 5 |
+| `items_in_cart` | 2 | 4 |
+| `coupon_used` | 2 | 1 |
+| `acquisition_channel` | 2 | 1 |
+| `product_tier` | 1 | 3 |
+| `days_since_last_visit` | 0 | 1 |
+| **Distinct identities** | **7** | **9** |
+
+**PASS — 9 > 7, strictly higher.** The preregistered quota is honoured exactly: no identity exceeds
+`max(1, floor(0.34 × 15)) = 5` slots in the test run, against a baseline where `discount_pct` alone
+claimed 11 of 15. Two identities appear that the baseline never surfaced (`product_category`,
+`days_since_last_visit`) and none is lost. This is the `ADR-055` crowding defect being corrected in
+the direction the mechanism predicted, and it exceeds §4a's honest worst-case floor of 3.
+
+### 10.6 §7 step 8 — `TASK-028`, baseline then test, in the fixed order
+
+`synthetic_data_domains/ecommerce/comparable/evaluation/hidden_ground_truth.json` (SHA-256
+`07731b6de0168c8fc9f43ad8f09c3be78168bf916514a9e22ab27e950de004f6`) was opened here for the first
+time, after 10.1–10.5 were complete and frozen. Generically derived: scoreable patterns
+`E03`, `E04`, `E06`, `E09` (total realized impact 15,545.88 USD); traps `ET01`–`ET05`.
+
+| | Baseline | Test | §5 comparison |
+|---|---|---|---|
+| Report | `artifacts/evaluation/task-028-task-068-ecommerce-baseline-20260827-001.json` | `artifacts/evaluation/task-028-task-068-ecommerce-cap-20260827-001.json` | |
+| SHA-256 | `79e511ec29fdbb03a804ebcc51117eda03fb55b93f68ebc097b7a6bebc52cc02` | `47b240d384f75c581dda02054f2ff4e796b13429f818eed20dab4fbfff3b424e` | |
+| Top-10 precision | 50% (5/10) | 50% (5/10) | equal → **not degraded** |
+| Economic-weighted recall | 0.0% (0 of 15,545.88) | 0.0% (0 of 15,545.88) | unchanged |
+| Unique scoreable-pattern candidate-match recall | **1/4** (`E03`) | **2/4** (`E04`, `E09`) | **strictly higher** |
+| Direction accuracy | not estimable (0/0) | not estimable (0/0) | not estimable in **both** → §5a: not a degradation |
+| Trap rejection | 5/5, 0 promoted | 5/5, 0 promoted | equal → **not degraded** |
+| Traps appearing as candidates | `ET03`, `ET05` (4 candidates) | `ET03`, `ET05` (2 candidates) | none promoted in either |
+| Leakage violations | 0 | 0 | no disqualifier |
+| Economic-impact error | not estimable | not estimable | no validated matched finding |
+| `policy_readiness` | 15 `experiment_only` | 15 `experiment_only` | |
+
+Both TASK-028 reports are `0444`, `status=FROZEN`.
+
+### 10.7 Determination against §5, and nothing else
+
+**SUCCESS.** Applied strictly, with no metric, threshold or matching rule added, dropped,
+reweighted or re-derived:
+
+- The structural kill gate **passed** (7 → 9 distinct identities).
+- The success clause requires one of the two named recall metrics to be strictly higher. **Unique
+  scoreable-pattern candidate-match recall rose 1/4 → 2/4.** (Economic-weighted recall is 0.0% in
+  both; the criterion is disjunctive — "or" — and is met by the second metric.)
+- Top-10 precision: `test >= baseline` (0.50 = 0.50). **Not degraded.**
+- Direction accuracy: zero eligible denominator in **both** runs, so per §5a it is reported as not
+  estimable and cannot count as a degradation. It was not estimable in the baseline either, so the
+  §5a case where the test run loses a denominator the baseline had does **not** apply.
+- Trap rejection: 5/5 in both; no trap promoted in either, so the "trap promoted that the baseline
+  did not promote" kill does not fire.
+
+No kill condition fires. The recall metric used is the same computation that reproduces
+`TASK-065`'s published `1/6` on `b2b_sales` byte-for-byte, checked against that frozen artifact
+before being applied here.
+
+**What this success does and does not claim, stated precisely so it is not over-read.** It is a
+success of the *preregistered mechanism test*: the feature-identity cap did what `ADR-055` predicted
+it would do — broke the single-identity crowding, surfaced two scoreable patterns where the baseline
+surfaced one, and cost nothing on precision, direction or trap rejection. It is **not** a claim that
+`ecommerce` now passes `docs/benchmark/decision-gate.md`. Graded under §6's retained bands, **both**
+arms come out **FAILED**, driven by economic-weighted recall < 5% (0.0%) under the weakest-band
+rule, with no hard disqualifier — the same absolute outcome `TASK-065` recorded on `b2b_sales`, and
+unchanged between baseline and test. The cap recovered candidate-level matches, but nothing reached
+`predictive_association`, so no match converted into economic-weighted recall: G13/G14 cap every
+candidate at `descriptive_observation`. `TASK-068`'s criteria and the decision gate answer two
+different questions, and both answers are recorded here as they came out.
+
+`docs/benchmark/decision-gate.md` is not edited by this run, and travel's standing `PROMISING`
+verdict (`ADR-025`) is unaffected in either direction.
+
+### 10.8 Domain status
+
+`ecommerce`/`comparable` is now **spent**: its hidden ground truth has been opened and it can never
+again serve as independent portability evidence (`ADR-054`'s hard rule, as applied to `b2b_sales`).
+Four untouched `TASK-061` domains remain: `healthcare`, `insurance`, `manufacturing`, `saas`.
+
+Gates at determination time: `uv run ruff check .` → All checks passed; `uv run pyright` → 0 errors,
+0 warnings, 0 informations; `uv run pytest -q` → **572 passed, 73 skipped, 2 failed**, the two
+failures being the known `FileNotFoundError` on the gitignored `artifacts/` travel fixtures absent
+from this worktree — the exact figures `HANDOFF-073`'s readiness review recorded.
