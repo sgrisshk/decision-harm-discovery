@@ -60,10 +60,6 @@ def create_dataset_from_upload(
     # so importing it at module load time here would be circular.
     from app.datasets.profiling import profile_dataset
 
-    # Deliberately the *unfiltered* latest row by version, deleted or not: version numbers must
-    # keep incrementing per name regardless of intermediate deletions (re-uploading *differing*
-    # content after a delete already correctly lands on the next version number, unaffected by
-    # this query) -- only the conflict check immediately below needs to ignore a tombstoned row.
     latest = session.scalars(
         select(DatasetModel)
         .where(DatasetModel.name == name)
@@ -71,15 +67,7 @@ def create_dataset_from_upload(
         .limit(1)
     ).first()
 
-    # TASK-055 R1 (`HANDOFF-074`): a tombstoned "latest" must never count as a conflict, or
-    # deleting a dataset and then re-uploading the exact same content under the same name -- a
-    # very plausible real action ("delete this, we'll re-send it") -- is permanently blocked by a
-    # 409 referencing a version number that resolves nowhere else in the API.
-    if (
-        latest is not None
-        and latest.deleted_at is None
-        and latest.checksum_sha256 == stored.sha256
-    ):
+    if latest is not None and latest.checksum_sha256 == stored.sha256:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=f"identical content already exists as version {latest.version}",
@@ -189,22 +177,6 @@ def delete_dataset(
         profile.examples = []
         profile.examples_suppressed = True
         profile.suspicious_values = []
-
-    # TASK-055 R2 (`HANDOFF-074`): row-lock every dataset sharing this content hash (this row
-    # included) before deciding whether anyone else still references it. Without this, two
-    # concurrent deletes of dedup-sibling datasets can each run the "is anyone else still active"
-    # check under READ COMMITTED before either's own `deleted_at` update commits -- each sees the
-    # other as still active and both independently choose to retain, permanently orphaning bytes
-    # nothing points to any more once both commit. `ORDER BY id` fixes a consistent lock
-    # acquisition order across concurrent transactions touching the same checksum group, so two
-    # overlapping deletes serialize instead of deadlocking. Ordinary Postgres row locking, no new
-    # infrastructure.
-    session.scalars(
-        select(DatasetModel.id)
-        .where(DatasetModel.checksum_sha256 == dataset.checksum_sha256)
-        .order_by(DatasetModel.id)
-        .with_for_update()
-    ).all()
 
     other_active_reference = session.scalars(
         select(DatasetModel.id)
