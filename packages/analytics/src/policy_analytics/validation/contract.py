@@ -31,6 +31,36 @@ reach ``PASS``/``shadow_policy`` twice under v1.1.0. See
 ``docs/analytics/validation-contract.md`` §4b for the full design, the selection rule, and its
 synthetic-only regression tests. Findings graded under v1.1.0 keep their v1.1.0 grading; they are
 not, and must not be, retroactively re-graded under v1.2.0.
+
+**v1.3.0 (ADR-064, TASK-070).** Gate G12's robustness battery had two proven defects, both
+diagnosed on neutrally-constructed synthetic data in
+``docs/benchmark/task-069-g12-form-investigation.md`` and neither specific to any candidate:
+
+1. The *numeric-threshold perturbation* refit replaced each threshold with the column's fixed
+   ``0.15`` and ``0.25`` quantiles regardless of where the candidate's own threshold sat, so the
+   quantity it reported was a closed-form function of threshold position rather than of the
+   effect's stability. The preregistered wording ("one-bin perturbation of every numeric
+   threshold") always specified a step *relative to each threshold*; the implementation realised it
+   for an atom at ~q0.20 and nowhere else. v1.3.0 perturbs one bin below and one bin above the
+   candidate's own threshold position (``PERTURBATION_PERCENTILE_STEP``, the legacy pair's own
+   half-width about its own anchor — the step size is unchanged, only its reference point), and
+   gives coarse/discrete columns and degenerate refits named, disclosed states
+   (``RobustnessRefitState``) instead of the silent no-estimate failure the fixed grid produced.
+2. The *alternative outcome* refit required magnitude parity (+/-50%) against whatever outcome the
+   manifest declared, including an outcome declared ``decomposition_of`` the primary. Requiring a
+   total and one of its own accounting components to agree in magnitude requires the other
+   components to be zero; it is an accounting identity, not a robustness measurement. v1.3.0
+   admits an alternative outcome as a *gate-binding* refit only when it is a commensurable
+   measurement of the same construct (``AlternativeOutcomeAdmissibility``); a declared but
+   inadmissible outcome is still estimated and reported as a disclosed decomposition diagnostic,
+   never silently dropped and never gate-binding.
+
+``ROBUSTNESS_SEMANTICS_VERSION`` names the current behaviour and ``RobustnessSemantics`` keeps the
+pre-v1.3.0 behaviour executable, so every frozen run graded under v1.0.0-v1.2.0 stays exactly
+reproducible under its own recorded ``validation_contract_version``. No gate other than G12
+changed; G06 is exactly as v1.2.0 left it. Findings graded under v1.2.0 or earlier keep that
+grading; they are not, and must not be, retroactively re-graded under v1.3.0. See
+``docs/analytics/validation-contract.md`` §4c.
 """
 
 from __future__ import annotations
@@ -40,7 +70,7 @@ from enum import StrEnum
 
 from policy_schemas.domain import EvidenceLevel
 
-CONTRACT_VERSION = "1.2.0"
+CONTRACT_VERSION = "1.3.0"
 
 
 class BiasClass(StrEnum):
@@ -121,6 +151,68 @@ class GateId(StrEnum):
     IDENTIFICATION = "G13_IDENTIFICATION_DESIGN"
     RANDOMIZATION = "G14_RANDOMIZATION_INTEGRITY"
     ECONOMIC_MATERIALITY = "G15_ECONOMIC_MATERIALITY"
+
+
+class RobustnessSemantics(StrEnum):
+    """Which G12 robustness-battery semantics a validation run uses.
+
+    Named so a frozen run graded under an older ``CONTRACT_VERSION`` stays *executable* and
+    byte-reproducible, not merely un-re-graded. ``FIXED_QUANTILE_V1`` is exactly what shipped
+    through v1.2.0 and must never be changed again; ``ONE_BIN_RELATIVE_V2`` is v1.3.0's corrected
+    behaviour and is what every new run uses.
+    """
+
+    FIXED_QUANTILE_V1 = "fixed_absolute_quantile_v1"
+    ONE_BIN_RELATIVE_V2 = "one_bin_relative_v2"
+
+
+#: The semantics a run uses unless it explicitly asks for an older one (``RobustnessSemantics``).
+ROBUSTNESS_SEMANTICS_VERSION = RobustnessSemantics.ONE_BIN_RELATIVE_V2
+
+#: Which contract versions each robustness semantics governs. A run that pins an older semantics is
+#: reproducing an older contract version's behaviour and must say so in its own record.
+ROBUSTNESS_SEMANTICS_BY_CONTRACT_VERSION: dict[str, RobustnessSemantics] = {
+    "1.0.0": RobustnessSemantics.FIXED_QUANTILE_V1,
+    "1.1.0": RobustnessSemantics.FIXED_QUANTILE_V1,
+    "1.2.0": RobustnessSemantics.FIXED_QUANTILE_V1,
+    "1.3.0": RobustnessSemantics.ONE_BIN_RELATIVE_V2,
+}
+
+
+class RobustnessRefitState(StrEnum):
+    """Named outcome of one numeric-threshold perturbation refit (CONTRACT_VERSION >= 1.3.0).
+
+    Every refit lands in exactly one of these and every state is recorded in the candidate's
+    diagnostics. Only ``ESTIMATED`` refits enter G12's sign-agreement and magnitude-deviation
+    aggregates: a refit that tests nothing (``VACUOUS_IDENTICAL_RULE``), a refit whose perturbed
+    rule has no comparison group left (``DEGENERATE_NO_CONTRAST``), and a step a column's own
+    resolution cannot express (``UNREPRESENTABLE_STEP``) are *disclosed non-checks*, not evidence
+    of instability. Through v1.2.0 the last two silently reached the aggregates as checks that ran
+    and did not agree, which is how a coarse integer column failed G12 regardless of its content.
+    """
+
+    ESTIMATED = "estimated"
+    VACUOUS_IDENTICAL_RULE = "vacuous_identical_rule"
+    DEGENERATE_NO_CONTRAST = "degenerate_no_contrast"
+    UNREPRESENTABLE_STEP = "unrepresentable_step"
+
+
+class AlternativeOutcomeAdmissibility(StrEnum):
+    """Whether a manifest-declared alternative outcome may bind G12's magnitude-parity check.
+
+    Magnitude parity between two outcomes is only meaningful when both measure the same construct
+    on the same scale. An outcome declared ``decomposition_of`` the primary is an accounting
+    *component* of it, so requiring parity requires the remaining components to be zero — an
+    identity about the outcome algebra with no stability content. Only ``ADMISSIBLE`` alternatives
+    enter G12's aggregates; every ``INADMISSIBLE_*`` one is still estimated and reported as a
+    disclosed decomposition diagnostic. See ``docs/analytics/validation-contract.md`` §4c.
+    """
+
+    NOT_DECLARED = "not_declared"
+    ADMISSIBLE = "admissible"
+    INADMISSIBLE_DECOMPOSITION = "inadmissible_decomposition_of_the_primary_outcome"
+    INADMISSIBLE_UNIT_MISMATCH = "inadmissible_unit_not_commensurable_with_primary"
+    INADMISSIBLE_MISSINGNESS_POLICY = "inadmissible_missing_not_at_random_outcome"
 
 
 @dataclass(frozen=True, slots=True)
@@ -407,10 +499,24 @@ GATE_SPECS: tuple[GateSpec, ...] = (
         bias_class=BiasClass.ROBUSTNESS,
         question="Does the effect depend on one cluster, one outlier, or one arbitrary cutoff?",
         rule=(
-            "Leave-one-cluster-out refits, winsorising the top and bottom 1% of the outcome, the "
-            "alternative outcome definition, and one-bin perturbation of every numeric threshold. "
-            "The sign holds in at least min_robustness_sign_agreement of refits and the magnitude "
-            "stays within max_robustness_magnitude_deviation of the primary estimate."
+            "Leave-one-cluster-out refits, winsorising the top and bottom 1% of the outcome, an "
+            "admissible alternative outcome definition, and one-bin perturbation of every numeric "
+            "threshold. The sign holds in at least min_robustness_sign_agreement of refits and the "
+            "magnitude stays within max_robustness_magnitude_deviation of the primary estimate. "
+            "One bin (CONTRACT_VERSION >= 1.3.0) is PERTURBATION_PERCENTILE_STEP of the column's "
+            "own distribution measured from the candidate's own threshold position, one step below "
+            "and one step above it, so exactly one refit narrows and one broadens the exposed "
+            "group wherever the threshold sits; when a column's own resolution cannot express that "
+            "step the perturbation snaps to the adjacent distinct level, which is that column's "
+            "true one-bin move. A refit that reproduces the candidate's own rule, leaves no "
+            "comparison group, or has no adjacent level to move to is recorded in its named "
+            "RobustnessRefitState and is not counted as a disagreeing check; if no numeric "
+            "condition yields any estimated refit the gate is NOT_EVALUATED with that reason "
+            "stated, never a silent pass or a silent fail. An alternative outcome binds this gate "
+            "only when AlternativeOutcomeAdmissibility admits it — a commensurable measurement of "
+            "the same construct, not an accounting component of the primary; a declared but "
+            "inadmissible one is estimated and reported as a disclosed decomposition diagnostic. "
+            "See docs/analytics/validation-contract.md §4c."
         ),
         on_failure=FailureAction.CAP_EVIDENCE,
         max_level_on_failure=EvidenceLevel.DESCRIPTIVE,

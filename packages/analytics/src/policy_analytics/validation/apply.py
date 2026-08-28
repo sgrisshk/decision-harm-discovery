@@ -20,6 +20,18 @@ tests. Heterogeneity and seasonality roles are declared by the selected analytic
 This module does not import, read, or reference `synthetic_benchmark.py` or
 `hidden_ground_truth.json`, and must not be edited to do so.
 
+**Robustness semantics (CONTRACT_VERSION >= 1.3.0, `ADR-064`, `TASK-070`).** G12's threshold
+perturbation is now a one-bin step measured from *each candidate's own threshold position*
+(`PERTURBATION_PERCENTILE_STEP`), the semantics the contract's preregistered wording always
+specified, with named `RobustnessRefitState`s for coarse/discrete columns instead of a silent
+no-estimate failure; and an alternative outcome binds G12's magnitude-parity check only when
+`alternative_outcome_admissibility` admits it as a commensurable measurement of the same construct
+rather than an accounting component of the primary. Both defects were established on neutrally-
+constructed synthetic data in `docs/benchmark/task-069-g12-form-investigation.md`; neither fix
+references any dataset, pattern, or feature identity. `RobustnessSemantics.FIXED_QUANTILE_V1` keeps
+the pre-v1.3.0 behaviour executable so frozen runs remain reproducible under their own recorded
+`validation_contract_version`. See `docs/analytics/validation-contract.md` §4c.
+
 Flow: `validate_family` computes gates G00-G04 and G06-G15 per candidate (everything that does not
 require knowing the other candidates), collects one G05 p-value per candidate (the normal
 approximation on the cluster-bootstrap standard error — see `grading.normal_approx_two_sided_p`
@@ -38,13 +50,14 @@ import random
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Literal, cast
+from typing import Any, Literal, NamedTuple, cast
 
 import polars as pl
 from policy_schemas.domain import EvidenceLevel
 
 from policy_analytics.outcomes import (
     OUTCOME_BY_ID,
+    MissingDataPolicy,
     OutcomeDefinition,
     harm_score,
     raw_difference,
@@ -52,11 +65,15 @@ from policy_analytics.outcomes import (
 )
 from policy_analytics.validation.contract import (
     DEFAULT_THRESHOLDS,
+    ROBUSTNESS_SEMANTICS_VERSION,
+    AlternativeOutcomeAdmissibility,
     GateId,
     GateOutcome,
     GateResult,
     IdentificationDesign,
     PolicyReadiness,
+    RobustnessRefitState,
+    RobustnessSemantics,
 )
 from policy_analytics.validation.economic_impact import (
     EconomicImpactResult,
@@ -85,7 +102,20 @@ SPLITS: tuple[str, ...] = ("development", "validation", "future_holdout")
 DEV_BOOTSTRAP_REPS = 2000
 DIAGNOSTIC_BOOTSTRAP_REPS = 1000
 BOOTSTRAP_SEED = 20260813
-PERTURBATION_QUANTILES: tuple[float, float] = (0.15, 0.25)  # one bin below / above each threshold
+#: Legacy G12 threshold-perturbation grid (CONTRACT_VERSION <= 1.2.0, `RobustnessSemantics.
+#: FIXED_QUANTILE_V1`). Frozen: it is the definition of an older contract version's behaviour and
+#: must never change again. It replaced *every* numeric threshold with these two fixed quantiles of
+#: its own column, regardless of where the candidate's threshold actually sat — a genuine one-bin
+#: step only for a threshold at this pair's own ~q0.20 anchor, and a closed-form function of
+#: threshold position everywhere else (`docs/benchmark/task-069-g12-form-investigation.md` §2).
+PERTURBATION_QUANTILES: tuple[float, float] = (0.15, 0.25)
+#: One bin (CONTRACT_VERSION >= 1.3.0): the *same step the legacy pair already encoded* — its own
+#: half-width about its own anchor, `(0.25 - 0.15) / 2` — now measured from each candidate's own
+#: threshold position instead of from a fixed anchor. The magnitude of the preregistered step is
+#: deliberately unchanged by TASK-070; only its reference point was ever wrong.
+PERTURBATION_PERCENTILE_STEP: float = (
+    max(PERTURBATION_QUANTILES) - min(PERTURBATION_QUANTILES)
+) / 2.0
 MIN_STRATUM_CELL = 5
 
 #: G06's adjustment pool is every `DECISION_TIME` feature except these two: both are calendar-date
@@ -468,6 +498,7 @@ def _validate_one(
     outcome: OutcomeDefinition,
     inputs: ValidationInput,
     rng: random.Random,
+    robustness_semantics: RobustnessSemantics = ROBUSTNESS_SEMANTICS_VERSION,
 ) -> CandidateInterim | None:
     candidate_id = candidate["candidate_id"]
     conditions = tuple(
@@ -724,25 +755,54 @@ def _validate_one(
             f"(threshold {DEFAULT_THRESHOLDS.seasonal_concentration_index}).",
         )
 
-    sign_agree, magnitude_dev_max, checks_run = _robustness_battery(
-        dev_frame, conditions, dev_mask, outcome, dev, inputs
+    battery = _robustness_battery(
+        dev_frame, conditions, dev_mask, outcome, dev, inputs, robustness_semantics
     )
+    sign_agree = battery.sign_agreement
+    magnitude_dev_max = battery.max_magnitude_deviation
+    checks_run = battery.checks_run
     diagnostics["robustness_sign_agreement"] = sign_agree
     diagnostics["robustness_max_magnitude_deviation"] = magnitude_dev_max
     diagnostics["robustness_checks_run"] = checks_run
-    robustness_ok = (
-        checks_run > 0
-        and sign_agree >= DEFAULT_THRESHOLDS.min_robustness_sign_agreement
-        and magnitude_dev_max <= DEFAULT_THRESHOLDS.max_robustness_magnitude_deviation
-    )
-    gates[GateId.ROBUSTNESS] = _gate(
-        GateId.ROBUSTNESS,
-        robustness_ok,
-        f"Sign agreement {sign_agree:.0%} over {checks_run} perturbations "
-        f"(floor {DEFAULT_THRESHOLDS.min_robustness_sign_agreement:.0%}); max magnitude deviation "
-        f"{magnitude_dev_max:.0%} "
-        f"(ceiling {DEFAULT_THRESHOLDS.max_robustness_magnitude_deviation:.0%}).",
-    )
+    diagnostics["robustness_not_evaluated_reason"] = battery.not_evaluated_reason
+    diagnostics.update(battery.diagnostics)
+    if not battery.evaluated:
+        # Never a silent pass and never a silent fail: an unanswerable robustness question is
+        # disclosed as unanswered, with the reason in the gate's own detail. NOT_EVALUATED is
+        # treated exactly like FAIL for grading (validation-contract §3) — it caps evidence — but
+        # a reader can tell "this effect moved when we perturbed the cutoff" apart from "this
+        # column has no cutoff to perturb".
+        gates[GateId.ROBUSTNESS] = GateResult(
+            gate_id=GateId.ROBUSTNESS,
+            outcome=GateOutcome.NOT_EVALUATED,
+            detail=cast(str, battery.not_evaluated_reason),
+        )
+    else:
+        robustness_ok = (
+            sign_agree >= DEFAULT_THRESHOLDS.min_robustness_sign_agreement
+            and magnitude_dev_max <= DEFAULT_THRESHOLDS.max_robustness_magnitude_deviation
+        )
+        alternative_note = (
+            ""
+            if battery.diagnostics["robustness_alternative_outcome_diagnostic"] is None
+            else (
+                " Declared alternative outcome "
+                f"{inputs.alternative_outcome_id!r} is "
+                f"{battery.diagnostics['robustness_alternative_outcome_admissibility']} and is "
+                "reported as a decomposition diagnostic, not counted here."
+            )
+        )
+        gates[GateId.ROBUSTNESS] = _gate(
+            GateId.ROBUSTNESS,
+            robustness_ok,
+            f"Sign agreement {sign_agree:.0%} over {checks_run} perturbations "
+            f"(floor {DEFAULT_THRESHOLDS.min_robustness_sign_agreement:.0%}); max magnitude "
+            f"deviation {magnitude_dev_max:.0%} "
+            f"(ceiling {DEFAULT_THRESHOLDS.max_robustness_magnitude_deviation:.0%}); "
+            f"semantics {battery.diagnostics['robustness_semantics_version']}; threshold refit "
+            f"states {battery.diagnostics['robustness_threshold_refit_states']}."
+            f"{alternative_note}",
+        )
 
     gates[GateId.IDENTIFICATION] = _gate(
         GateId.IDENTIFICATION, False, "Observational data; no quasi-experimental design exists."
@@ -812,6 +872,153 @@ def _validate_one(
     )
 
 
+def alternative_outcome_admissibility(
+    primary: OutcomeDefinition, alternative: OutcomeDefinition | None
+) -> AlternativeOutcomeAdmissibility:
+    """May `alternative` bind G12's magnitude-parity refit against `primary`? (v1.3.0, TASK-070.)
+
+    G12 asks whether an effect survives a *different definition of the same outcome*. That question
+    only has an answer when the two outcomes are commensurable measurements of one construct. Three
+    mechanical disqualifications, checked in this fixed order so a candidate always gets one
+    deterministic reason:
+
+    1. **Decomposition.** Either outcome declared ``decomposition_of`` the other, or both
+       decompositions of a common parent. A total and one of its own accounting components cannot
+       agree in magnitude unless the remaining components are exactly zero, so the deviation such a
+       refit reports is the component's share of the effect — an identity about outcome algebra,
+       with no stability content whatsoever. `TASK-069` item 2 quantified this on the travel
+       benchmark (measured deviation reproduced the ground truth's own component ratio to within
+       1.6 points for every pattern with a non-zero component effect) *and* reproduced it truth-free
+       on invented two-channel synthetic data (99.9% deviation against a 50% ceiling for an effect
+       that is maximally stable by construction).
+    2. **Unit.** Magnitude parity across units is meaningless: requiring a rate effect to sit within
+       +/-50% of a EUR effect measures the two outcomes' scales, not the pattern. The test is exact
+       equality of the reviewed ``unit`` strings — deliberately mechanical and deliberately
+       conservative. A cosmetically different unit string on a genuinely commensurable outcome
+       yields the *disclosed* inadmissible state and a recorded diagnostic, never a wrong verdict.
+    3. **Missingness.** An ``MNAR_BOUNDED`` outcome has no reportable complete-case estimate at all
+       (gate G07 requires bounds for it), so a complete-case refit against one is not a robustness
+       measurement.
+
+    This function reads only the reviewed ``OutcomeDefinition`` registry. It never looks at a
+    candidate, an effect, a dataset value, or a pattern identity, and its answer is therefore a
+    property of the outcome contract alone — fixed before any candidate is evaluated.
+    """
+    if alternative is None:
+        return AlternativeOutcomeAdmissibility.NOT_DECLARED
+    shared_parent = (
+        primary.decomposition_of is not None
+        and primary.decomposition_of == alternative.decomposition_of
+    )
+    if (
+        alternative.decomposition_of == primary.outcome_id
+        or primary.decomposition_of == alternative.outcome_id
+        or shared_parent
+    ):
+        return AlternativeOutcomeAdmissibility.INADMISSIBLE_DECOMPOSITION
+    if alternative.unit != primary.unit:
+        return AlternativeOutcomeAdmissibility.INADMISSIBLE_UNIT_MISMATCH
+    if alternative.missing_data_policy is not primary.missing_data_policy or (
+        alternative.missing_data_policy is not MissingDataPolicy.COMPLETE
+    ):
+        return AlternativeOutcomeAdmissibility.INADMISSIBLE_MISSINGNESS_POLICY
+    return AlternativeOutcomeAdmissibility.ADMISSIBLE
+
+
+def _threshold_percentile(column: pl.Series, value: float) -> float:
+    """Where a threshold sits in its own column: the share of present rows strictly below it."""
+    below_share = cast(Any, (column < value).mean())
+    return 0.0 if below_share is None else float(cast(float, below_share))
+
+
+def _adjacent_level(levels: Sequence[float], value: float, direction: int) -> float | None:
+    """The next distinct value of a column below (`direction < 0`) or above (`direction > 0`).
+
+    `levels` is the column's own sorted distinct present values, so this is that column's true
+    one-bin move: the smallest threshold change its resolution can actually express. Returns
+    ``None`` at the ends of the column, where no such move exists.
+    """
+    if direction < 0:
+        below = [level for level in levels if level < value]
+        return below[-1] if below else None
+    above = [level for level in levels if level > value]
+    return above[0] if above else None
+
+
+class _ThresholdRefit(NamedTuple):
+    state: RobustnessRefitState
+    perturbed_value: float | None
+    snapped_to_adjacent_level: bool
+    stats: SplitStats | None
+
+
+def _one_bin_threshold_refit(
+    dev_frame: pl.DataFrame,
+    conditions: tuple[Condition, ...],
+    condition: Condition,
+    outcome: OutcomeDefinition,
+    own_percentile: float,
+    levels: Sequence[float],
+    direction: int,
+) -> _ThresholdRefit:
+    """One one-bin perturbation of one numeric threshold, in one direction (v1.3.0, TASK-070).
+
+    The target is the candidate's own threshold percentile shifted by
+    ``PERTURBATION_PERCENTILE_STEP``; the perturbed threshold is the column's own nearest realised
+    value at that target. When the column's resolution is too coarse for the step to move the
+    threshold at all — a count-like integer column, where the old fixed grid silently produced no
+    estimate — the perturbation snaps to the adjacent distinct level, which *is* one bin for that
+    column. Every way this can fail to produce a usable refit has its own named state; none of them
+    is silently folded into the gate's aggregates.
+    """
+    value = float(cast(float, condition.value))
+    column = dev_frame[condition.feature]
+    target = own_percentile + direction * PERTURBATION_PERCENTILE_STEP
+    perturbed_value: float | None = None
+    if 0.0 < target < 1.0:
+        at_target = column.quantile(target, interpolation="nearest")
+        if at_target is not None:
+            perturbed_value = round(float(at_target), 8)
+    snapped = False
+    if perturbed_value is None or perturbed_value == round(value, 8):
+        adjacent = _adjacent_level(levels, value, direction)
+        if adjacent is None:
+            return _ThresholdRefit(RobustnessRefitState.UNREPRESENTABLE_STEP, None, False, None)
+        perturbed_value = round(float(adjacent), 8)
+        snapped = True
+    if perturbed_value == round(value, 8):
+        return _ThresholdRefit(
+            RobustnessRefitState.VACUOUS_IDENTICAL_RULE, perturbed_value, snapped, None
+        )
+    perturbed = tuple(
+        Condition(c.feature, c.operator, perturbed_value) if c is condition else c
+        for c in conditions
+    )
+    pmask = dev_frame.select(rule_expr(perturbed).alias("m"))["m"]
+    stats = split_stats(dev_frame, pmask, outcome, "development")
+    if stats is None:
+        return _ThresholdRefit(
+            RobustnessRefitState.DEGENERATE_NO_CONTRAST, perturbed_value, snapped, None
+        )
+    return _ThresholdRefit(RobustnessRefitState.ESTIMATED, perturbed_value, snapped, stats)
+
+
+class RobustnessBattery(NamedTuple):
+    """G12's aggregates plus the disclosed state behind them.
+
+    A ``NamedTuple`` on purpose: the first three fields are positionally identical to the
+    ``(sign_agreement, max_magnitude_deviation, checks_run)`` tuple this function returned through
+    v1.2.0, so existing diagnostic callers keep working unchanged.
+    """
+
+    sign_agreement: float
+    max_magnitude_deviation: float
+    checks_run: int
+    evaluated: bool
+    not_evaluated_reason: str | None
+    diagnostics: dict[str, Any]
+
+
 def _robustness_battery(
     dev_frame: pl.DataFrame,
     conditions: tuple[Condition, ...],
@@ -819,7 +1026,19 @@ def _robustness_battery(
     outcome: OutcomeDefinition,
     dev: SplitStats,
     inputs: ValidationInput,
-) -> tuple[float, float, int]:
+    semantics: RobustnessSemantics = ROBUSTNESS_SEMANTICS_VERSION,
+) -> RobustnessBattery:
+    """G12's four refit families.
+
+    ``semantics`` selects which contract version's behaviour to run: ``FIXED_QUANTILE_V1`` is
+    exactly what shipped through v1.2.0 (kept executable so frozen runs stay reproducible under
+    their own recorded version), ``ONE_BIN_RELATIVE_V2`` is v1.3.0's corrected behaviour and is
+    what every new run uses. Only the threshold-perturbation and alternative-outcome families
+    differ between them — leave-one-cluster-out and winsorisation are byte-identical under both,
+    including their treatment of a refit that produces no estimate, which for those two families is
+    a genuine fragility signal rather than an artifact of the perturbation grid.
+    """
+    legacy = semantics is RobustnessSemantics.FIXED_QUANTILE_V1
     sign_agree = 0
     checks_run = 0
     magnitude_ratios: list[float] = []
@@ -846,6 +1065,7 @@ def _robustness_battery(
     )
     _record(split_stats(winsor_frame, dev_mask, outcome, "development"))
 
+    alt_outcome: OutcomeDefinition | None = None
     if inputs.alternative_outcome_id is not None:
         alt_outcome = OUTCOME_BY_ID.get(inputs.alternative_outcome_id)
         if alt_outcome is None:
@@ -853,28 +1073,128 @@ def _robustness_battery(
                 f"no reviewed OutcomeDefinition for alternative outcome "
                 f"{inputs.alternative_outcome_id!r}"
             )
-        _record(split_stats(dev_frame, dev_mask, alt_outcome, "development"))
+    admissibility = (
+        AlternativeOutcomeAdmissibility.ADMISSIBLE
+        if legacy and alt_outcome is not None
+        else alternative_outcome_admissibility(outcome, alt_outcome)
+    )
+    alt_diagnostic: dict[str, Any] | None = None
+    if alt_outcome is not None:
+        alt_stats = split_stats(dev_frame, dev_mask, alt_outcome, "development")
+        if admissibility is AlternativeOutcomeAdmissibility.ADMISSIBLE:
+            _record(alt_stats)
+        else:
+            # Never silently dropped: the refit is still estimated and reported, it simply does not
+            # bind the gate. Whoever reads the finding sees the number *and* why it is not evidence.
+            ratio = (
+                abs(alt_stats.harm_per_booking / dev.harm_per_booking)
+                if alt_stats is not None and dev.harm_per_booking
+                else None
+            )
+            alt_diagnostic = {
+                "outcome_id": alt_outcome.outcome_id,
+                "admissibility": admissibility.value,
+                "harm_per_booking": (
+                    None if alt_stats is None else round(alt_stats.harm_per_booking, 6)
+                ),
+                "magnitude_deviation": None if ratio is None else round(abs(ratio - 1.0), 6),
+                "sign_agrees": (
+                    None
+                    if alt_stats is None or not dev.harm_per_booking
+                    else (alt_stats.harm_per_booking > 0) == (dev.harm_per_booking > 0)
+                ),
+                "note": (
+                    "Recorded as a disclosed decomposition diagnostic, not as a G12 refit: this "
+                    "outcome is not a commensurable measurement of the primary construct, so a "
+                    "magnitude-parity requirement against it reports outcome algebra rather than "
+                    "the effect's stability (CONTRACT_VERSION >= 1.3.0, TASK-070)."
+                ),
+            }
 
+    refit_states: dict[str, int] = {state.value: 0 for state in RobustnessRefitState}
+    threshold_refits: list[dict[str, Any]] = []
+    unevaluable_conditions: list[str] = []
     for condition in conditions:
         if not isinstance(condition.value, int | float) or isinstance(condition.value, bool):
             continue
         column = dev_frame[condition.feature]
-        for quantile in PERTURBATION_QUANTILES:
-            perturbed_value = column.quantile(quantile)
-            if perturbed_value is None:
-                continue
-            perturbed = tuple(
-                Condition(c.feature, c.operator, round(float(perturbed_value), 8))
-                if c is condition
-                else c
-                for c in conditions
+        if legacy:
+            for quantile in PERTURBATION_QUANTILES:
+                perturbed_value = column.quantile(quantile)
+                if perturbed_value is None:
+                    continue
+                perturbed = tuple(
+                    Condition(c.feature, c.operator, round(float(perturbed_value), 8))
+                    if c is condition
+                    else c
+                    for c in conditions
+                )
+                pmask = dev_frame.select(rule_expr(perturbed).alias("m"))["m"]
+                _record(split_stats(dev_frame, pmask, outcome, "development"))
+            continue
+        own_percentile = _threshold_percentile(column, float(cast(float, condition.value)))
+        levels = sorted(
+            {
+                round(float(cast(float, level)), 8)
+                for level in column.unique().to_list()
+                if level is not None
+            }
+        )
+        estimated_here = 0
+        for direction in (-1, 1):
+            refit = _one_bin_threshold_refit(
+                dev_frame, conditions, condition, outcome, own_percentile, levels, direction
             )
-            pmask = dev_frame.select(rule_expr(perturbed).alias("m"))["m"]
-            _record(split_stats(dev_frame, pmask, outcome, "development"))
+            refit_states[refit.state.value] += 1
+            threshold_refits.append(
+                {
+                    "condition": f"{condition.feature} {condition.operator} {condition.value}",
+                    "threshold_percentile": round(own_percentile, 6),
+                    "direction": "one_bin_below" if direction < 0 else "one_bin_above",
+                    "perturbed_value": refit.perturbed_value,
+                    "snapped_to_adjacent_level": refit.snapped_to_adjacent_level,
+                    "state": refit.state.value,
+                    "harm_per_booking": (
+                        None if refit.stats is None else round(refit.stats.harm_per_booking, 6)
+                    ),
+                    "n_exposed": None if refit.stats is None else refit.stats.n_exposed,
+                }
+            )
+            if refit.state is RobustnessRefitState.ESTIMATED:
+                estimated_here += 1
+                _record(refit.stats)
+        if estimated_here == 0:
+            unevaluable_conditions.append(
+                f"{condition.feature} {condition.operator} {condition.value}"
+            )
 
     sign_agreement = sign_agree / checks_run if checks_run else 0.0
     max_magnitude_deviation = max((abs(r - 1.0) for r in magnitude_ratios), default=1.0)
-    return sign_agreement, max_magnitude_deviation, checks_run
+    diagnostics: dict[str, Any] = {
+        "robustness_semantics_version": semantics.value,
+        "robustness_alternative_outcome_admissibility": admissibility.value,
+        "robustness_alternative_outcome_diagnostic": alt_diagnostic,
+        "robustness_threshold_refit_states": refit_states,
+        "robustness_threshold_refits": threshold_refits,
+    }
+    reason: str | None = None
+    if checks_run == 0:
+        reason = "No robustness refit of any family could be estimated for this candidate."
+    elif unevaluable_conditions:
+        reason = (
+            "No one-bin threshold perturbation could be estimated for numeric condition(s) "
+            f"{unevaluable_conditions}: the column's own resolution cannot express a step away "
+            "from this threshold that leaves a comparison group. G12 cannot answer whether the "
+            "effect depends on that cutoff, so it is not evaluated rather than passed or failed."
+        )
+    return RobustnessBattery(
+        sign_agreement=sign_agreement,
+        max_magnitude_deviation=max_magnitude_deviation,
+        checks_run=checks_run,
+        evaluated=reason is None,
+        not_evaluated_reason=reason,
+        diagnostics=diagnostics,
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -899,6 +1219,40 @@ def verdict_for(report: ValidationReport) -> str:
     if at_least_adjusted and report.policy_readiness is not PolicyReadiness.NOT_READY:
         return Verdict.PASS
     return Verdict.DOWNGRADE
+
+
+def _robustness_test_names(inputs: ValidationInput, diagnostics: dict[str, Any]) -> tuple[str, ...]:
+    """The G12 refits this candidate actually ran, named so the frozen report discloses the states.
+
+    A declared-but-inadmissible alternative outcome appears with its admissibility spelled out, so
+    a reader of the report alone can tell a refit that bound the gate from one that was recorded as
+    a decomposition diagnostic — the state is evidence-level-visible, not buried in a diagnostics
+    blob (CONTRACT_VERSION >= 1.3.0, TASK-070).
+    """
+    semantics = cast(str, diagnostics.get("robustness_semantics_version", ""))
+    alternative: tuple[str, ...] = ()
+    if inputs.alternative_outcome_id is not None:
+        admissibility = cast(
+            str, diagnostics.get("robustness_alternative_outcome_admissibility", "")
+        )
+        alternative = (
+            (f"alternative_outcome_{inputs.alternative_outcome_id}",)
+            if admissibility == AlternativeOutcomeAdmissibility.ADMISSIBLE.value
+            else (
+                f"alternative_outcome_{inputs.alternative_outcome_id}_"
+                f"not_gate_binding_{admissibility}",
+            )
+        )
+    return (
+        *(
+            (f"leave_one_{inputs.robustness_group_column}_out",)
+            if inputs.robustness_group_column
+            else ()
+        ),
+        "winsorize_top_bottom_1pct",
+        *alternative,
+        f"numeric_threshold_perturbation_{semantics}",
+    )
 
 
 def _evaluated_hypotheses(payload: dict[str, Any], metrics_path: Path | None) -> int:
@@ -933,6 +1287,7 @@ def run_validation(
     analysis_run_id: str,
     bootstrap_seed: int = BOOTSTRAP_SEED,
     metrics_path: Path | None = None,
+    robustness_semantics: RobustnessSemantics = ROBUSTNESS_SEMANTICS_VERSION,
 ) -> tuple[list[CandidateValidation], dict[str, Any]]:
     """Grade a persisted candidate document under the validation contract.
 
@@ -995,7 +1350,8 @@ def run_validation(
     frame = load_analytical_frame(dataset_root)
     rng = random.Random(bootstrap_seed)
     interims: list[CandidateInterim | None] = [
-        _validate_one(frame, candidate, outcome, inputs, rng) for candidate in candidates
+        _validate_one(frame, candidate, outcome, inputs, rng, robustness_semantics)
+        for candidate in candidates
     ]
 
     reported_p_values = [interim.p_value if interim else 1.0 for interim in interims]
@@ -1084,20 +1440,7 @@ def run_validation(
             family_size=family_size,
             controlled_variables=interim.adjustment_set,
             potential_confounders=tuple(sorted(inputs.adjustment_features)),
-            robustness_tests=(
-                *(
-                    (f"leave_one_{inputs.robustness_group_column}_out",)
-                    if inputs.robustness_group_column
-                    else ()
-                ),
-                "winsorize_top_bottom_1pct",
-                *(
-                    (f"alternative_outcome_{inputs.alternative_outcome_id}",)
-                    if inputs.alternative_outcome_id
-                    else ()
-                ),
-                "numeric_threshold_perturbation",
-            ),
+            robustness_tests=_robustness_test_names(inputs, interim.diagnostics),
             temporal_stability=(
                 f"same_sign={interim.diagnostics.get('splits_present')}, "
                 f"holdout_retention={interim.diagnostics.get('holdout_retention', 0.0):.2f}"
@@ -1134,5 +1477,10 @@ def run_validation(
         "heterogeneity_column": inputs.heterogeneity_column,
         "seasonality_column": inputs.seasonality_column,
         "clustering_column": inputs.clustering_column,
+        # CONTRACT_VERSION >= 1.3.0 (ADR-064, TASK-070): which G12 robustness semantics graded this
+        # run. Recorded at run level because it is the one thing that makes an older frozen run
+        # reproducible — re-running with this value reproduces that run's verdicts exactly.
+        "robustness_semantics_version": robustness_semantics.value,
+        "alternative_outcome_id": inputs.alternative_outcome_id,
     }
     return results, manifest

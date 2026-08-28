@@ -27,7 +27,12 @@ from policy_analytics.validation.apply import (
     split_stats,
     verdict_for,
 )
-from policy_analytics.validation.contract import DEFAULT_THRESHOLDS, GateId
+from policy_analytics.validation.contract import (
+    DEFAULT_THRESHOLDS,
+    ROBUSTNESS_SEMANTICS_VERSION,
+    GateId,
+    RobustnessSemantics,
+)
 
 pytestmark = pytest.mark.analytics
 
@@ -393,9 +398,55 @@ def test_run_validation_against_the_real_frozen_candidates() -> None:
     # At least one real candidate's G05 must actually pass under the fixed method, given effects
     # this large and consistent — otherwise the "fix" would be untested against real data.
     assert passing_candidates > 0
-    # TASK-066 regression pin: manifest-owned roles must preserve the immediately preceding
-    # validation-v1.2.0 travel behavior exactly. The v1.0.0 frozen dry-run report predates G05/G06
-    # contract changes and is intentionally not the comparison baseline here.
+    # Regression pin under the *current* contract version. This changed at v1.3.0 (ADR-064,
+    # TASK-070): G12's threshold perturbation is now a one-bin step from each candidate's own
+    # threshold rather than a fixed absolute quantile pair, and a `decomposition_of` alternative
+    # outcome no longer binds the gate's magnitude-parity check. Both fixes were designed and
+    # validated on neutrally-invented synthetic data (tests/analytics/test_g12_robustness_fix.py)
+    # before ever being run against this artifact; this pin records the consequence, it did not
+    # motivate the change. Per validation-contract §2 a new contract version is a new run and a new
+    # family — the frozen v1.1.0/v1.2.0 artifacts keep their own grading and are not re-graded, and
+    # `test_pre_v1_3_0_semantics_reproduce_the_previous_contract_versions_verdicts` below proves
+    # those older verdicts are still exactly reproducible on demand.
+    assert {result.candidate_id: result.verdict for result in results} == {
+        "CAND-001": Verdict.PASS,
+        "CAND-002": Verdict.PASS,
+        "CAND-003": Verdict.PASS,
+        "CAND-004": Verdict.PASS,
+        "CAND-005": Verdict.PASS,
+        "CAND-006": Verdict.PASS,
+        "CAND-007": Verdict.PASS,
+        "CAND-008": Verdict.PASS,
+        "CAND-009": Verdict.PASS,
+        "CAND-010": Verdict.PASS,
+        "CAND-011": Verdict.PASS,
+        "CAND-012": Verdict.DOWNGRADE,
+        "CAND-013": Verdict.PASS,
+        "CAND-014": Verdict.DOWNGRADE,
+        "CAND-015": Verdict.PASS,
+    }
+    assert run_manifest["robustness_semantics_version"] == ROBUSTNESS_SEMANTICS_VERSION.value
+
+
+def test_pre_v1_3_0_semantics_reproduce_the_previous_contract_versions_verdicts() -> None:
+    """Old frozen runs stay reproducible, not merely un-re-graded (TASK-070 scope item 4).
+
+    ADR-015's precedent left a superseded run's artifact untouched and recorded which version
+    produced it. This goes one step further and keeps the superseded *behaviour* executable:
+    running the same candidates, same dataset, same seed under
+    `RobustnessSemantics.FIXED_QUANTILE_V1` reproduces exactly the verdicts the v1.2.0 code
+    produced, candidate for candidate. That is what makes "only new runs get the corrected
+    semantics" a checkable claim rather than an assurance.
+    """
+    results, run_manifest = run_validation(
+        dataset_root=REAL_DATASET,
+        candidates_path=REAL_CANDIDATES,
+        outcome=primary_outcome(),
+        dataset_version="travel-bookings-analytical-v1.0.0",
+        outcome_definition_version="1.1.0",
+        analysis_run_id="pytest-run-legacy-semantics",
+        robustness_semantics=RobustnessSemantics.FIXED_QUANTILE_V1,
+    )
     assert {result.candidate_id: result.verdict for result in results} == {
         "CAND-001": Verdict.DOWNGRADE,
         "CAND-002": Verdict.DOWNGRADE,
@@ -413,6 +464,57 @@ def test_run_validation_against_the_real_frozen_candidates() -> None:
         "CAND-014": Verdict.DOWNGRADE,
         "CAND-015": Verdict.PASS,
     }
+    assert (
+        run_manifest["robustness_semantics_version"] == RobustnessSemantics.FIXED_QUANTILE_V1.value
+    )
+
+
+def test_no_gate_other_than_g12_moved_between_v1_2_0_and_v1_3_0() -> None:
+    """TASK-070 scope item 6, checked on the real artifact rather than only on synthetic data.
+
+    Every gate result for every candidate must be identical under the two semantics *except* G12.
+    A change that quietly moved G06's adjustment set, G05's family, or any other gate would show up
+    here immediately.
+    """
+    shared = {
+        "dataset_root": REAL_DATASET,
+        "candidates_path": REAL_CANDIDATES,
+        "outcome": primary_outcome(),
+        "dataset_version": "travel-bookings-analytical-v1.0.0",
+        "outcome_definition_version": "1.1.0",
+    }
+    old, _ = run_validation(
+        **shared,
+        analysis_run_id="pytest-old",
+        robustness_semantics=RobustnessSemantics.FIXED_QUANTILE_V1,
+    )
+    new, _ = run_validation(
+        **shared,
+        analysis_run_id="pytest-new",
+        robustness_semantics=ROBUSTNESS_SEMANTICS_VERSION,
+    )
+    moved: set[GateId] = set()
+    for old_result, new_result in zip(old, new, strict=True):
+        assert old_result.candidate_id == new_result.candidate_id
+        old_gates = {gate.gate_id: gate.outcome for gate in old_result.report.gate_results}
+        new_gates = {gate.gate_id: gate.outcome for gate in new_result.report.gate_results}
+        moved |= {gate_id for gate_id in old_gates if old_gates[gate_id] is not new_gates[gate_id]}
+        # G06's per-candidate adjustment set is the specific v1.2.0 behaviour TASK-070 must not
+        # weaken; it is recomputed identically under both semantics.
+        assert (
+            old_result.diagnostics["adjustment_columns_used"]
+            == new_result.diagnostics["adjustment_columns_used"]
+        )
+        assert old_result.diagnostics["e_value"] == new_result.diagnostics["e_value"]
+        assert (
+            old_result.diagnostics["confounder_stratum_coverage"]
+            == new_result.diagnostics["confounder_stratum_coverage"]
+        )
+        assert (
+            old_result.diagnostics["p_value_normal_approx_bootstrap_se"]
+            == new_result.diagnostics["p_value_normal_approx_bootstrap_se"]
+        )
+    assert moved == {GateId.ROBUSTNESS}
 
 
 # --- Blind-agent output schema compatibility (TASK-019 closing-run readiness) --------------------
