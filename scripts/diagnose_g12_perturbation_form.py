@@ -514,6 +514,25 @@ def _synthetic_sweep() -> dict[str, Any]:
             "step_stable_continuous_cells_passing": len(passing),
         }
 
+    # Where the closed form crosses the ceiling, at a resolution the sweep itself cannot resolve.
+    # Solved by scanning the same closed form the sweep is checked against, under the production
+    # grid, for both operators — no simulation, no data.
+    closed_form_pass: dict[str, Any] = {}
+    for operator in ("ge", "lt"):
+        passing_positions = [
+            index / 1000.0
+            for index in range(1, 1000)
+            if max(
+                _step_dgp_predicted_deviation(index / 1000.0, quantile, operator)
+                for quantile in PERTURBATION_QUANTILES
+            )
+            <= CEILING
+        ]
+        closed_form_pass[operator] = {
+            "min_threshold_percentile": min(passing_positions) if passing_positions else None,
+            "max_threshold_percentile": max(passing_positions) if passing_positions else None,
+        }
+
     # Does the deviation carry any information about the effect's stability at all? For a process
     # that is uniform across its own exposed side, the answer is closed-form: the measured
     # deviation is fixed by where the two thresholds sit, and by nothing else. Recorded as a
@@ -571,6 +590,14 @@ def _synthetic_sweep() -> dict[str, Any]:
         "sweep": rows,
         "confusion": confusion,
         "step_stable_pass_windows": pass_windows,
+        "step_stable_closed_form_pass_window_production_grid": {
+            "note": (
+                "Threshold percentiles at which the production grid clears the ceiling for an "
+                "effect that is uniform across its own exposed side, solved from the closed form "
+                "at 0.001 resolution. Simulation-free."
+            ),
+            "by_operator": closed_form_pass,
+        },
         "threshold_geometry_identity": {
             "note": (
                 "For an effect that is uniform across its own exposed side, the measured magnitude "
@@ -951,6 +978,18 @@ def main(argv: list[str] | None = None) -> None:
             f"[{window['step_stable_continuous_pass_percentile_min']}, "
             f"{window['step_stable_continuous_pass_percentile_max']}] "
             f"({window['step_stable_continuous_cells_passing']} cells pass)"
+        )
+    closed_form = cast(
+        dict[str, Any],
+        cast(dict[str, Any], section_a["step_stable_closed_form_pass_window_production_grid"])[
+            "by_operator"
+        ],
+    )
+    print("\n  closed-form pass window for the production grid on a maximally stable effect:")
+    for operator, window in closed_form.items():
+        print(
+            f"    {operator}: [{window['min_threshold_percentile']}, "
+            f"{window['max_threshold_percentile']}]"
         )
     identity = cast(dict[str, Any], section_a["threshold_geometry_identity"])
     print(

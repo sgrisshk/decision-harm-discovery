@@ -305,6 +305,14 @@ raises `candidate_recall` or `selection_recall` with zero change in `validation_
 still real, disclosed progress, exactly as the reprioritization's proposed engineering metrics
 anticipated.
 
+**Continuation (2026-08-28, same day).** `TASK-069`'s reformulation opened **item 2** on the first of
+the questions below — whether `G12` measures genuine instability or instability of a discrete
+representation of a continuous boundary. It is answered in
+`docs/benchmark/task-069-g12-form-investigation.md`: **form-mismatched**, established on neutrally-
+constructed synthetic data whose stability is known by construction, with the
+`gross_profit_eur` refit confirmed as a second, independent form problem. That document likewise
+designs nothing; the remaining questions below stay open.
+
 **Explicitly not settled, and not to be settled here.** Whether G12's numeric-threshold perturbation
 should be defined relative to the candidate's own threshold, whether a decomposition outcome should
 be judged on direction rather than ±50% magnitude parity, whether an empty refit should count as a
