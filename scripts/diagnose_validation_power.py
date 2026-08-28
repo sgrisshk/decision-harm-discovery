@@ -180,7 +180,7 @@ def _robustness_decomposition(
     def _record(label: str, detail: dict[str, Any], stats: SplitStats | None) -> None:
         nonlocal sign_agree, checks_run
         checks_run += 1
-        entry: dict[str, Any] = {"check": label, **detail}
+        entry: dict[str, Any] = {"check": label, "counts_toward_gate": True, **detail}
         if stats is None or not dev.harm_per_booking:
             entry.update(
                 {
@@ -264,6 +264,7 @@ def _robustness_decomposition(
             not_counted.append(
                 {
                     "check": "alternative_outcome_not_gate_binding",
+                    "counts_toward_gate": False,
                     "outcome_id": inputs.alternative_outcome_id,
                     "admissibility": admissibility.value,
                     "harm_per_booking": (
@@ -336,7 +337,13 @@ def _robustness_decomposition(
             else:
                 # A disclosed non-check: recorded so the decomposition is complete, deliberately
                 # not folded into the aggregates (CONTRACT_VERSION >= 1.3.0).
-                not_counted.append({"check": "numeric_threshold_perturbation", **detail})
+                not_counted.append(
+                    {
+                        "check": "numeric_threshold_perturbation",
+                        "counts_toward_gate": False,
+                        **detail,
+                    }
+                )
 
     sign_agreement = sign_agree / checks_run if checks_run else 0.0
     max_magnitude_deviation = max((abs(r - 1.0) for r in magnitude_ratios), default=1.0)
@@ -669,7 +676,9 @@ def main(argv: list[str] | None = None) -> None:
             contract_version_changes.append(
                 {
                     "pattern_id": pattern_id,
-                    "committed_under_contract": str(oracle_raw["validation_contract_version"]),
+                    "committed_under_contract": str(
+                        oracle_raw.get("validation_contract_version", "1.2.0")
+                    ),
                     "committed_evidence_level": str(recorded["evidence_level"]),
                     "committed_failed_gates": recorded_failed,
                     "recomputed_under_contract": DEFAULT_THRESHOLDS.version,
@@ -705,8 +714,8 @@ def main(argv: list[str] | None = None) -> None:
             f"  CONTRACT VERSION CHANGED: grading under {DEFAULT_THRESHOLDS.version} "
             f"({semantics.value}); {len(contract_version_changes)} of "
             f"{len(counterfactual_order)} counterfactual verdicts differ from item 7's committed "
-            f"{oracle_raw['validation_contract_version']} result. Every difference is recorded "
-            "per pattern under `contract_version_changes` — a changed contract, not a changed "
+            "result. Every difference is recorded per pattern under "
+            "`contract_version_changes_vs_committed_item_7` — a changed contract, not a changed "
             "candidate."
         )
 
@@ -803,11 +812,20 @@ def main(argv: list[str] | None = None) -> None:
                 f"{pattern_id}: recorded robustness decomposition does not reproduce "
                 f"_robustness_battery ({battery} vs {(sign_agreement, max_deviation, checks_run)})"
             )
+        # The refit that actually binds the gate — only counted checks are eligible. A recorded
+        # non-check (a disclosed non-check, or a declared-but-inadmissible alternative outcome)
+        # can carry a larger deviation than any counted refit without binding anything, and
+        # reporting it as "the binding check" would misattribute the verdict entirely.
         worst = max(
-            (c for c in checks if c.get("magnitude_deviation") is not None),
+            (
+                c
+                for c in checks
+                if c.get("counts_toward_gate") and c.get("magnitude_deviation") is not None
+            ),
             key=lambda c: cast(float, c["magnitude_deviation"]),
             default=None,
         )
+        recorded_not_counted = [c for c in checks if not c.get("counts_toward_gate")]
         mde = minimum_detectable_effect(dev.n_exposed, dev.n_comparison, dev.pooled_sd)
         required_n = _required_exposed_n_for_power(
             dev.harm_per_booking, dev.n_comparison, dev.pooled_sd
@@ -865,6 +883,7 @@ def main(argv: list[str] | None = None) -> None:
                     ),
                     "checks_run": checks_run,
                     "binding_check": worst,
+                    "recorded_but_not_counted": recorded_not_counted,
                     "checks": checks,
                 },
             }

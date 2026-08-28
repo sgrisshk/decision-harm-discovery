@@ -1,0 +1,3496 @@
+{
+  "contract_version_changes_vs_committed_item_7": [
+    {
+      "committed_evidence_level": "descriptive_observation",
+      "committed_failed_gates": [
+        "G11_SEASONALITY",
+        "G12_ROBUSTNESS",
+        "G13_IDENTIFICATION_DESIGN",
+        "G14_RANDOMIZATION_INTEGRITY"
+      ],
+      "committed_under_contract": "1.2.0",
+      "pattern_id": "P01",
+      "recomputed_evidence_level": "predictive_association",
+      "recomputed_failed_gates": [
+        "G11_SEASONALITY",
+        "G13_IDENTIFICATION_DESIGN",
+        "G14_RANDOMIZATION_INTEGRITY"
+      ],
+      "recomputed_under_contract": "1.3.0"
+    },
+    {
+      "committed_evidence_level": "descriptive_observation",
+      "committed_failed_gates": [
+        "G05_MULTIPLE_COMPARISONS",
+        "G11_SEASONALITY",
+        "G12_ROBUSTNESS",
+        "G13_IDENTIFICATION_DESIGN",
+        "G14_RANDOMIZATION_INTEGRITY"
+      ],
+      "committed_under_contract": "1.2.0",
+      "pattern_id": "P02",
+      "recomputed_evidence_level": "descriptive_observation",
+      "recomputed_failed_gates": [
+        "G05_MULTIPLE_COMPARISONS",
+        "G11_SEASONALITY",
+        "G13_IDENTIFICATION_DESIGN",
+        "G14_RANDOMIZATION_INTEGRITY"
+      ],
+      "recomputed_under_contract": "1.3.0"
+    },
+    {
+      "committed_evidence_level": "descriptive_observation",
+      "committed_failed_gates": [
+        "G12_ROBUSTNESS",
+        "G13_IDENTIFICATION_DESIGN",
+        "G14_RANDOMIZATION_INTEGRITY"
+      ],
+      "committed_under_contract": "1.2.0",
+      "pattern_id": "P03",
+      "recomputed_evidence_level": "adjusted_observational_association",
+      "recomputed_failed_gates": [
+        "G13_IDENTIFICATION_DESIGN",
+        "G14_RANDOMIZATION_INTEGRITY"
+      ],
+      "recomputed_under_contract": "1.3.0"
+    }
+  ],
+  "counterfactual_family_size": 26213,
+  "counterfactual_family_size_source": "task-064-beam-20260822-001.discovery_metrics.json",
+  "dataset_identity_sha256": "dd7889f7d14264a7ae19e2fc11d95dcdb9da8ad4df3645b4adf7f8bab79cd423",
+  "diagnostic": "POST_HOC_DIAGNOSTIC",
+  "disclosure": "Not an official TASK-015/TASK-019/TASK-028 run. Produces no official metric, changes no frozen artifact, proposes no mechanism, and changes no gate or threshold. Six patterns' numbers are counterfactual validations of rules that were never selected; one pattern's are read from the frozen official TASK-019 report.",
+  "level_2_gates": [
+    "G03_SAMPLE_ADEQUACY",
+    "G04_UNCERTAINTY",
+    "G05_MULTIPLE_COMPARISONS",
+    "G10_TEMPORAL_STABILITY",
+    "G12_ROBUSTNESS"
+  ],
+  "patterns": [
+    {
+      "development_sample": {
+        "harm_per_booking": 938.8047,
+        "min_exposed_records_threshold": 50,
+        "n_comparison": 4920,
+        "n_exposed": 79,
+        "pooled_sd": 742.7202
+      },
+      "first_level_2_blocking_gate": null,
+      "g03_power": {
+        "mde_over_observed_harm": 0.2514,
+        "minimum_detectable_effect_eur": 235.9796,
+        "observed_harm_eur": 938.8047,
+        "required_exposed_n_for_80pct_power": 4.9
+      },
+      "g12_robustness": {
+        "binding_check": {
+          "check": "numeric_threshold_perturbation",
+          "condition": "discount_rate ge 0.12",
+          "counts_toward_gate": true,
+          "direction": "one_bin_below",
+          "harm_per_booking": 570.2371,
+          "magnitude_deviation": 0.3926,
+          "magnitude_ratio": 0.6074,
+          "n_exposed": 146,
+          "perturbed_value": 0.08,
+          "sign_agrees": true,
+          "snapped_to_adjacent_level": false,
+          "state": "estimated",
+          "threshold_percentile_in_development": 0.7249
+        },
+        "checks": [
+          {
+            "check": "leave_one_cluster_out",
+            "counts_toward_gate": true,
+            "dropped_group": "manager=Manager 1",
+            "harm_per_booking": 923.4894,
+            "magnitude_deviation": 0.0163,
+            "magnitude_ratio": 0.9837,
+            "n_exposed": 71,
+            "sign_agrees": true
+          },
+          {
+            "check": "leave_one_cluster_out",
+            "counts_toward_gate": true,
+            "dropped_group": "manager=Manager 2",
+            "harm_per_booking": 1018.0624,
+            "magnitude_deviation": 0.0844,
+            "magnitude_ratio": 1.0844,
+            "n_exposed": 60,
+            "sign_agrees": true
+          },
+          {
+            "check": "leave_one_cluster_out",
+            "counts_toward_gate": true,
+            "dropped_group": "manager=Manager 3",
+            "harm_per_booking": 865.9807,
+            "magnitude_deviation": 0.0776,
+            "magnitude_ratio": 0.9224,
+            "n_exposed": 64,
+            "sign_agrees": true
+          },
+          {
+            "check": "leave_one_cluster_out",
+            "counts_toward_gate": true,
+            "dropped_group": "manager=Manager 4",
+            "harm_per_booking": 947.3957,
+            "magnitude_deviation": 0.0092,
+            "magnitude_ratio": 1.0092,
+            "n_exposed": 71,
+            "sign_agrees": true
+          },
+          {
+            "check": "leave_one_cluster_out",
+            "counts_toward_gate": true,
+            "dropped_group": "manager=Manager 5",
+            "harm_per_booking": 886.8041,
+            "magnitude_deviation": 0.0554,
+            "magnitude_ratio": 0.9446,
+            "n_exposed": 66,
+            "sign_agrees": true
+          },
+          {
+            "check": "leave_one_cluster_out",
+            "counts_toward_gate": true,
+            "dropped_group": "manager=Manager 6",
+            "harm_per_booking": 950.48,
+            "magnitude_deviation": 0.0124,
+            "magnitude_ratio": 1.0124,
+            "n_exposed": 76,
+            "sign_agrees": true
+          },
+          {
+            "check": "leave_one_cluster_out",
+            "counts_toward_gate": true,
+            "dropped_group": "manager=Manager 7",
+            "harm_per_booking": 992.8267,
+            "magnitude_deviation": 0.0575,
+            "magnitude_ratio": 1.0575,
+            "n_exposed": 72,
+            "sign_agrees": true
+          },
+          {
+            "check": "leave_one_cluster_out",
+            "counts_toward_gate": true,
+            "dropped_group": "manager=Manager 8",
+            "harm_per_booking": 925.5725,
+            "magnitude_deviation": 0.0141,
+            "magnitude_ratio": 0.9859,
+            "n_exposed": 73,
+            "sign_agrees": true
+          },
+          {
+            "check": "winsorize_top_bottom_1pct",
+            "clip_bounds": [
+              -3109.72,
+              1316.12
+            ],
+            "counts_toward_gate": true,
+            "harm_per_booking": 895.4845,
+            "magnitude_deviation": 0.0461,
+            "magnitude_ratio": 0.9539,
+            "n_exposed": 79,
+            "sign_agrees": true
+          },
+          {
+            "check": "numeric_threshold_perturbation",
+            "condition": "booking_lead_days lt 23.0",
+            "counts_toward_gate": true,
+            "direction": "one_bin_below",
+            "harm_per_booking": 1094.2049,
+            "magnitude_deviation": 0.1655,
+            "magnitude_ratio": 1.1655,
+            "n_exposed": 59,
+            "perturbed_value": 16.0,
+            "sign_agrees": true,
+            "snapped_to_adjacent_level": false,
+            "state": "estimated",
+            "threshold_percentile_in_development": 0.1998
+          },
+          {
+            "check": "numeric_threshold_perturbation",
+            "condition": "booking_lead_days lt 23.0",
+            "counts_toward_gate": true,
+            "direction": "one_bin_above",
+            "harm_per_booking": 776.5005,
+            "magnitude_deviation": 0.1729,
+            "magnitude_ratio": 0.8271,
+            "n_exposed": 102,
+            "perturbed_value": 29.0,
+            "sign_agrees": true,
+            "snapped_to_adjacent_level": false,
+            "state": "estimated",
+            "threshold_percentile_in_development": 0.1998
+          },
+          {
+            "check": "numeric_threshold_perturbation",
+            "condition": "discount_rate ge 0.12",
+            "counts_toward_gate": true,
+            "direction": "one_bin_below",
+            "harm_per_booking": 570.2371,
+            "magnitude_deviation": 0.3926,
+            "magnitude_ratio": 0.6074,
+            "n_exposed": 146,
+            "perturbed_value": 0.08,
+            "sign_agrees": true,
+            "snapped_to_adjacent_level": false,
+            "state": "estimated",
+            "threshold_percentile_in_development": 0.7249
+          },
+          {
+            "check": "numeric_threshold_perturbation",
+            "condition": "discount_rate ge 0.12",
+            "counts_toward_gate": true,
+            "direction": "one_bin_above",
+            "harm_per_booking": 850.9769,
+            "magnitude_deviation": 0.0936,
+            "magnitude_ratio": 0.9064,
+            "n_exposed": 26,
+            "perturbed_value": 0.18,
+            "sign_agrees": true,
+            "snapped_to_adjacent_level": true,
+            "state": "estimated",
+            "threshold_percentile_in_development": 0.7249
+          },
+          {
+            "admissibility": "inadmissible_decomposition_of_the_primary_outcome",
+            "check": "alternative_outcome_not_gate_binding",
+            "counts_toward_gate": false,
+            "harm_per_booking": 513.2674,
+            "magnitude_deviation": 0.4533,
+            "outcome_id": "gross_profit_eur"
+          }
+        ],
+        "checks_run": 13,
+        "max_magnitude_deviation": 0.3926,
+        "max_magnitude_deviation_ceiling": 0.5,
+        "recorded_but_not_counted": [
+          {
+            "admissibility": "inadmissible_decomposition_of_the_primary_outcome",
+            "check": "alternative_outcome_not_gate_binding",
+            "counts_toward_gate": false,
+            "harm_per_booking": 513.2674,
+            "magnitude_deviation": 0.4533,
+            "outcome_id": "gross_profit_eur"
+          }
+        ],
+        "sign_agreement": 1.0,
+        "sign_agreement_floor": 0.9
+      },
+      "graded": {
+        "adjusted_p_value": 2.610952142102939e-10,
+        "comparison_records_development": 4920,
+        "diagnostics": {
+          "adjusted_harm_per_booking": 958.9543341403358,
+          "adjustment_columns_considered": [
+            "acquisition_channel",
+            "customer_price_eur",
+            "customer_segment",
+            "customer_type",
+            "destination",
+            "installments",
+            "manager",
+            "manual_exception",
+            "party_size",
+            "payment_method",
+            "product_category",
+            "quoted_cost_eur",
+            "trip_duration_days"
+          ],
+          "adjustment_columns_used": [
+            "customer_type",
+            "manual_exception",
+            "customer_segment",
+            "party_size"
+          ],
+          "bootstrap_standard_error_eur": 121.2963652365094,
+          "confounder_stratum_coverage": 0.7341772151898734,
+          "development_bootstrap_reps": 2000,
+          "e_value": 5.929827116839961,
+          "historical_exposure_ci_eur": [
+            118867.27880685564,
+            166393.04689753798
+          ],
+          "historical_exposure_outcome_share": 0.023946853363569415,
+          "holdout_retention": 0.6674258898277358,
+          "minimum_detectable_effect_eur": 235.97962962948213,
+          "p_value_empirical_bootstrap_floor_limited": 0.0004997501249375312,
+          "p_value_normal_approx_bootstrap_se": 9.960523946526301e-15,
+          "robustness_alternative_outcome_admissibility": "inadmissible_decomposition_of_the_primary_outcome",
+          "robustness_alternative_outcome_diagnostic": {
+            "admissibility": "inadmissible_decomposition_of_the_primary_outcome",
+            "harm_per_booking": 513.267369,
+            "magnitude_deviation": 0.453276,
+            "note": "Recorded as a disclosed decomposition diagnostic, not as a G12 refit: this outcome is not a commensurable measurement of the primary construct, so a magnitude-parity requirement against it reports outcome algebra rather than the effect's stability (CONTRACT_VERSION >= 1.3.0, TASK-070).",
+            "outcome_id": "gross_profit_eur",
+            "sign_agrees": true
+          },
+          "robustness_checks_run": 13,
+          "robustness_max_magnitude_deviation": 0.3925923634430304,
+          "robustness_not_evaluated_reason": null,
+          "robustness_semantics_version": "one_bin_relative_v2",
+          "robustness_sign_agreement": 1.0,
+          "robustness_threshold_refit_states": {
+            "degenerate_no_contrast": 0,
+            "estimated": 4,
+            "unrepresentable_step": 0,
+            "vacuous_identical_rule": 0
+          },
+          "robustness_threshold_refits": [
+            {
+              "condition": "booking_lead_days lt 23.0",
+              "direction": "one_bin_below",
+              "harm_per_booking": 1094.204859,
+              "n_exposed": 59,
+              "perturbed_value": 16.0,
+              "snapped_to_adjacent_level": false,
+              "state": "estimated",
+              "threshold_percentile": 0.19984
+            },
+            {
+              "condition": "booking_lead_days lt 23.0",
+              "direction": "one_bin_above",
+              "harm_per_booking": 776.500488,
+              "n_exposed": 102,
+              "perturbed_value": 29.0,
+              "snapped_to_adjacent_level": false,
+              "state": "estimated",
+              "threshold_percentile": 0.19984
+            },
+            {
+              "condition": "discount_rate ge 0.12",
+              "direction": "one_bin_below",
+              "harm_per_booking": 570.237123,
+              "n_exposed": 146,
+              "perturbed_value": 0.08,
+              "snapped_to_adjacent_level": false,
+              "state": "estimated",
+              "threshold_percentile": 0.724945
+            },
+            {
+              "condition": "discount_rate ge 0.12",
+              "direction": "one_bin_above",
+              "harm_per_booking": 850.976852,
+              "n_exposed": 26,
+              "perturbed_value": 0.18,
+              "snapped_to_adjacent_level": true,
+              "state": "estimated",
+              "threshold_percentile": 0.724945
+            }
+          ],
+          "seasonal_concentration_index": 1.884222759682131,
+          "segment_reversal_exposure_share": 0.0,
+          "splits_present": [
+            "development",
+            "validation",
+            "future_holdout"
+          ]
+        },
+        "evidence_level": "predictive_association",
+        "exposed_records_development": 79,
+        "family_size": 26213,
+        "g05_arithmetic": {
+          "bh_adjusted_p": 2.610952142102939e-10,
+          "bh_raw_p_required_at_this_rank": 3.814901003318964e-06,
+          "family_size": 26213,
+          "fdr_alpha": 0.1,
+          "passes": true,
+          "rank_within_counterfactual_family": 1,
+          "raw_p_normal_approx": 9.960523946526301e-15,
+          "shortfall_factor": 2.610952142102939e-09
+        },
+        "gates": {
+          "G00_LINEAGE_PREREGISTRATION": {
+            "detail": "Candidate is PERSISTED with a resolvable dataset/outcome reference.",
+            "outcome": "pass"
+          },
+          "G01_TARGET_LEAKAGE": {
+            "detail": "All condition features are DECISION_TIME.",
+            "outcome": "pass"
+          },
+          "G02_POST_TREATMENT_CONTROLS": {
+            "detail": "Adjustment set ('customer_type', 'manual_exception', 'customer_segment', 'party_size') is decision-time and excludes condition features.",
+            "outcome": "pass"
+          },
+          "G03_SAMPLE_ADEQUACY": {
+            "detail": "n_exposed=79, clusters=2834, MDE80=236.0 EUR vs observed harm=938.8 EUR.",
+            "outcome": "pass"
+          },
+          "G04_UNCERTAINTY": {
+            "detail": "95% CI [715.3, 1184.1] EUR.",
+            "outcome": "pass"
+          },
+          "G05_MULTIPLE_COMPARISONS": {
+            "detail": "Normal-approx p (bootstrap SE)=9.96e-15, BH-adjusted p=2.61e-10 over family_size=26213 (alpha=0.1).",
+            "outcome": "pass"
+          },
+          "G06_CONFOUNDING": {
+            "detail": "Adjusted for ('customer_type', 'manual_exception', 'customer_segment', 'party_size'): harm 938.8 -> 959.0 EUR (attenuation -0.02, coverage 0.73, E-value 5.93, floor 1.5).",
+            "outcome": "pass"
+          },
+          "G07_SELECTION_AND_COLLIDER": {
+            "detail": "Primary-outcome missingness: exposed=0, comparison=0.",
+            "outcome": "pass"
+          },
+          "G08_SURVIVORSHIP_COHORT": {
+            "detail": "Full eligible cohort; no post-decision filter applied.",
+            "outcome": "pass"
+          },
+          "G09_SIMPSON_AND_HETEROGENEITY": {
+            "detail": "Sign reverses in customer_segment strata covering 0.0% of exposure (threshold 20%).",
+            "outcome": "pass"
+          },
+          "G10_TEMPORAL_STABILITY": {
+            "detail": "Same sign across ['development', 'validation', 'future_holdout']: True; holdout retains 67% of development magnitude (floor 50%).",
+            "outcome": "pass"
+          },
+          "G11_SEASONALITY": {
+            "detail": "Max monthly exposure/cohort concentration ratio 1.88 (threshold 1.5).",
+            "outcome": "fail"
+          },
+          "G12_ROBUSTNESS": {
+            "detail": "Sign agreement 100% over 13 perturbations (floor 90%); max magnitude deviation 39% (ceiling 50%); semantics one_bin_relative_v2; threshold refit states {'estimated': 4, 'vacuous_identical_rule': 0, 'degenerate_no_contrast': 0, 'unrepresentable_step': 0}. Declared alternative outcome 'gross_profit_eur' is inadmissible_decomposition_of_the_primary_outcome and is reported as a decomposition diagnostic, not counted here.",
+            "outcome": "pass"
+          },
+          "G13_IDENTIFICATION_DESIGN": {
+            "detail": "Observational data; no quasi-experimental design exists.",
+            "outcome": "fail"
+          },
+          "G14_RANDOMIZATION_INTEGRITY": {
+            "detail": "No prospective randomized assignment; retrospective data only.",
+            "outcome": "fail"
+          },
+          "G15_ECONOMIC_MATERIALITY": {
+            "detail": "Combined-window exposure 95% CI [118867, 166393] EUR, outcome share 2.395%.",
+            "outcome": "pass"
+          }
+        },
+        "policy_readiness": "experiment_only",
+        "raw_effect": {
+          "ci_high": 1184.081965927331,
+          "ci_low": 715.277721032561,
+          "value": 938.8046649686116
+        },
+        "rule": "booking_lead_days lt 23.0 AND discount_rate ge 0.12 AND supplier eq BlueWing",
+        "source": "COUNTERFACTUAL (never selected by the committed run)",
+        "verdict": "DOWNGRADE"
+      },
+      "level_2_blocking_gates": [],
+      "name": "BlueWing high-discount short-lead",
+      "oracle_rule": "booking_lead_days lt 23.0 AND discount_rate ge 0.12 AND supplier eq BlueWing",
+      "pattern_id": "P01",
+      "scoreable": true,
+      "true_rule": "supplier=BlueWing AND discount_rate>=0.12 AND booking_lead_days<21",
+      "true_rule_affected_n": 142,
+      "true_rule_power_reference": {
+        "bh_most_lenient_raw_p_required": 3.814901003318964e-06,
+        "conclusively_below_bh_at_any_rank": false,
+        "development_harm_per_booking": 987.0547,
+        "development_n_exposed": 75,
+        "development_outcome_sd": 751.8919,
+        "g03_would_pass_on_floors": true,
+        "g03_would_pass_on_power": true,
+        "minimum_detectable_effect_eur": 245.0818,
+        "note": "OPTIMISTIC BOUND on the exact true rule, unclustered SE; clustering can only widen it. Conclusive only when it fails.",
+        "optimistic_unclustered_p": 1.5878355428793627e-29
+      }
+    },
+    {
+      "development_sample": {
+        "harm_per_booking": 239.4541,
+        "min_exposed_records_threshold": 50,
+        "n_comparison": 4774,
+        "n_exposed": 225,
+        "pooled_sd": 750.2512
+      },
+      "first_level_2_blocking_gate": "G05_MULTIPLE_COMPARISONS",
+      "g03_power": {
+        "mde_over_observed_harm": 0.5988,
+        "minimum_detectable_effect_eur": 143.3902,
+        "observed_harm_eur": 239.4541,
+        "required_exposed_n_for_80pct_power": 78.3
+      },
+      "g12_robustness": {
+        "binding_check": {
+          "check": "numeric_threshold_perturbation",
+          "condition": "party_size ge 4.0",
+          "counts_toward_gate": true,
+          "direction": "one_bin_above",
+          "harm_per_booking": 342.8266,
+          "magnitude_deviation": 0.4317,
+          "magnitude_ratio": 1.4317,
+          "n_exposed": 165,
+          "perturbed_value": 5.0,
+          "sign_agrees": true,
+          "snapped_to_adjacent_level": false,
+          "state": "estimated",
+          "threshold_percentile_in_development": 0.7888
+        },
+        "checks": [
+          {
+            "check": "leave_one_cluster_out",
+            "counts_toward_gate": true,
+            "dropped_group": "manager=Manager 1",
+            "harm_per_booking": 222.5673,
+            "magnitude_deviation": 0.0705,
+            "magnitude_ratio": 0.9295,
+            "n_exposed": 205,
+            "sign_agrees": true
+          },
+          {
+            "check": "leave_one_cluster_out",
+            "counts_toward_gate": true,
+            "dropped_group": "manager=Manager 2",
+            "harm_per_booking": 339.0637,
+            "magnitude_deviation": 0.416,
+            "magnitude_ratio": 1.416,
+            "n_exposed": 142,
+            "sign_agrees": true
+          },
+          {
+            "check": "leave_one_cluster_out",
+            "counts_toward_gate": true,
+            "dropped_group": "manager=Manager 3",
+            "harm_per_booking": 243.394,
+            "magnitude_deviation": 0.0165,
+            "magnitude_ratio": 1.0165,
+            "n_exposed": 206,
+            "sign_agrees": true
+          },
+          {
+            "check": "leave_one_cluster_out",
+            "counts_toward_gate": true,
+            "dropped_group": "manager=Manager 4",
+            "harm_per_booking": 191.1466,
+            "magnitude_deviation": 0.2017,
+            "magnitude_ratio": 0.7983,
+            "n_exposed": 205,
+            "sign_agrees": true
+          },
+          {
+            "check": "leave_one_cluster_out",
+            "counts_toward_gate": true,
+            "dropped_group": "manager=Manager 5",
+            "harm_per_booking": 264.1725,
+            "magnitude_deviation": 0.1032,
+            "magnitude_ratio": 1.1032,
+            "n_exposed": 205,
+            "sign_agrees": true
+          },
+          {
+            "check": "leave_one_cluster_out",
+            "counts_toward_gate": true,
+            "dropped_group": "manager=Manager 6",
+            "harm_per_booking": 218.3982,
+            "magnitude_deviation": 0.0879,
+            "magnitude_ratio": 0.9121,
+            "n_exposed": 205,
+            "sign_agrees": true
+          },
+          {
+            "check": "leave_one_cluster_out",
+            "counts_toward_gate": true,
+            "dropped_group": "manager=Manager 7",
+            "harm_per_booking": 236.5713,
+            "magnitude_deviation": 0.012,
+            "magnitude_ratio": 0.988,
+            "n_exposed": 202,
+            "sign_agrees": true
+          },
+          {
+            "check": "leave_one_cluster_out",
+            "counts_toward_gate": true,
+            "dropped_group": "manager=Manager 8",
+            "harm_per_booking": 231.6992,
+            "magnitude_deviation": 0.0324,
+            "magnitude_ratio": 0.9676,
+            "n_exposed": 205,
+            "sign_agrees": true
+          },
+          {
+            "check": "winsorize_top_bottom_1pct",
+            "clip_bounds": [
+              -3109.72,
+              1316.12
+            ],
+            "counts_toward_gate": true,
+            "harm_per_booking": 214.4118,
+            "magnitude_deviation": 0.1046,
+            "magnitude_ratio": 0.8954,
+            "n_exposed": 225,
+            "sign_agrees": true
+          },
+          {
+            "check": "numeric_threshold_perturbation",
+            "condition": "party_size ge 4.0",
+            "counts_toward_gate": true,
+            "direction": "one_bin_below",
+            "harm_per_booking": 147.9838,
+            "magnitude_deviation": 0.382,
+            "magnitude_ratio": 0.618,
+            "n_exposed": 278,
+            "perturbed_value": 3.0,
+            "sign_agrees": true,
+            "snapped_to_adjacent_level": false,
+            "state": "estimated",
+            "threshold_percentile_in_development": 0.7888
+          },
+          {
+            "check": "numeric_threshold_perturbation",
+            "condition": "party_size ge 4.0",
+            "counts_toward_gate": true,
+            "direction": "one_bin_above",
+            "harm_per_booking": 342.8266,
+            "magnitude_deviation": 0.4317,
+            "magnitude_ratio": 1.4317,
+            "n_exposed": 165,
+            "perturbed_value": 5.0,
+            "sign_agrees": true,
+            "snapped_to_adjacent_level": false,
+            "state": "estimated",
+            "threshold_percentile_in_development": 0.7888
+          },
+          {
+            "admissibility": "inadmissible_decomposition_of_the_primary_outcome",
+            "check": "alternative_outcome_not_gate_binding",
+            "counts_toward_gate": false,
+            "harm_per_booking": -26.2467,
+            "magnitude_deviation": 0.8904,
+            "outcome_id": "gross_profit_eur"
+          }
+        ],
+        "checks_run": 11,
+        "max_magnitude_deviation": 0.4317,
+        "max_magnitude_deviation_ceiling": 0.5,
+        "recorded_but_not_counted": [
+          {
+            "admissibility": "inadmissible_decomposition_of_the_primary_outcome",
+            "check": "alternative_outcome_not_gate_binding",
+            "counts_toward_gate": false,
+            "harm_per_booking": -26.2467,
+            "magnitude_deviation": 0.8904,
+            "outcome_id": "gross_profit_eur"
+          }
+        ],
+        "sign_agreement": 1.0,
+        "sign_agreement_floor": 0.9
+      },
+      "graded": {
+        "adjusted_p_value": 1.0,
+        "comparison_records_development": 4774,
+        "diagnostics": {
+          "adjusted_harm_per_booking": 205.37415082444178,
+          "adjustment_columns_considered": [
+            "acquisition_channel",
+            "booking_lead_days",
+            "customer_price_eur",
+            "customer_type",
+            "discount_rate",
+            "installments",
+            "manager",
+            "manual_exception",
+            "payment_method",
+            "product_category",
+            "quoted_cost_eur",
+            "supplier",
+            "trip_duration_days"
+          ],
+          "adjustment_columns_used": [
+            "customer_type",
+            "manual_exception",
+            "payment_method",
+            "product_category",
+            "acquisition_channel"
+          ],
+          "bootstrap_standard_error_eur": 71.81671592258648,
+          "confounder_stratum_coverage": 0.6355555555555555,
+          "development_bootstrap_reps": 2000,
+          "e_value": 1.8852819118781263,
+          "historical_exposure_ci_eur": [
+            64500.09521924251,
+            155737.45463627865
+          ],
+          "historical_exposure_outcome_share": 0.018790742615474216,
+          "holdout_retention": 1.7160182670738562,
+          "minimum_detectable_effect_eur": 143.39023585554523,
+          "p_value_empirical_bootstrap_floor_limited": 0.0004997501249375312,
+          "p_value_normal_approx_bootstrap_se": 0.0008553306673223728,
+          "robustness_alternative_outcome_admissibility": "inadmissible_decomposition_of_the_primary_outcome",
+          "robustness_alternative_outcome_diagnostic": {
+            "admissibility": "inadmissible_decomposition_of_the_primary_outcome",
+            "harm_per_booking": -26.246686,
+            "magnitude_deviation": 0.890389,
+            "note": "Recorded as a disclosed decomposition diagnostic, not as a G12 refit: this outcome is not a commensurable measurement of the primary construct, so a magnitude-parity requirement against it reports outcome algebra rather than the effect's stability (CONTRACT_VERSION >= 1.3.0, TASK-070).",
+            "outcome_id": "gross_profit_eur",
+            "sign_agrees": false
+          },
+          "robustness_checks_run": 11,
+          "robustness_max_magnitude_deviation": 0.4317007424629089,
+          "robustness_not_evaluated_reason": null,
+          "robustness_semantics_version": "one_bin_relative_v2",
+          "robustness_sign_agreement": 1.0,
+          "robustness_threshold_refit_states": {
+            "degenerate_no_contrast": 0,
+            "estimated": 2,
+            "unrepresentable_step": 0,
+            "vacuous_identical_rule": 0
+          },
+          "robustness_threshold_refits": [
+            {
+              "condition": "party_size ge 4.0",
+              "direction": "one_bin_below",
+              "harm_per_booking": 147.983835,
+              "n_exposed": 278,
+              "perturbed_value": 3.0,
+              "snapped_to_adjacent_level": false,
+              "state": "estimated",
+              "threshold_percentile": 0.788758
+            },
+            {
+              "condition": "party_size ge 4.0",
+              "direction": "one_bin_above",
+              "harm_per_booking": 342.826627,
+              "n_exposed": 165,
+              "perturbed_value": 5.0,
+              "snapped_to_adjacent_level": false,
+              "state": "estimated",
+              "threshold_percentile": 0.788758
+            }
+          ],
+          "seasonal_concentration_index": 1.8014414414414415,
+          "segment_reversal_exposure_share": 0.0,
+          "splits_present": [
+            "development",
+            "validation",
+            "future_holdout"
+          ]
+        },
+        "evidence_level": "descriptive_observation",
+        "exposed_records_development": 225,
+        "family_size": 26213,
+        "g05_arithmetic": {
+          "bh_adjusted_p": 1.0,
+          "bh_raw_p_required_at_this_rank": 1.1444703009956893e-05,
+          "family_size": 26213,
+          "fdr_alpha": 0.1,
+          "passes": false,
+          "rank_within_counterfactual_family": 3,
+          "raw_p_normal_approx": 0.0008553306673223728,
+          "shortfall_factor": 74.73594260840451
+        },
+        "gates": {
+          "G00_LINEAGE_PREREGISTRATION": {
+            "detail": "Candidate is PERSISTED with a resolvable dataset/outcome reference.",
+            "outcome": "pass"
+          },
+          "G01_TARGET_LEAKAGE": {
+            "detail": "All condition features are DECISION_TIME.",
+            "outcome": "pass"
+          },
+          "G02_POST_TREATMENT_CONTROLS": {
+            "detail": "Adjustment set ('customer_type', 'manual_exception', 'payment_method', 'product_category', 'acquisition_channel') is decision-time and excludes condition features.",
+            "outcome": "pass"
+          },
+          "G03_SAMPLE_ADEQUACY": {
+            "detail": "n_exposed=225, clusters=2834, MDE80=143.4 EUR vs observed harm=239.5 EUR.",
+            "outcome": "pass"
+          },
+          "G04_UNCERTAINTY": {
+            "detail": "95% CI [106.4, 379.7] EUR.",
+            "outcome": "pass"
+          },
+          "G05_MULTIPLE_COMPARISONS": {
+            "detail": "Normal-approx p (bootstrap SE)=0.000855, BH-adjusted p=1 over family_size=26213 (alpha=0.1).",
+            "outcome": "fail"
+          },
+          "G06_CONFOUNDING": {
+            "detail": "Adjusted for ('customer_type', 'manual_exception', 'payment_method', 'product_category', 'acquisition_channel'): harm 239.5 -> 205.4 EUR (attenuation 0.14, coverage 0.64, E-value 1.89, floor 1.5).",
+            "outcome": "pass"
+          },
+          "G07_SELECTION_AND_COLLIDER": {
+            "detail": "Primary-outcome missingness: exposed=0, comparison=0.",
+            "outcome": "pass"
+          },
+          "G08_SURVIVORSHIP_COHORT": {
+            "detail": "Full eligible cohort; no post-decision filter applied.",
+            "outcome": "pass"
+          },
+          "G09_SIMPSON_AND_HETEROGENEITY": {
+            "detail": "Sign reverses in customer_segment strata covering 0.0% of exposure (threshold 20%).",
+            "outcome": "pass"
+          },
+          "G10_TEMPORAL_STABILITY": {
+            "detail": "Same sign across ['development', 'validation', 'future_holdout']: True; holdout retains 172% of development magnitude (floor 50%).",
+            "outcome": "pass"
+          },
+          "G11_SEASONALITY": {
+            "detail": "Max monthly exposure/cohort concentration ratio 1.80 (threshold 1.5).",
+            "outcome": "fail"
+          },
+          "G12_ROBUSTNESS": {
+            "detail": "Sign agreement 100% over 11 perturbations (floor 90%); max magnitude deviation 43% (ceiling 50%); semantics one_bin_relative_v2; threshold refit states {'estimated': 2, 'vacuous_identical_rule': 0, 'degenerate_no_contrast': 0, 'unrepresentable_step': 0}. Declared alternative outcome 'gross_profit_eur' is inadmissible_decomposition_of_the_primary_outcome and is reported as a decomposition diagnostic, not counted here.",
+            "outcome": "pass"
+          },
+          "G13_IDENTIFICATION_DESIGN": {
+            "detail": "Observational data; no quasi-experimental design exists.",
+            "outcome": "fail"
+          },
+          "G14_RANDOMIZATION_INTEGRITY": {
+            "detail": "No prospective randomized assignment; retrospective data only.",
+            "outcome": "fail"
+          },
+          "G15_ECONOMIC_MATERIALITY": {
+            "detail": "Combined-window exposure 95% CI [64500, 155737] EUR, outcome share 1.879%.",
+            "outcome": "pass"
+          }
+        },
+        "policy_readiness": "experiment_only",
+        "raw_effect": {
+          "ci_high": 379.7213665440007,
+          "ci_low": 106.4253502767368,
+          "value": 239.45410980775497
+        },
+        "rule": "customer_segment eq family AND destination eq Zanzibar AND party_size ge 4.0",
+        "source": "COUNTERFACTUAL (never selected by the committed run)",
+        "verdict": "DOWNGRADE"
+      },
+      "level_2_blocking_gates": [
+        "G05_MULTIPLE_COMPARISONS"
+      ],
+      "name": "Large Zanzibar summer families",
+      "oracle_rule": "customer_segment eq family AND destination eq Zanzibar AND party_size ge 4.0",
+      "pattern_id": "P02",
+      "scoreable": true,
+      "true_rule": "destination=Zanzibar AND customer_segment=family AND party_size>=5 AND booking_month IN [6,7,8]",
+      "true_rule_affected_n": 137,
+      "true_rule_power_reference": {
+        "bh_most_lenient_raw_p_required": 3.814901003318964e-06,
+        "conclusively_below_bh_at_any_rank": false,
+        "development_harm_per_booking": 880.2851,
+        "development_n_exposed": 69,
+        "development_outcome_sd": 751.8919,
+        "g03_would_pass_on_floors": true,
+        "g03_would_pass_on_power": true,
+        "minimum_detectable_effect_eur": 255.3599,
+        "note": "OPTIMISTIC BOUND on the exact true rule, unclustered SE; clustering can only widen it. Conclusive only when it fails.",
+        "optimistic_unclustered_p": 4.559179526627734e-22
+      }
+    },
+    {
+      "development_sample": {
+        "harm_per_booking": 396.0583,
+        "min_exposed_records_threshold": 50,
+        "n_comparison": 4847,
+        "n_exposed": 152,
+        "pooled_sd": 748.8103
+      },
+      "first_level_2_blocking_gate": null,
+      "g03_power": {
+        "mde_over_observed_harm": 0.4363,
+        "minimum_detectable_effect_eur": 172.806,
+        "observed_harm_eur": 396.0583,
+        "required_exposed_n_for_80pct_power": 28.2
+      },
+      "g12_robustness": {
+        "binding_check": {
+          "check": "numeric_threshold_perturbation",
+          "condition": "installments ge 3.0",
+          "counts_toward_gate": true,
+          "direction": "one_bin_below",
+          "harm_per_booking": 257.3845,
+          "magnitude_deviation": 0.3501,
+          "magnitude_ratio": 0.6499,
+          "n_exposed": 341,
+          "perturbed_value": 2.0,
+          "sign_agrees": true,
+          "snapped_to_adjacent_level": false,
+          "state": "estimated",
+          "threshold_percentile_in_development": 0.7876
+        },
+        "checks": [
+          {
+            "check": "leave_one_cluster_out",
+            "counts_toward_gate": true,
+            "dropped_group": "manager=Manager 1",
+            "harm_per_booking": 364.2186,
+            "magnitude_deviation": 0.0804,
+            "magnitude_ratio": 0.9196,
+            "n_exposed": 134,
+            "sign_agrees": true
+          },
+          {
+            "check": "leave_one_cluster_out",
+            "counts_toward_gate": true,
+            "dropped_group": "manager=Manager 2",
+            "harm_per_booking": 355.2117,
+            "magnitude_deviation": 0.1031,
+            "magnitude_ratio": 0.8969,
+            "n_exposed": 110,
+            "sign_agrees": true
+          },
+          {
+            "check": "leave_one_cluster_out",
+            "counts_toward_gate": true,
+            "dropped_group": "manager=Manager 3",
+            "harm_per_booking": 413.4235,
+            "magnitude_deviation": 0.0438,
+            "magnitude_ratio": 1.0438,
+            "n_exposed": 135,
+            "sign_agrees": true
+          },
+          {
+            "check": "leave_one_cluster_out",
+            "counts_toward_gate": true,
+            "dropped_group": "manager=Manager 4",
+            "harm_per_booking": 409.5771,
+            "magnitude_deviation": 0.0341,
+            "magnitude_ratio": 1.0341,
+            "n_exposed": 141,
+            "sign_agrees": true
+          },
+          {
+            "check": "leave_one_cluster_out",
+            "counts_toward_gate": true,
+            "dropped_group": "manager=Manager 5",
+            "harm_per_booking": 398.6128,
+            "magnitude_deviation": 0.0064,
+            "magnitude_ratio": 1.0064,
+            "n_exposed": 140,
+            "sign_agrees": true
+          },
+          {
+            "check": "leave_one_cluster_out",
+            "counts_toward_gate": true,
+            "dropped_group": "manager=Manager 6",
+            "harm_per_booking": 389.5974,
+            "magnitude_deviation": 0.0163,
+            "magnitude_ratio": 0.9837,
+            "n_exposed": 138,
+            "sign_agrees": true
+          },
+          {
+            "check": "leave_one_cluster_out",
+            "counts_toward_gate": true,
+            "dropped_group": "manager=Manager 7",
+            "harm_per_booking": 405.576,
+            "magnitude_deviation": 0.024,
+            "magnitude_ratio": 1.024,
+            "n_exposed": 137,
+            "sign_agrees": true
+          },
+          {
+            "check": "leave_one_cluster_out",
+            "counts_toward_gate": true,
+            "dropped_group": "manager=Manager 8",
+            "harm_per_booking": 425.7266,
+            "magnitude_deviation": 0.0749,
+            "magnitude_ratio": 1.0749,
+            "n_exposed": 129,
+            "sign_agrees": true
+          },
+          {
+            "check": "winsorize_top_bottom_1pct",
+            "clip_bounds": [
+              -3109.72,
+              1316.12
+            ],
+            "counts_toward_gate": true,
+            "harm_per_booking": 391.7327,
+            "magnitude_deviation": 0.0109,
+            "magnitude_ratio": 0.9891,
+            "n_exposed": 152,
+            "sign_agrees": true
+          },
+          {
+            "check": "numeric_threshold_perturbation",
+            "condition": "installments ge 3.0",
+            "counts_toward_gate": true,
+            "direction": "one_bin_below",
+            "harm_per_booking": 257.3845,
+            "magnitude_deviation": 0.3501,
+            "magnitude_ratio": 0.6499,
+            "n_exposed": 341,
+            "perturbed_value": 2.0,
+            "sign_agrees": true,
+            "snapped_to_adjacent_level": false,
+            "state": "estimated",
+            "threshold_percentile_in_development": 0.7876
+          },
+          {
+            "check": "numeric_threshold_perturbation",
+            "condition": "installments ge 3.0",
+            "counts_toward_gate": true,
+            "direction": "one_bin_above",
+            "harm_per_booking": 423.4568,
+            "magnitude_deviation": 0.0692,
+            "magnitude_ratio": 1.0692,
+            "n_exposed": 53,
+            "perturbed_value": 4.0,
+            "sign_agrees": true,
+            "snapped_to_adjacent_level": true,
+            "state": "estimated",
+            "threshold_percentile_in_development": 0.7876
+          },
+          {
+            "admissibility": "inadmissible_decomposition_of_the_primary_outcome",
+            "check": "alternative_outcome_not_gate_binding",
+            "counts_toward_gate": false,
+            "harm_per_booking": 118.3331,
+            "magnitude_deviation": 0.7012,
+            "outcome_id": "gross_profit_eur"
+          }
+        ],
+        "checks_run": 11,
+        "max_magnitude_deviation": 0.3501,
+        "max_magnitude_deviation_ceiling": 0.5,
+        "recorded_but_not_counted": [
+          {
+            "admissibility": "inadmissible_decomposition_of_the_primary_outcome",
+            "check": "alternative_outcome_not_gate_binding",
+            "counts_toward_gate": false,
+            "harm_per_booking": 118.3331,
+            "magnitude_deviation": 0.7012,
+            "outcome_id": "gross_profit_eur"
+          }
+        ],
+        "sign_agreement": 1.0,
+        "sign_agreement_floor": 0.9
+      },
+      "graded": {
+        "adjusted_p_value": 0.0008991674264787631,
+        "comparison_records_development": 4847,
+        "diagnostics": {
+          "adjusted_harm_per_booking": 350.67835053676663,
+          "adjustment_columns_considered": [
+            "booking_lead_days",
+            "customer_price_eur",
+            "customer_segment",
+            "destination",
+            "discount_rate",
+            "manager",
+            "manual_exception",
+            "party_size",
+            "payment_method",
+            "product_category",
+            "quoted_cost_eur",
+            "supplier",
+            "trip_duration_days"
+          ],
+          "adjustment_columns_used": [
+            "manual_exception",
+            "customer_segment",
+            "party_size",
+            "payment_method",
+            "product_category"
+          ],
+          "bootstrap_standard_error_eur": 73.41499943052406,
+          "confounder_stratum_coverage": 0.5460526315789473,
+          "development_bootstrap_reps": 2000,
+          "e_value": 2.433446389109145,
+          "historical_exposure_ci_eur": [
+            106560.7915697954,
+            173145.04734816038
+          ],
+          "historical_exposure_outcome_share": 0.023016226231971137,
+          "holdout_retention": 1.2529730148174836,
+          "minimum_detectable_effect_eur": 172.80601982876448,
+          "p_value_empirical_bootstrap_floor_limited": 0.0004997501249375312,
+          "p_value_normal_approx_bootstrap_se": 6.860469434851128e-08,
+          "robustness_alternative_outcome_admissibility": "inadmissible_decomposition_of_the_primary_outcome",
+          "robustness_alternative_outcome_diagnostic": {
+            "admissibility": "inadmissible_decomposition_of_the_primary_outcome",
+            "harm_per_booking": 118.333112,
+            "magnitude_deviation": 0.701223,
+            "note": "Recorded as a disclosed decomposition diagnostic, not as a G12 refit: this outcome is not a commensurable measurement of the primary construct, so a magnitude-parity requirement against it reports outcome algebra rather than the effect's stability (CONTRACT_VERSION >= 1.3.0, TASK-070).",
+            "outcome_id": "gross_profit_eur",
+            "sign_agrees": true
+          },
+          "robustness_checks_run": 11,
+          "robustness_max_magnitude_deviation": 0.3501348915145912,
+          "robustness_not_evaluated_reason": null,
+          "robustness_semantics_version": "one_bin_relative_v2",
+          "robustness_sign_agreement": 1.0,
+          "robustness_threshold_refit_states": {
+            "degenerate_no_contrast": 0,
+            "estimated": 2,
+            "unrepresentable_step": 0,
+            "vacuous_identical_rule": 0
+          },
+          "robustness_threshold_refits": [
+            {
+              "condition": "installments ge 3.0",
+              "direction": "one_bin_below",
+              "harm_per_booking": 257.384484,
+              "n_exposed": 341,
+              "perturbed_value": 2.0,
+              "snapped_to_adjacent_level": false,
+              "state": "estimated",
+              "threshold_percentile": 0.787558
+            },
+            {
+              "condition": "installments ge 3.0",
+              "direction": "one_bin_above",
+              "harm_per_booking": 423.456806,
+              "n_exposed": 53,
+              "perturbed_value": 4.0,
+              "snapped_to_adjacent_level": true,
+              "state": "estimated",
+              "threshold_percentile": 0.787558
+            }
+          ],
+          "seasonal_concentration_index": 1.4737617924528301,
+          "segment_reversal_exposure_share": 0.0,
+          "splits_present": [
+            "development",
+            "validation",
+            "future_holdout"
+          ]
+        },
+        "evidence_level": "adjusted_observational_association",
+        "exposed_records_development": 152,
+        "family_size": 26213,
+        "g05_arithmetic": {
+          "bh_adjusted_p": 0.0008991674264787631,
+          "bh_raw_p_required_at_this_rank": 7.629802006637928e-06,
+          "family_size": 26213,
+          "fdr_alpha": 0.1,
+          "passes": true,
+          "rank_within_counterfactual_family": 2,
+          "raw_p_normal_approx": 6.860469434851128e-08,
+          "shortfall_factor": 0.008991674264787631
+        },
+        "gates": {
+          "G00_LINEAGE_PREREGISTRATION": {
+            "detail": "Candidate is PERSISTED with a resolvable dataset/outcome reference.",
+            "outcome": "pass"
+          },
+          "G01_TARGET_LEAKAGE": {
+            "detail": "All condition features are DECISION_TIME.",
+            "outcome": "pass"
+          },
+          "G02_POST_TREATMENT_CONTROLS": {
+            "detail": "Adjustment set ('manual_exception', 'customer_segment', 'party_size', 'payment_method', 'product_category') is decision-time and excludes condition features.",
+            "outcome": "pass"
+          },
+          "G03_SAMPLE_ADEQUACY": {
+            "detail": "n_exposed=152, clusters=2834, MDE80=172.8 EUR vs observed harm=396.1 EUR.",
+            "outcome": "pass"
+          },
+          "G04_UNCERTAINTY": {
+            "detail": "95% CI [262.3, 552.2] EUR.",
+            "outcome": "pass"
+          },
+          "G05_MULTIPLE_COMPARISONS": {
+            "detail": "Normal-approx p (bootstrap SE)=6.86e-08, BH-adjusted p=0.000899 over family_size=26213 (alpha=0.1).",
+            "outcome": "pass"
+          },
+          "G06_CONFOUNDING": {
+            "detail": "Adjusted for ('manual_exception', 'customer_segment', 'party_size', 'payment_method', 'product_category'): harm 396.1 -> 350.7 EUR (attenuation 0.11, coverage 0.55, E-value 2.43, floor 1.5).",
+            "outcome": "pass"
+          },
+          "G07_SELECTION_AND_COLLIDER": {
+            "detail": "Primary-outcome missingness: exposed=0, comparison=0.",
+            "outcome": "pass"
+          },
+          "G08_SURVIVORSHIP_COHORT": {
+            "detail": "Full eligible cohort; no post-decision filter applied.",
+            "outcome": "pass"
+          },
+          "G09_SIMPSON_AND_HETEROGENEITY": {
+            "detail": "Sign reverses in customer_segment strata covering 0.0% of exposure (threshold 20%).",
+            "outcome": "pass"
+          },
+          "G10_TEMPORAL_STABILITY": {
+            "detail": "Same sign across ['development', 'validation', 'future_holdout']: True; holdout retains 125% of development magnitude (floor 50%).",
+            "outcome": "pass"
+          },
+          "G11_SEASONALITY": {
+            "detail": "Max monthly exposure/cohort concentration ratio 1.47 (threshold 1.5).",
+            "outcome": "pass"
+          },
+          "G12_ROBUSTNESS": {
+            "detail": "Sign agreement 100% over 11 perturbations (floor 90%); max magnitude deviation 35% (ceiling 50%); semantics one_bin_relative_v2; threshold refit states {'estimated': 2, 'vacuous_identical_rule': 0, 'degenerate_no_contrast': 0, 'unrepresentable_step': 0}. Declared alternative outcome 'gross_profit_eur' is inadmissible_decomposition_of_the_primary_outcome and is reported as a decomposition diagnostic, not counted here.",
+            "outcome": "pass"
+          },
+          "G13_IDENTIFICATION_DESIGN": {
+            "detail": "Observational data; no quasi-experimental design exists.",
+            "outcome": "fail"
+          },
+          "G14_RANDOMIZATION_INTEGRITY": {
+            "detail": "No prospective randomized assignment; retrospective data only.",
+            "outcome": "fail"
+          },
+          "G15_ECONOMIC_MATERIALITY": {
+            "detail": "Combined-window exposure 95% CI [106561, 173145] EUR, outcome share 2.302%.",
+            "outcome": "pass"
+          }
+        },
+        "policy_readiness": "shadow_policy",
+        "raw_effect": {
+          "ci_high": 552.2282390595904,
+          "ci_low": 262.34642227763925,
+          "value": 396.05832160153324
+        },
+        "rule": "acquisition_channel eq paid_search AND customer_type eq new AND installments ge 3.0",
+        "source": "COUNTERFACTUAL (never selected by the committed run)",
+        "verdict": "PASS"
+      },
+      "level_2_blocking_gates": [],
+      "name": "Installment risk for paid-search newcomers",
+      "oracle_rule": "acquisition_channel eq paid_search AND customer_type eq new AND installments ge 3.0",
+      "pattern_id": "P03",
+      "scoreable": true,
+      "true_rule": "installments>=3 AND customer_type=new AND acquisition_channel=paid_search",
+      "true_rule_affected_n": 333,
+      "true_rule_power_reference": {
+        "bh_most_lenient_raw_p_required": 3.814901003318964e-06,
+        "conclusively_below_bh_at_any_rank": false,
+        "development_harm_per_booking": 396.0583,
+        "development_n_exposed": 152,
+        "development_outcome_sd": 751.8919,
+        "g03_would_pass_on_floors": true,
+        "g03_would_pass_on_power": true,
+        "minimum_detectable_effect_eur": 173.5172,
+        "note": "OPTIMISTIC BOUND on the exact true rule, unclustered SE; clustering can only widen it. Conclusive only when it fails.",
+        "optimistic_unclustered_p": 1.6085833912898145e-10
+      }
+    },
+    {
+      "development_sample": {
+        "harm_per_booking": -41.5539,
+        "min_exposed_records_threshold": 50,
+        "n_comparison": 4564,
+        "n_exposed": 435,
+        "pooled_sd": 751.8006
+      },
+      "first_level_2_blocking_gate": "G03_SAMPLE_ADEQUACY",
+      "g03_power": {
+        "mde_over_observed_harm": 2.5434,
+        "minimum_detectable_effect_eur": 105.6892,
+        "observed_harm_eur": 41.5539,
+        "required_exposed_n_for_80pct_power": 5877.9
+      },
+      "g12_robustness": {
+        "binding_check": {
+          "check": "leave_one_cluster_out",
+          "counts_toward_gate": true,
+          "dropped_group": "manager=Manager 2",
+          "harm_per_booking": 3.6227,
+          "magnitude_deviation": 0.9128,
+          "magnitude_ratio": 0.0872,
+          "n_exposed": 320,
+          "sign_agrees": false
+        },
+        "checks": [
+          {
+            "check": "leave_one_cluster_out",
+            "counts_toward_gate": true,
+            "dropped_group": "manager=Manager 1",
+            "harm_per_booking": -63.7511,
+            "magnitude_deviation": 0.5342,
+            "magnitude_ratio": 1.5342,
+            "n_exposed": 379,
+            "sign_agrees": true
+          },
+          {
+            "check": "leave_one_cluster_out",
+            "counts_toward_gate": true,
+            "dropped_group": "manager=Manager 2",
+            "harm_per_booking": 3.6227,
+            "magnitude_deviation": 0.9128,
+            "magnitude_ratio": 0.0872,
+            "n_exposed": 320,
+            "sign_agrees": false
+          },
+          {
+            "check": "leave_one_cluster_out",
+            "counts_toward_gate": true,
+            "dropped_group": "manager=Manager 3",
+            "harm_per_booking": -54.4851,
+            "magnitude_deviation": 0.3112,
+            "magnitude_ratio": 1.3112,
+            "n_exposed": 393,
+            "sign_agrees": true
+          },
+          {
+            "check": "leave_one_cluster_out",
+            "counts_toward_gate": true,
+            "dropped_group": "manager=Manager 4",
+            "harm_per_booking": -54.7236,
+            "magnitude_deviation": 0.3169,
+            "magnitude_ratio": 1.3169,
+            "n_exposed": 391,
+            "sign_agrees": true
+          },
+          {
+            "check": "leave_one_cluster_out",
+            "counts_toward_gate": true,
+            "dropped_group": "manager=Manager 5",
+            "harm_per_booking": -23.5802,
+            "magnitude_deviation": 0.4325,
+            "magnitude_ratio": 0.5675,
+            "n_exposed": 387,
+            "sign_agrees": true
+          },
+          {
+            "check": "leave_one_cluster_out",
+            "counts_toward_gate": true,
+            "dropped_group": "manager=Manager 6",
+            "harm_per_booking": -32.8417,
+            "magnitude_deviation": 0.2097,
+            "magnitude_ratio": 0.7903,
+            "n_exposed": 390,
+            "sign_agrees": true
+          },
+          {
+            "check": "leave_one_cluster_out",
+            "counts_toward_gate": true,
+            "dropped_group": "manager=Manager 7",
+            "harm_per_booking": -54.2103,
+            "magnitude_deviation": 0.3046,
+            "magnitude_ratio": 1.3046,
+            "n_exposed": 385,
+            "sign_agrees": true
+          },
+          {
+            "check": "leave_one_cluster_out",
+            "counts_toward_gate": true,
+            "dropped_group": "manager=Manager 8",
+            "harm_per_booking": -44.9211,
+            "magnitude_deviation": 0.081,
+            "magnitude_ratio": 1.081,
+            "n_exposed": 400,
+            "sign_agrees": true
+          },
+          {
+            "check": "winsorize_top_bottom_1pct",
+            "clip_bounds": [
+              -3109.72,
+              1316.12
+            ],
+            "counts_toward_gate": true,
+            "harm_per_booking": -41.4585,
+            "magnitude_deviation": 0.0023,
+            "magnitude_ratio": 0.9977,
+            "n_exposed": 435,
+            "sign_agrees": true
+          },
+          {
+            "check": "numeric_threshold_perturbation",
+            "condition": "trip_duration_days ge 10.0",
+            "counts_toward_gate": true,
+            "direction": "one_bin_below",
+            "harm_per_booking": -35.9376,
+            "magnitude_deviation": 0.1352,
+            "magnitude_ratio": 0.8648,
+            "n_exposed": 532,
+            "perturbed_value": 9.0,
+            "sign_agrees": true,
+            "snapped_to_adjacent_level": false,
+            "state": "estimated",
+            "threshold_percentile_in_development": 0.7245
+          },
+          {
+            "check": "numeric_threshold_perturbation",
+            "condition": "trip_duration_days ge 10.0",
+            "counts_toward_gate": true,
+            "direction": "one_bin_above",
+            "harm_per_booking": -11.9112,
+            "magnitude_deviation": 0.7134,
+            "magnitude_ratio": 0.2866,
+            "n_exposed": 351,
+            "perturbed_value": 11.0,
+            "sign_agrees": true,
+            "snapped_to_adjacent_level": true,
+            "state": "estimated",
+            "threshold_percentile_in_development": 0.7245
+          },
+          {
+            "admissibility": "inadmissible_decomposition_of_the_primary_outcome",
+            "check": "alternative_outcome_not_gate_binding",
+            "counts_toward_gate": false,
+            "harm_per_booking": -99.0674,
+            "magnitude_deviation": 1.3841,
+            "outcome_id": "gross_profit_eur"
+          }
+        ],
+        "checks_run": 11,
+        "max_magnitude_deviation": 0.9128,
+        "max_magnitude_deviation_ceiling": 0.5,
+        "recorded_but_not_counted": [
+          {
+            "admissibility": "inadmissible_decomposition_of_the_primary_outcome",
+            "check": "alternative_outcome_not_gate_binding",
+            "counts_toward_gate": false,
+            "harm_per_booking": -99.0674,
+            "magnitude_deviation": 1.3841,
+            "outcome_id": "gross_profit_eur"
+          }
+        ],
+        "sign_agreement": 0.9091,
+        "sign_agreement_floor": 0.9
+      },
+      "graded": {
+        "adjusted_p_value": 1.0,
+        "comparison_records_development": 4564,
+        "diagnostics": {
+          "adjusted_harm_per_booking": -83.93276542158038,
+          "adjustment_columns_considered": [
+            "acquisition_channel",
+            "booking_lead_days",
+            "customer_price_eur",
+            "customer_segment",
+            "customer_type",
+            "destination",
+            "discount_rate",
+            "installments",
+            "manager",
+            "manual_exception",
+            "party_size",
+            "payment_method",
+            "product_category",
+            "quoted_cost_eur"
+          ],
+          "adjustment_columns_used": [
+            "customer_type",
+            "manual_exception",
+            "customer_segment",
+            "party_size",
+            "payment_method",
+            "product_category"
+          ],
+          "bootstrap_standard_error_eur": 35.89613711464852,
+          "confounder_stratum_coverage": 0.6896551724137931,
+          "development_bootstrap_reps": 2000,
+          "e_value": 1.4509832486708816,
+          "historical_exposure_ci_eur": [
+            -45054.37171495032,
+            56239.33291755546
+          ],
+          "historical_exposure_outcome_share": 0.0009322686920608265,
+          "holdout_retention": 2.0088248815963543,
+          "minimum_detectable_effect_eur": 105.68920120339759,
+          "p_value_empirical_bootstrap_floor_limited": 0.254,
+          "p_value_normal_approx_bootstrap_se": 0.24702137152649184,
+          "robustness_alternative_outcome_admissibility": "inadmissible_decomposition_of_the_primary_outcome",
+          "robustness_alternative_outcome_diagnostic": {
+            "admissibility": "inadmissible_decomposition_of_the_primary_outcome",
+            "harm_per_booking": -99.067367,
+            "magnitude_deviation": 1.38407,
+            "note": "Recorded as a disclosed decomposition diagnostic, not as a G12 refit: this outcome is not a commensurable measurement of the primary construct, so a magnitude-parity requirement against it reports outcome algebra rather than the effect's stability (CONTRACT_VERSION >= 1.3.0, TASK-070).",
+            "outcome_id": "gross_profit_eur",
+            "sign_agrees": true
+          },
+          "robustness_checks_run": 11,
+          "robustness_max_magnitude_deviation": 0.9128203644730468,
+          "robustness_not_evaluated_reason": null,
+          "robustness_semantics_version": "one_bin_relative_v2",
+          "robustness_sign_agreement": 0.9090909090909091,
+          "robustness_threshold_refit_states": {
+            "degenerate_no_contrast": 0,
+            "estimated": 2,
+            "unrepresentable_step": 0,
+            "vacuous_identical_rule": 0
+          },
+          "robustness_threshold_refits": [
+            {
+              "condition": "trip_duration_days ge 10.0",
+              "direction": "one_bin_below",
+              "harm_per_booking": -35.93757,
+              "n_exposed": 532,
+              "perturbed_value": 9.0,
+              "snapped_to_adjacent_level": false,
+              "state": "estimated",
+              "threshold_percentile": 0.724545
+            },
+            {
+              "condition": "trip_duration_days ge 10.0",
+              "direction": "one_bin_above",
+              "harm_per_booking": -11.911217,
+              "n_exposed": 351,
+              "perturbed_value": 11.0,
+              "snapped_to_adjacent_level": true,
+              "state": "estimated",
+              "threshold_percentile": 0.724545
+            }
+          ],
+          "seasonal_concentration_index": 1.3643415735054847,
+          "segment_reversal_exposure_share": 0.041379310344827586,
+          "splits_present": [
+            "development",
+            "validation",
+            "future_holdout"
+          ]
+        },
+        "evidence_level": "descriptive_observation",
+        "exposed_records_development": 435,
+        "family_size": 26213,
+        "g05_arithmetic": {
+          "bh_adjusted_p": 1.0,
+          "bh_raw_p_required_at_this_rank": 1.907450501659482e-05,
+          "family_size": 26213,
+          "fdr_alpha": 0.1,
+          "passes": false,
+          "rank_within_counterfactual_family": 5,
+          "raw_p_normal_approx": 0.24702137152649184,
+          "shortfall_factor": 12950.34242364786
+        },
+        "gates": {
+          "G00_LINEAGE_PREREGISTRATION": {
+            "detail": "Candidate is PERSISTED with a resolvable dataset/outcome reference.",
+            "outcome": "pass"
+          },
+          "G01_TARGET_LEAKAGE": {
+            "detail": "All condition features are DECISION_TIME.",
+            "outcome": "pass"
+          },
+          "G02_POST_TREATMENT_CONTROLS": {
+            "detail": "Adjustment set ('customer_type', 'manual_exception', 'customer_segment', 'party_size', 'payment_method', 'product_category') is decision-time and excludes condition features.",
+            "outcome": "pass"
+          },
+          "G03_SAMPLE_ADEQUACY": {
+            "detail": "n_exposed=435, clusters=2834, MDE80=105.7 EUR vs observed harm=-41.6 EUR.",
+            "outcome": "fail"
+          },
+          "G04_UNCERTAINTY": {
+            "detail": "95% CI [-105.6, 34.6] EUR.",
+            "outcome": "fail"
+          },
+          "G05_MULTIPLE_COMPARISONS": {
+            "detail": "Normal-approx p (bootstrap SE)=0.247, BH-adjusted p=1 over family_size=26213 (alpha=0.1).",
+            "outcome": "fail"
+          },
+          "G06_CONFOUNDING": {
+            "detail": "Adjusted for ('customer_type', 'manual_exception', 'customer_segment', 'party_size', 'payment_method', 'product_category'): harm -41.6 -> -83.9 EUR (attenuation -1.02, coverage 0.69, E-value 1.45, floor 1.5).",
+            "outcome": "fail"
+          },
+          "G07_SELECTION_AND_COLLIDER": {
+            "detail": "Primary-outcome missingness: exposed=0, comparison=0.",
+            "outcome": "pass"
+          },
+          "G08_SURVIVORSHIP_COHORT": {
+            "detail": "Full eligible cohort; no post-decision filter applied.",
+            "outcome": "pass"
+          },
+          "G09_SIMPSON_AND_HETEROGENEITY": {
+            "detail": "Sign reverses in customer_segment strata covering 4.1% of exposure (threshold 20%).",
+            "outcome": "pass"
+          },
+          "G10_TEMPORAL_STABILITY": {
+            "detail": "Same sign across ['development', 'validation', 'future_holdout']: False; holdout retains 201% of development magnitude (floor 50%).",
+            "outcome": "fail"
+          },
+          "G11_SEASONALITY": {
+            "detail": "Max monthly exposure/cohort concentration ratio 1.36 (threshold 1.5).",
+            "outcome": "pass"
+          },
+          "G12_ROBUSTNESS": {
+            "detail": "Sign agreement 91% over 11 perturbations (floor 90%); max magnitude deviation 91% (ceiling 50%); semantics one_bin_relative_v2; threshold refit states {'estimated': 2, 'vacuous_identical_rule': 0, 'degenerate_no_contrast': 0, 'unrepresentable_step': 0}. Declared alternative outcome 'gross_profit_eur' is inadmissible_decomposition_of_the_primary_outcome and is reported as a decomposition diagnostic, not counted here.",
+            "outcome": "fail"
+          },
+          "G13_IDENTIFICATION_DESIGN": {
+            "detail": "Observational data; no quasi-experimental design exists.",
+            "outcome": "fail"
+          },
+          "G14_RANDOMIZATION_INTEGRITY": {
+            "detail": "No prospective randomized assignment; retrospective data only.",
+            "outcome": "fail"
+          },
+          "G15_ECONOMIC_MATERIALITY": {
+            "detail": "Combined-window exposure 95% CI [-45054, 56239] EUR, outcome share 0.093%.",
+            "outcome": "fail"
+          }
+        },
+        "policy_readiness": "not_ready",
+        "raw_effect": {
+          "ci_high": 34.58393272532908,
+          "ci_low": -105.5795058134704,
+          "value": -41.55389038149633
+        },
+        "rule": "supplier eq Atlas AND trip_duration_days ge 10.0",
+        "source": "COUNTERFACTUAL (never selected by the committed run)",
+        "verdict": "DOWNGRADE"
+      },
+      "level_2_blocking_gates": [
+        "G03_SAMPLE_ADEQUACY",
+        "G04_UNCERTAINTY",
+        "G05_MULTIPLE_COMPARISONS",
+        "G10_TEMPORAL_STABILITY",
+        "G12_ROBUSTNESS"
+      ],
+      "name": "Atlas long winter itinerary cost",
+      "oracle_rule": "supplier eq Atlas AND trip_duration_days ge 10.0",
+      "pattern_id": "P04",
+      "scoreable": true,
+      "true_rule": "supplier=Atlas AND trip_duration_days>=14 AND booking_month IN [1,2,12]",
+      "true_rule_affected_n": 101,
+      "true_rule_power_reference": {
+        "bh_most_lenient_raw_p_required": 3.814901003318964e-06,
+        "conclusively_below_bh_at_any_rank": true,
+        "development_harm_per_booking": 307.4452,
+        "development_n_exposed": 58,
+        "development_outcome_sd": 751.8919,
+        "g03_would_pass_on_floors": true,
+        "g03_would_pass_on_power": true,
+        "minimum_detectable_effect_eur": 278.2142,
+        "note": "OPTIMISTIC BOUND on the exact true rule, unclustered SE; clustering can only widen it. Conclusive only when it fails.",
+        "optimistic_unclustered_p": 0.0019619170812223974
+      }
+    },
+    {
+      "development_sample": {
+        "harm_per_booking": 141.8643,
+        "min_exposed_records_threshold": 50,
+        "n_comparison": 4982,
+        "n_exposed": 17,
+        "pooled_sd": 751.8465
+      },
+      "first_level_2_blocking_gate": "G03_SAMPLE_ADEQUACY",
+      "g03_power": {
+        "mde_over_observed_harm": 3.6072,
+        "minimum_detectable_effect_eur": 511.7387,
+        "observed_harm_eur": 141.8643,
+        "required_exposed_n_for_80pct_power": 230.7
+      },
+      "g12_robustness": {
+        "binding_check": {
+          "check": "numeric_threshold_perturbation",
+          "condition": "customer_price_eur ge 3134.8",
+          "counts_toward_gate": true,
+          "direction": "one_bin_above",
+          "harm_per_booking": 345.632,
+          "magnitude_deviation": 1.4364,
+          "magnitude_ratio": 2.4364,
+          "n_exposed": 12,
+          "perturbed_value": 3273.95,
+          "sign_agrees": true,
+          "snapped_to_adjacent_level": false,
+          "state": "estimated",
+          "threshold_percentile_in_development": 0.5999
+        },
+        "checks": [
+          {
+            "check": "leave_one_cluster_out",
+            "counts_toward_gate": true,
+            "dropped_group": "manager=Manager 1",
+            "harm_per_booking": 145.8151,
+            "magnitude_deviation": 0.0278,
+            "magnitude_ratio": 1.0278,
+            "n_exposed": 17,
+            "sign_agrees": true
+          },
+          {
+            "check": "leave_one_cluster_out",
+            "counts_toward_gate": true,
+            "dropped_group": "manager=Manager 2",
+            "harm_per_booking": 134.6698,
+            "magnitude_deviation": 0.0507,
+            "magnitude_ratio": 0.9493,
+            "n_exposed": 17,
+            "sign_agrees": true
+          },
+          {
+            "check": "leave_one_cluster_out",
+            "counts_toward_gate": true,
+            "dropped_group": "manager=Manager 3",
+            "harm_per_booking": 143.6318,
+            "magnitude_deviation": 0.0125,
+            "magnitude_ratio": 1.0125,
+            "n_exposed": 17,
+            "sign_agrees": true
+          },
+          {
+            "check": "leave_one_cluster_out",
+            "counts_toward_gate": true,
+            "dropped_group": "manager=Manager 4",
+            "harm_per_booking": null,
+            "magnitude_ratio": null,
+            "n_exposed": 0,
+            "note": "no estimate produced; counted as a run check that does not agree",
+            "sign_agrees": false
+          },
+          {
+            "check": "leave_one_cluster_out",
+            "counts_toward_gate": true,
+            "dropped_group": "manager=Manager 5",
+            "harm_per_booking": 145.7701,
+            "magnitude_deviation": 0.0275,
+            "magnitude_ratio": 1.0275,
+            "n_exposed": 17,
+            "sign_agrees": true
+          },
+          {
+            "check": "leave_one_cluster_out",
+            "counts_toward_gate": true,
+            "dropped_group": "manager=Manager 6",
+            "harm_per_booking": 141.672,
+            "magnitude_deviation": 0.0014,
+            "magnitude_ratio": 0.9986,
+            "n_exposed": 17,
+            "sign_agrees": true
+          },
+          {
+            "check": "leave_one_cluster_out",
+            "counts_toward_gate": true,
+            "dropped_group": "manager=Manager 7",
+            "harm_per_booking": 145.0895,
+            "magnitude_deviation": 0.0227,
+            "magnitude_ratio": 1.0227,
+            "n_exposed": 17,
+            "sign_agrees": true
+          },
+          {
+            "check": "leave_one_cluster_out",
+            "counts_toward_gate": true,
+            "dropped_group": "manager=Manager 8",
+            "harm_per_booking": 137.1983,
+            "magnitude_deviation": 0.0329,
+            "magnitude_ratio": 0.9671,
+            "n_exposed": 17,
+            "sign_agrees": true
+          },
+          {
+            "check": "winsorize_top_bottom_1pct",
+            "clip_bounds": [
+              -3109.72,
+              1316.12
+            ],
+            "counts_toward_gate": true,
+            "harm_per_booking": 118.8854,
+            "magnitude_deviation": 0.162,
+            "magnitude_ratio": 0.838,
+            "n_exposed": 17,
+            "sign_agrees": true
+          },
+          {
+            "check": "numeric_threshold_perturbation",
+            "condition": "customer_price_eur ge 3134.8",
+            "counts_toward_gate": true,
+            "direction": "one_bin_below",
+            "harm_per_booking": 83.2776,
+            "magnitude_deviation": 0.413,
+            "magnitude_ratio": 0.587,
+            "n_exposed": 20,
+            "perturbed_value": 3014.1,
+            "sign_agrees": true,
+            "snapped_to_adjacent_level": false,
+            "state": "estimated",
+            "threshold_percentile_in_development": 0.5999
+          },
+          {
+            "check": "numeric_threshold_perturbation",
+            "condition": "customer_price_eur ge 3134.8",
+            "counts_toward_gate": true,
+            "direction": "one_bin_above",
+            "harm_per_booking": 345.632,
+            "magnitude_deviation": 1.4364,
+            "magnitude_ratio": 2.4364,
+            "n_exposed": 12,
+            "perturbed_value": 3273.95,
+            "sign_agrees": true,
+            "snapped_to_adjacent_level": false,
+            "state": "estimated",
+            "threshold_percentile_in_development": 0.5999
+          },
+          {
+            "admissibility": "inadmissible_decomposition_of_the_primary_outcome",
+            "check": "alternative_outcome_not_gate_binding",
+            "counts_toward_gate": false,
+            "harm_per_booking": -150.3075,
+            "magnitude_deviation": 0.0595,
+            "outcome_id": "gross_profit_eur"
+          }
+        ],
+        "checks_run": 11,
+        "max_magnitude_deviation": 1.4364,
+        "max_magnitude_deviation_ceiling": 0.5,
+        "recorded_but_not_counted": [
+          {
+            "admissibility": "inadmissible_decomposition_of_the_primary_outcome",
+            "check": "alternative_outcome_not_gate_binding",
+            "counts_toward_gate": false,
+            "harm_per_booking": -150.3075,
+            "magnitude_deviation": 0.0595,
+            "outcome_id": "gross_profit_eur"
+          }
+        ],
+        "sign_agreement": 0.9091,
+        "sign_agreement_floor": 0.9
+      },
+      "graded": {
+        "adjusted_p_value": 1.0,
+        "comparison_records_development": 4982,
+        "diagnostics": {
+          "adjusted_harm_per_booking": 128.7754596665434,
+          "adjustment_columns_considered": [
+            "acquisition_channel",
+            "booking_lead_days",
+            "customer_segment",
+            "customer_type",
+            "destination",
+            "discount_rate",
+            "installments",
+            "party_size",
+            "payment_method",
+            "product_category",
+            "quoted_cost_eur",
+            "supplier",
+            "trip_duration_days"
+          ],
+          "adjustment_columns_used": [
+            "customer_type",
+            "payment_method"
+          ],
+          "bootstrap_standard_error_eur": 262.1336009677078,
+          "confounder_stratum_coverage": 0.7058823529411765,
+          "development_bootstrap_reps": 2000,
+          "e_value": 1.6126440838810356,
+          "historical_exposure_ci_eur": [
+            -3284.305613682093,
+            21767.73668469058
+          ],
+          "historical_exposure_outcome_share": 0.001437579348627492,
+          "holdout_retention": 3.162265696178514,
+          "minimum_detectable_effect_eur": 511.7386708492885,
+          "p_value_empirical_bootstrap_floor_limited": 0.656,
+          "p_value_normal_approx_bootstrap_se": 0.5883759544849654,
+          "robustness_alternative_outcome_admissibility": "inadmissible_decomposition_of_the_primary_outcome",
+          "robustness_alternative_outcome_diagnostic": {
+            "admissibility": "inadmissible_decomposition_of_the_primary_outcome",
+            "harm_per_booking": -150.30749,
+            "magnitude_deviation": 0.059516,
+            "note": "Recorded as a disclosed decomposition diagnostic, not as a G12 refit: this outcome is not a commensurable measurement of the primary construct, so a magnitude-parity requirement against it reports outcome algebra rather than the effect's stability (CONTRACT_VERSION >= 1.3.0, TASK-070).",
+            "outcome_id": "gross_profit_eur",
+            "sign_agrees": false
+          },
+          "robustness_checks_run": 11,
+          "robustness_max_magnitude_deviation": 1.4363556006762153,
+          "robustness_not_evaluated_reason": null,
+          "robustness_semantics_version": "one_bin_relative_v2",
+          "robustness_sign_agreement": 0.9090909090909091,
+          "robustness_threshold_refit_states": {
+            "degenerate_no_contrast": 0,
+            "estimated": 2,
+            "unrepresentable_step": 0,
+            "vacuous_identical_rule": 0
+          },
+          "robustness_threshold_refits": [
+            {
+              "condition": "customer_price_eur ge 3134.8",
+              "direction": "one_bin_below",
+              "harm_per_booking": 83.277641,
+              "n_exposed": 20,
+              "perturbed_value": 3014.1,
+              "snapped_to_adjacent_level": false,
+              "state": "estimated",
+              "threshold_percentile": 0.59992
+            },
+            {
+              "condition": "customer_price_eur ge 3134.8",
+              "direction": "one_bin_above",
+              "harm_per_booking": 345.63198,
+              "n_exposed": 12,
+              "perturbed_value": 3273.95,
+              "snapped_to_adjacent_level": false,
+              "state": "estimated",
+              "threshold_percentile": 0.59992
+            }
+          ],
+          "seasonal_concentration_index": 2.685468708031158,
+          "segment_reversal_exposure_share": 0.29411764705882354,
+          "splits_present": [
+            "development",
+            "validation",
+            "future_holdout"
+          ]
+        },
+        "evidence_level": "descriptive_observation",
+        "exposed_records_development": 17,
+        "family_size": 26213,
+        "g05_arithmetic": {
+          "bh_adjusted_p": 1.0,
+          "bh_raw_p_required_at_this_rank": 2.670430702323275e-05,
+          "family_size": 26213,
+          "fdr_alpha": 0.1,
+          "passes": false,
+          "rank_within_counterfactual_family": 7,
+          "raw_p_normal_approx": 0.5883759544849654,
+          "shortfall_factor": 22032.99842130628
+        },
+        "gates": {
+          "G00_LINEAGE_PREREGISTRATION": {
+            "detail": "Candidate is PERSISTED with a resolvable dataset/outcome reference.",
+            "outcome": "pass"
+          },
+          "G01_TARGET_LEAKAGE": {
+            "detail": "All condition features are DECISION_TIME.",
+            "outcome": "pass"
+          },
+          "G02_POST_TREATMENT_CONTROLS": {
+            "detail": "Adjustment set ('customer_type', 'payment_method') is decision-time and excludes condition features.",
+            "outcome": "pass"
+          },
+          "G03_SAMPLE_ADEQUACY": {
+            "detail": "n_exposed=17, clusters=2834, MDE80=511.7 EUR vs observed harm=141.9 EUR.",
+            "outcome": "fail"
+          },
+          "G04_UNCERTAINTY": {
+            "detail": "95% CI [-245.8, 751.3] EUR.",
+            "outcome": "fail"
+          },
+          "G05_MULTIPLE_COMPARISONS": {
+            "detail": "Normal-approx p (bootstrap SE)=0.588, BH-adjusted p=1 over family_size=26213 (alpha=0.1).",
+            "outcome": "fail"
+          },
+          "G06_CONFOUNDING": {
+            "detail": "Adjusted for ('customer_type', 'payment_method'): harm 141.9 -> 128.8 EUR (attenuation 0.09, coverage 0.71, E-value 1.61, floor 1.5).",
+            "outcome": "pass"
+          },
+          "G07_SELECTION_AND_COLLIDER": {
+            "detail": "Primary-outcome missingness: exposed=0, comparison=0.",
+            "outcome": "pass"
+          },
+          "G08_SURVIVORSHIP_COHORT": {
+            "detail": "Full eligible cohort; no post-decision filter applied.",
+            "outcome": "pass"
+          },
+          "G09_SIMPSON_AND_HETEROGENEITY": {
+            "detail": "Sign reverses in customer_segment strata covering 29.4% of exposure (threshold 20%).",
+            "outcome": "fail"
+          },
+          "G10_TEMPORAL_STABILITY": {
+            "detail": "Same sign across ['development', 'validation', 'future_holdout']: True; holdout retains 316% of development magnitude (floor 50%).",
+            "outcome": "pass"
+          },
+          "G11_SEASONALITY": {
+            "detail": "Max monthly exposure/cohort concentration ratio 2.69 (threshold 1.5).",
+            "outcome": "fail"
+          },
+          "G12_ROBUSTNESS": {
+            "detail": "Sign agreement 91% over 11 perturbations (floor 90%); max magnitude deviation 144% (ceiling 50%); semantics one_bin_relative_v2; threshold refit states {'estimated': 2, 'vacuous_identical_rule': 0, 'degenerate_no_contrast': 0, 'unrepresentable_step': 0}. Declared alternative outcome 'gross_profit_eur' is inadmissible_decomposition_of_the_primary_outcome and is reported as a decomposition diagnostic, not counted here.",
+            "outcome": "fail"
+          },
+          "G13_IDENTIFICATION_DESIGN": {
+            "detail": "Observational data; no quasi-experimental design exists.",
+            "outcome": "fail"
+          },
+          "G14_RANDOMIZATION_INTEGRITY": {
+            "detail": "No prospective randomized assignment; retrospective data only.",
+            "outcome": "fail"
+          },
+          "G15_ECONOMIC_MATERIALITY": {
+            "detail": "Combined-window exposure 95% CI [-3284, 21768] EUR, outcome share 0.144%.",
+            "outcome": "fail"
+          }
+        },
+        "policy_readiness": "not_ready",
+        "raw_effect": {
+          "ci_high": 751.3107521756729,
+          "ci_low": -245.795509170654,
+          "value": 141.86434021300204
+        },
+        "rule": "customer_price_eur ge 3134.8 AND manager eq Manager 4 AND manual_exception eq True",
+        "source": "COUNTERFACTUAL (never selected by the committed run)",
+        "verdict": "DOWNGRADE"
+      },
+      "level_2_blocking_gates": [
+        "G03_SAMPLE_ADEQUACY",
+        "G04_UNCERTAINTY",
+        "G05_MULTIPLE_COMPARISONS",
+        "G12_ROBUSTNESS"
+      ],
+      "name": "Manager 4 expensive manual exceptions",
+      "oracle_rule": "customer_price_eur ge 3134.8 AND manager eq Manager 4 AND manual_exception eq True",
+      "pattern_id": "P05",
+      "scoreable": false,
+      "true_rule": "manager=Manager 4 AND manual_exception=true AND customer_price_eur>=3500",
+      "true_rule_affected_n": 23,
+      "true_rule_power_reference": {
+        "bh_most_lenient_raw_p_required": 3.814901003318964e-06,
+        "conclusively_below_bh_at_any_rank": true,
+        "development_harm_per_booking": 581.0284,
+        "development_n_exposed": 9,
+        "development_outcome_sd": 751.8919,
+        "g03_would_pass_on_floors": false,
+        "g03_would_pass_on_power": false,
+        "minimum_detectable_effect_eur": 702.7959,
+        "note": "OPTIMISTIC BOUND on the exact true rule, unclustered SE; clustering can only widen it. Conclusive only when it fails.",
+        "optimistic_unclustered_p": 0.020548551761522475
+      }
+    },
+    {
+      "development_sample": {
+        "harm_per_booking": 724.2349,
+        "min_exposed_records_threshold": 50,
+        "n_comparison": 4909,
+        "n_exposed": 90,
+        "pooled_sd": 745.6998
+      },
+      "first_level_2_blocking_gate": null,
+      "g03_power": {
+        "mde_over_observed_harm": 0.3068,
+        "minimum_detectable_effect_eur": 222.2243,
+        "observed_harm_eur": 724.2349,
+        "required_exposed_n_for_80pct_power": 8.3
+      },
+      "g12_robustness": {
+        "binding_check": {
+          "check": "numeric_threshold_perturbation",
+          "condition": "booking_lead_days lt 23.0",
+          "counts_toward_gate": true,
+          "direction": "one_bin_below",
+          "harm_per_booking": 938.3009,
+          "magnitude_deviation": 0.2956,
+          "magnitude_ratio": 1.2956,
+          "n_exposed": 70,
+          "perturbed_value": 16.0,
+          "sign_agrees": true,
+          "snapped_to_adjacent_level": false,
+          "state": "estimated",
+          "threshold_percentile_in_development": 0.1998
+        },
+        "checks": [
+          {
+            "check": "leave_one_cluster_out",
+            "counts_toward_gate": true,
+            "dropped_group": "manager=Manager 1",
+            "harm_per_booking": 705.5206,
+            "magnitude_deviation": 0.0258,
+            "magnitude_ratio": 0.9742,
+            "n_exposed": 84,
+            "sign_agrees": true
+          },
+          {
+            "check": "leave_one_cluster_out",
+            "counts_toward_gate": true,
+            "dropped_group": "manager=Manager 2",
+            "harm_per_booking": 866.2271,
+            "magnitude_deviation": 0.1961,
+            "magnitude_ratio": 1.1961,
+            "n_exposed": 59,
+            "sign_agrees": true
+          },
+          {
+            "check": "leave_one_cluster_out",
+            "counts_toward_gate": true,
+            "dropped_group": "manager=Manager 3",
+            "harm_per_booking": 661.3468,
+            "magnitude_deviation": 0.0868,
+            "magnitude_ratio": 0.9132,
+            "n_exposed": 84,
+            "sign_agrees": true
+          },
+          {
+            "check": "leave_one_cluster_out",
+            "counts_toward_gate": true,
+            "dropped_group": "manager=Manager 4",
+            "harm_per_booking": 735.5907,
+            "magnitude_deviation": 0.0157,
+            "magnitude_ratio": 1.0157,
+            "n_exposed": 81,
+            "sign_agrees": true
+          },
+          {
+            "check": "leave_one_cluster_out",
+            "counts_toward_gate": true,
+            "dropped_group": "manager=Manager 5",
+            "harm_per_booking": 707.03,
+            "magnitude_deviation": 0.0238,
+            "magnitude_ratio": 0.9762,
+            "n_exposed": 78,
+            "sign_agrees": true
+          },
+          {
+            "check": "leave_one_cluster_out",
+            "counts_toward_gate": true,
+            "dropped_group": "manager=Manager 6",
+            "harm_per_booking": 614.6414,
+            "magnitude_deviation": 0.1513,
+            "magnitude_ratio": 0.8487,
+            "n_exposed": 78,
+            "sign_agrees": true
+          },
+          {
+            "check": "leave_one_cluster_out",
+            "counts_toward_gate": true,
+            "dropped_group": "manager=Manager 7",
+            "harm_per_booking": 740.0012,
+            "magnitude_deviation": 0.0218,
+            "magnitude_ratio": 1.0218,
+            "n_exposed": 84,
+            "sign_agrees": true
+          },
+          {
+            "check": "leave_one_cluster_out",
+            "counts_toward_gate": true,
+            "dropped_group": "manager=Manager 8",
+            "harm_per_booking": 799.9609,
+            "magnitude_deviation": 0.1046,
+            "magnitude_ratio": 1.1046,
+            "n_exposed": 82,
+            "sign_agrees": true
+          },
+          {
+            "check": "winsorize_top_bottom_1pct",
+            "clip_bounds": [
+              -3109.72,
+              1316.12
+            ],
+            "counts_toward_gate": true,
+            "harm_per_booking": 634.475,
+            "magnitude_deviation": 0.1239,
+            "magnitude_ratio": 0.8761,
+            "n_exposed": 90,
+            "sign_agrees": true
+          },
+          {
+            "check": "numeric_threshold_perturbation",
+            "condition": "booking_lead_days lt 23.0",
+            "counts_toward_gate": true,
+            "direction": "one_bin_below",
+            "harm_per_booking": 938.3009,
+            "magnitude_deviation": 0.2956,
+            "magnitude_ratio": 1.2956,
+            "n_exposed": 70,
+            "perturbed_value": 16.0,
+            "sign_agrees": true,
+            "snapped_to_adjacent_level": false,
+            "state": "estimated",
+            "threshold_percentile_in_development": 0.1998
+          },
+          {
+            "check": "numeric_threshold_perturbation",
+            "condition": "booking_lead_days lt 23.0",
+            "counts_toward_gate": true,
+            "direction": "one_bin_above",
+            "harm_per_booking": 640.4973,
+            "magnitude_deviation": 0.1156,
+            "magnitude_ratio": 0.8844,
+            "n_exposed": 102,
+            "perturbed_value": 29.0,
+            "sign_agrees": true,
+            "snapped_to_adjacent_level": false,
+            "state": "estimated",
+            "threshold_percentile_in_development": 0.1998
+          },
+          {
+            "admissibility": "inadmissible_decomposition_of_the_primary_outcome",
+            "check": "alternative_outcome_not_gate_binding",
+            "counts_toward_gate": false,
+            "harm_per_booking": 493.8103,
+            "magnitude_deviation": 0.3182,
+            "outcome_id": "gross_profit_eur"
+          }
+        ],
+        "checks_run": 11,
+        "max_magnitude_deviation": 0.2956,
+        "max_magnitude_deviation_ceiling": 0.5,
+        "recorded_but_not_counted": [
+          {
+            "admissibility": "inadmissible_decomposition_of_the_primary_outcome",
+            "check": "alternative_outcome_not_gate_binding",
+            "counts_toward_gate": false,
+            "harm_per_booking": 493.8103,
+            "magnitude_deviation": 0.3182,
+            "outcome_id": "gross_profit_eur"
+          }
+        ],
+        "sign_agreement": 1.0,
+        "sign_agreement_floor": 0.9
+      },
+      "graded": {
+        "adjusted_p_value": 0.0179581437806994,
+        "candidate_id": "CAND-007",
+        "comparison_records_development": 4909,
+        "diagnostics": {
+          "adjusted_harm_per_booking": 815.1123244873119,
+          "adjustment_columns_considered": [
+            "acquisition_channel",
+            "customer_price_eur",
+            "customer_segment",
+            "customer_type",
+            "discount_rate",
+            "installments",
+            "manager",
+            "manual_exception",
+            "party_size",
+            "product_category",
+            "quoted_cost_eur",
+            "supplier",
+            "trip_duration_days"
+          ],
+          "adjustment_columns_used": [
+            "customer_type",
+            "manual_exception",
+            "customer_segment",
+            "party_size"
+          ],
+          "bootstrap_standard_error_eur": 163.62489547353886,
+          "confounder_stratum_coverage": 0.7777777777777778,
+          "development_bootstrap_reps": 2000,
+          "e_value": 4.850393467743041,
+          "historical_exposure_ci_eur": [
+            105779.90493795522,
+            183712.01572352153
+          ],
+          "historical_exposure_outcome_share": 0.024532095689724753,
+          "holdout_retention": 0.6009291080022556,
+          "minimum_detectable_effect_eur": 222.224345176541,
+          "p_value_empirical_bootstrap_floor_limited": 0.0004997501249375312,
+          "p_value_normal_approx_bootstrap_se": 9.591195701743089e-06,
+          "robustness_checks_run": 12,
+          "robustness_max_magnitude_deviation": 0.3181627381478852,
+          "robustness_sign_agreement": 1.0,
+          "seasonal_concentration_index": 1.8427066877303844,
+          "segment_reversal_exposure_share": 0.0,
+          "splits_present": [
+            "development",
+            "validation",
+            "future_holdout"
+          ]
+        },
+        "evidence_level": "predictive_association",
+        "exposed_records_development": 90,
+        "family_size": 26213,
+        "gates": {
+          "G00_LINEAGE_PREREGISTRATION": {
+            "detail": "Candidate is PERSISTED with a resolvable dataset/outcome reference.",
+            "outcome": "pass"
+          },
+          "G01_TARGET_LEAKAGE": {
+            "detail": "All condition features are DECISION_TIME.",
+            "outcome": "pass"
+          },
+          "G02_POST_TREATMENT_CONTROLS": {
+            "detail": "Adjustment set ('customer_type', 'manual_exception', 'customer_segment', 'party_size') is decision-time and excludes condition features.",
+            "outcome": "pass"
+          },
+          "G03_SAMPLE_ADEQUACY": {
+            "detail": "n_exposed=90, clusters=2834, MDE80=222.2 EUR vs observed harm=724.2 EUR.",
+            "outcome": "pass"
+          },
+          "G04_UNCERTAINTY": {
+            "detail": "95% CI [418.8, 1063.8] EUR.",
+            "outcome": "pass"
+          },
+          "G05_MULTIPLE_COMPARISONS": {
+            "detail": "Normal-approx p (bootstrap SE)=9.59e-06, BH-adjusted p=0.018 over family_size=26213 (alpha=0.1).",
+            "outcome": "pass"
+          },
+          "G06_CONFOUNDING": {
+            "detail": "Adjusted for ('customer_type', 'manual_exception', 'customer_segment', 'party_size'): harm 724.2 -> 815.1 EUR (attenuation -0.13, coverage 0.78, E-value 4.85, floor 1.5).",
+            "outcome": "pass"
+          },
+          "G07_SELECTION_AND_COLLIDER": {
+            "detail": "Primary-outcome missingness: exposed=0, comparison=0.",
+            "outcome": "pass"
+          },
+          "G08_SURVIVORSHIP_COHORT": {
+            "detail": "Full eligible cohort; no post-decision filter applied.",
+            "outcome": "pass"
+          },
+          "G09_SIMPSON_AND_HETEROGENEITY": {
+            "detail": "Sign reverses in customer_segment strata covering 0.0% of exposure (threshold 20%).",
+            "outcome": "pass"
+          },
+          "G10_TEMPORAL_STABILITY": {
+            "detail": "Same sign across ['development', 'validation', 'future_holdout']: True; holdout retains 60% of development magnitude (floor 50%).",
+            "outcome": "pass"
+          },
+          "G11_SEASONALITY": {
+            "detail": "Max monthly exposure/cohort concentration ratio 1.84 (threshold 1.5).",
+            "outcome": "fail"
+          },
+          "G12_ROBUSTNESS": {
+            "detail": "Sign agreement 100% over 12 perturbations (floor 90%); max magnitude deviation 32% (ceiling 50%).",
+            "outcome": "pass"
+          },
+          "G13_IDENTIFICATION_DESIGN": {
+            "detail": "Observational data; no quasi-experimental design exists.",
+            "outcome": "fail"
+          },
+          "G14_RANDOMIZATION_INTEGRITY": {
+            "detail": "No prospective randomized assignment; retrospective data only.",
+            "outcome": "fail"
+          },
+          "G15_ECONOMIC_MATERIALITY": {
+            "detail": "Combined-window exposure 95% CI [105780, 183712] EUR, outcome share 2.453%.",
+            "outcome": "pass"
+          }
+        },
+        "policy_readiness": "experiment_only",
+        "raw_effect": {
+          "ci_high": 1063.758076219512,
+          "ci_low": 418.8101354897592,
+          "confidence_level": 0.95,
+          "method": "cluster_bootstrap_customer_id",
+          "unit": "EUR per booking (nominal; single currency; no inflation or FX adjustment)",
+          "value": 724.2349110703697
+        },
+        "rule": "booking_lead_days lt 23.0 AND destination eq Tokyo AND payment_method eq bank_transfer",
+        "source": "ACTUAL \u2014 frozen TASK-019 report, candidate CAND-007"
+      },
+      "level_2_blocking_gates": [],
+      "name": "Tokyo urgent bank transfers",
+      "oracle_rule": "booking_lead_days lt 23.0 AND destination eq Tokyo AND payment_method eq bank_transfer",
+      "pattern_id": "P06",
+      "scoreable": true,
+      "true_rule": "destination=Tokyo AND booking_lead_days<10 AND payment_method=bank_transfer",
+      "true_rule_affected_n": 134,
+      "true_rule_power_reference": {
+        "bh_most_lenient_raw_p_required": 3.814901003318964e-06,
+        "conclusively_below_bh_at_any_rank": false,
+        "development_harm_per_booking": 1153.0633,
+        "development_n_exposed": 59,
+        "development_outcome_sd": 751.8919,
+        "g03_would_pass_on_floors": true,
+        "g03_would_pass_on_power": true,
+        "minimum_detectable_effect_eur": 275.8743,
+        "note": "OPTIMISTIC BOUND on the exact true rule, unclustered SE; clustering can only widen it. Conclusive only when it fails.",
+        "optimistic_unclustered_p": 1.1368455646360743e-31
+      }
+    },
+    {
+      "development_sample": {
+        "harm_per_booking": 27.1498,
+        "min_exposed_records_threshold": 50,
+        "n_comparison": 4886,
+        "n_exposed": 113,
+        "pooled_sd": 751.881
+      },
+      "first_level_2_blocking_gate": "G03_SAMPLE_ADEQUACY",
+      "g03_power": {
+        "mde_over_observed_harm": 7.3827,
+        "minimum_detectable_effect_eur": 200.4373,
+        "observed_harm_eur": 27.1498,
+        "required_exposed_n_for_80pct_power": "unreachable"
+      },
+      "g12_robustness": {
+        "binding_check": {
+          "check": "leave_one_cluster_out",
+          "counts_toward_gate": true,
+          "dropped_group": "manager=Manager 7",
+          "harm_per_booking": 56.9153,
+          "magnitude_deviation": 1.0963,
+          "magnitude_ratio": 2.0963,
+          "n_exposed": 105,
+          "sign_agrees": true
+        },
+        "checks": [
+          {
+            "check": "leave_one_cluster_out",
+            "counts_toward_gate": true,
+            "dropped_group": "manager=Manager 1",
+            "harm_per_booking": 44.829,
+            "magnitude_deviation": 0.6512,
+            "magnitude_ratio": 1.6512,
+            "n_exposed": 103,
+            "sign_agrees": true
+          },
+          {
+            "check": "leave_one_cluster_out",
+            "counts_toward_gate": true,
+            "dropped_group": "manager=Manager 2",
+            "harm_per_booking": 48.0372,
+            "magnitude_deviation": 0.7693,
+            "magnitude_ratio": 1.7693,
+            "n_exposed": 88,
+            "sign_agrees": true
+          },
+          {
+            "check": "leave_one_cluster_out",
+            "counts_toward_gate": true,
+            "dropped_group": "manager=Manager 3",
+            "harm_per_booking": 30.6633,
+            "magnitude_deviation": 0.1294,
+            "magnitude_ratio": 1.1294,
+            "n_exposed": 103,
+            "sign_agrees": true
+          },
+          {
+            "check": "leave_one_cluster_out",
+            "counts_toward_gate": true,
+            "dropped_group": "manager=Manager 4",
+            "harm_per_booking": 49.0742,
+            "magnitude_deviation": 0.8075,
+            "magnitude_ratio": 1.8075,
+            "n_exposed": 101,
+            "sign_agrees": true
+          },
+          {
+            "check": "leave_one_cluster_out",
+            "counts_toward_gate": true,
+            "dropped_group": "manager=Manager 5",
+            "harm_per_booking": 15.7325,
+            "magnitude_deviation": 0.4205,
+            "magnitude_ratio": 0.5795,
+            "n_exposed": 99,
+            "sign_agrees": true
+          },
+          {
+            "check": "leave_one_cluster_out",
+            "counts_toward_gate": true,
+            "dropped_group": "manager=Manager 6",
+            "harm_per_booking": 2.8878,
+            "magnitude_deviation": 0.8936,
+            "magnitude_ratio": 0.1064,
+            "n_exposed": 97,
+            "sign_agrees": true
+          },
+          {
+            "check": "leave_one_cluster_out",
+            "counts_toward_gate": true,
+            "dropped_group": "manager=Manager 7",
+            "harm_per_booking": 56.9153,
+            "magnitude_deviation": 1.0963,
+            "magnitude_ratio": 2.0963,
+            "n_exposed": 105,
+            "sign_agrees": true
+          },
+          {
+            "check": "leave_one_cluster_out",
+            "counts_toward_gate": true,
+            "dropped_group": "manager=Manager 8",
+            "harm_per_booking": -34.2474,
+            "magnitude_deviation": 0.2614,
+            "magnitude_ratio": 1.2614,
+            "n_exposed": 95,
+            "sign_agrees": false
+          },
+          {
+            "check": "winsorize_top_bottom_1pct",
+            "clip_bounds": [
+              -3109.72,
+              1316.12
+            ],
+            "counts_toward_gate": true,
+            "harm_per_booking": 31.239,
+            "magnitude_deviation": 0.1506,
+            "magnitude_ratio": 1.1506,
+            "n_exposed": 113,
+            "sign_agrees": true
+          },
+          {
+            "admissibility": "inadmissible_decomposition_of_the_primary_outcome",
+            "check": "alternative_outcome_not_gate_binding",
+            "counts_toward_gate": false,
+            "harm_per_booking": 65.701,
+            "magnitude_deviation": 1.4199,
+            "outcome_id": "gross_profit_eur"
+          }
+        ],
+        "checks_run": 9,
+        "max_magnitude_deviation": 1.0963,
+        "max_magnitude_deviation_ceiling": 0.5,
+        "recorded_but_not_counted": [
+          {
+            "admissibility": "inadmissible_decomposition_of_the_primary_outcome",
+            "check": "alternative_outcome_not_gate_binding",
+            "counts_toward_gate": false,
+            "harm_per_booking": 65.701,
+            "magnitude_deviation": 1.4199,
+            "outcome_id": "gross_profit_eur"
+          }
+        ],
+        "sign_agreement": 0.8889,
+        "sign_agreement_floor": 0.9
+      },
+      "graded": {
+        "adjusted_p_value": 1.0,
+        "comparison_records_development": 4886,
+        "diagnostics": {
+          "adjusted_harm_per_booking": 25.686058134705352,
+          "adjustment_columns_considered": [
+            "booking_lead_days",
+            "customer_price_eur",
+            "customer_segment",
+            "destination",
+            "discount_rate",
+            "installments",
+            "manager",
+            "manual_exception",
+            "party_size",
+            "payment_method",
+            "product_category",
+            "quoted_cost_eur",
+            "trip_duration_days"
+          ],
+          "adjustment_columns_used": [
+            "manual_exception",
+            "customer_segment",
+            "party_size",
+            "payment_method"
+          ],
+          "bootstrap_standard_error_eur": 67.74226305695156,
+          "confounder_stratum_coverage": 0.6460176991150443,
+          "development_bootstrap_reps": 2000,
+          "e_value": 1.2120562442382692,
+          "historical_exposure_ci_eur": [
+            19011.991504994312,
+            63401.22387533807
+          ],
+          "historical_exposure_outcome_share": 0.006726818719348099,
+          "holdout_retention": 14.428755180392752,
+          "minimum_detectable_effect_eur": 200.43730317937008,
+          "p_value_empirical_bootstrap_floor_limited": 0.71,
+          "p_value_normal_approx_bootstrap_se": 0.6885820359628125,
+          "robustness_alternative_outcome_admissibility": "inadmissible_decomposition_of_the_primary_outcome",
+          "robustness_alternative_outcome_diagnostic": {
+            "admissibility": "inadmissible_decomposition_of_the_primary_outcome",
+            "harm_per_booking": 65.700962,
+            "magnitude_deviation": 1.419947,
+            "note": "Recorded as a disclosed decomposition diagnostic, not as a G12 refit: this outcome is not a commensurable measurement of the primary construct, so a magnitude-parity requirement against it reports outcome algebra rather than the effect's stability (CONTRACT_VERSION >= 1.3.0, TASK-070).",
+            "outcome_id": "gross_profit_eur",
+            "sign_agrees": true
+          },
+          "robustness_checks_run": 9,
+          "robustness_max_magnitude_deviation": 1.0963463828723659,
+          "robustness_not_evaluated_reason": null,
+          "robustness_semantics_version": "one_bin_relative_v2",
+          "robustness_sign_agreement": 0.8888888888888888,
+          "robustness_threshold_refit_states": {
+            "degenerate_no_contrast": 0,
+            "estimated": 0,
+            "unrepresentable_step": 0,
+            "vacuous_identical_rule": 0
+          },
+          "robustness_threshold_refits": [],
+          "seasonal_concentration_index": 1.963608216456018,
+          "segment_reversal_exposure_share": 0.23008849557522124,
+          "splits_present": [
+            "development",
+            "validation",
+            "future_holdout"
+          ]
+        },
+        "evidence_level": "descriptive_observation",
+        "exposed_records_development": 113,
+        "family_size": 26213,
+        "g05_arithmetic": {
+          "bh_adjusted_p": 1.0,
+          "bh_raw_p_required_at_this_rank": 3.051920802655171e-05,
+          "family_size": 26213,
+          "fdr_alpha": 0.1,
+          "passes": false,
+          "rank_within_counterfactual_family": 8,
+          "raw_p_normal_approx": 0.6885820359628125,
+          "shortfall_factor": 22562.251135866507
+        },
+        "gates": {
+          "G00_LINEAGE_PREREGISTRATION": {
+            "detail": "Candidate is PERSISTED with a resolvable dataset/outcome reference.",
+            "outcome": "pass"
+          },
+          "G01_TARGET_LEAKAGE": {
+            "detail": "All condition features are DECISION_TIME.",
+            "outcome": "pass"
+          },
+          "G02_POST_TREATMENT_CONTROLS": {
+            "detail": "Adjustment set ('manual_exception', 'customer_segment', 'party_size', 'payment_method') is decision-time and excludes condition features.",
+            "outcome": "pass"
+          },
+          "G03_SAMPLE_ADEQUACY": {
+            "detail": "n_exposed=113, clusters=2834, MDE80=200.4 EUR vs observed harm=27.1 EUR.",
+            "outcome": "fail"
+          },
+          "G04_UNCERTAINTY": {
+            "detail": "95% CI [-102.4, 171.2] EUR.",
+            "outcome": "fail"
+          },
+          "G05_MULTIPLE_COMPARISONS": {
+            "detail": "Normal-approx p (bootstrap SE)=0.689, BH-adjusted p=1 over family_size=26213 (alpha=0.1).",
+            "outcome": "fail"
+          },
+          "G06_CONFOUNDING": {
+            "detail": "Adjusted for ('manual_exception', 'customer_segment', 'party_size', 'payment_method'): harm 27.1 -> 25.7 EUR (attenuation 0.05, coverage 0.65, E-value 1.21, floor 1.5).",
+            "outcome": "fail"
+          },
+          "G07_SELECTION_AND_COLLIDER": {
+            "detail": "Primary-outcome missingness: exposed=0, comparison=0.",
+            "outcome": "pass"
+          },
+          "G08_SURVIVORSHIP_COHORT": {
+            "detail": "Full eligible cohort; no post-decision filter applied.",
+            "outcome": "pass"
+          },
+          "G09_SIMPSON_AND_HETEROGENEITY": {
+            "detail": "Sign reverses in customer_segment strata covering 23.0% of exposure (threshold 20%).",
+            "outcome": "fail"
+          },
+          "G10_TEMPORAL_STABILITY": {
+            "detail": "Same sign across ['development', 'validation', 'future_holdout']: True; holdout retains 1443% of development magnitude (floor 50%).",
+            "outcome": "pass"
+          },
+          "G11_SEASONALITY": {
+            "detail": "Max monthly exposure/cohort concentration ratio 1.96 (threshold 1.5).",
+            "outcome": "fail"
+          },
+          "G12_ROBUSTNESS": {
+            "detail": "Sign agreement 89% over 9 perturbations (floor 90%); max magnitude deviation 110% (ceiling 50%); semantics one_bin_relative_v2; threshold refit states {'estimated': 0, 'vacuous_identical_rule': 0, 'degenerate_no_contrast': 0, 'unrepresentable_step': 0}. Declared alternative outcome 'gross_profit_eur' is inadmissible_decomposition_of_the_primary_outcome and is reported as a decomposition diagnostic, not counted here.",
+            "outcome": "fail"
+          },
+          "G13_IDENTIFICATION_DESIGN": {
+            "detail": "Observational data; no quasi-experimental design exists.",
+            "outcome": "fail"
+          },
+          "G14_RANDOMIZATION_INTEGRITY": {
+            "detail": "No prospective randomized assignment; retrospective data only.",
+            "outcome": "fail"
+          },
+          "G15_ECONOMIC_MATERIALITY": {
+            "detail": "Combined-window exposure 95% CI [19012, 63401] EUR, outcome share 0.673%.",
+            "outcome": "pass"
+          }
+        },
+        "policy_readiness": "experiment_only",
+        "raw_effect": {
+          "ci_high": 171.17242277656584,
+          "ci_low": -102.41736518563602,
+          "value": 27.149750542456502
+        },
+        "rule": "acquisition_channel eq partner AND customer_type eq returning AND supplier eq Cedar",
+        "source": "COUNTERFACTUAL (never selected by the committed run)",
+        "verdict": "DOWNGRADE"
+      },
+      "level_2_blocking_gates": [
+        "G03_SAMPLE_ADEQUACY",
+        "G04_UNCERTAINTY",
+        "G05_MULTIPLE_COMPARISONS",
+        "G12_ROBUSTNESS"
+      ],
+      "name": "Late-period Cedar partner regression",
+      "oracle_rule": "acquisition_channel eq partner AND customer_type eq returning AND supplier eq Cedar",
+      "pattern_id": "P07",
+      "scoreable": false,
+      "true_rule": "supplier=Cedar AND acquisition_channel=partner AND customer_type=returning AND booking_date>=2025-01-01",
+      "true_rule_affected_n": 109,
+      "true_rule_power_reference": null
+    },
+    {
+      "development_sample": {
+        "harm_per_booking": 158.3663,
+        "min_exposed_records_threshold": 50,
+        "n_comparison": 4964,
+        "n_exposed": 35,
+        "pooled_sd": 751.7759
+      },
+      "first_level_2_blocking_gate": "G03_SAMPLE_ADEQUACY",
+      "g03_power": {
+        "mde_over_observed_harm": 2.2559,
+        "minimum_detectable_effect_eur": 357.2596,
+        "observed_harm_eur": 158.3663,
+        "required_exposed_n_for_80pct_power": 183.4
+      },
+      "g12_robustness": {
+        "binding_check": {
+          "check": "leave_one_cluster_out",
+          "counts_toward_gate": true,
+          "dropped_group": "manager=Manager 3",
+          "harm_per_booking": 70.3731,
+          "magnitude_deviation": 0.5556,
+          "magnitude_ratio": 0.4444,
+          "n_exposed": 33,
+          "sign_agrees": true
+        },
+        "checks": [
+          {
+            "check": "leave_one_cluster_out",
+            "counts_toward_gate": true,
+            "dropped_group": "manager=Manager 1",
+            "harm_per_booking": 89.436,
+            "magnitude_deviation": 0.4353,
+            "magnitude_ratio": 0.5647,
+            "n_exposed": 31,
+            "sign_agrees": true
+          },
+          {
+            "check": "leave_one_cluster_out",
+            "counts_toward_gate": true,
+            "dropped_group": "manager=Manager 2",
+            "harm_per_booking": 140.6027,
+            "magnitude_deviation": 0.1122,
+            "magnitude_ratio": 0.8878,
+            "n_exposed": 25,
+            "sign_agrees": true
+          },
+          {
+            "check": "leave_one_cluster_out",
+            "counts_toward_gate": true,
+            "dropped_group": "manager=Manager 3",
+            "harm_per_booking": 70.3731,
+            "magnitude_deviation": 0.5556,
+            "magnitude_ratio": 0.4444,
+            "n_exposed": 33,
+            "sign_agrees": true
+          },
+          {
+            "check": "leave_one_cluster_out",
+            "counts_toward_gate": true,
+            "dropped_group": "manager=Manager 4",
+            "harm_per_booking": 158.7838,
+            "magnitude_deviation": 0.0026,
+            "magnitude_ratio": 1.0026,
+            "n_exposed": 33,
+            "sign_agrees": true
+          },
+          {
+            "check": "leave_one_cluster_out",
+            "counts_toward_gate": true,
+            "dropped_group": "manager=Manager 5",
+            "harm_per_booking": 192.2931,
+            "magnitude_deviation": 0.2142,
+            "magnitude_ratio": 1.2142,
+            "n_exposed": 32,
+            "sign_agrees": true
+          },
+          {
+            "check": "leave_one_cluster_out",
+            "counts_toward_gate": true,
+            "dropped_group": "manager=Manager 6",
+            "harm_per_booking": 170.2527,
+            "magnitude_deviation": 0.0751,
+            "magnitude_ratio": 1.0751,
+            "n_exposed": 33,
+            "sign_agrees": true
+          },
+          {
+            "check": "leave_one_cluster_out",
+            "counts_toward_gate": true,
+            "dropped_group": "manager=Manager 7",
+            "harm_per_booking": 214.9145,
+            "magnitude_deviation": 0.3571,
+            "magnitude_ratio": 1.3571,
+            "n_exposed": 29,
+            "sign_agrees": true
+          },
+          {
+            "check": "leave_one_cluster_out",
+            "counts_toward_gate": true,
+            "dropped_group": "manager=Manager 8",
+            "harm_per_booking": 240.0013,
+            "magnitude_deviation": 0.5155,
+            "magnitude_ratio": 1.5155,
+            "n_exposed": 29,
+            "sign_agrees": true
+          },
+          {
+            "check": "winsorize_top_bottom_1pct",
+            "clip_bounds": [
+              -3109.72,
+              1316.12
+            ],
+            "counts_toward_gate": true,
+            "harm_per_booking": 169.8629,
+            "magnitude_deviation": 0.0726,
+            "magnitude_ratio": 1.0726,
+            "n_exposed": 35,
+            "sign_agrees": true
+          },
+          {
+            "check": "numeric_threshold_perturbation",
+            "condition": "booking_lead_days ge 88.0",
+            "counts_toward_gate": true,
+            "direction": "one_bin_below",
+            "harm_per_booking": 130.8354,
+            "magnitude_deviation": 0.1738,
+            "magnitude_ratio": 0.8262,
+            "n_exposed": 40,
+            "perturbed_value": 81.0,
+            "sign_agrees": true,
+            "snapped_to_adjacent_level": false,
+            "state": "estimated",
+            "threshold_percentile_in_development": 0.7996
+          },
+          {
+            "check": "numeric_threshold_perturbation",
+            "condition": "booking_lead_days ge 88.0",
+            "counts_toward_gate": true,
+            "direction": "one_bin_above",
+            "harm_per_booking": 119.309,
+            "magnitude_deviation": 0.2466,
+            "magnitude_ratio": 0.7534,
+            "n_exposed": 29,
+            "perturbed_value": 95.0,
+            "sign_agrees": true,
+            "snapped_to_adjacent_level": false,
+            "state": "estimated",
+            "threshold_percentile_in_development": 0.7996
+          },
+          {
+            "check": "numeric_threshold_perturbation",
+            "condition": "party_size lt 2.0",
+            "counts_toward_gate": true,
+            "direction": "one_bin_above",
+            "harm_per_booking": -109.1576,
+            "magnitude_deviation": 0.3107,
+            "magnitude_ratio": 0.6893,
+            "n_exposed": 62,
+            "perturbed_value": 3.0,
+            "sign_agrees": false,
+            "snapped_to_adjacent_level": true,
+            "state": "estimated",
+            "threshold_percentile_in_development": 0.2404
+          },
+          {
+            "admissibility": "inadmissible_decomposition_of_the_primary_outcome",
+            "check": "alternative_outcome_not_gate_binding",
+            "counts_toward_gate": false,
+            "harm_per_booking": -298.1971,
+            "magnitude_deviation": 0.883,
+            "outcome_id": "gross_profit_eur"
+          },
+          {
+            "check": "numeric_threshold_perturbation",
+            "condition": "party_size lt 2.0",
+            "counts_toward_gate": false,
+            "direction": "one_bin_below",
+            "perturbed_value": 1.0,
+            "snapped_to_adjacent_level": false,
+            "state": "degenerate_no_contrast",
+            "threshold_percentile_in_development": 0.2404
+          }
+        ],
+        "checks_run": 12,
+        "max_magnitude_deviation": 0.5556,
+        "max_magnitude_deviation_ceiling": 0.5,
+        "recorded_but_not_counted": [
+          {
+            "admissibility": "inadmissible_decomposition_of_the_primary_outcome",
+            "check": "alternative_outcome_not_gate_binding",
+            "counts_toward_gate": false,
+            "harm_per_booking": -298.1971,
+            "magnitude_deviation": 0.883,
+            "outcome_id": "gross_profit_eur"
+          },
+          {
+            "check": "numeric_threshold_perturbation",
+            "condition": "party_size lt 2.0",
+            "counts_toward_gate": false,
+            "direction": "one_bin_below",
+            "perturbed_value": 1.0,
+            "snapped_to_adjacent_level": false,
+            "state": "degenerate_no_contrast",
+            "threshold_percentile_in_development": 0.2404
+          }
+        ],
+        "sign_agreement": 0.9167,
+        "sign_agreement_floor": 0.9
+      },
+      "graded": {
+        "adjusted_p_value": 1.0,
+        "comparison_records_development": 4964,
+        "diagnostics": {
+          "adjusted_harm_per_booking": 207.56989932028904,
+          "adjustment_columns_considered": [
+            "acquisition_channel",
+            "customer_price_eur",
+            "customer_segment",
+            "customer_type",
+            "destination",
+            "discount_rate",
+            "installments",
+            "manager",
+            "manual_exception",
+            "payment_method",
+            "quoted_cost_eur",
+            "supplier",
+            "trip_duration_days"
+          ],
+          "adjustment_columns_used": [
+            "customer_type",
+            "manual_exception",
+            "customer_segment",
+            "payment_method",
+            "customer_price_eur",
+            "quoted_cost_eur"
+          ],
+          "bootstrap_standard_error_eur": 175.08788155388646,
+          "confounder_stratum_coverage": 0.5142857142857142,
+          "development_bootstrap_reps": 2000,
+          "e_value": 1.8916348816015653,
+          "historical_exposure_ci_eur": [
+            3129.6736605123633,
+            38042.53609628633
+          ],
+          "historical_exposure_outcome_share": 0.0033789741927373923,
+          "holdout_retention": 2.467238582416714,
+          "minimum_detectable_effect_eur": 357.2595663876503,
+          "p_value_empirical_bootstrap_floor_limited": 0.352,
+          "p_value_normal_approx_bootstrap_se": 0.3657323553990759,
+          "robustness_alternative_outcome_admissibility": "inadmissible_decomposition_of_the_primary_outcome",
+          "robustness_alternative_outcome_diagnostic": {
+            "admissibility": "inadmissible_decomposition_of_the_primary_outcome",
+            "harm_per_booking": -298.197115,
+            "magnitude_deviation": 0.882958,
+            "note": "Recorded as a disclosed decomposition diagnostic, not as a G12 refit: this outcome is not a commensurable measurement of the primary construct, so a magnitude-parity requirement against it reports outcome algebra rather than the effect's stability (CONTRACT_VERSION >= 1.3.0, TASK-070).",
+            "outcome_id": "gross_profit_eur",
+            "sign_agrees": false
+          },
+          "robustness_checks_run": 12,
+          "robustness_max_magnitude_deviation": 0.5556308357377606,
+          "robustness_not_evaluated_reason": null,
+          "robustness_semantics_version": "one_bin_relative_v2",
+          "robustness_sign_agreement": 0.9166666666666666,
+          "robustness_threshold_refit_states": {
+            "degenerate_no_contrast": 1,
+            "estimated": 3,
+            "unrepresentable_step": 0,
+            "vacuous_identical_rule": 0
+          },
+          "robustness_threshold_refits": [
+            {
+              "condition": "booking_lead_days ge 88.0",
+              "direction": "one_bin_below",
+              "harm_per_booking": 130.835356,
+              "n_exposed": 40,
+              "perturbed_value": 81.0,
+              "snapped_to_adjacent_level": false,
+              "state": "estimated",
+              "threshold_percentile": 0.79956
+            },
+            {
+              "condition": "booking_lead_days ge 88.0",
+              "direction": "one_bin_above",
+              "harm_per_booking": 119.309026,
+              "n_exposed": 29,
+              "perturbed_value": 95.0,
+              "snapped_to_adjacent_level": false,
+              "state": "estimated",
+              "threshold_percentile": 0.79956
+            },
+            {
+              "condition": "party_size lt 2.0",
+              "direction": "one_bin_below",
+              "harm_per_booking": null,
+              "n_exposed": null,
+              "perturbed_value": 1.0,
+              "snapped_to_adjacent_level": false,
+              "state": "degenerate_no_contrast",
+              "threshold_percentile": 0.240448
+            },
+            {
+              "condition": "party_size lt 2.0",
+              "direction": "one_bin_above",
+              "harm_per_booking": -109.157603,
+              "n_exposed": 62,
+              "perturbed_value": 3.0,
+              "snapped_to_adjacent_level": true,
+              "state": "estimated",
+              "threshold_percentile": 0.240448
+            }
+          ],
+          "seasonal_concentration_index": 1.9171620325982741,
+          "segment_reversal_exposure_share": 0.08571428571428572,
+          "splits_present": [
+            "development",
+            "validation",
+            "future_holdout"
+          ]
+        },
+        "evidence_level": "descriptive_observation",
+        "exposed_records_development": 35,
+        "family_size": 26213,
+        "g05_arithmetic": {
+          "bh_adjusted_p": 1.0,
+          "bh_raw_p_required_at_this_rank": 2.2889406019913786e-05,
+          "family_size": 26213,
+          "fdr_alpha": 0.1,
+          "passes": false,
+          "rank_within_counterfactual_family": 6,
+          "raw_p_normal_approx": 0.3657323553990759,
+          "shortfall_factor": 15978.237053459958
+        },
+        "gates": {
+          "G00_LINEAGE_PREREGISTRATION": {
+            "detail": "Candidate is PERSISTED with a resolvable dataset/outcome reference.",
+            "outcome": "pass"
+          },
+          "G01_TARGET_LEAKAGE": {
+            "detail": "All condition features are DECISION_TIME.",
+            "outcome": "pass"
+          },
+          "G02_POST_TREATMENT_CONTROLS": {
+            "detail": "Adjustment set ('customer_type', 'manual_exception', 'customer_segment', 'payment_method', 'customer_price_eur', 'quoted_cost_eur') is decision-time and excludes condition features.",
+            "outcome": "pass"
+          },
+          "G03_SAMPLE_ADEQUACY": {
+            "detail": "n_exposed=35, clusters=2834, MDE80=357.3 EUR vs observed harm=158.4 EUR.",
+            "outcome": "fail"
+          },
+          "G04_UNCERTAINTY": {
+            "detail": "95% CI [-148.4, 543.6] EUR.",
+            "outcome": "fail"
+          },
+          "G05_MULTIPLE_COMPARISONS": {
+            "detail": "Normal-approx p (bootstrap SE)=0.366, BH-adjusted p=1 over family_size=26213 (alpha=0.1).",
+            "outcome": "fail"
+          },
+          "G06_CONFOUNDING": {
+            "detail": "Adjusted for ('customer_type', 'manual_exception', 'customer_segment', 'payment_method', 'customer_price_eur', 'quoted_cost_eur'): harm 158.4 -> 207.6 EUR (attenuation -0.31, coverage 0.51, E-value 1.89, floor 1.5).",
+            "outcome": "pass"
+          },
+          "G07_SELECTION_AND_COLLIDER": {
+            "detail": "Primary-outcome missingness: exposed=0, comparison=0.",
+            "outcome": "pass"
+          },
+          "G08_SURVIVORSHIP_COHORT": {
+            "detail": "Full eligible cohort; no post-decision filter applied.",
+            "outcome": "pass"
+          },
+          "G09_SIMPSON_AND_HETEROGENEITY": {
+            "detail": "Sign reverses in customer_segment strata covering 8.6% of exposure (threshold 20%).",
+            "outcome": "pass"
+          },
+          "G10_TEMPORAL_STABILITY": {
+            "detail": "Same sign across ['development', 'validation', 'future_holdout']: True; holdout retains 247% of development magnitude (floor 50%).",
+            "outcome": "pass"
+          },
+          "G11_SEASONALITY": {
+            "detail": "Max monthly exposure/cohort concentration ratio 1.92 (threshold 1.5).",
+            "outcome": "fail"
+          },
+          "G12_ROBUSTNESS": {
+            "detail": "Sign agreement 92% over 12 perturbations (floor 90%); max magnitude deviation 56% (ceiling 50%); semantics one_bin_relative_v2; threshold refit states {'estimated': 3, 'vacuous_identical_rule': 0, 'degenerate_no_contrast': 1, 'unrepresentable_step': 0}. Declared alternative outcome 'gross_profit_eur' is inadmissible_decomposition_of_the_primary_outcome and is reported as a decomposition diagnostic, not counted here.",
+            "outcome": "fail"
+          },
+          "G13_IDENTIFICATION_DESIGN": {
+            "detail": "Observational data; no quasi-experimental design exists.",
+            "outcome": "fail"
+          },
+          "G14_RANDOMIZATION_INTEGRITY": {
+            "detail": "No prospective randomized assignment; retrospective data only.",
+            "outcome": "fail"
+          },
+          "G15_ECONOMIC_MATERIALITY": {
+            "detail": "Combined-window exposure 95% CI [3130, 38043] EUR, outcome share 0.338%.",
+            "outcome": "fail"
+          }
+        },
+        "policy_readiness": "not_ready",
+        "raw_effect": {
+          "ci_high": 543.6178155616312,
+          "ci_low": -148.40756104518488,
+          "value": 158.36632122712095
+        },
+        "rule": "booking_lead_days ge 88.0 AND party_size lt 2.0 AND product_category eq luxury",
+        "source": "COUNTERFACTUAL (never selected by the committed run)",
+        "verdict": "DOWNGRADE"
+      },
+      "level_2_blocking_gates": [
+        "G03_SAMPLE_ADEQUACY",
+        "G04_UNCERTAINTY",
+        "G05_MULTIPLE_COMPARISONS",
+        "G12_ROBUSTNESS"
+      ],
+      "name": "Solo luxury long-lead servicing",
+      "oracle_rule": "booking_lead_days ge 88.0 AND party_size lt 2.0 AND product_category eq luxury",
+      "pattern_id": "P08",
+      "scoreable": true,
+      "true_rule": "product_category=luxury AND party_size=1 AND booking_lead_days>=90",
+      "true_rule_affected_n": 60,
+      "true_rule_power_reference": {
+        "bh_most_lenient_raw_p_required": 3.814901003318964e-06,
+        "conclusively_below_bh_at_any_rank": true,
+        "development_harm_per_booking": 79.5544,
+        "development_n_exposed": 33,
+        "development_outcome_sd": 751.8919,
+        "g03_would_pass_on_floors": false,
+        "g03_would_pass_on_power": false,
+        "minimum_detectable_effect_eur": 367.909,
+        "note": "OPTIMISTIC BOUND on the exact true rule, unclustered SE; clustering can only widen it. Conclusive only when it fails.",
+        "optimistic_unclustered_p": 0.5446491376342514
+      }
+    },
+    {
+      "development_sample": {
+        "harm_per_booking": 124.2875,
+        "min_exposed_records_threshold": 50,
+        "n_comparison": 4770,
+        "n_exposed": 229,
+        "pooled_sd": 751.4427
+      },
+      "first_level_2_blocking_gate": "G03_SAMPLE_ADEQUACY",
+      "g03_power": {
+        "mde_over_observed_harm": 1.1459,
+        "minimum_detectable_effect_eur": 142.4178,
+        "observed_harm_eur": 124.2875,
+        "required_exposed_n_for_80pct_power": 305.3
+      },
+      "g12_robustness": {
+        "binding_check": {
+          "check": "numeric_threshold_perturbation",
+          "condition": "party_size ge 4.0",
+          "counts_toward_gate": true,
+          "direction": "one_bin_below",
+          "harm_per_booking": 7.8383,
+          "magnitude_deviation": 0.9369,
+          "magnitude_ratio": 0.0631,
+          "n_exposed": 587,
+          "perturbed_value": 3.0,
+          "sign_agrees": true,
+          "snapped_to_adjacent_level": false,
+          "state": "estimated",
+          "threshold_percentile_in_development": 0.7888
+        },
+        "checks": [
+          {
+            "check": "leave_one_cluster_out",
+            "counts_toward_gate": true,
+            "dropped_group": "manager=Manager 1",
+            "harm_per_booking": 142.8335,
+            "magnitude_deviation": 0.1492,
+            "magnitude_ratio": 1.1492,
+            "n_exposed": 204,
+            "sign_agrees": true
+          },
+          {
+            "check": "leave_one_cluster_out",
+            "counts_toward_gate": true,
+            "dropped_group": "manager=Manager 2",
+            "harm_per_booking": 86.5525,
+            "magnitude_deviation": 0.3036,
+            "magnitude_ratio": 0.6964,
+            "n_exposed": 176,
+            "sign_agrees": true
+          },
+          {
+            "check": "leave_one_cluster_out",
+            "counts_toward_gate": true,
+            "dropped_group": "manager=Manager 3",
+            "harm_per_booking": 147.1829,
+            "magnitude_deviation": 0.1842,
+            "magnitude_ratio": 1.1842,
+            "n_exposed": 196,
+            "sign_agrees": true
+          },
+          {
+            "check": "leave_one_cluster_out",
+            "counts_toward_gate": true,
+            "dropped_group": "manager=Manager 4",
+            "harm_per_booking": 126.136,
+            "magnitude_deviation": 0.0149,
+            "magnitude_ratio": 1.0149,
+            "n_exposed": 206,
+            "sign_agrees": true
+          },
+          {
+            "check": "leave_one_cluster_out",
+            "counts_toward_gate": true,
+            "dropped_group": "manager=Manager 5",
+            "harm_per_booking": 124.498,
+            "magnitude_deviation": 0.0017,
+            "magnitude_ratio": 1.0017,
+            "n_exposed": 208,
+            "sign_agrees": true
+          },
+          {
+            "check": "leave_one_cluster_out",
+            "counts_toward_gate": true,
+            "dropped_group": "manager=Manager 6",
+            "harm_per_booking": 91.8435,
+            "magnitude_deviation": 0.261,
+            "magnitude_ratio": 0.739,
+            "n_exposed": 205,
+            "sign_agrees": true
+          },
+          {
+            "check": "leave_one_cluster_out",
+            "counts_toward_gate": true,
+            "dropped_group": "manager=Manager 7",
+            "harm_per_booking": 139.4294,
+            "magnitude_deviation": 0.1218,
+            "magnitude_ratio": 1.1218,
+            "n_exposed": 193,
+            "sign_agrees": true
+          },
+          {
+            "check": "leave_one_cluster_out",
+            "counts_toward_gate": true,
+            "dropped_group": "manager=Manager 8",
+            "harm_per_booking": 131.4563,
+            "magnitude_deviation": 0.0577,
+            "magnitude_ratio": 1.0577,
+            "n_exposed": 215,
+            "sign_agrees": true
+          },
+          {
+            "check": "winsorize_top_bottom_1pct",
+            "clip_bounds": [
+              -3109.72,
+              1316.12
+            ],
+            "counts_toward_gate": true,
+            "harm_per_booking": 105.2198,
+            "magnitude_deviation": 0.1534,
+            "magnitude_ratio": 0.8466,
+            "n_exposed": 229,
+            "sign_agrees": true
+          },
+          {
+            "check": "numeric_threshold_perturbation",
+            "condition": "party_size ge 4.0",
+            "counts_toward_gate": true,
+            "direction": "one_bin_below",
+            "harm_per_booking": 7.8383,
+            "magnitude_deviation": 0.9369,
+            "magnitude_ratio": 0.0631,
+            "n_exposed": 587,
+            "perturbed_value": 3.0,
+            "sign_agrees": true,
+            "snapped_to_adjacent_level": false,
+            "state": "estimated",
+            "threshold_percentile_in_development": 0.7888
+          },
+          {
+            "check": "numeric_threshold_perturbation",
+            "condition": "party_size ge 4.0",
+            "counts_toward_gate": true,
+            "direction": "one_bin_above",
+            "harm_per_booking": 182.6231,
+            "magnitude_deviation": 0.4694,
+            "magnitude_ratio": 1.4694,
+            "n_exposed": 179,
+            "perturbed_value": 5.0,
+            "sign_agrees": true,
+            "snapped_to_adjacent_level": false,
+            "state": "estimated",
+            "threshold_percentile_in_development": 0.7888
+          },
+          {
+            "admissibility": "inadmissible_decomposition_of_the_primary_outcome",
+            "check": "alternative_outcome_not_gate_binding",
+            "counts_toward_gate": false,
+            "harm_per_booking": 30.3068,
+            "magnitude_deviation": 0.7562,
+            "outcome_id": "gross_profit_eur"
+          }
+        ],
+        "checks_run": 11,
+        "max_magnitude_deviation": 0.9369,
+        "max_magnitude_deviation_ceiling": 0.5,
+        "recorded_but_not_counted": [
+          {
+            "admissibility": "inadmissible_decomposition_of_the_primary_outcome",
+            "check": "alternative_outcome_not_gate_binding",
+            "counts_toward_gate": false,
+            "harm_per_booking": 30.3068,
+            "magnitude_deviation": 0.7562,
+            "outcome_id": "gross_profit_eur"
+          }
+        ],
+        "sign_agreement": 1.0,
+        "sign_agreement_floor": 0.9
+      },
+      "graded": {
+        "adjusted_p_value": 1.0,
+        "comparison_records_development": 4770,
+        "diagnostics": {
+          "adjusted_harm_per_booking": 68.35582099569555,
+          "adjustment_columns_considered": [
+            "acquisition_channel",
+            "booking_lead_days",
+            "customer_price_eur",
+            "customer_segment",
+            "customer_type",
+            "destination",
+            "discount_rate",
+            "installments",
+            "manager",
+            "manual_exception",
+            "payment_method",
+            "product_category",
+            "quoted_cost_eur",
+            "trip_duration_days"
+          ],
+          "adjustment_columns_used": [
+            "customer_type",
+            "manual_exception",
+            "customer_segment",
+            "payment_method",
+            "product_category",
+            "acquisition_channel"
+          ],
+          "bootstrap_standard_error_eur": 62.75538135332231,
+          "confounder_stratum_coverage": 0.5982532751091703,
+          "development_bootstrap_reps": 2000,
+          "e_value": 1.3924879338737401,
+          "historical_exposure_ci_eur": [
+            15167.506539250782,
+            83239.24206108313
+          ],
+          "historical_exposure_outcome_share": 0.0080273750581679,
+          "holdout_retention": 1.2164513862945714,
+          "minimum_detectable_effect_eur": 142.4178166972965,
+          "p_value_empirical_bootstrap_floor_limited": 0.037,
+          "p_value_normal_approx_bootstrap_se": 0.047646552902799885,
+          "robustness_alternative_outcome_admissibility": "inadmissible_decomposition_of_the_primary_outcome",
+          "robustness_alternative_outcome_diagnostic": {
+            "admissibility": "inadmissible_decomposition_of_the_primary_outcome",
+            "harm_per_booking": 30.306776,
+            "magnitude_deviation": 0.756156,
+            "note": "Recorded as a disclosed decomposition diagnostic, not as a G12 refit: this outcome is not a commensurable measurement of the primary construct, so a magnitude-parity requirement against it reports outcome algebra rather than the effect's stability (CONTRACT_VERSION >= 1.3.0, TASK-070).",
+            "outcome_id": "gross_profit_eur",
+            "sign_agrees": true
+          },
+          "robustness_checks_run": 11,
+          "robustness_max_magnitude_deviation": 0.9369337359438374,
+          "robustness_not_evaluated_reason": null,
+          "robustness_semantics_version": "one_bin_relative_v2",
+          "robustness_sign_agreement": 1.0,
+          "robustness_threshold_refit_states": {
+            "degenerate_no_contrast": 0,
+            "estimated": 2,
+            "unrepresentable_step": 0,
+            "vacuous_identical_rule": 0
+          },
+          "robustness_threshold_refits": [
+            {
+              "condition": "party_size ge 4.0",
+              "direction": "one_bin_below",
+              "harm_per_booking": 7.838348,
+              "n_exposed": 587,
+              "perturbed_value": 3.0,
+              "snapped_to_adjacent_level": false,
+              "state": "estimated",
+              "threshold_percentile": 0.788758
+            },
+            {
+              "condition": "party_size ge 4.0",
+              "direction": "one_bin_above",
+              "harm_per_booking": 182.623095,
+              "n_exposed": 179,
+              "perturbed_value": 5.0,
+              "snapped_to_adjacent_level": false,
+              "state": "estimated",
+              "threshold_percentile": 0.788758
+            }
+          ],
+          "seasonal_concentration_index": 1.367408145521331,
+          "segment_reversal_exposure_share": 0.0,
+          "splits_present": [
+            "development",
+            "validation",
+            "future_holdout"
+          ]
+        },
+        "evidence_level": "descriptive_observation",
+        "exposed_records_development": 229,
+        "family_size": 26213,
+        "g05_arithmetic": {
+          "bh_adjusted_p": 1.0,
+          "bh_raw_p_required_at_this_rank": 1.5259604013275855e-05,
+          "family_size": 26213,
+          "fdr_alpha": 0.1,
+          "passes": false,
+          "rank_within_counterfactual_family": 4,
+          "raw_p_normal_approx": 0.047646552902799885,
+          "shortfall_factor": 3122.3977281027337
+        },
+        "gates": {
+          "G00_LINEAGE_PREREGISTRATION": {
+            "detail": "Candidate is PERSISTED with a resolvable dataset/outcome reference.",
+            "outcome": "pass"
+          },
+          "G01_TARGET_LEAKAGE": {
+            "detail": "All condition features are DECISION_TIME.",
+            "outcome": "pass"
+          },
+          "G02_POST_TREATMENT_CONTROLS": {
+            "detail": "Adjustment set ('customer_type', 'manual_exception', 'customer_segment', 'payment_method', 'product_category', 'acquisition_channel') is decision-time and excludes condition features.",
+            "outcome": "pass"
+          },
+          "G03_SAMPLE_ADEQUACY": {
+            "detail": "n_exposed=229, clusters=2834, MDE80=142.4 EUR vs observed harm=124.3 EUR.",
+            "outcome": "fail"
+          },
+          "G04_UNCERTAINTY": {
+            "detail": "95% CI [8.3, 256.9] EUR.",
+            "outcome": "pass"
+          },
+          "G05_MULTIPLE_COMPARISONS": {
+            "detail": "Normal-approx p (bootstrap SE)=0.0476, BH-adjusted p=1 over family_size=26213 (alpha=0.1).",
+            "outcome": "fail"
+          },
+          "G06_CONFOUNDING": {
+            "detail": "Adjusted for ('customer_type', 'manual_exception', 'customer_segment', 'payment_method', 'product_category', 'acquisition_channel'): harm 124.3 -> 68.4 EUR (attenuation 0.45, coverage 0.60, E-value 1.39, floor 1.5).",
+            "outcome": "fail"
+          },
+          "G07_SELECTION_AND_COLLIDER": {
+            "detail": "Primary-outcome missingness: exposed=0, comparison=0.",
+            "outcome": "pass"
+          },
+          "G08_SURVIVORSHIP_COHORT": {
+            "detail": "Full eligible cohort; no post-decision filter applied.",
+            "outcome": "pass"
+          },
+          "G09_SIMPSON_AND_HETEROGENEITY": {
+            "detail": "Sign reverses in customer_segment strata covering 0.0% of exposure (threshold 20%).",
+            "outcome": "pass"
+          },
+          "G10_TEMPORAL_STABILITY": {
+            "detail": "Same sign across ['development', 'validation', 'future_holdout']: True; holdout retains 122% of development magnitude (floor 50%).",
+            "outcome": "pass"
+          },
+          "G11_SEASONALITY": {
+            "detail": "Max monthly exposure/cohort concentration ratio 1.37 (threshold 1.5).",
+            "outcome": "pass"
+          },
+          "G12_ROBUSTNESS": {
+            "detail": "Sign agreement 100% over 11 perturbations (floor 90%); max magnitude deviation 94% (ceiling 50%); semantics one_bin_relative_v2; threshold refit states {'estimated': 2, 'vacuous_identical_rule': 0, 'degenerate_no_contrast': 0, 'unrepresentable_step': 0}. Declared alternative outcome 'gross_profit_eur' is inadmissible_decomposition_of_the_primary_outcome and is reported as a decomposition diagnostic, not counted here.",
+            "outcome": "fail"
+          },
+          "G13_IDENTIFICATION_DESIGN": {
+            "detail": "Observational data; no quasi-experimental design exists.",
+            "outcome": "fail"
+          },
+          "G14_RANDOMIZATION_INTEGRITY": {
+            "detail": "No prospective randomized assignment; retrospective data only.",
+            "outcome": "fail"
+          },
+          "G15_ECONOMIC_MATERIALITY": {
+            "detail": "Combined-window exposure 95% CI [15168, 83239] EUR, outcome share 0.803%.",
+            "outcome": "pass"
+          }
+        },
+        "policy_readiness": "experiment_only",
+        "raw_effect": {
+          "ci_high": 256.89551087232013,
+          "ci_low": 8.281933078748295,
+          "value": 124.28749143573827
+        },
+        "rule": "party_size ge 4.0 AND supplier eq DeltaSun",
+        "source": "COUNTERFACTUAL (never selected by the committed run)",
+        "verdict": "DOWNGRADE"
+      },
+      "level_2_blocking_gates": [
+        "G03_SAMPLE_ADEQUACY",
+        "G05_MULTIPLE_COMPARISONS",
+        "G12_ROBUSTNESS"
+      ],
+      "name": "DeltaSun autumn groups",
+      "oracle_rule": "party_size ge 4.0 AND supplier eq DeltaSun",
+      "pattern_id": "P09",
+      "scoreable": true,
+      "true_rule": "supplier=DeltaSun AND booking_month IN [9,10,11] AND party_size>=4",
+      "true_rule_affected_n": 124,
+      "true_rule_power_reference": {
+        "bh_most_lenient_raw_p_required": 3.814901003318964e-06,
+        "conclusively_below_bh_at_any_rank": true,
+        "development_harm_per_booking": 242.1308,
+        "development_n_exposed": 60,
+        "development_outcome_sd": 751.8919,
+        "g03_would_pass_on_floors": true,
+        "g03_would_pass_on_power": false,
+        "minimum_detectable_effect_eur": 273.5934,
+        "note": "OPTIMISTIC BOUND on the exact true rule, unclustered SE; clustering can only widen it. Conclusive only when it fails.",
+        "optimistic_unclustered_p": 0.013160020852171612
+      }
+    }
+  ],
+  "robustness_semantics_version": "one_bin_relative_v2",
+  "task": "TASK-069 reprioritization item 1 (validation power autopsy)",
+  "traced_candidates_sha256": "9f55dddc17e22a6064af42a89fd0c3951b4ee09a5f43595c6a3a4cc618fa6d09",
+  "traced_run_id": "task-064-beam-20260822-001",
+  "validation_contract_version": "1.3.0"
+}
