@@ -184,7 +184,13 @@ different reported-p-value set than the official run's (family size held at the 
 | P03 | DOWNGRADE | `descriptive_observation` | G12, G13, G14 |
 | P04 | DOWNGRADE | `descriptive_observation` | G03, G04, G05, G06, G10, G12, G13, G14, G15 |
 | P08 | DOWNGRADE | `descriptive_observation` | G03, G04, G05, G11, G12, G13, G14, G15 |
-| P09 | DOWNGRADE | `descriptive_observation` | G05, G06, G12, G13, G14 |
+| P09 | DOWNGRADE | `descriptive_observation` | G03, G05, G06, G12, G13, G14 |
+
+**Correction, 2026-08-28 (`TASK-069` item 1, `docs/benchmark/task-069-validation-power-autopsy.md`
+§2).** P09's row above originally omitted `G03_SAMPLE_ADEQUACY`, which
+`task-069-oracle-decomposition-raw.json` records and which is P09's *binding* level-2 gate. The
+raw output was and is correct; only this table's transcription was wrong. No computed number
+changed.
 
 **This materially qualifies the whole exercise, and is the most uncomfortable finding here.** Even a
 selection policy that admitted all six oracle branches would move `TASK-028`'s unique-pattern recall
