@@ -1,4 +1,4 @@
-# Validation and Evidence Contract v1.2.0
+# Validation and Evidence Contract v1.3.0
 
 **Owner:** Statistics · **Task:** TASK-018 · **Status:** approved for use by TASK-019 onward
 
@@ -23,6 +23,17 @@ generalized from a fixed pair (`manager`, `supplier`) to every eligible `DECISIO
 the development split can jointly support; see §4b. Nothing else in this contract changed — G05
 and every other gate, threshold, and evidence/readiness rule are exactly as v1.1.0 left them.
 Findings graded under v1.1.0 or earlier keep that grading; they are not re-graded here.
+
+**v1.3.0 change note (2026-08-28, `ADR-064`, `TASK-070`).** Gate G12's *numeric-threshold
+perturbation* is now the one-bin step relative to each candidate's own threshold that this
+contract's own preregistered wording always specified — the shipped implementation used a fixed
+absolute quantile pair — and a `decomposition_of` outcome is no longer admissible as a
+magnitude-parity robustness refit; see §4c. **No threshold in `ValidationThresholds` changed**:
+`min_robustness_sign_agreement` is still 0.90, `max_robustness_magnitude_deviation` is still 0.50,
+and the perturbation *step size* is the same 0.05 percentile points the previous constant already
+encoded. Nothing outside G12 changed — G05, G06, and every other gate, threshold, and
+evidence/readiness rule are exactly as v1.2.0 left them. Findings graded under v1.2.0 or earlier
+keep that grading; they are not re-graded here.
 
 ## 1. Purpose and standing assumption
 
@@ -315,6 +326,228 @@ repeated here, since it is evidence about one specific run, not a property of th
   now per-candidate diagnostics fields, not a single run-level constant — a candidate's own report
   is the source of truth for what it was actually adjusted for.
 
+## 4c. G12 robustness: threshold-perturbation form and refit-outcome admissibility (v1.3.0, `ADR-064`, `TASK-070`)
+
+### The superseded text, preserved
+
+This section is appended, not substituted. The G12 rule text this version replaces read, verbatim
+(`GATE_SPECS[G12].rule`, contract v1.0.0 through v1.2.0) — **superseded 2026-08-28, retained here
+so the record of what was preregistered stays intact:**
+
+> Leave-one-cluster-out refits, winsorising the top and bottom 1% of the outcome, the alternative
+> outcome definition, and one-bin perturbation of every numeric threshold. The sign holds in at
+> least min_robustness_sign_agreement of refits and the magnitude stays within
+> max_robustness_magnitude_deviation of the primary estimate.
+
+Note what that text already said, and what it never said. It **specified a one-bin perturbation of
+every numeric threshold** — a step relative to each threshold — and it named "the alternative
+outcome definition" without ever stating what makes an outcome an admissible *alternative*. The
+first was implemented incorrectly; the second was underspecified and defaulted to whatever the
+dataset manifest happened to declare. Both are corrected here. **Neither correction changes a
+threshold, and neither weakens what G12 tests.**
+
+### Defect 1 — the perturbation measured threshold position, not stability
+
+`docs/benchmark/task-069-g12-form-investigation.md` established this on neutrally-constructed
+synthetic data — invented columns, invented distributions, data-generating processes whose
+stability is known *by construction*, thresholds swept across the whole percentile range rather
+than chosen. Through v1.2.0 the implementation replaced each numeric threshold with its column's
+fixed `0.15` and `0.25` quantiles, wherever the candidate's threshold actually sat. Consequences,
+measured:
+
+- For an effect that is **uniform across its own exposed side** — the most stable a localised
+  threshold rule can be, since moving the cutoff cannot make it appear or disappear — the reported
+  deviation matches a closed form in the two thresholds' percentiles to a **mean absolute residual
+  of 0.0008 over 516 refits**. Nothing about the effect's stability enters the number at all.
+- That closed form clears the 50% ceiling only for thresholds between the **12.5th and 57.5th
+  percentile** of their own column. A maximally stable effect is rejected outside that window.
+- The failure is **bidirectional, not conservative**: in the same sweep the fixed grid *passed* a
+  genuinely cutoff-dependent effect — one existing only within 2 percentile points of its boundary,
+  exactly the "artefact of where you cut" this gate exists to catch — in **16 of 68** cells,
+  concentrated inside the same band where it also passed stable ones.
+- On a **coarse integer column** both fixed quantiles collapsed onto the column's minimum, so one
+  perturbed rule selected every row and the other selected none. **All 144 refits across all 72
+  cells produced no estimate at all**, each silently counted as a check that ran and did not agree,
+  so the gate failed regardless of what the data contained.
+
+The constant's own arithmetic explains it: `(0.15, 0.25)` is a pair symmetric about a **q0.20
+anchor with a half-width of 0.05 percentile points**. It *is* a one-bin relative step — for a
+candidate whose threshold sits at the 20th percentile, and for no other.
+
+### The replacement method
+
+**One bin is `PERTURBATION_PERCENTILE_STEP` (0.05) of the column's own distribution, measured from
+the candidate's own threshold position, one step below and one step above it.** Concretely, for a
+numeric condition on column `X` with threshold `v`:
+
+1. **Own position.** `p` = share of present rows with `X < v`, on the development split.
+2. **Targets.** `p - 0.05` and `p + 0.05`. The perturbed threshold is `X`'s own realised value
+   nearest each target — always an actual value of the column, never an interpolated one.
+3. **Direction.** Exactly one refit narrows the exposed group and one broadens it, under either
+   operator and wherever the threshold sits. This is the "direction" half of the one-bin semantics
+   the old text left implicit; the old grid's two refits were sometimes the same rule twice.
+4. **Resolution.** When the column's own resolution is too coarse for the step to move the
+   threshold at all, the perturbation **snaps to the adjacent distinct level** of the column, which
+   *is* one bin for that column — the smallest threshold change its resolution can express. This is
+   what a count-like integer column gets, in place of the old grid's guaranteed no-estimate.
+
+**The step size is inherited, not chosen.** 0.05 is the previous constant's own half-width about
+its own anchor. `TASK-070` changed the perturbation's *reference point*, never its magnitude, so no
+new tunable number entered the contract and none could have been fitted to a result.
+`tests/analytics/test_g12_robustness_fix.py::test_the_one_bin_step_is_the_legacy_grids_own_half_width`
+pins that derivation as an executable check, and
+`::test_the_legacy_grid_is_the_new_grid_at_exactly_one_threshold_position` pins that the two
+semantics coincide at q0.20 and nowhere else.
+
+### Named refit states: never a silent pass, never a silent fail
+
+Every threshold refit lands in exactly one `RobustnessRefitState`, is counted, and appears in the
+candidate's diagnostics and in G12's own gate detail:
+
+| State | What it means | How it counts |
+|---|---|---|
+| `estimated` | a genuinely different rule with an exposed and a comparison group | enters sign agreement and magnitude deviation |
+| `vacuous_identical_rule` | the perturbed threshold reproduces the candidate's own rule | recorded; tests nothing, so counts as nothing |
+| `degenerate_no_contrast` | the perturbed rule leaves no comparison group | recorded; not a disagreeing check |
+| `unrepresentable_step` | no adjacent level exists in that direction (threshold at the column's extreme) | recorded; the check is disclosed as one-sided |
+
+Through v1.2.0 the last three reached the aggregates by unintended routes — a degenerate refit
+arrived as a check that ran and did not agree, a vacuous one as a free pass with zero deviation.
+They are now **disclosed non-checks**, which is what they always were.
+
+If a numeric condition yields **no** estimated refit in either direction, G12 cannot answer its own
+question about that cutoff and the gate is **`NOT_EVALUATED`, with the reason stated in the gate
+detail**. §3's rule still applies — an unrun check is never a passed check, so `NOT_EVALUATED` caps
+evidence exactly as `FAIL` does — but a reader can now tell "this effect moved when we perturbed
+the cutoff" apart from "this column has no cutoff left to perturb". A threshold at a column's
+extreme, where only one direction exists, is still evaluated on the one real refit available, with
+the one-sidedness named rather than hidden.
+
+### Defect 2 — a `decomposition_of` outcome cannot carry a magnitude-parity check
+
+Independent of the threshold grid, and quantifiable exactly. `outcomes/contract.py` declares
+`gross_profit_eur` as `decomposition_of` `contribution_margin_eur` — net revenue minus base cost
+and refunds, *before* support cost, additional realized cost and payment fees. G12 nonetheless used
+it as an equal-footing refit and required magnitude parity within ±50%.
+
+What that check can attain at best is an **accounting identity**: the ratio of the pattern's effect
+on the component to its effect on the total. `TASK-069` item 2 measured it both ways.
+
+- On the travel benchmark, the deviation G12 reported reproduced the ground truth's own
+  primary-vs-component effect ratio **to within 1.6 percentage points** for every pattern whose
+  component effect is non-zero, and to three decimals for the one pattern that passed. For **five
+  of seven** scoreable patterns the attainable deviation is exactly **100%** — their harm runs
+  entirely through channels gross profit structurally cannot see, so no candidate recovering them
+  could pass this sub-check at any sample size, with any estimator, however stable its effect.
+- Truth-free confirmation, with no benchmark and no ground truth in it: a synthetic outcome built
+  as two additive channels, with a "decomposition" outcome omitting one of them and a maximally
+  stable pattern acting only through the omitted channel, produced a **99.9% magnitude deviation**
+  against the 50% ceiling. The deviation is forced by the outcome algebra alone.
+
+### The admissibility rule, and why this one
+
+G12's alternative-outcome refit asks: *does this effect survive a different definition of the same
+outcome?* That question only has an answer when the two outcomes are **commensurable measurements
+of one construct**. A component is not an alternative measurement of its own total; requiring the
+two to agree in magnitude requires the remaining components to be exactly zero.
+
+**An alternative outcome binds G12 only if all three hold** (`alternative_outcome_admissibility`,
+checked in this fixed order so a candidate always gets one deterministic reason):
+
+1. **Not a decomposition, either way.** Neither outcome is declared `decomposition_of` the other,
+   and they are not both decompositions of a common parent.
+2. **Commensurable unit.** The reviewed `unit` strings are equal. Requiring a rate effect to sit
+   within ±50% of a EUR effect measures the two scales, not the pattern.
+3. **Complete-data policy.** An `MNAR_BOUNDED` outcome has no reportable complete-case estimate at
+   all (G07 requires bounds for it), so a complete-case refit against one is not a robustness
+   measurement.
+
+This function reads **only the reviewed `OutcomeDefinition` registry** — never a candidate, an
+effect, a dataset value, or a pattern identity — so its answer is a property of the outcome
+contract, fixed before any candidate is evaluated.
+
+**Alternatives considered and rejected:**
+
+- **Keep `decomposition_of` outcomes as equal-footing refits.** Rejected: proven to report an
+  accounting identity, on both real and truth-free evidence, above.
+- **Keep them but drop magnitude parity, checking direction only.** Rejected as insufficiently
+  principled: a component whose effect is *zero by construction* has no direction to agree with
+  either, so this would replace an always-fail with an arbitrary sign on noise.
+- **Require an explicit reviewed per-dataset declaration of admissible refit outcomes.** Partly
+  adopted, and this is where the manifest already sits: `validation_roles.alternative_outcome_id`
+  *is* that declaration. What was missing is that nothing ever checked the declared outcome's
+  *role compatibility*. Making the manifest the sole authority would let a reviewer re-introduce
+  the same category error dataset by dataset; making admissibility a mechanical property of the
+  outcome registry, applied to whatever the manifest declares, is the version that cannot drift.
+- **Fail the manifest load when an inadmissible alternative outcome is declared.** Rejected: it
+  would make every existing dataset unloadable and destroy the reproducibility of frozen runs, for
+  a condition that is disclosed information rather than an error.
+- **Delete the alternative-outcome family from G12 entirely.** Rejected: it is a real robustness
+  test wherever a dataset offers a commensurable second measurement, and v1.3.0 keeps it binding
+  there (`::test_a_commensurable_alternative_outcome_still_binds_the_gate`).
+
+**When no admissible refit outcome exists** — which is every currently-built dataset's situation —
+the declared outcome is **still estimated and still reported**, as
+`robustness_alternative_outcome_diagnostic` (its harm, its ratio to the primary, its sign
+agreement) with its `AlternativeOutcomeAdmissibility` state and a note saying why it is not
+evidence. It appears in the frozen report's own `robustness_tests` list named
+`..._not_gate_binding_<state>`. It is never silently dropped, and G12's verdict is then formed from
+the three remaining families, which are genuine robustness tests in their own right.
+
+**Why this is not an unrun check.** §3's "an unrun check is never a passed check" governs missing
+*inputs*. Inadmissibility is not a missing input: it is a preregistered, disclosed property of the
+outcome registry, identical for every candidate on a dataset, determined before any candidate is
+seen. Treating it as `NOT_EVALUATED` would make every dataset without a commensurable second
+outcome structurally unable to pass G12 — the same class of defect this section fixes, relocated.
+
+### What did not change
+
+`min_robustness_sign_agreement` (0.90), `max_robustness_magnitude_deviation` (0.50), the
+perturbation step's magnitude (0.05 percentile points), the leave-one-cluster-out family, and the
+winsorise-top-and-bottom-1% family are all exactly as v1.2.0 left them — including those two
+families' treatment of a refit that produces no estimate, which for them is a genuine fragility
+signal (dropping one cluster really did destroy the contrast) rather than an artifact of a
+perturbation grid, and is therefore deliberately untouched. G06's generalized adjustment set (§4b)
+is unchanged. On the real frozen travel candidate set, graded under both semantics, **the only gate
+whose outcome moves is G12** — `adjustment_columns_used`, `e_value`,
+`confounder_stratum_coverage`, and G05's p-value are identical candidate for candidate
+(`tests/analytics/test_validation_apply.py::test_no_gate_other_than_g12_moved_between_v1_2_0_and_v1_3_0`).
+
+### Migration from v1.2.0
+
+- Findings graded under `CONTRACT_VERSION` `"1.2.0"` or earlier keep that grading. They are not,
+  and must not be, retroactively re-graded; each frozen artifact's own
+  `validation_contract_version` field records which version produced it, permanently.
+- Any *new* validation run automatically uses v1.3.0 and must be labeled as such. Comparing a
+  v1.2.0 result to a v1.3.0 result — e.g. claiming a candidate "now passes" — must say explicitly
+  that the contract version changed, not just that the candidate did.
+- **The superseded behaviour stays executable, not merely un-re-graded.**
+  `RobustnessSemantics.FIXED_QUANTILE_V1` reproduces pre-v1.3.0 grading exactly;
+  `ROBUSTNESS_SEMANTICS_BY_CONTRACT_VERSION` maps each contract version to the semantics that
+  shipped with it, and every run records `robustness_semantics_version` in its run manifest.
+  `tests/analytics/test_validation_apply.py::test_pre_v1_3_0_semantics_reproduce_the_previous_contract_versions_verdicts`
+  re-derives the previous verdicts for all 15 frozen candidates as an executable check. This is a
+  strengthening of `ADR-015`'s precedent, which left the old artifact alone but did not keep the
+  old behaviour runnable.
+- No gate other than G12 changed in this version.
+
+### Regression coverage
+
+`tests/analytics/test_g12_robustness_fix.py` is neutral throughout, in the posture
+`test_g05_multiplicity_fix.py` set for the `ADR-015` G05 fix: invented columns, invented
+distributions, invented outcome definitions, and processes whose stability is a property of how the
+rows were built. It reads no dataset, no candidate artifact, no ground truth, and no real outcome
+definition. The two families `TASK-070` requires:
+
+1. **Threshold-perturbation geometry.** One identical effect shape, shifted along an invented
+   column's percentile axis, must yield an equivalent verdict at every tested position — and a
+   genuinely cutoff-dependent effect must still be rejected at every tested position, so the fix is
+   a fix and not a relaxation. The old semantics are shown to fail the same regression in both
+   directions, with their missed detections falling inside the band where they pass stable effects.
+2. **Outcome semantics.** Two patterns with byte-identical primary outcomes, differing only in how
+   much of the harm reaches a `decomposition_of` refit outcome, must not receive different verdicts
+   from that share alone.
+
 ## 5. Gate sequence
 
 Gates run in the fixed order below. `PASS` and `WARN` satisfy a gate; `WARN` never changes the
@@ -370,6 +603,13 @@ re-validated as a new candidate; it is not reported with a caveat.
 **G10 temporal stability.** Genuinely period-limited effects (a supplier that degraded in 2025) are
 legitimate, but they are *different patterns*: they are re-scoped to an explicit validity window
 and re-validated, never presented as a standing rule.
+
+**G12 robustness is a stability test, not an accounting test.** Both of this gate's binding
+sub-checks were, through v1.2.0, reporting quantities determined by something other than the
+effect's stability — the threshold perturbation by where the threshold sat in its column, the
+alternative-outcome refit by the outcome algebra. §4c records the correction, the evidence for it,
+and the named states a refit can land in. The gate's *question* — does this effect depend on one
+cluster, one outlier, or one arbitrary cutoff — was never in doubt and is unchanged.
 
 ## 6. Evidence levels
 
@@ -502,3 +742,21 @@ this explicitly, and a false-positive trap is weighted more heavily than a misse
   by construction, regardless of how many covariates it includes. This is a genuine ceiling of
   simple, closed-form adjustment methods at finite sample sizes, not a defect specific to this
   contract's implementation.
+- **G12's one-bin perturbation (v1.3.0, §4c) still carries residual geometry**, by disclosed
+  construction. A fixed ±0.05-percentile-point step is a larger *relative* change to the exposed
+  group at the tails of a column than in its middle, so a maximally stable effect's measured
+  deviation is not flat across the percentile axis — it is a shallow, **symmetric** curve, bounded
+  well under the 0.50 ceiling at every swept position (0.09 at the middle rising to 0.34 at the
+  10th/90th percentile on the regression suite's invented uniform column, against the old grid's
+  monotone 0.12→0.88). What changed is that the residual is symmetric and never decisive, rather
+  than monotone in threshold position and decisive above the 57.5th percentile. Removing it
+  entirely would require a step defined in exposure-share rather than percentile space, which
+  `TASK-069` item 2 measured and found *worse* on stable effects (29% of maximally stable cells
+  still flagged); the smaller, symmetric residual is the disclosed cost of the simpler rule.
+- **G12's outcome-admissibility test is deliberately mechanical and therefore conservative.**
+  Commensurability is decided by exact equality of reviewed `unit` strings. A genuinely
+  commensurable outcome whose unit string differs only cosmetically is ruled *inadmissible* — which
+  yields a disclosed state and a recorded diagnostic, never a wrong verdict, but does mean the gate
+  runs on three families rather than four until the two unit strings are reconciled in the outcome
+  contract. No currently-built dataset declares a commensurable alternative outcome at all, so this
+  limit is not yet load-bearing anywhere.

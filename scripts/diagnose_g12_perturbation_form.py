@@ -83,7 +83,25 @@ from policy_analytics.validation.apply import (  # noqa: E402
     rule_expr,
     split_stats,
 )
-from policy_analytics.validation.contract import DEFAULT_THRESHOLDS  # noqa: E402
+from policy_analytics.validation.contract import (  # noqa: E402
+    DEFAULT_THRESHOLDS,
+    ROBUSTNESS_SEMANTICS_BY_CONTRACT_VERSION,
+    RobustnessSemantics,
+)
+
+#: This script is a frozen record of the **pre-fix** gate: every number in
+#: `docs/benchmark/task-069-g12-form-investigation.md` was produced against
+#: `CONTRACT_VERSION <= 1.2.0`'s robustness semantics, and `TASK-070`/`ADR-064` subsequently
+#: corrected them. Pinning the superseded semantics explicitly is what keeps this diagnostic
+#: byte-reproducible against the document it produced, instead of silently re-measuring a
+#: different gate. It is never the semantics a new validation run uses.
+PRE_FIX_SEMANTICS = RobustnessSemantics.FIXED_QUANTILE_V1
+#: The last contract version those semantics governed, read off the contract's own mapping.
+PRE_FIX_CONTRACT_VERSION = max(
+    version
+    for version, semantics in ROBUSTNESS_SEMANTICS_BY_CONTRACT_VERSION.items()
+    if semantics is PRE_FIX_SEMANTICS
+)
 from policy_analytics.validation.input_contract import (  # noqa: E402
     validation_input_from_manifest,
 )
@@ -762,9 +780,11 @@ def _real_atom_sections(
 
         # ---- Fidelity: the full battery must reproduce item 1's committed decomposition ----
         checks, sign_agreement, max_deviation, checks_run = _robustness_decomposition(
-            dev_frame, rule, dev_mask, outcome, dev, inputs
+            dev_frame, rule, dev_mask, outcome, dev, inputs, PRE_FIX_SEMANTICS
         )
-        battery = _robustness_battery(dev_frame, rule, dev_mask, outcome, dev, inputs)
+        battery = _robustness_battery(
+            dev_frame, rule, dev_mask, outcome, dev, inputs, PRE_FIX_SEMANTICS
+        )
         if (
             abs(battery[0] - sign_agreement) > 1e-12
             or abs(battery[1] - max_deviation) > 1e-12
@@ -927,7 +947,12 @@ def main(argv: list[str] | None = None) -> None:
             "touches no production module. The non-production perturbation grids are diagnostic "
             "counterfactuals parameterised entirely from the production constant itself."
         ),
-        "validation_contract_version": DEFAULT_THRESHOLDS.version,
+        # The contract version whose G12 semantics this diagnostic actually measures — the last
+        # one governed by `PRE_FIX_SEMANTICS`, derived from the contract's own mapping rather than
+        # restated. Stamping the *current* version here would mislabel a measurement of the
+        # superseded gate as a measurement of the fixed one, and would break this file's
+        # byte-reproducibility against the document it produced.
+        "validation_contract_version": PRE_FIX_CONTRACT_VERSION,
         "robustness_thresholds": {
             "max_robustness_magnitude_deviation": CEILING,
             "min_robustness_sign_agreement": DEFAULT_THRESHOLDS.min_robustness_sign_agreement,

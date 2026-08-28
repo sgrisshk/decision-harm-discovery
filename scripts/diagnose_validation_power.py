@@ -100,14 +100,24 @@ from policy_analytics.validation.apply import (  # noqa: E402
     PERTURBATION_QUANTILES,
     Condition,
     SplitStats,
+    _one_bin_threshold_refit,
     _robustness_battery,
+    _threshold_percentile,
+    alternative_outcome_admissibility,
     load_analytical_frame,
     minimum_detectable_effect,
     rule_expr,
     run_validation,
     split_stats,
 )
-from policy_analytics.validation.contract import DEFAULT_THRESHOLDS, GateId  # noqa: E402
+from policy_analytics.validation.contract import (  # noqa: E402
+    DEFAULT_THRESHOLDS,
+    ROBUSTNESS_SEMANTICS_VERSION,
+    AlternativeOutcomeAdmissibility,
+    GateId,
+    RobustnessRefitState,
+    RobustnessSemantics,
+)
 from policy_analytics.validation.grading import benjamini_hochberg_adjusted  # noqa: E402
 from policy_analytics.validation.input_contract import (  # noqa: E402
     ValidationInput,
@@ -143,15 +153,26 @@ def _robustness_decomposition(
     outcome: OutcomeDefinition,
     dev: SplitStats,
     inputs: ValidationInput,
+    semantics: RobustnessSemantics = ROBUSTNESS_SEMANTICS_VERSION,
 ) -> tuple[list[dict[str, Any]], float, float, int]:
     """Mirror `validation.apply._robustness_battery` check for check, recording each one.
 
-    Control flow is a line-for-line mirror of the real battery (same order, same perturbation
-    quantiles, same winsorisation bounds, same alternative outcome); the only addition is that each
-    check's own result is kept instead of being folded straight into two scalars. The caller
-    asserts this reproduces `_robustness_battery`'s own three outputs before any of it is reported.
+    Control flow is a line-for-line mirror of the real battery under whichever `semantics` it is
+    given (same order, same step, same winsorisation bounds, same admissibility rule); the only
+    addition is that each check's own result is kept instead of being folded straight into two
+    scalars. Under `ONE_BIN_RELATIVE_V2` the perturbation arithmetic is not reimplemented at all —
+    production's own `_one_bin_threshold_refit` is called — so this recording cannot drift from the
+    gate it is recording. The caller asserts this reproduces `_robustness_battery`'s own three
+    outputs before any of it is reported.
+
+    Refits the contract records but does not count — a disclosed non-check under v1.3.0, and a
+    declared-but-inadmissible alternative outcome — are appended to the returned list with their
+    named state, after the counted checks, so the decomposition stays complete without polluting
+    the aggregates.
     """
+    legacy = semantics is RobustnessSemantics.FIXED_QUANTILE_V1
     checks: list[dict[str, Any]] = []
+    not_counted: list[dict[str, Any]] = []
     sign_agree = 0
     checks_run = 0
     magnitude_ratios: list[float] = []
@@ -215,6 +236,7 @@ def _robustness_decomposition(
         split_stats(winsor_frame, dev_mask, outcome, "development"),
     )
 
+    alt_outcome: OutcomeDefinition | None = None
     if inputs.alternative_outcome_id is not None:
         alt_outcome = OUTCOME_BY_ID.get(inputs.alternative_outcome_id)
         if alt_outcome is None:
@@ -222,47 +244,103 @@ def _robustness_decomposition(
                 f"no reviewed OutcomeDefinition for alternative outcome "
                 f"{inputs.alternative_outcome_id!r}"
             )
-        _record(
-            "alternative_outcome",
-            {"outcome_id": inputs.alternative_outcome_id},
-            split_stats(dev_frame, dev_mask, alt_outcome, "development"),
-        )
+    admissibility = (
+        AlternativeOutcomeAdmissibility.ADMISSIBLE
+        if legacy and alt_outcome is not None
+        else alternative_outcome_admissibility(outcome, alt_outcome)
+    )
+    if alt_outcome is not None:
+        alt_stats = split_stats(dev_frame, dev_mask, alt_outcome, "development")
+        if admissibility is AlternativeOutcomeAdmissibility.ADMISSIBLE:
+            _record(
+                "alternative_outcome",
+                {"outcome_id": inputs.alternative_outcome_id},
+                alt_stats,
+            )
+        else:
+            # CONTRACT_VERSION >= 1.3.0: recorded, disclosed, and deliberately not counted. It is
+            # kept in the per-check list so the decomposition still shows the number a reader would
+            # otherwise have to take on trust, tagged with why it does not bind the gate.
+            not_counted.append(
+                {
+                    "check": "alternative_outcome_not_gate_binding",
+                    "outcome_id": inputs.alternative_outcome_id,
+                    "admissibility": admissibility.value,
+                    "harm_per_booking": (
+                        None if alt_stats is None else round(alt_stats.harm_per_booking, 4)
+                    ),
+                    "magnitude_deviation": (
+                        None
+                        if alt_stats is None or not dev.harm_per_booking
+                        else round(
+                            abs(abs(alt_stats.harm_per_booking / dev.harm_per_booking) - 1.0), 4
+                        )
+                    ),
+                }
+            )
 
     for condition in conditions:
         if not isinstance(condition.value, int | float) or isinstance(condition.value, bool):
             continue
         column = dev_frame[condition.feature]
-        # Where the candidate's own threshold sits in its column's development distribution. The
-        # perturbation below replaces it with a *fixed* low quantile of the same column, so this
-        # number is exactly how far the "one-bin perturbation" actually moves.
-        below_share = cast(Any, (column < condition.value).mean())
-        original_pct = 0.0 if below_share is None else float(cast(float, below_share))
-        for quantile in PERTURBATION_QUANTILES:
-            perturbed_value = column.quantile(quantile)
-            if perturbed_value is None:
-                continue
-            perturbed = tuple(
-                Condition(c.feature, c.operator, round(float(perturbed_value), 8))
-                if c is condition
-                else c
-                for c in conditions
+        # Where the candidate's own threshold sits in its column's development distribution. Under
+        # `FIXED_QUANTILE_V1` the perturbation replaces it with a *fixed* low quantile of the same
+        # column, so this number is exactly how far the "one-bin perturbation" actually moves;
+        # under `ONE_BIN_RELATIVE_V2` it is the point the step is measured from.
+        original_pct = _threshold_percentile(column, float(cast(float, condition.value)))
+        if legacy:
+            for quantile in PERTURBATION_QUANTILES:
+                perturbed_value = column.quantile(quantile)
+                if perturbed_value is None:
+                    continue
+                perturbed = tuple(
+                    Condition(c.feature, c.operator, round(float(perturbed_value), 8))
+                    if c is condition
+                    else c
+                    for c in conditions
+                )
+                pmask = dev_frame.select(rule_expr(perturbed).alias("m"))["m"]
+                _record(
+                    "numeric_threshold_perturbation",
+                    {
+                        "condition": f"{condition.feature} {condition.operator} {condition.value}",
+                        "threshold_percentile_in_development": round(original_pct, 4),
+                        "perturbation_quantile": quantile,
+                        "perturbed_value": round(float(perturbed_value), 8),
+                        "threshold_percentile_shift": round(original_pct - quantile, 4),
+                    },
+                    split_stats(dev_frame, pmask, outcome, "development"),
+                )
+            continue
+        levels = sorted(
+            {
+                round(float(cast(float, level)), 8)
+                for level in column.unique().to_list()
+                if level is not None
+            }
+        )
+        for direction in (-1, 1):
+            refit = _one_bin_threshold_refit(
+                dev_frame, conditions, condition, outcome, original_pct, levels, direction
             )
-            pmask = dev_frame.select(rule_expr(perturbed).alias("m"))["m"]
-            _record(
-                "numeric_threshold_perturbation",
-                {
-                    "condition": f"{condition.feature} {condition.operator} {condition.value}",
-                    "threshold_percentile_in_development": round(original_pct, 4),
-                    "perturbation_quantile": quantile,
-                    "perturbed_value": round(float(perturbed_value), 8),
-                    "threshold_percentile_shift": round(original_pct - quantile, 4),
-                },
-                split_stats(dev_frame, pmask, outcome, "development"),
-            )
+            detail: dict[str, Any] = {
+                "condition": f"{condition.feature} {condition.operator} {condition.value}",
+                "threshold_percentile_in_development": round(original_pct, 4),
+                "direction": "one_bin_below" if direction < 0 else "one_bin_above",
+                "perturbed_value": refit.perturbed_value,
+                "snapped_to_adjacent_level": refit.snapped_to_adjacent_level,
+                "state": refit.state.value,
+            }
+            if refit.state is RobustnessRefitState.ESTIMATED:
+                _record("numeric_threshold_perturbation", detail, refit.stats)
+            else:
+                # A disclosed non-check: recorded so the decomposition is complete, deliberately
+                # not folded into the aggregates (CONTRACT_VERSION >= 1.3.0).
+                not_counted.append({"check": "numeric_threshold_perturbation", **detail})
 
     sign_agreement = sign_agree / checks_run if checks_run else 0.0
     max_magnitude_deviation = max((abs(r - 1.0) for r in magnitude_ratios), default=1.0)
-    return checks, sign_agreement, max_magnitude_deviation, checks_run
+    return [*checks, *not_counted], sign_agreement, max_magnitude_deviation, checks_run
 
 
 # --------------------------------------------------------------------------------------------
@@ -375,6 +453,18 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--validation-report", type=Path, default=DEFAULT_VALIDATION_PATH)
     parser.add_argument("--oracle-raw", type=Path, default=DEFAULT_ORACLE_RAW)
     parser.add_argument("--raw-output", type=Path, default=DEFAULT_RAW_OUTPUT)
+    parser.add_argument(
+        "--robustness-semantics",
+        type=RobustnessSemantics,
+        choices=list(RobustnessSemantics),
+        default=RobustnessSemantics.FIXED_QUANTILE_V1,
+        help=(
+            "Which G12 semantics to grade under. Defaults to the pre-v1.3.0 behaviour, which is "
+            "what item 1's committed raw output was produced with — so a plain re-run still "
+            "reproduces that frozen record exactly. Pass one_bin_relative_v2 (and a different "
+            "--raw-output) to re-measure the evidence ceiling under the corrected gate."
+        ),
+    )
     return parser.parse_args(argv)
 
 
@@ -383,6 +473,8 @@ def main(argv: list[str] | None = None) -> None:
     blind_root = cast(Path, args.blind_root)
     run_id = cast(str, args.run_id)
     dataset_root = cast(Path, args.dataset_root)
+    semantics = cast(RobustnessSemantics, args.robustness_semantics)
+    legacy_semantics = semantics is RobustnessSemantics.FIXED_QUANTILE_V1
 
     candidates_path = blind_root / f"{run_id}.candidates.json"
     metrics_path = blind_root / f"{run_id}.discovery_metrics.json"
@@ -548,23 +640,42 @@ def main(argv: list[str] | None = None) -> None:
             outcome_definition_version=outcome_version,
             analysis_run_id="post-hoc-diagnostic-validation-power-autopsy",
             metrics_path=metrics_path,
+            robustness_semantics=semantics,
         )
     family_size = int(summary["family_size"])
 
     counterfactual_by_pattern: dict[str, Any] = {}
     raw_p_by_pattern: dict[str, float] = {}
+    contract_version_changes: list[dict[str, Any]] = []
     for pattern_id, validation in zip(counterfactual_order, validations, strict=True):
         report = validation.report
         gates = _gate_map(report.gate_results)
         failed = sorted(gate for gate, info in gates.items() if info["outcome"] == "fail")
         recorded = cast(dict[str, Any], oracle_counterfactual[pattern_id])
-        if str(report.evidence_level) != str(recorded["evidence_level"]) or failed != sorted(
-            cast(list[str], recorded["failed_gates"])
-        ):
+        recorded_failed = sorted(cast(list[str], recorded["failed_gates"]))
+        moved = str(report.evidence_level) != str(recorded["evidence_level"]) or (
+            failed != recorded_failed
+        )
+        if moved and legacy_semantics:
             raise SystemExit(
                 f"{pattern_id}: counterfactual verdict does not reproduce item 7's committed "
                 f"result ({report.evidence_level} / {failed} vs {recorded['evidence_level']} / "
                 f"{recorded['failed_gates']}) — refusing to report"
+            )
+        if moved:
+            # Under a *different contract version* a moved verdict is the measurement, not an
+            # error. It is recorded explicitly, per pattern, so no reader can mistake a contract
+            # change for a candidate having become stronger (validation-contract §4c migration).
+            contract_version_changes.append(
+                {
+                    "pattern_id": pattern_id,
+                    "committed_under_contract": str(oracle_raw["validation_contract_version"]),
+                    "committed_evidence_level": str(recorded["evidence_level"]),
+                    "committed_failed_gates": recorded_failed,
+                    "recomputed_under_contract": DEFAULT_THRESHOLDS.version,
+                    "recomputed_evidence_level": str(report.evidence_level),
+                    "recomputed_failed_gates": failed,
+                }
             )
         counterfactual_by_pattern[pattern_id] = {
             "source": "COUNTERFACTUAL (never selected by the committed run)",
@@ -587,7 +698,17 @@ def main(argv: list[str] | None = None) -> None:
         raw_p_by_pattern[pattern_id] = float(
             cast(float, validation.diagnostics["p_value_normal_approx_bootstrap_se"])
         )
-    print("  FIDELITY OK: counterfactual verdicts reproduce item 7's committed result exactly")
+    if legacy_semantics:
+        print("  FIDELITY OK: counterfactual verdicts reproduce item 7's committed result exactly")
+    else:
+        print(
+            f"  CONTRACT VERSION CHANGED: grading under {DEFAULT_THRESHOLDS.version} "
+            f"({semantics.value}); {len(contract_version_changes)} of "
+            f"{len(counterfactual_order)} counterfactual verdicts differ from item 7's committed "
+            f"{oracle_raw['validation_contract_version']} result. Every difference is recorded "
+            "per pattern under `contract_version_changes` — a changed contract, not a changed "
+            "candidate."
+        )
 
     # ---- P06-style actual results, read from the frozen official TASK-019 report ----
     frozen_validation = cast(
@@ -668,9 +789,11 @@ def main(argv: list[str] | None = None) -> None:
         if dev is None:
             continue
         checks, sign_agreement, max_deviation, checks_run = _robustness_decomposition(
-            dev_frame, rule, dev_mask, validation_outcome, dev, inputs
+            dev_frame, rule, dev_mask, validation_outcome, dev, inputs, semantics
         )
-        battery = _robustness_battery(dev_frame, rule, dev_mask, validation_outcome, dev, inputs)
+        battery = _robustness_battery(
+            dev_frame, rule, dev_mask, validation_outcome, dev, inputs, semantics
+        )
         if (
             abs(battery[0] - sign_agreement) > 1e-12
             or abs(battery[1] - max_deviation) > 1e-12
@@ -760,6 +883,8 @@ def main(argv: list[str] | None = None) -> None:
         "traced_candidates_sha256": actual,
         "dataset_identity_sha256": manifest["dataset_identity_sha256"],
         "validation_contract_version": DEFAULT_THRESHOLDS.version,
+        "robustness_semantics_version": semantics.value,
+        "contract_version_changes_vs_committed_item_7": contract_version_changes,
         "counterfactual_family_size": family_size,
         "counterfactual_family_size_source": str(metrics_path.name),
         "level_2_gates": [gate.value for gate in LEVEL_2_GATES],

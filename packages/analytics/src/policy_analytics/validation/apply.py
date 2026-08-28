@@ -792,6 +792,16 @@ def _validate_one(
                 "reported as a decomposition diagnostic, not counted here."
             )
         )
+        # The refit-state breakdown is a v1.3.0 concept; under the superseded semantics it is
+        # uniformly zero and would only mislead, so it is omitted there rather than printed empty.
+        refit_note = (
+            ""
+            if robustness_semantics is RobustnessSemantics.FIXED_QUANTILE_V1
+            else (
+                "; threshold refit states "
+                f"{battery.diagnostics['robustness_threshold_refit_states']}"
+            )
+        )
         gates[GateId.ROBUSTNESS] = _gate(
             GateId.ROBUSTNESS,
             robustness_ok,
@@ -799,9 +809,8 @@ def _validate_one(
             f"(floor {DEFAULT_THRESHOLDS.min_robustness_sign_agreement:.0%}); max magnitude "
             f"deviation {magnitude_dev_max:.0%} "
             f"(ceiling {DEFAULT_THRESHOLDS.max_robustness_magnitude_deviation:.0%}); "
-            f"semantics {battery.diagnostics['robustness_semantics_version']}; threshold refit "
-            f"states {battery.diagnostics['robustness_threshold_refit_states']}."
-            f"{alternative_note}",
+            f"semantics {battery.diagnostics['robustness_semantics_version']}"
+            f"{refit_note}.{alternative_note}",
         )
 
     gates[GateId.IDENTIFICATION] = _gate(
