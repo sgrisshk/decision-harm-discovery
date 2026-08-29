@@ -156,3 +156,47 @@ v1.1.0 (`artifacts/validation/task-019-official-20260817-task-058-remediation-00
 | Economic impact estimation error | **PROMISING (25–50%)** | median 37.5% (6.9–381% range) | Down from 204%; diagnostic attribution-narrowed sibling (`TASK-059`) is 76.2% on this run — no longer the tighter of the two, consistent with `TASK-058` shrinking the gap between whole-rule and narrowed exposure directly, rather than the diagnostic doing the work |
 | **Overall verdict** | — | **PROMISING** | Weakest graded band (metrics 2, 3, 6); no hard disqualifier fired |
 | **Action taken** | — | See `ADR-025` | `TASK-058` done condition met (materially narrower exposed populations); real-customer-data question (`TASK-038`) not resolved by this entry alone — flagged to Founder in `ADR-025` given this document's own PROMISING action-row wording |
+
+---
+
+**2026-08-29, Statistics/Architect.** First official `TASK-015`-equivalent blind run under **today's
+actual default engine configuration** (`TASK-073`, closing the gap `ADR-066` found: no prior official
+entry reflected the current code default, and the diagnostic `2/2`/`3/7` figures cited around
+`TASK-069`/`TASK-070`/`TASK-072` were never an official `TASK-019`/`TASK-028` cycle). Run
+`task-073-official-20260829-001` — `discovery-engine-v0.6.0`, `beam_rules_per_structure=2`,
+`max_feature_identity_fraction=1.0` (both are the genuine, unconditional code defaults; see the
+disclosure note below) — followed the full `ADR-008`/`051`/`052` protocol (issue → verify → launch →
+freeze → sign), validated under contract **v1.3.0**
+(`artifacts/validation/task-019-official-20260829-task-073-001.json`), scored by `TASK-028`
+(`artifacts/evaluation/task-028-task-073-official-001.json`). Blind-custody chain independently
+re-verified in this same pass: all three frozen output files' SHA-256 hashes and the issued
+manifest's HMAC evaluator signature were both re-derived from scratch (not merely re-run through the
+tool's own internal checks) and matched exactly. Full record: `ADR-067`.
+
+| Metric | Pre-registered band met | Actual result | Notes |
+|---|---|---|---|
+| Top-K precision | would be STRONG (≥60%) in isolation | 70% (7/10) | 3 of top 10 are not true patterns: `CAND-010` (noise), plus the two trap candidates below — moot given the hard disqualifier |
+| Economic-weighted recall | would be PROMISING (25–49%) in isolation | 45.2% | Only P01, P06 recovered of 7 scoreable patterns — identical to both prior official entries; discovery's recall profile has not moved |
+| Confounder trap rejection | **hard disqualifier 2 fires** | 2/5 promoted | `T03` (`CAND-014`: `acquisition_channel==paid_search AND discount_rate>=0.08`) reaches `policy_readiness=shadow_policy` (PASS at `adjusted_observational_association`, G06 attenuation 0.04, E-value 1.90) with **zero matched true pattern** — an unambiguous trap promotion, not the earlier ambiguous-overlap case. `T04` also reaches `shadow_policy`, via `CAND-015` (ambiguous: also matches `P06`, `best_pattern_recall=0.69`) — the same category of ambiguity disclosed on 2026-08-17's `CAND-014`, but `T03`'s promotion has no such ambiguity to hide behind. |
+| Leakage violations | passes | 0 | Hard disqualifier 1 did not fire |
+| Effect direction accuracy | STRONG (100%) | 100% (9/9) | All matched, validated-at-or-above-`predictive_association` candidates correctly signed |
+| Economic impact estimation error | **FAILED (>100%)** | median 219.9% (6.5%–464.6% range) | Worse than either prior official entry (204% original, 37.5% remediated) — moot given the hard disqualifier, but recorded in full per this document's own convention |
+| **Overall verdict** | — | **FAILED** | Hard disqualifier 2 fires (a confounding trap reached `shadow_policy`) — overall is FAILED regardless of the four graded bands, per this document's own rule. This is a *new* failure mode: neither prior official run, nor `task-064-beam-20260822-001` (rejected as an experiment, never officially graded), ever promoted a trap. |
+| **Action taken** | — | See `ADR-067` | Do not proceed to real customer data. `TASK-072`'s "not yet" stands, now on stronger, non-diagnostic grounds — see `ADR-067` for the full statement on what this does and does not mean for `TASK-072`/`TASK-057`. |
+
+**Configuration disclosure (Statistics, `TASK-073` scope item 1).** `engine.py`'s
+`DiscoveryConfig.beam_rules_per_structure` default is `2` (`TASK-064`'s tested value), and there is
+**no override path** anywhere in the real official-run pipeline: `scripts/run_discovery.py`
+constructs `DiscoveryConfig` without passing it, and neither the blind-agent CLI/acceptance contract
+nor the `Makefile` expose a flag for it (unlike `max_feature_identity_fraction`, which both do). Every
+real official run — including this one — has therefore used `beam_rules_per_structure=2`
+unconditionally since `discovery-engine-v0.5.0` shipped, which directly contradicts `TASK-064`'s own
+closing language ("not adopted as default on the strength of this result... No further tuning of
+`beam_rules_per_structure` authorized"): the code was never actually reverted to a lower/zero value
+after that experiment was rejected, and this task did not change it either, per its own hard rule. A
+narrow, documentation-only follow-on to reconcile `TASK-064`'s closure text with the code's real
+default is named in `TASK-073`'s `TASKS.md` entry; it is not fixed here.
+`max_feature_identity_fraction=1.0` (`TASK-068`'s diversity-floor post-filter) *is* correctly the
+genuine default — the CLI/`Makefile` both default to `1.0` and require an explicit, signed override
+to activate the cap — so no comparable discrepancy exists for that parameter; this run correctly did
+not exercise `TASK-068`'s filter, matching the actual current default rather than testing it.
