@@ -1,0 +1,1449 @@
+{
+  "diagnostic": "TASK-075 G06 confounding-coverage forensic trace",
+  "run_id": "task-073-official-20260829-001",
+  "dataset_identity_sha256": "b6128eb3c1bdb36515c90570aa4ccabfc3dff8d1026d9002f1c832774b60a683",
+  "candidates_sha256": "746be113a35f263c7118ac9a9e461f1d8da25397bb619aabb578aa5c50638144",
+  "fidelity_checks_passed": [
+    "candidates.json SHA-256 matches hashes.json",
+    "dataset identity matches the frozen run's own manifest",
+    "reproduced CAND-014/CAND-015 adjustment_columns_used, confounder_stratum_coverage, policy_readiness match the committed validation report exactly"
+  ],
+  "cand014_full_gate_trace": [
+    {
+      "gate_id": "G00_LINEAGE_PREREGISTRATION",
+      "outcome": "pass",
+      "detail": "Candidate is PERSISTED with a resolvable dataset/outcome reference."
+    },
+    {
+      "gate_id": "G01_TARGET_LEAKAGE",
+      "outcome": "pass",
+      "detail": "All condition features are DECISION_TIME."
+    },
+    {
+      "gate_id": "G02_POST_TREATMENT_CONTROLS",
+      "outcome": "pass",
+      "detail": "Adjustment set ('customer_type', 'manual_exception', 'customer_segment', 'party_size', 'payment_method', 'product_category') is decision-time and excludes condition features."
+    },
+    {
+      "gate_id": "G03_SAMPLE_ADEQUACY",
+      "outcome": "pass",
+      "detail": "n_exposed=645, clusters=2834, MDE80=88.5 EUR vs observed harm=217.7 EUR."
+    },
+    {
+      "gate_id": "G04_UNCERTAINTY",
+      "outcome": "pass",
+      "detail": "95% CI [160.4, 278.7] EUR."
+    },
+    {
+      "gate_id": "G05_MULTIPLE_COMPARISONS",
+      "outcome": "pass",
+      "detail": "Normal-approx p (bootstrap SE)=3.47e-13, BH-adjusted p=1.28e-09 over family_size=33085 (alpha=0.1)."
+    },
+    {
+      "gate_id": "G06_CONFOUNDING",
+      "outcome": "pass",
+      "detail": "Adjusted for ('customer_type', 'manual_exception', 'customer_segment', 'party_size', 'payment_method', 'product_category'): harm 217.7 -> 209.0 EUR (attenuation 0.04, coverage 0.73, E-value 1.90, floor 1.5)."
+    },
+    {
+      "gate_id": "G07_SELECTION_AND_COLLIDER",
+      "outcome": "pass",
+      "detail": "Primary-outcome missingness: exposed=0, comparison=0."
+    },
+    {
+      "gate_id": "G08_SURVIVORSHIP_COHORT",
+      "outcome": "pass",
+      "detail": "Full eligible cohort; no post-decision filter applied."
+    },
+    {
+      "gate_id": "G09_SIMPSON_AND_HETEROGENEITY",
+      "outcome": "pass",
+      "detail": "Sign reverses in customer_segment strata covering 0.0% of exposure (threshold 20%)."
+    },
+    {
+      "gate_id": "G10_TEMPORAL_STABILITY",
+      "outcome": "pass",
+      "detail": "Same sign across ['development', 'validation', 'future_holdout']: True; holdout retains 116% of development magnitude (floor 50%)."
+    },
+    {
+      "gate_id": "G11_SEASONALITY",
+      "outcome": "pass",
+      "detail": "Max monthly exposure/cohort concentration ratio 1.17 (threshold 1.5)."
+    },
+    {
+      "gate_id": "G12_ROBUSTNESS",
+      "outcome": "pass",
+      "detail": "Sign agreement 100% over 11 perturbations (floor 90%); max magnitude deviation 43% (ceiling 50%); semantics one_bin_relative_v2; threshold refit states {'estimated': 2, 'vacuous_identical_rule': 0, 'degenerate_no_contrast': 0, 'unrepresentable_step': 0}. Declared alternative outcome 'gross_profit_eur' is inadmissible_decomposition_of_the_primary_outcome and is reported as a decomposition diagnostic, not counted here."
+    },
+    {
+      "gate_id": "G13_IDENTIFICATION_DESIGN",
+      "outcome": "fail",
+      "detail": "Observational data; no quasi-experimental design exists."
+    },
+    {
+      "gate_id": "G14_RANDOMIZATION_INTEGRITY",
+      "outcome": "fail",
+      "detail": "No prospective randomized assignment; retrospective data only."
+    },
+    {
+      "gate_id": "G15_ECONOMIC_MATERIALITY",
+      "outcome": "pass",
+      "detail": "Combined-window exposure 95% CI [229826, 349149] EUR, outcome share 4.945%."
+    }
+  ],
+  "cand014_min_confounder_stratum_coverage_threshold": 0.5,
+  "adjustment_eligible_pool_manifest_declared": [
+    "acquisition_channel",
+    "booking_lead_days",
+    "customer_price_eur",
+    "customer_segment",
+    "customer_type",
+    "destination",
+    "discount_rate",
+    "installments",
+    "manager",
+    "manual_exception",
+    "party_size",
+    "payment_method",
+    "product_category",
+    "quoted_cost_eur",
+    "supplier",
+    "trip_duration_days"
+  ],
+  "trap_selection_traces": [
+    {
+      "label": "T01 pure apparent_feature, no real candidate ever proposed it (counterfactual, single-condition)",
+      "trap_id": "T01",
+      "is_counterfactual": true,
+      "condition": [
+        "manager eq Manager 2"
+      ],
+      "condition_features": [
+        "manager"
+      ],
+      "adjustment_pool_considered": [
+        "acquisition_channel",
+        "booking_lead_days",
+        "customer_price_eur",
+        "customer_segment",
+        "customer_type",
+        "destination",
+        "discount_rate",
+        "installments",
+        "manual_exception",
+        "party_size",
+        "payment_method",
+        "product_category",
+        "quoted_cost_eur",
+        "supplier",
+        "trip_duration_days"
+      ],
+      "cardinality_order": [
+        [
+          "customer_type",
+          2
+        ],
+        [
+          "manual_exception",
+          2
+        ],
+        [
+          "customer_segment",
+          3
+        ],
+        [
+          "party_size",
+          3
+        ],
+        [
+          "payment_method",
+          3
+        ],
+        [
+          "product_category",
+          3
+        ],
+        [
+          "acquisition_channel",
+          4
+        ],
+        [
+          "booking_lead_days",
+          4
+        ],
+        [
+          "customer_price_eur",
+          4
+        ],
+        [
+          "installments",
+          4
+        ],
+        [
+          "quoted_cost_eur",
+          4
+        ],
+        [
+          "supplier",
+          4
+        ],
+        [
+          "trip_duration_days",
+          4
+        ],
+        [
+          "destination",
+          5
+        ],
+        [
+          "discount_rate",
+          6
+        ]
+      ],
+      "greedy_selection_steps": [
+        {
+          "column": "customer_type",
+          "cardinality_in_dev_split": 2,
+          "coverage_if_added": 1.0,
+          "kept": true
+        },
+        {
+          "column": "manual_exception",
+          "cardinality_in_dev_split": 2,
+          "coverage_if_added": 1.0,
+          "kept": true
+        },
+        {
+          "column": "customer_segment",
+          "cardinality_in_dev_split": 3,
+          "coverage_if_added": 1.0,
+          "kept": true
+        },
+        {
+          "column": "party_size",
+          "cardinality_in_dev_split": 3,
+          "coverage_if_added": 0.9904458598726115,
+          "kept": true
+        },
+        {
+          "column": "payment_method",
+          "cardinality_in_dev_split": 3,
+          "coverage_if_added": 0.9657643312101911,
+          "kept": true
+        },
+        {
+          "column": "product_category",
+          "cardinality_in_dev_split": 3,
+          "coverage_if_added": 0.8511146496815286,
+          "kept": true
+        },
+        {
+          "column": "acquisition_channel",
+          "cardinality_in_dev_split": 4,
+          "coverage_if_added": 0.5517515923566879,
+          "kept": true
+        },
+        {
+          "column": "booking_lead_days",
+          "cardinality_in_dev_split": 4,
+          "coverage_if_added": 0.12181528662420382,
+          "kept": false
+        },
+        {
+          "column": "customer_price_eur",
+          "cardinality_in_dev_split": 4,
+          "coverage_if_added": 0.16480891719745222,
+          "kept": false
+        },
+        {
+          "column": "installments",
+          "cardinality_in_dev_split": 4,
+          "coverage_if_added": 0.20222929936305734,
+          "kept": false
+        },
+        {
+          "column": "quoted_cost_eur",
+          "cardinality_in_dev_split": 4,
+          "coverage_if_added": 0.13694267515923567,
+          "kept": false
+        },
+        {
+          "column": "supplier",
+          "cardinality_in_dev_split": 4,
+          "coverage_if_added": 0.11863057324840764,
+          "kept": false
+        },
+        {
+          "column": "trip_duration_days",
+          "cardinality_in_dev_split": 4,
+          "coverage_if_added": 0.09952229299363058,
+          "kept": false
+        },
+        {
+          "column": "destination",
+          "cardinality_in_dev_split": 5,
+          "coverage_if_added": 0.07961783439490445,
+          "kept": false
+        },
+        {
+          "column": "discount_rate",
+          "cardinality_in_dev_split": 6,
+          "coverage_if_added": 0.03264331210191083,
+          "kept": false
+        }
+      ],
+      "adjustment_columns_used": [
+        "customer_type",
+        "manual_exception",
+        "customer_segment",
+        "party_size",
+        "payment_method",
+        "product_category",
+        "acquisition_channel"
+      ],
+      "final_coverage": 0.03264331210191083,
+      "confounded_by_fate": {
+        "destination": "considered_but_dropped_by_coverage_floor",
+        "booking_lead_days": "considered_but_dropped_by_coverage_floor",
+        "party_size": "adjusted_for (survived the coverage-gated greedy select)",
+        "trip_duration_days": "considered_but_dropped_by_coverage_floor"
+      }
+    },
+    {
+      "label": "T02 pure apparent_feature, no real candidate ever proposed it (counterfactual, single-condition)",
+      "trap_id": "T02",
+      "is_counterfactual": true,
+      "condition": [
+        "supplier eq Atlas"
+      ],
+      "condition_features": [
+        "supplier"
+      ],
+      "adjustment_pool_considered": [
+        "acquisition_channel",
+        "booking_lead_days",
+        "customer_price_eur",
+        "customer_segment",
+        "customer_type",
+        "destination",
+        "discount_rate",
+        "installments",
+        "manager",
+        "manual_exception",
+        "party_size",
+        "payment_method",
+        "product_category",
+        "quoted_cost_eur",
+        "trip_duration_days"
+      ],
+      "cardinality_order": [
+        [
+          "customer_type",
+          2
+        ],
+        [
+          "manual_exception",
+          2
+        ],
+        [
+          "customer_segment",
+          3
+        ],
+        [
+          "party_size",
+          3
+        ],
+        [
+          "payment_method",
+          3
+        ],
+        [
+          "product_category",
+          3
+        ],
+        [
+          "acquisition_channel",
+          4
+        ],
+        [
+          "booking_lead_days",
+          4
+        ],
+        [
+          "customer_price_eur",
+          4
+        ],
+        [
+          "installments",
+          4
+        ],
+        [
+          "quoted_cost_eur",
+          4
+        ],
+        [
+          "trip_duration_days",
+          4
+        ],
+        [
+          "destination",
+          5
+        ],
+        [
+          "discount_rate",
+          6
+        ],
+        [
+          "manager",
+          8
+        ]
+      ],
+      "greedy_selection_steps": [
+        {
+          "column": "customer_type",
+          "cardinality_in_dev_split": 2,
+          "coverage_if_added": 1.0,
+          "kept": true
+        },
+        {
+          "column": "manual_exception",
+          "cardinality_in_dev_split": 2,
+          "coverage_if_added": 1.0,
+          "kept": true
+        },
+        {
+          "column": "customer_segment",
+          "cardinality_in_dev_split": 3,
+          "coverage_if_added": 1.0,
+          "kept": true
+        },
+        {
+          "column": "party_size",
+          "cardinality_in_dev_split": 3,
+          "coverage_if_added": 0.994431185361973,
+          "kept": true
+        },
+        {
+          "column": "payment_method",
+          "cardinality_in_dev_split": 3,
+          "coverage_if_added": 0.9626093874303898,
+          "kept": true
+        },
+        {
+          "column": "product_category",
+          "cardinality_in_dev_split": 3,
+          "coverage_if_added": 0.858392999204455,
+          "kept": true
+        },
+        {
+          "column": "acquisition_channel",
+          "cardinality_in_dev_split": 4,
+          "coverage_if_added": 0.5584725536992841,
+          "kept": true
+        },
+        {
+          "column": "booking_lead_days",
+          "cardinality_in_dev_split": 4,
+          "coverage_if_added": 0.13524264120922833,
+          "kept": false
+        },
+        {
+          "column": "customer_price_eur",
+          "cardinality_in_dev_split": 4,
+          "coverage_if_added": 0.18138424821002386,
+          "kept": false
+        },
+        {
+          "column": "installments",
+          "cardinality_in_dev_split": 4,
+          "coverage_if_added": 0.2171837708830549,
+          "kept": false
+        },
+        {
+          "column": "quoted_cost_eur",
+          "cardinality_in_dev_split": 4,
+          "coverage_if_added": 0.17024661893396978,
+          "kept": false
+        },
+        {
+          "column": "trip_duration_days",
+          "cardinality_in_dev_split": 4,
+          "coverage_if_added": 0.1614956245027844,
+          "kept": false
+        },
+        {
+          "column": "destination",
+          "cardinality_in_dev_split": 5,
+          "coverage_if_added": 0.09148766905330151,
+          "kept": false
+        },
+        {
+          "column": "discount_rate",
+          "cardinality_in_dev_split": 6,
+          "coverage_if_added": 0.066030230708035,
+          "kept": false
+        },
+        {
+          "column": "manager",
+          "cardinality_in_dev_split": 8,
+          "coverage_if_added": 0.03261734287987271,
+          "kept": false
+        }
+      ],
+      "adjustment_columns_used": [
+        "customer_type",
+        "manual_exception",
+        "customer_segment",
+        "party_size",
+        "payment_method",
+        "product_category",
+        "acquisition_channel"
+      ],
+      "final_coverage": 0.03261734287987271,
+      "confounded_by_fate": {
+        "trip_duration_days": "considered_but_dropped_by_coverage_floor",
+        "booking_month": "not_in_manifest_adjustment_eligible_pool (never enters G06 at all, independent of coverage; see validation-contract.md \u00a74b's disclosed date-like/unsupported-field exclusion)"
+      }
+    },
+    {
+      "label": "CAND-014 (real candidate, apparent_feature of T03 literally present)",
+      "trap_id": "T03",
+      "is_counterfactual": false,
+      "condition": [
+        "acquisition_channel eq paid_search",
+        "discount_rate ge 0.08"
+      ],
+      "condition_features": [
+        "acquisition_channel",
+        "discount_rate"
+      ],
+      "adjustment_pool_considered": [
+        "booking_lead_days",
+        "customer_price_eur",
+        "customer_segment",
+        "customer_type",
+        "destination",
+        "installments",
+        "manager",
+        "manual_exception",
+        "party_size",
+        "payment_method",
+        "product_category",
+        "quoted_cost_eur",
+        "supplier",
+        "trip_duration_days"
+      ],
+      "cardinality_order": [
+        [
+          "customer_type",
+          2
+        ],
+        [
+          "manual_exception",
+          2
+        ],
+        [
+          "customer_segment",
+          3
+        ],
+        [
+          "party_size",
+          3
+        ],
+        [
+          "payment_method",
+          3
+        ],
+        [
+          "product_category",
+          3
+        ],
+        [
+          "booking_lead_days",
+          4
+        ],
+        [
+          "customer_price_eur",
+          4
+        ],
+        [
+          "installments",
+          4
+        ],
+        [
+          "quoted_cost_eur",
+          4
+        ],
+        [
+          "supplier",
+          4
+        ],
+        [
+          "trip_duration_days",
+          4
+        ],
+        [
+          "destination",
+          5
+        ],
+        [
+          "manager",
+          8
+        ]
+      ],
+      "greedy_selection_steps": [
+        {
+          "column": "customer_type",
+          "cardinality_in_dev_split": 2,
+          "coverage_if_added": 1.0,
+          "kept": true
+        },
+        {
+          "column": "manual_exception",
+          "cardinality_in_dev_split": 2,
+          "coverage_if_added": 1.0,
+          "kept": true
+        },
+        {
+          "column": "customer_segment",
+          "cardinality_in_dev_split": 3,
+          "coverage_if_added": 0.986046511627907,
+          "kept": true
+        },
+        {
+          "column": "party_size",
+          "cardinality_in_dev_split": 3,
+          "coverage_if_added": 0.9736434108527132,
+          "kept": true
+        },
+        {
+          "column": "payment_method",
+          "cardinality_in_dev_split": 3,
+          "coverage_if_added": 0.9116279069767442,
+          "kept": true
+        },
+        {
+          "column": "product_category",
+          "cardinality_in_dev_split": 3,
+          "coverage_if_added": 0.7271317829457364,
+          "kept": true
+        },
+        {
+          "column": "booking_lead_days",
+          "cardinality_in_dev_split": 4,
+          "coverage_if_added": 0.30697674418604654,
+          "kept": false
+        },
+        {
+          "column": "customer_price_eur",
+          "cardinality_in_dev_split": 4,
+          "coverage_if_added": 0.4248062015503876,
+          "kept": false
+        },
+        {
+          "column": "installments",
+          "cardinality_in_dev_split": 4,
+          "coverage_if_added": 0.4434108527131783,
+          "kept": false
+        },
+        {
+          "column": "quoted_cost_eur",
+          "cardinality_in_dev_split": 4,
+          "coverage_if_added": 0.4294573643410853,
+          "kept": false
+        },
+        {
+          "column": "supplier",
+          "cardinality_in_dev_split": 4,
+          "coverage_if_added": 0.33798449612403103,
+          "kept": false
+        },
+        {
+          "column": "trip_duration_days",
+          "cardinality_in_dev_split": 4,
+          "coverage_if_added": 0.33488372093023255,
+          "kept": false
+        },
+        {
+          "column": "destination",
+          "cardinality_in_dev_split": 5,
+          "coverage_if_added": 0.2682170542635659,
+          "kept": false
+        },
+        {
+          "column": "manager",
+          "cardinality_in_dev_split": 8,
+          "coverage_if_added": 0.11782945736434108,
+          "kept": false
+        }
+      ],
+      "adjustment_columns_used": [
+        "customer_type",
+        "manual_exception",
+        "customer_segment",
+        "party_size",
+        "payment_method",
+        "product_category"
+      ],
+      "final_coverage": 0.11782945736434108,
+      "confounded_by_fate": {
+        "customer_type": "adjusted_for (survived the coverage-gated greedy select)",
+        "discount_rate": "structurally_excluded_own_condition_feature (G02 circularity guard: adjusting for the treatment's own defining variable is circular)",
+        "installments": "considered_but_dropped_by_coverage_floor"
+      }
+    },
+    {
+      "label": "CAND-007 (real candidate, apparent_feature of T04 literally present)",
+      "trap_id": "T04",
+      "is_counterfactual": false,
+      "condition": [
+        "booking_lead_days lt 23.0",
+        "destination eq Tokyo",
+        "payment_method eq bank_transfer"
+      ],
+      "condition_features": [
+        "booking_lead_days",
+        "destination",
+        "payment_method"
+      ],
+      "adjustment_pool_considered": [
+        "acquisition_channel",
+        "customer_price_eur",
+        "customer_segment",
+        "customer_type",
+        "discount_rate",
+        "installments",
+        "manager",
+        "manual_exception",
+        "party_size",
+        "product_category",
+        "quoted_cost_eur",
+        "supplier",
+        "trip_duration_days"
+      ],
+      "cardinality_order": [
+        [
+          "customer_type",
+          2
+        ],
+        [
+          "manual_exception",
+          2
+        ],
+        [
+          "customer_segment",
+          3
+        ],
+        [
+          "party_size",
+          3
+        ],
+        [
+          "product_category",
+          3
+        ],
+        [
+          "acquisition_channel",
+          4
+        ],
+        [
+          "customer_price_eur",
+          4
+        ],
+        [
+          "installments",
+          4
+        ],
+        [
+          "quoted_cost_eur",
+          4
+        ],
+        [
+          "supplier",
+          4
+        ],
+        [
+          "trip_duration_days",
+          4
+        ],
+        [
+          "discount_rate",
+          6
+        ],
+        [
+          "manager",
+          8
+        ]
+      ],
+      "greedy_selection_steps": [
+        {
+          "column": "customer_type",
+          "cardinality_in_dev_split": 2,
+          "coverage_if_added": 1.0,
+          "kept": true
+        },
+        {
+          "column": "manual_exception",
+          "cardinality_in_dev_split": 2,
+          "coverage_if_added": 0.9777777777777777,
+          "kept": true
+        },
+        {
+          "column": "customer_segment",
+          "cardinality_in_dev_split": 3,
+          "coverage_if_added": 0.8888888888888888,
+          "kept": true
+        },
+        {
+          "column": "party_size",
+          "cardinality_in_dev_split": 3,
+          "coverage_if_added": 0.7777777777777778,
+          "kept": true
+        },
+        {
+          "column": "product_category",
+          "cardinality_in_dev_split": 3,
+          "coverage_if_added": 0.13333333333333333,
+          "kept": false
+        },
+        {
+          "column": "acquisition_channel",
+          "cardinality_in_dev_split": 4,
+          "coverage_if_added": 0.17777777777777778,
+          "kept": false
+        },
+        {
+          "column": "customer_price_eur",
+          "cardinality_in_dev_split": 4,
+          "coverage_if_added": 0.2111111111111111,
+          "kept": false
+        },
+        {
+          "column": "installments",
+          "cardinality_in_dev_split": 4,
+          "coverage_if_added": 0.14444444444444443,
+          "kept": false
+        },
+        {
+          "column": "quoted_cost_eur",
+          "cardinality_in_dev_split": 4,
+          "coverage_if_added": 0.2,
+          "kept": false
+        },
+        {
+          "column": "supplier",
+          "cardinality_in_dev_split": 4,
+          "coverage_if_added": 0.23333333333333334,
+          "kept": false
+        },
+        {
+          "column": "trip_duration_days",
+          "cardinality_in_dev_split": 4,
+          "coverage_if_added": 0.12222222222222222,
+          "kept": false
+        },
+        {
+          "column": "discount_rate",
+          "cardinality_in_dev_split": 6,
+          "coverage_if_added": 0.0,
+          "kept": false
+        },
+        {
+          "column": "manager",
+          "cardinality_in_dev_split": 8,
+          "coverage_if_added": 0.05555555555555555,
+          "kept": false
+        }
+      ],
+      "adjustment_columns_used": [
+        "customer_type",
+        "manual_exception",
+        "customer_segment",
+        "party_size"
+      ],
+      "final_coverage": 0.05555555555555555,
+      "confounded_by_fate": {
+        "booking_lead_days": "structurally_excluded_own_condition_feature (G02 circularity guard: adjusting for the treatment's own defining variable is circular)",
+        "destination": "structurally_excluded_own_condition_feature (G02 circularity guard: adjusting for the treatment's own defining variable is circular)"
+      }
+    },
+    {
+      "label": "CAND-015 (real candidate, apparent_feature of T04 literally present)",
+      "trap_id": "T04",
+      "is_counterfactual": false,
+      "condition": [
+        "discount_rate ge 0.05",
+        "payment_method eq bank_transfer"
+      ],
+      "condition_features": [
+        "discount_rate",
+        "payment_method"
+      ],
+      "adjustment_pool_considered": [
+        "acquisition_channel",
+        "booking_lead_days",
+        "customer_price_eur",
+        "customer_segment",
+        "customer_type",
+        "destination",
+        "installments",
+        "manager",
+        "manual_exception",
+        "party_size",
+        "product_category",
+        "quoted_cost_eur",
+        "supplier",
+        "trip_duration_days"
+      ],
+      "cardinality_order": [
+        [
+          "customer_type",
+          2
+        ],
+        [
+          "manual_exception",
+          2
+        ],
+        [
+          "customer_segment",
+          3
+        ],
+        [
+          "party_size",
+          3
+        ],
+        [
+          "product_category",
+          3
+        ],
+        [
+          "acquisition_channel",
+          4
+        ],
+        [
+          "booking_lead_days",
+          4
+        ],
+        [
+          "customer_price_eur",
+          4
+        ],
+        [
+          "installments",
+          4
+        ],
+        [
+          "quoted_cost_eur",
+          4
+        ],
+        [
+          "supplier",
+          4
+        ],
+        [
+          "trip_duration_days",
+          4
+        ],
+        [
+          "destination",
+          5
+        ],
+        [
+          "manager",
+          8
+        ]
+      ],
+      "greedy_selection_steps": [
+        {
+          "column": "customer_type",
+          "cardinality_in_dev_split": 2,
+          "coverage_if_added": 1.0,
+          "kept": true
+        },
+        {
+          "column": "manual_exception",
+          "cardinality_in_dev_split": 2,
+          "coverage_if_added": 1.0,
+          "kept": true
+        },
+        {
+          "column": "customer_segment",
+          "cardinality_in_dev_split": 3,
+          "coverage_if_added": 0.9990059642147118,
+          "kept": true
+        },
+        {
+          "column": "party_size",
+          "cardinality_in_dev_split": 3,
+          "coverage_if_added": 0.9831013916500994,
+          "kept": true
+        },
+        {
+          "column": "product_category",
+          "cardinality_in_dev_split": 3,
+          "coverage_if_added": 0.9542743538767395,
+          "kept": true
+        },
+        {
+          "column": "acquisition_channel",
+          "cardinality_in_dev_split": 4,
+          "coverage_if_added": 0.7455268389662028,
+          "kept": true
+        },
+        {
+          "column": "booking_lead_days",
+          "cardinality_in_dev_split": 4,
+          "coverage_if_added": 0.34095427435387676,
+          "kept": false
+        },
+        {
+          "column": "customer_price_eur",
+          "cardinality_in_dev_split": 4,
+          "coverage_if_added": 0.4125248508946322,
+          "kept": false
+        },
+        {
+          "column": "installments",
+          "cardinality_in_dev_split": 4,
+          "coverage_if_added": 0.43339960238568587,
+          "kept": false
+        },
+        {
+          "column": "quoted_cost_eur",
+          "cardinality_in_dev_split": 4,
+          "coverage_if_added": 0.40755467196819084,
+          "kept": false
+        },
+        {
+          "column": "supplier",
+          "cardinality_in_dev_split": 4,
+          "coverage_if_added": 0.3111332007952286,
+          "kept": false
+        },
+        {
+          "column": "trip_duration_days",
+          "cardinality_in_dev_split": 4,
+          "coverage_if_added": 0.3091451292246521,
+          "kept": false
+        },
+        {
+          "column": "destination",
+          "cardinality_in_dev_split": 5,
+          "coverage_if_added": 0.21570576540755468,
+          "kept": false
+        },
+        {
+          "column": "manager",
+          "cardinality_in_dev_split": 8,
+          "coverage_if_added": 0.14214711729622267,
+          "kept": false
+        }
+      ],
+      "adjustment_columns_used": [
+        "customer_type",
+        "manual_exception",
+        "customer_segment",
+        "party_size",
+        "product_category",
+        "acquisition_channel"
+      ],
+      "final_coverage": 0.14214711729622267,
+      "confounded_by_fate": {
+        "booking_lead_days": "considered_but_dropped_by_coverage_floor",
+        "destination": "considered_but_dropped_by_coverage_floor"
+      }
+    },
+    {
+      "label": "T05 pure apparent_feature, no real candidate ever proposed it (counterfactual, single-condition)",
+      "trap_id": "T05",
+      "is_counterfactual": true,
+      "condition": [
+        "manual_exception eq True"
+      ],
+      "condition_features": [
+        "manual_exception"
+      ],
+      "adjustment_pool_considered": [
+        "acquisition_channel",
+        "booking_lead_days",
+        "customer_price_eur",
+        "customer_segment",
+        "customer_type",
+        "destination",
+        "discount_rate",
+        "installments",
+        "manager",
+        "party_size",
+        "payment_method",
+        "product_category",
+        "quoted_cost_eur",
+        "supplier",
+        "trip_duration_days"
+      ],
+      "cardinality_order": [
+        [
+          "customer_type",
+          2
+        ],
+        [
+          "customer_segment",
+          3
+        ],
+        [
+          "party_size",
+          3
+        ],
+        [
+          "payment_method",
+          3
+        ],
+        [
+          "product_category",
+          3
+        ],
+        [
+          "acquisition_channel",
+          4
+        ],
+        [
+          "booking_lead_days",
+          4
+        ],
+        [
+          "customer_price_eur",
+          4
+        ],
+        [
+          "installments",
+          4
+        ],
+        [
+          "quoted_cost_eur",
+          4
+        ],
+        [
+          "supplier",
+          4
+        ],
+        [
+          "trip_duration_days",
+          4
+        ],
+        [
+          "destination",
+          5
+        ],
+        [
+          "discount_rate",
+          6
+        ],
+        [
+          "manager",
+          8
+        ]
+      ],
+      "greedy_selection_steps": [
+        {
+          "column": "customer_type",
+          "cardinality_in_dev_split": 2,
+          "coverage_if_added": 1.0,
+          "kept": true
+        },
+        {
+          "column": "customer_segment",
+          "cardinality_in_dev_split": 3,
+          "coverage_if_added": 1.0,
+          "kept": true
+        },
+        {
+          "column": "party_size",
+          "cardinality_in_dev_split": 3,
+          "coverage_if_added": 0.9822485207100592,
+          "kept": true
+        },
+        {
+          "column": "payment_method",
+          "cardinality_in_dev_split": 3,
+          "coverage_if_added": 0.8846153846153846,
+          "kept": true
+        },
+        {
+          "column": "product_category",
+          "cardinality_in_dev_split": 3,
+          "coverage_if_added": 0.6301775147928994,
+          "kept": true
+        },
+        {
+          "column": "acquisition_channel",
+          "cardinality_in_dev_split": 4,
+          "coverage_if_added": 0.257396449704142,
+          "kept": false
+        },
+        {
+          "column": "booking_lead_days",
+          "cardinality_in_dev_split": 4,
+          "coverage_if_added": 0.20118343195266272,
+          "kept": false
+        },
+        {
+          "column": "customer_price_eur",
+          "cardinality_in_dev_split": 4,
+          "coverage_if_added": 0.2958579881656805,
+          "kept": false
+        },
+        {
+          "column": "installments",
+          "cardinality_in_dev_split": 4,
+          "coverage_if_added": 0.3224852071005917,
+          "kept": false
+        },
+        {
+          "column": "quoted_cost_eur",
+          "cardinality_in_dev_split": 4,
+          "coverage_if_added": 0.257396449704142,
+          "kept": false
+        },
+        {
+          "column": "supplier",
+          "cardinality_in_dev_split": 4,
+          "coverage_if_added": 0.21597633136094674,
+          "kept": false
+        },
+        {
+          "column": "trip_duration_days",
+          "cardinality_in_dev_split": 4,
+          "coverage_if_added": 0.19230769230769232,
+          "kept": false
+        },
+        {
+          "column": "destination",
+          "cardinality_in_dev_split": 5,
+          "coverage_if_added": 0.17751479289940827,
+          "kept": false
+        },
+        {
+          "column": "discount_rate",
+          "cardinality_in_dev_split": 6,
+          "coverage_if_added": 0.10650887573964497,
+          "kept": false
+        },
+        {
+          "column": "manager",
+          "cardinality_in_dev_split": 8,
+          "coverage_if_added": 0.11242603550295859,
+          "kept": false
+        }
+      ],
+      "adjustment_columns_used": [
+        "customer_type",
+        "customer_segment",
+        "party_size",
+        "payment_method",
+        "product_category"
+      ],
+      "final_coverage": 0.11242603550295859,
+      "confounded_by_fate": {
+        "destination": "considered_but_dropped_by_coverage_floor",
+        "party_size": "adjusted_for (survived the coverage-gated greedy select)",
+        "trip_duration_days": "considered_but_dropped_by_coverage_floor",
+        "booking_lead_days": "considered_but_dropped_by_coverage_floor"
+      }
+    },
+    {
+      "label": "T03 pure apparent_feature alone, no discount_rate compounding (counterfactual)",
+      "trap_id": "T03",
+      "is_counterfactual": true,
+      "condition": [
+        "acquisition_channel eq paid_search"
+      ],
+      "condition_features": [
+        "acquisition_channel"
+      ],
+      "adjustment_pool_considered": [
+        "booking_lead_days",
+        "customer_price_eur",
+        "customer_segment",
+        "customer_type",
+        "destination",
+        "discount_rate",
+        "installments",
+        "manager",
+        "manual_exception",
+        "party_size",
+        "payment_method",
+        "product_category",
+        "quoted_cost_eur",
+        "supplier",
+        "trip_duration_days"
+      ],
+      "cardinality_order": [
+        [
+          "customer_type",
+          2
+        ],
+        [
+          "manual_exception",
+          2
+        ],
+        [
+          "customer_segment",
+          3
+        ],
+        [
+          "party_size",
+          3
+        ],
+        [
+          "payment_method",
+          3
+        ],
+        [
+          "product_category",
+          3
+        ],
+        [
+          "booking_lead_days",
+          4
+        ],
+        [
+          "customer_price_eur",
+          4
+        ],
+        [
+          "installments",
+          4
+        ],
+        [
+          "quoted_cost_eur",
+          4
+        ],
+        [
+          "supplier",
+          4
+        ],
+        [
+          "trip_duration_days",
+          4
+        ],
+        [
+          "destination",
+          5
+        ],
+        [
+          "discount_rate",
+          6
+        ],
+        [
+          "manager",
+          8
+        ]
+      ],
+      "greedy_selection_steps": [
+        {
+          "column": "customer_type",
+          "cardinality_in_dev_split": 2,
+          "coverage_if_added": 1.0,
+          "kept": true
+        },
+        {
+          "column": "manual_exception",
+          "cardinality_in_dev_split": 2,
+          "coverage_if_added": 1.0,
+          "kept": true
+        },
+        {
+          "column": "customer_segment",
+          "cardinality_in_dev_split": 3,
+          "coverage_if_added": 0.997003745318352,
+          "kept": true
+        },
+        {
+          "column": "party_size",
+          "cardinality_in_dev_split": 3,
+          "coverage_if_added": 0.9865168539325843,
+          "kept": true
+        },
+        {
+          "column": "payment_method",
+          "cardinality_in_dev_split": 3,
+          "coverage_if_added": 0.9610486891385768,
+          "kept": true
+        },
+        {
+          "column": "product_category",
+          "cardinality_in_dev_split": 3,
+          "coverage_if_added": 0.8539325842696629,
+          "kept": true
+        },
+        {
+          "column": "booking_lead_days",
+          "cardinality_in_dev_split": 4,
+          "coverage_if_added": 0.5670411985018726,
+          "kept": true
+        },
+        {
+          "column": "customer_price_eur",
+          "cardinality_in_dev_split": 4,
+          "coverage_if_added": 0.199250936329588,
+          "kept": false
+        },
+        {
+          "column": "installments",
+          "cardinality_in_dev_split": 4,
+          "coverage_if_added": 0.23670411985018727,
+          "kept": false
+        },
+        {
+          "column": "quoted_cost_eur",
+          "cardinality_in_dev_split": 4,
+          "coverage_if_added": 0.17902621722846443,
+          "kept": false
+        },
+        {
+          "column": "supplier",
+          "cardinality_in_dev_split": 4,
+          "coverage_if_added": 0.1655430711610487,
+          "kept": false
+        },
+        {
+          "column": "trip_duration_days",
+          "cardinality_in_dev_split": 4,
+          "coverage_if_added": 0.13707865168539327,
+          "kept": false
+        },
+        {
+          "column": "destination",
+          "cardinality_in_dev_split": 5,
+          "coverage_if_added": 0.10037453183520599,
+          "kept": false
+        },
+        {
+          "column": "discount_rate",
+          "cardinality_in_dev_split": 6,
+          "coverage_if_added": 0.062172284644194754,
+          "kept": false
+        },
+        {
+          "column": "manager",
+          "cardinality_in_dev_split": 8,
+          "coverage_if_added": 0.04344569288389513,
+          "kept": false
+        }
+      ],
+      "adjustment_columns_used": [
+        "customer_type",
+        "manual_exception",
+        "customer_segment",
+        "party_size",
+        "payment_method",
+        "product_category",
+        "booking_lead_days"
+      ],
+      "final_coverage": 0.04344569288389513,
+      "confounded_by_fate": {
+        "customer_type": "adjusted_for (survived the coverage-gated greedy select)",
+        "discount_rate": "considered_but_dropped_by_coverage_floor",
+        "installments": "considered_but_dropped_by_coverage_floor"
+      }
+    }
+  ]
+}
