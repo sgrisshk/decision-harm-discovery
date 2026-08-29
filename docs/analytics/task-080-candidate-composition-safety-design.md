@@ -1,4 +1,4 @@
-# TASK-080 — Candidate-composition safety: design document (`ADR-073`)
+# TASK-080 — Candidate-composition safety: design document (`ADR-073`, revised `ADR-075`)
 
 **Status: DESIGN ONLY. No implementation.** Nothing in this document changes, or proposes changing,
 `discovery.engine`, `apply.py`, `G02`, `G06`, `_development_score`, any threshold value, or
@@ -6,6 +6,22 @@
 mechanism, it is describing the *existing* codebase (read, not modified) or specifying what a later,
 distinct implementation task would need to build. `CODE_REVIEWER` reviews this document; no
 implementation task opens until that review completes, per this task's own binding instruction.
+
+**2026-08-29 revision banner (`ADR-075`).** `CODE_REVIEWER`'s independent adversarial review
+(`ADR-074`) found one real, signature-level defect in the classifier this document originally
+specified: the implicit rule `attenuation < max_adjusted_attenuation -> interaction_like` let a
+realistic, non-exact confound proxy (concordance `0.75`, base rule 100% confounded by construction)
+through as `interaction_like` with **no evidence cap at all**. Per `ADR-075`, that inference is now
+**permanently forbidden** in this design. The three-stage architecture (permissive discovery /
+recomputed composition safety at validation / named evidence ceiling under ambiguity) is
+**conditionally accepted and not reopened by this revision** — every section below that describes
+that architecture (§1-§5, §7) is unchanged in substance. What changed is §6 (the interaction-vs-
+confound distinction) and §8.1 (the classifier mechanism), both revised in place below, plus four
+narrower corrections (§6.2, §12, §8.1's `GateId` wiring, §10's test plan) the review also required.
+§14 is new: the adversarial form-test suite this revision's own acceptance property (the
+proxy-confounding ladder) was checked against, including the raw before/after comparison against the
+forbidden rule above. Everything else in this document — §1-§5, §7, §9, §11, §13 — is the
+originally-reviewed text, confirmed still accurate and not re-litigated here.
 
 **Location note.** This document lives in `docs/analytics/`, not `docs/benchmark/`, because it is an
 architecture proposal for `discovery.engine`'s and `apply.py`'s design, not a benchmark measurement —
@@ -257,13 +273,26 @@ data supports, not more optimistically
 Three separate, independently-sufficient reasons this distinction cannot be resolved with full
 confidence in every case:
 
-1. **Sample-size/overlap ceiling, identical in kind to `T05`'s.** `TASK-079` Branch 3 proved a sharp,
-   arithmetic (not selection-order) ceiling: a modest exposed population simply cannot jointly support
-   fine-grained stratification, however chosen. §4's check stratifies an already-narrower population
-   (`base_i`, itself a subset of the full candidate) by one more variable — it inherits the identical
-   risk, and for deep or already-narrow rules, will hit it *more* often than `G06`'s own joint
-   selection does, not less. A "cannot compute reliably" outcome is not an edge case here; it is a
-   structurally common one for exactly the compound rules this task is about.
+1. **Sample-size/overlap ceiling, identical in *kind* to `T05`'s, but empirically *rarer* in
+   practice than `G06`'s own joint collapse — corrected here per `ADR-074`'s risk 3 (this
+   subsection previously claimed the opposite; the claim below replaces it, not merely qualifies
+   it).** `TASK-079` Branch 3 proved a sharp, arithmetic (not selection-order) ceiling for `G06`'s
+   own *joint*, multi-variable stratification: a modest exposed population cannot jointly support
+   fine-grained stratification across several variables at once (coverage collapses to `0.06` at
+   `n=150` for a 3-variable, 24-cell joint stratification, reproducing `TASK-075`'s own
+   cardinality-cliff shape). §4's check is different in kind from that: it stratifies `base_i` by
+   **exactly one** variable (`Ci` alone), not a jointly-grown multi-variable set — and the review's
+   own direct, real-`_stratified_adjustment` comparison (`ADR-074` risk 3) found a single 4-level
+   atom (matching `ADJUSTMENT_QUANTILE_BINS`, the realistic case for a numeric leave-one-out atom)
+   stays at coverage `~1.00` even at `n=150`, and still at `n=645` (this project's own real
+   `CAND-014` exposed population) — enormous headroom over `TASK-075`'s own real 7th-joint-column
+   figure of `0.44` at the identical population size. **In practice, this check's coverage floor
+   will rarely bind for realistic single-atom cardinalities (2-6 levels) at any population size
+   `G06` itself would even attempt validation on** — the opposite of what this subsection
+   previously claimed. This connects directly to §6.2's revised discussion below: because the
+   coverage floor rarely engages, almost all of this check's real discriminating power rests on
+   what §6.2's positive-evidence signals (not a bare attenuation reading) can actually show — which
+   is exactly why §6.3/§8.1 below no longer let low attenuation stand on its own.
 2. **Residual confounding survives even a correct, fully-covered adjustment.** §2 above recapitulates
    `TASK-079`'s own finding: a complete, correctly-covered oracle adjustment removed only a small
    fraction of the confounding it should, by construction, have been able to remove in full. This
@@ -281,23 +310,58 @@ confidence in every case:
 
 **Direct answer to the question as posed:** this project's own observational evidence can meaningfully
 separate the *clear* cases at either end — strong attenuation with adequate coverage is real evidence
-of confound-like structure; strong concentration with adequate coverage and low attenuation is real
+of confound-like structure; strong, positively-evidenced concentration with adequate coverage is real
 evidence of interaction-like structure — but **cannot reliably resolve the ambiguous middle**, and
 that middle is not a rare corner case given (1) and (2) above. A design that pretends otherwise, by
 forcing every atom into "confound" or "interaction," would be wrong exactly as often as this
 project's own already-disclosed confounding-adjustment ceiling predicts it would be.
 
-### 6.3 What the design must therefore do — mirroring `T05`'s own treatment, not inventing a new posture
+**The point 2 caveat above was correctly stated in this document's original text and remains
+unchanged — the defect `ADR-074`'s review found was never in this prose, but in §8.1's original
+mechanism failing to actually *enforce* what this paragraph already warned about.** §8.1 (original)
+read "coverage clears the floor **and** attenuation stays at or below the ceiling" as sufficient,
+on its own, for an uncapped `interaction_like` verdict — i.e., it let "low attenuation" stand in for
+"positive evidence of interaction," exactly the inference point 2 above says is unsound. **`ADR-075`
+now makes this an explicit, permanent, named rule of this design, restated here so it cannot drift
+back in a future revision:**
 
-`TASK-079` §4.3 already established a precedent for exactly this situation: a class of case where
-validation's available machinery genuinely cannot compute a reliable answer is not the same as an
-ordinary gate `FAIL`, and deserves its own **named ceiling** — distinct from reject, distinct from
-promote. This task's own instruction requires the identical posture here. §8 specifies three named
-outcomes, not two: **confound-like** (evidence ceiling), **interaction-like** (no ceiling from this
-mechanism), and **composition-risk indeterminate** (evidence ceiling, distinct reason code from both
-`confound-like` and from `T05`'s own overlap-ceiling state, so a reviewer is never left unable to
-tell "we think this is a confound," "we cannot tell," and "the confounders are known but jointly
-inestimable" apart from each other).
+> **Forbidden inference (permanent, `ADR-075`).** `attenuation <= max_adjusted_attenuation` is
+> never, by itself or in combination only with the coverage floor, sufficient evidence for
+> `interaction_like`. Low attenuation demonstrates only that this check's stratified adjustment
+> *failed to explain the effect away* — by §6.2 point 2, that is equally consistent with a real
+> confound this specific, already-limited estimator cannot remove. `interaction_like` requires its
+> own, independent, positive evidence of effect heterogeneity — never a default assigned merely
+> because `confound_like`'s own criteria were not met.
+
+### 6.3 The asymmetric classifier — what the design must therefore do
+
+**`TASK-079` §4.3 already established a precedent for treating "cannot compute a reliable answer"
+as its own named ceiling — that part of this design's posture is unchanged.** What changes here is
+that `interaction_like` is no longer symmetric with `confound_like` (one large-attenuation test and
+its logical complement); it is now a genuinely three-way, *asymmetric* classification, per
+`ADR-075`:
+
+- **`confound_like`** requires positive evidence of confounding — unchanged from the original
+  design: coverage clears the floor, the adjusted effect keeps the raw sign, and attenuation
+  exceeds `max_adjusted_attenuation`. Nothing about this branch was the review's finding of a
+  defect, and it is not revised here.
+- **`interaction_like`** now requires its *own*, independently-demonstrated positive evidence of
+  effect heterogeneity — never the residual case left over when `confound_like`'s criteria simply
+  fail to hold. §8.1 below specifies exactly what that evidence is (two signals, both required),
+  investigated empirically against known-by-construction synthetic DGPs in §14, not preselected or
+  assumed sufficient, per `ADR-075`'s own instruction.
+- **`composition-risk indeterminate`** is everything else — including, critically, the specific
+  case that used to fall through to `interaction_like` by default: adequate coverage, attenuation
+  under the ceiling, but no positive evidence of heterogeneity. This is the corrected safety
+  behavior `ADR-075` requires: a candidate this check genuinely cannot distinguish now degrades to
+  an evidence ceiling, never to an uncapped pass.
+
+§8.1 specifies three named outcomes exactly as before: **confound-like** (evidence ceiling),
+**interaction-like** (no ceiling from this mechanism), and **composition-risk indeterminate**
+(evidence ceiling, distinct reason code from both `confound-like` and from `T05`'s own
+overlap-ceiling state, so a reviewer is never left unable to tell "we think this is a confound," "we
+cannot tell," and "the confounders are known but jointly inestimable" apart from each other). What
+changed is only how `interaction-like` is *earned*.
 
 ## 7. The stage question — where does the safety invariant belong?
 
@@ -393,35 +457,129 @@ the invariant without spending any of search's own ability to surface genuine in
 candidate's own already-frozen condition tuple and the same development-split frame `G06` already
 uses — zero changes to `discovery.engine`.**
 
-### 8.1 Mechanism
+### 8.1 Mechanism (revised, `ADR-075`)
 
 For a promoted candidate `R = (C1, ..., Ck)`:
 
 - If `k == 1`: no check applies (nothing to leave one atom out of). Candidates unaffected.
-- If `k >= 2`: for each `i` in `1..k`, run §4's leave-one-out check (`base_i = R` minus `Ci`,
-  stratified adjustment of `base_i` for `Ci` alone), reusing `_stratified_adjustment`'s existing
-  binning and estimator logic and `max_adjusted_attenuation`'s existing threshold value — no new
-  tunable constant for the attenuation comparison itself.
-- Classify each `Ci` against `base_i`:
+- If `k >= 2`: **for each `i` in `1..k` — every atom, not "each atom beyond the first"; see the
+  explicit restatement below — run §4's leave-one-out check** (`base_i = R` minus `Ci`, stratified
+  adjustment of `base_i` for `Ci` alone), reusing `_stratified_adjustment`'s existing binning and
+  estimator logic and `max_adjusted_attenuation`'s existing threshold value — no new tunable
+  constant for the attenuation comparison itself.
+
+> **Restated explicitly, per `ADR-075`'s correction 2 (risk 2 of `ADR-074`'s review).** This
+> document's own §4/§8.1 have always specified a loop over **every** atom `i` in `1..k` — never
+> "atoms beyond the first." The review found no defect in this document's own text on this point;
+> the defect it found was in this task's *own `TASKS.md` recap* of this design, which paraphrased
+> the loop as "for each condition atom beyond the first" — a phrasing that, if an implementer
+> followed it literally instead of this document, would make whether a real confound is ever caught
+> depend on which slot it happens to occupy in the condition tuple (a concrete order-dependence
+> defect the review constructed directly: a 2-atom candidate where the confound sits in the first
+> slot would never have that atom checked at all). `TASKS.md`'s `TASK-080` entry is corrected to
+> match this document's own correct text as part of this revision. **This sentence is the
+> authoritative statement of the loop's scope: `1..k`, every atom, permutation-invariant by
+> construction — restated here so it cannot drift back to an unsafe paraphrase in a future recap.**
+
+- Classify each `Ci` against `base_i`, using the **asymmetric** rule §6.3 specifies:
   - **Confound-like** if `coverage(base_i | Ci)` clears a coverage floor (reusing
     `min_confounder_stratum_coverage`'s existing value and role, the same floor `G06` already applies
-    to its own joint stratification, applied here to a strictly simpler one-variable stratification)
-    **and** attenuation exceeds `max_adjusted_attenuation`.
-  - **Interaction-like** if coverage clears the floor **and** attenuation stays at or below
-    `max_adjusted_attenuation` **and** `harm(R)` shows genuine concentration relative to
-    `harm(base_i)` (the compounding materially changed the picture, consistent with `Ci` marking a
-    real subpopulation rather than being inert).
-  - **Composition-risk indeterminate** otherwise — most commonly, `coverage(base_i | Ci)` does not
-    clear the floor (§6.2's structurally common case), but also any case whose attenuation reading
-    sits ambiguously near the threshold rather than clearly on one side.
+    to its own joint stratification, applied here to a strictly simpler one-variable stratification),
+    the adjusted effect keeps the raw effect's sign, **and** attenuation exceeds
+    `max_adjusted_attenuation`. **Unchanged from the original design** — this branch was never the
+    review's finding of a defect.
+  - **Interaction-like** only if coverage clears the floor, attenuation stays at or below
+    `max_adjusted_attenuation` (necessary, no longer sufficient — the forbidden inference in §6.2
+    is not being made here; this is only a precondition), **and both of the following two,
+    independently-computed positive-evidence signals agree:**
+    1. **Stratum-contrast heterogeneity.** Recompute `base_i`'s own effect *separately within each
+       of `Ci`'s two levels* — `harm(base_i | Ci = target level)` (which is exactly `harm(R)`, the
+       compound rule's own already-computed effect) and `harm(base_i | Ci = complement level)` — the
+       identical "recompute within each level of a covariate" pattern `G09` already uses for its own
+       declared strong covariates, applied here to the leave-one-out atom instead. The contrast
+       `delta = harm(R) - harm(base_i | complement)` must be statistically credible (a closed-form
+       Wald test against zero, the same `normal_approx_two_sided_p` function `G05` already uses in
+       production for exactly this reason — see `docs/analytics/validation-contract.md` §4a — not a
+       new resampling procedure) **and** its sign must be consistent with the direction `harm(R)`
+       itself already points. A low-attenuation reading with no real level-to-level contrast (the
+       Scenario-C shape §14 tests directly) fails this signal, by design.
+    2. **Consistency under threshold perturbation.** For an atom derived by thresholding a numeric
+       or otherwise perturbable feature, the same contrast is recomputed at one bin below and one
+       bin above the atom's own production threshold — the identical one-bin-perturbation
+       *mechanism* `G12`'s robustness battery already applies to a candidate rule's own numeric
+       conditions (`docs/analytics/validation-contract.md` §4c), applied here to this check's own
+       leave-one-out threshold instead. All three contrasts (production, one bin low, one bin high)
+       must agree in sign, each must independently clear its own significance test, and the smaller
+       of the two perturbed magnitudes must retain at least `(1 - max_adjusted_attenuation)` of the
+       production contrast's magnitude — the same already-audited constant, reused for a stability
+       role instead of an attenuation role, so no new tunable is introduced for this comparison
+       either. A signal that only appears at the exact production threshold, and vanishes or
+       reverses under a small perturbation, is not treated as real.
+
+    **Why not the other two candidate signals `ADR-075` also names (an independent
+    parameterization/regression estimate; a nested `base+atom` vs. `base+atom+interaction` model
+    comparison)?** Both were investigated, not skipped or preselected against — §14 shows this
+    empirically, not just by assertion. In this check's own leave-one-out design (a saturated 2x2
+    contingency table of `base_i`'s own exposure against `Ci`'s two levels, with no third
+    covariate), an OLS interaction coefficient for `y ~ 1 + base_i + Ci + base_i*Ci` and a nested
+    `F`-test comparing that model against `y ~ 1 + base_i + Ci` both reduce *algebraically* to
+    signal 1's own difference-in-differences quantity — a saturated design has no room for a
+    different functional form to diverge from the cell-mean contrast it is already computing.
+    §14's script verifies this numerically (`_verify_ols_redundancy`), not merely from first
+    principles: 0 mismatches to floating-point precision across 1,435 independently generated
+    trials. Genuine independence instead comes from *re-partitioning* the same data (signal 2), not
+    from re-parameterizing it — which is why signal 2, not a regression re-estimate, is this
+    design's second signal. Adding a third covariate to break the saturation and make a regression
+    genuinely independent would require the multi-atom/joint stratification §12 explicitly declines
+    to build for this revision (the same combinatorial-multiplicity concern `G05`/`ADR-015` already
+    resolved once and this task does not reopen).
+  - **Composition-risk indeterminate** otherwise. This now includes — as the corrected, safe
+    behavior `ADR-075` requires — the specific case that used to default to `interaction_like`:
+    adequate coverage, attenuation under the ceiling, but signal 1 and/or signal 2 above did not
+    both clear their bar. Also unchanged from the original design: any case where
+    `coverage(base_i | Ci)` does not clear the floor (§6.2's now-corrected characterization: this
+    engages *less* often than originally stated, but still occasionally, and remains a valid
+    indeterminate trigger on its own).
 - **Rule-level outcome:** if any `Ci` classifies confound-like, the candidate's evidence level is
   capped below `adjusted_observational_association` (mirroring `G02`'s own `CAP_EVIDENCE` /
   `EvidenceLevel.PREDICTIVE` pattern), with a distinct, disclosed reason naming which atom and why.
   Else if any `Ci` classifies indeterminate (and none confound-like), the same cap applies, under a
   **separately named** reason distinct from both the confound-like cap and from `T05`'s own overlap-
   ceiling state — never conflated with either, per this task's own criterion 3. Else (every atom
-  interaction-like), no cap from this mechanism; the candidate proceeds through the existing gate
-  ladder exactly as it does today.
+  interaction-like, each having cleared both positive-evidence signals), no cap from this mechanism;
+  the candidate proceeds through the existing gate ladder exactly as it does today.
+
+### 8.1a Integration as a genuine `GateId`/`GateSpec` (revised, `ADR-075` correction 4)
+
+**This check must be specified as a real, new `GateId` entry participating in `GATE_SPECS`'s
+`evidence_ceiling` mechanism (`grading.py`) — not an ad hoc, out-of-band cap.** Concretely, for a
+later implementation task:
+
+- A new `GateId` member (e.g. `GateId.COMPOSITION_SAFETY = "G16_CANDIDATE_COMPOSITION_SAFETY"`,
+  the next free number after the existing `G00`-`G15` range) is added to the `GateId` enum in
+  `contract.py`, and a corresponding `GateSpec` entry is added to `GATE_SPECS`: `on_failure =
+  FailureAction.CAP_EVIDENCE`, `max_level_on_failure = EvidenceLevel.PREDICTIVE` — the identical
+  cap `G02` already uses for its own circularity failure, since this check is, in substance, a
+  second, condition-side instance of the same post-treatment-controls concern `G02` addresses on
+  the adjustment side (§8.3 already established the two check disjoint variable classes; the
+  *consequence* of failing either is the same evidence ceiling). The gate's own `satisfied` value is
+  `False` whenever the rule-level outcome above is confound-like or indeterminate for any atom, and
+  `True` when every atom is interaction-like (or `k == 1`, vacuously).
+- This is what "mirroring `G02`'s own `CAP_EVIDENCE` pattern" in the original §8.1 text should mean
+  *literally*, not merely by analogy, per `ADR-074`'s risk-5 finding, traced end to end and cited
+  here rather than re-derived: `apply.py`'s `run_validation` -> `grading.classify_evidence_level`/
+  `evidence_ceiling` -> `grading.assign_policy_readiness` -> `report.ValidationReport.__post_init__`
+  already enforces, as a hard invariant at report-construction time, that
+  `self.evidence_level` must exactly equal `classify_evidence_level(self.gate_results,
+  self.identification_design)` (recomputed fresh from `gate_results`, checked for completeness
+  against every canonical `GateId` by `grading._result_map`), raising `ValueError` otherwise; and
+  `assign_policy_readiness` is driven purely by that same, necessarily-consistent evidence level, so
+  `policy_readiness` cannot exceed what a capped evidence level permits. **If this check is wired in
+  as a real `GateId`/`GateSpec` exactly as specified above, this existing invariant machinery already
+  prevents the cap from being silently bypassed or re-raised by any other gate or state-transition
+  path — a bespoke post-hoc override attempt fails loudly at report-construction time instead.** A
+  later implementation task must rely on this existing protection, not re-derive a weaker, ad hoc
+  mechanism — see §10 item 6 for the explicit invariant test this specification requires.
 
 ### 8.2 Why this does not reintroduce §3's objections to a scoring-stage fix
 
@@ -514,6 +672,26 @@ all, per this project's own `TASK-070` synthetic-first precedent:
    rule during search (a property the design in §8.1 already provides by construction, but which
    should be independently verified against the real implementation, not merely assumed from the
    design).
+6. **The proxy-confounding ladder (mandatory, `ADR-075`) — already run against this design's own
+   classifier in §14 below, and must be re-run against the real implementation, not merely assumed to
+   transfer.** A swept series of DGPs with confounder-proxy concordance ranging from near-random
+   (`~0.50`) to near-exact (`0.99`), the base rule's true causal effect held at exactly zero (100%
+   confounded by construction). **Required property, checked across the full swept range, not just
+   the endpoints:** the classifier's primary failure mode as concordance degrades must be
+   `confound_like -> indeterminate`, **never** `confound_like -> interaction_like`. §14 confirms this
+   holds for this design's own classifier (0 of 1,100 trials, 11 concordance points, 100 trials each)
+   against synthetic data calling the real `_stratified_adjustment`; a later implementation task must
+   reconfirm it against the shipped code, not treat this document's own script as a substitute for
+   that verification.
+7. **The evidence-cap invariant test (mandatory, `ADR-075` correction 4) — proving downstream
+   re-promotion past the cap is impossible.** Construct a `ValidationReport` whose `gate_results`
+   include a `GateId.COMPOSITION_SAFETY` (§8.1a) result with `satisfied=False` (i.e., some atom
+   classified confound-like or indeterminate), and attempt to construct the report with
+   `evidence_level` set *above* `EvidenceLevel.PREDICTIVE` (e.g. `ADJUSTED_OBSERVATIONAL`) — confirm
+   `ValidationReport.__post_init__` raises `ValueError`, exactly as it already does for `G02`'s
+   identical cap today (report.py, cited in §8.1a, not re-derived). This proves the specific claim
+   §8.1a makes: once wired in as a real `GateId`/`GateSpec`, no downstream code path — a bug, a
+   different gate, a future state transition — can silently re-raise the cap this check assigns.
 
 ## 11. Hard-fixed non-solutions — compliance confirmed
 
@@ -561,8 +739,36 @@ all, per this project's own `TASK-070` synthetic-first precedent:
   transfer correctly to this new use** (a one-variable adjustment is a strictly simpler stratification
   than `G06`'s own joint one) — via the synthetic-first test plan in §10, before any travel-specific
   number is examined, exactly as `TASK-070`'s own precedent requires.
+- **The multi-atom/joint-composition-risk blind spot (`ADR-074` risk 4 / `ADR-075` correction 3) —
+  explicitly disclosed here, not solved.** §8.1's mechanism, by construction, only ever removes
+  *exactly one* atom and stratifies by *exactly one* variable at a time (`base_i = R` minus a single
+  `Ci`); it never constructs a base rule with two or more atoms removed, nor a joint multi-variable
+  stratification analogous to `G06`'s own greedily-grown joint adjustment set. **A composition risk
+  that exists only through the joint inclusion of two or more atoms — the same reason `G06` grows a
+  multi-variable adjustment set rather than testing variables one at a time — is therefore
+  structurally invisible to this check.** Concretely: a candidate `R = (C1, C2, C3)` where no single
+  atom, checked alone against the rest of the rule, shows confound-like or ambiguous behavior, but
+  where `C1` and `C2` *jointly* proxy an unmeasured common cause that neither proxies well alone,
+  would pass this check's per-atom loop cleanly while the underlying risk it is designed to catch is
+  still present. **This stays a documented v1 limitation, not solved in this revision, per `ADR-075`'s
+  own explicit instruction: full subset enumeration (checking every non-empty subset of `R`'s atoms
+  jointly, not just each atom alone) would recreate the same combinatorial-multiplicity and
+  coverage-collapse problems `G05`/`ADR-015` already resolved once for a different mechanism, and
+  reopening that is out of this revision's scope.** A future task could investigate whether a
+  cheaper, targeted joint check (e.g., only for atom pairs whose individual leave-one-out checks both
+  land in `composition_risk_indeterminate`, rather than every subset) is worth the added complexity —
+  named here as a real open question, not designed or scoped by this document.
 
 ## 13. Recommendation, stated plainly
+
+**Revision status (`ADR-075`, 2026-08-29).** The recommendation below is unchanged in its
+architectural conclusion (validation-stage, leave-one-out, `CAP_EVIDENCE`-style three-outcome
+classification) — what changed is the classifier §8.1 specifies for `interaction_like`, now
+asymmetric and evidence-gated per §6.3, and the four corrections in §6.2/§8.1a/§10/§12 above. §14
+reports this revision's own adversarial form-test suite results, including the mandatory
+proxy-confounding ladder `ADR-075` requires as this revision's core acceptance property. This
+document is not yet re-reviewed by `CODE_REVIEWER` — that is the next step, per `ADR-075`'s own
+sequencing, not performed by this revision itself.
 
 **Recommended: the combined solution-class-2/3 design in §8, located at validation/promotion (§7.4),
 computed entirely from a candidate's own frozen condition tuple with zero changes to
@@ -580,3 +786,204 @@ plan is built to answer, and neither is decided here, per this task's own design
 later, distinct implementation task performs §10's test plan and, if it holds up, implements §8;
 `CODE_REVIEWER` reviews this document first, per `ADR-073`'s own instruction, before that
 implementation task opens.
+
+## 14. Adversarial form-test suite results (`ADR-075` revision, new)
+
+**Script:** `scripts/diagnose_task080_composition_classifier_revision.py`. **Raw output:**
+`docs/benchmark/task-080-composition-classifier-revision-raw.json`. Calls the real, unmodified
+`policy_analytics.validation.apply._stratified_adjustment`, the real `DEFAULT_THRESHOLDS`, and the
+real `policy_analytics.validation.grading.normal_approx_two_sided_p` throughout — no estimator is
+reimplemented. All DGPs are known-by-construction synthetic data (invented columns, distributions,
+and effects); no trap ID or ground-truth identity is referenced anywhere in this section or the
+script, per this task's own standing discipline. This is design-verification evidence for the
+classifier §8.1/§8.1a specifies — it is not, and does not substitute for, the real-implementation
+re-run §10 items 6/7 require once an implementation task exists.
+
+### 14.1 DGPs
+
+Three synthetic data-generating processes, all a common-cause variable (`U` or `D`) proxied at a
+swept `concordance` by a continuous score `Ci_raw` (a base value in `{0, 1}` plus
+`uniform(-0.5, 0.5)` jitter, so the production threshold `Ci_raw >= 0.5` recovers the proxy exactly,
+and a small threshold move reclassifies only the borderline share of records — the same kind of
+one-bin perturbability `G12`'s own numeric thresholds have):
+
+- **Confound DGP (Scenario-C-style, reconstructed from `TASKS.md`'s own description of the review's
+  construction per `ADR-075`, since the review's own script was never committed):** `U` is a true
+  common cause of both exposure composition (`P(T=1|U=1)=0.75`, `P(T=1|U=0)=0.25`) and the outcome
+  (`y = 1000 + 220*U + 0*T + noise`) — the base rule's true causal effect is exactly zero, 100%
+  confounded by construction. `Ci` proxies `U` at `concordance`.
+- **Interaction DGP (Scenario-D-style):** `D` is a genuine effect modifier with zero main effect and
+  zero confounding role — `T` is assigned independently of `D` (`P(T=1)=0.5` unconditionally) — and
+  `y = 1000 + 50*T + 260*T*D + noise`. `Ci` proxies `D` at `concordance`.
+- **Combined DGP (Scenario-E-style):** `D` is *both* a genuine effect modifier *and* has an
+  independent, modest confounding-via-selection role on the same atom (`P(T=1|D=1)=0.60`,
+  `P(T=1|D=0)=0.40`; `y = 1000 + 90*D + 50*T + 260*T*D + noise`).
+
+### 14.2 The proxy-confounding ladder — the mandatory core deliverable
+
+Concordance swept `{0.50, 0.55, ..., 0.95, 0.99}` (11 points), `n=1600` per trial, **100 trials per
+concordance point** (1,100 trials total) on the confound DGP:
+
+| Concordance | n trials | `confound_like` | `indeterminate` | `interaction_like` (SAFETY) |
+|---:|---:|---:|---:|---:|
+| 0.50 | 100 | 0 | 100 | 0 |
+| 0.55 | 100 | 0 | 100 | 0 |
+| 0.60 | 100 | 0 | 100 | 0 |
+| 0.65 | 100 | 0 | 100 | 0 |
+| 0.70 | 100 | 0 | 100 | 0 |
+| 0.75 | 100 | 0 | 100 | 0 |
+| 0.80 | 100 | 0 | 100 | 0 |
+| 0.85 | 100 | 2 | 98 | 0 |
+| 0.90 | 100 | 93 | 7 | 0 |
+| 0.95 | 100 | 100 | 0 | 0 |
+| 0.99 | 100 | 95 | 5 | 0 |
+
+**Result: 0 of 1,100 trials, at every one of 11 concordance points spanning `0.50` to `0.99`,
+classify `interaction_like`.** The required property holds continuously across the full ladder, not
+just at the endpoints: as concordance degrades from `0.99` toward `0.50`, the classifier's behavior
+shifts smoothly from `confound_like`-dominant (correctly identifying the confound when the proxy is
+good) to `indeterminate`-dominant (correctly declining to certify either way when the proxy is
+weak) — never once to the forbidden `interaction_like`. A supplementary stress run at the specific
+concordance range where the pre-tightened classifier (see §14.4) showed residual risk
+(`{0.50, ..., 0.80}`, 150 trials/point, 1,050 additional trials, different seed base) reproduced the
+same 0-failure result, for **0 failures across 2,150 total confound-DGP trials** in this suite.
+
+### 14.3 The interaction DGP — confirming the classifier is not vacuous
+
+Same concordance sweep, 25 trials per point (275 trials total), interaction DGP (ground truth:
+`interaction_like`):
+
+| Concordance | n trials | `interaction_like` | `indeterminate` | `confound_like` |
+|---:|---:|---:|---:|---:|
+| 0.50 | 25 | 0 | 25 | 0 |
+| 0.55 | 25 | 3 | 22 | 0 |
+| 0.60 | 25 | 19 | 6 | 0 |
+| 0.65 | 25 | 25 | 0 | 0 |
+| 0.70 | 25 | 25 | 0 | 0 |
+| 0.75 | 25 | 25 | 0 | 0 |
+| 0.80 | 25 | 25 | 0 | 0 |
+| 0.85 | 25 | 25 | 0 | 0 |
+| 0.90 | 25 | 25 | 0 | 0 |
+| 0.95 | 25 | 25 | 0 | 0 |
+| 0.99 | 25 | 25 | 0 | 0 |
+
+The classifier correctly detects genuine interaction with high power once the proxy is even
+moderately informative (`>=0.65`: 100% `interaction_like`), degrades gracefully through
+`indeterminate` as the proxy weakens (matching the *acceptable* side of the asymmetric loss
+function), and — importantly — **never once misclassifies a genuine interaction as `confound_like`**
+across all 275 trials, so the tightened significance bar §14.4 required to close the safety gap does
+not introduce a new, different misclassification risk in the other direction.
+
+The combined DGP (genuine interaction plus an independent, modest confounding role on the same atom
+— the case closest to the review's own Scenario E) resolves `interaction_like` in 59/60 trials across
+three concordance points (`0.65`, `0.80`, `0.95`; one trial at `0.65` landed `indeterminate`),
+confirming the classifier's positive-evidence signals are not confused by a modest secondary
+confounding role riding along with a real effect modifier.
+
+### 14.4 Why the significance bar is stricter than a bare 95% CI, and the empirical iteration that produced it
+
+The first version of the two positive-evidence signals (§8.1), using the contract's own
+`confidence_level` (`0.95`, i.e. `alpha=0.05`) for the Wald test in both signals, produced 3
+`confound -> interaction_like` failures out of 440 confound-ladder trials — all at low-to-moderate
+concordance (`0.55`-`0.70`), all with delta p-values just under `0.05` and attenuation readings that
+happened, by sampling noise, to fall just under the ceiling. This is expected, ordinary finite-sample
+behavior for an independently-run `alpha=0.05` test, not a structural defect: with no real signal
+present (§14.5 confirms the true contrast is exactly zero at every concordance for this DGP's
+symmetric proxy-noise construction), a small fraction of trials will spuriously clear a `5%`
+significance bar by chance. Requiring signal 2's three partitions (production, one bin low, one bin
+high) to **each independently** clear their own significance test (rather than only checking sign
+agreement and magnitude retention, as an earlier draft of signal 2 did) cut this to 1/440; tightening
+`alpha` to `0.002` for all three tests (still using the same `normal_approx_two_sided_p` function,
+just a stricter cutoff — no new statistical machinery, only a stricter threshold on it) eliminated
+the remaining failure, confirmed by the 1,100-trial and supplementary 1,050-trial runs in §14.2
+finding zero. **This is deliberately, asymmetrically strict:** because `interaction_like` is the one
+branch that leaves a candidate fully uncapped, this design accepts a real, measurable cost in
+statistical power to detect genuine interaction at the margin (§14.3 shows this cost concretely: the
+interaction DGP needs concordance `>=0.65`, not `>=0.55`, to reach 100% detection) in exchange for
+driving the safety-critical error rate to zero across every tested condition — exactly the trade the
+asymmetric loss function in `ADR-075` authorizes ("false interaction... acceptable"; "false
+confounding-as-interaction... a safety failure, full stop").
+
+### 14.5 Why the confound DGP's true heterogeneity contrast is exactly zero (analytical confirmation)
+
+For the confound DGP, `P(U=1 | Ci=target) = concordance` and `P(U=1 | Ci=complement) = 1 -
+concordance` by construction (uniform prior on `U`). Because `T`'s assignment probabilities given `U`
+are complementary (`0.75` and `0.25`), the induced residual confounding function
+`f(q) = P(U=1|T=1,Ci\text{-stratum with }P(U{=}1){=}q) - P(U=1|T=0,\text{same stratum})` satisfies
+`f(q) = f(1-q)` for every `q` — verified numerically at `q=0.75`: `f(0.75) = f(0.25) = 0.4` to full
+precision. This means the two per-stratum residual-confounding magnitudes are exactly equal for any
+concordance, so **the true stratum-contrast `delta` is exactly zero at every point on the ladder** —
+every classified `interaction_like` on this DGP is, by construction, a Type-I error of signal 1's
+significance test, not evidence of a real, undetected heterogeneity the classifier is failing to
+control for. This is why driving the observed rate to zero via a stricter significance bar (§14.4) is
+the *correct* fix for this specific DGP shape, not a bar that happens to work only on this test.
+
+### 14.6 Before/after: the forbidden inference, quantified directly
+
+The reviewed design's implicit rule (`attenuation <= max_adjusted_attenuation` sufficient, on its
+own with the coverage floor, for `interaction_like`) applied to the *identical* 1,100 confound-DGP
+trials from §14.2 (computed from the same collected `attenuation`/`coverage` figures, no additional
+DGP draws):
+
+| Concordance | n | OLD rule `interaction_like` (unsafe) | NEW rule `interaction_like` |
+|---:|---:|---:|---:|
+| 0.50 | 100 | 100 | 0 |
+| 0.55 | 100 | 100 | 0 |
+| 0.60 | 100 | 100 | 0 |
+| 0.65 | 100 | 100 | 0 |
+| 0.70 | 100 | 100 | 0 |
+| 0.75 | 100 | 100 | 0 |
+| 0.80 | 100 | 100 | 0 |
+| 0.85 | 100 | 98 | 0 |
+| 0.90 | 100 | 7 | 0 |
+| 0.95 | 100 | 0 | 0 |
+| 0.99 | 100 | 0 | 0 |
+
+**Total old-rule unsafe rate: 805/1,100 = 73.2%.** At concordance `0.75` — the review's own
+adversarial Scenario C concordance — the old rule classifies `interaction_like` (uncapped) in
+**100/100** trials; the new rule, **0/100**. This is the direct, quantified reproduction of
+`ADR-074`'s blocking finding and the direct, quantified confirmation that this revision closes it.
+
+### 14.7 Asymmetric error rates, reported separately (never averaged, per `ADR-075`)
+
+| Metric | Count | Rate |
+|---|---:|---:|
+| **[SAFETY-CRITICAL] confound -> `interaction_like` (uncapped)** | 0 / 1,100 | **0.0000** |
+| [acceptable] confound -> `indeterminate` | 810 / 1,100 | 0.7364 |
+| [correct] confound -> `confound_like` | 290 / 1,100 | 0.2636 |
+| [correct] interaction -> `interaction_like` | 222 / 275 | 0.8073 |
+| [disclosed cost] interaction -> `indeterminate` | 53 / 275 | 0.1927 |
+| [secondary, also 0] interaction -> `confound_like` | 0 / 275 | 0.0000 |
+
+The two asymmetric error types `ADR-075` requires be reported separately are not combined into one
+accuracy figure anywhere in this section: the safety-critical rate (row 1) is reported and evaluated
+entirely on its own terms (required: `0`; achieved: `0`), independent of the acceptable-cost rate
+(row 2, `73.6%` of confound trials landing `indeterminate` rather than `confound_like` — an
+`indeterminate` result the reused, already-audited `alpha=0.002`/coverage-floor combination produces
+whenever the positive-evidence bar for `confound_like` itself, unchanged from the original design, is
+also not cleared; this is the same *already-disclosed* cost §6.2/§9 describe for the analogous
+"cannot tell" case generally, not a new one this revision introduces).
+
+### 14.8 The OLS-redundancy check
+
+`_verify_ols_redundancy` fits `y ~ 1 + T + Ci + T*Ci` by closed-form OLS (pure-Python normal-equations
+solve, an estimator family entirely independent of the cell-based stratum contrast) on every trial's
+own generated data and compares the fitted interaction coefficient to signal 1's `delta`. **Result: 0
+mismatches (to `1e-6` relative/absolute tolerance) across all 1,435 trials in this suite** —
+confirming numerically, not just by algebraic argument, that an OLS interaction term and a nested
+`base+atom` vs. `base+atom+interaction` model comparison are not an independent second signal in this
+check's own saturated, two-covariate leave-one-out design, per §8.1's discussion.
+
+### 14.9 What this suite does not establish
+
+This suite tests the classifier's *form* on invented synthetic DGPs, exactly as `TASK-070`'s own
+synthetic-first precedent requires before anything travel-specific is examined — it is not a
+replacement for §10's full test plan (the 5 traps, the 6 historical `PASS` candidates, more than one
+real domain, the order-independence and evidence-cap invariant checks), all of which remain for a
+later implementation task to run against the real, shipped code. Nor does it certify that the
+`alpha=0.002`/`STABILITY_RETENTION_FLOOR` combination is optimal — only that it drives this
+revision's one mandatory acceptance property (§14.2) to zero on every DGP shape and concordance level
+tested here, at a disclosed, quantified cost to interaction-detection power (§14.3/§14.4). A later
+implementation task's own synthetic form tests (§10 item 1) should independently re-verify this
+combination against the real, shipped `_stratified_adjustment` call path, not treat this document's
+own script as a substitute for that verification.
