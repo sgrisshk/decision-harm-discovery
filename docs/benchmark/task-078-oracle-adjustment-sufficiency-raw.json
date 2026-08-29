@@ -1,0 +1,1010 @@
+{
+  "diagnostic": "TASK-078 oracle-adjustment-set sufficiency experiment",
+  "adr": "ADR-071 step 2",
+  "dataset_identity_sha256": "b6128eb3c1bdb36515c90570aa4ccabfc3dff8d1026d9002f1c832774b60a683",
+  "documented_official_family_size_reused": 33085,
+  "fidelity_checks": {
+    "dataset_identity_matches_task075": true,
+    "real_selection_reproduces_task075_recorded_selections": [
+      {
+        "trap_id": "T01",
+        "expected_from_task075": [
+          "customer_type",
+          "manual_exception",
+          "customer_segment",
+          "party_size",
+          "payment_method",
+          "product_category",
+          "acquisition_channel"
+        ],
+        "actual": [
+          "customer_type",
+          "manual_exception",
+          "customer_segment",
+          "party_size",
+          "payment_method",
+          "product_category",
+          "acquisition_channel"
+        ],
+        "match": true
+      },
+      {
+        "trap_id": "T02",
+        "expected_from_task075": [
+          "customer_type",
+          "manual_exception",
+          "customer_segment",
+          "party_size",
+          "payment_method",
+          "product_category",
+          "acquisition_channel"
+        ],
+        "actual": [
+          "customer_type",
+          "manual_exception",
+          "customer_segment",
+          "party_size",
+          "payment_method",
+          "product_category",
+          "acquisition_channel"
+        ],
+        "match": true
+      },
+      {
+        "trap_id": "T03",
+        "expected_from_task075": [
+          "customer_type",
+          "manual_exception",
+          "customer_segment",
+          "party_size",
+          "payment_method",
+          "product_category"
+        ],
+        "actual": [
+          "customer_type",
+          "manual_exception",
+          "customer_segment",
+          "party_size",
+          "payment_method",
+          "product_category"
+        ],
+        "match": true
+      },
+      {
+        "trap_id": "T04",
+        "expected_from_task075": [
+          "customer_type",
+          "manual_exception",
+          "customer_segment",
+          "party_size",
+          "product_category",
+          "acquisition_channel"
+        ],
+        "actual": [
+          "customer_type",
+          "manual_exception",
+          "customer_segment",
+          "party_size",
+          "product_category",
+          "acquisition_channel"
+        ],
+        "match": true
+      },
+      {
+        "trap_id": "T05",
+        "expected_from_task075": [
+          "customer_type",
+          "customer_segment",
+          "party_size",
+          "payment_method",
+          "product_category"
+        ],
+        "actual": [
+          "customer_type",
+          "customer_segment",
+          "party_size",
+          "payment_method",
+          "product_category"
+        ],
+        "match": true
+      }
+    ],
+    "disclosed_limitation": "artifacts/blind/task-073-official-20260829-001.* not present in this worktree (artifacts/ is gitignored, fresh worktree) -- cannot re-verify frozen candidates.json SHA-256 against hashes.json, nor byte-match a fresh run_validation() against the committed TASK-019 artifact directly. Substituted: dataset identity re-verified fresh, and a fresh, override-free run_validation() on the same real conditions reproduces TASK-075's own already-recorded adjustment_columns_used exactly for all 5 traps. Same class of limitation the CODE_REVIEWER's independent TASK-075 review already disclosed.",
+    "single_candidate_bh_rank_note": "Each run passes exactly one candidate to run_validation(), so G05's Benjamini-Hochberg adjustment always uses rank=1 within that call, rather than this candidate's true rank among the official run's full reported candidate list. family_size is still the real, documented 33085 (not shrunk). rank=1 against a fixed family_size is the *most conservative* (largest) BH-adjusted p-value achievable for a single candidate -- strictly harder to pass than the candidate's real historical rank would have produced, so this cannot be the reason a trap fails to be rejected here; it could only make G05 spuriously fail a trap that would otherwise pass, which none of the recorded raw p-values are close enough to for this to matter (all raw p far below alpha at any plausible rank)."
+  },
+  "oracle_sets": {
+    "T01": {
+      "confounded_by_ground_truth": [
+        "destination",
+        "booking_lead_days",
+        "party_size",
+        "trip_duration_days"
+      ],
+      "condition_features": [
+        "manager"
+      ],
+      "oracle_set_achievable": [
+        "booking_lead_days",
+        "destination",
+        "party_size",
+        "trip_duration_days"
+      ],
+      "confounded_by_fate": {
+        "destination": "included_in_oracle_set",
+        "booking_lead_days": "included_in_oracle_set",
+        "party_size": "included_in_oracle_set",
+        "trip_duration_days": "included_in_oracle_set"
+      }
+    },
+    "T02": {
+      "confounded_by_ground_truth": [
+        "trip_duration_days",
+        "booking_month"
+      ],
+      "condition_features": [
+        "supplier"
+      ],
+      "oracle_set_achievable": [
+        "trip_duration_days"
+      ],
+      "confounded_by_fate": {
+        "trip_duration_days": "included_in_oracle_set",
+        "booking_month": "excluded_vocabulary_gap (not in the manifest's adjustment_eligible pool at all; a representability question, not a selection question)"
+      }
+    },
+    "T03": {
+      "confounded_by_ground_truth": [
+        "customer_type",
+        "discount_rate",
+        "installments"
+      ],
+      "condition_features": [
+        "acquisition_channel",
+        "discount_rate"
+      ],
+      "oracle_set_achievable": [
+        "customer_type",
+        "installments"
+      ],
+      "confounded_by_fate": {
+        "customer_type": "included_in_oracle_set",
+        "discount_rate": "excluded_structurally_own_condition_feature (G02 circularity guard, untouched by this experiment; cannot be forced into the adjustment set without bypassing a gate this task is not authorized to touch)",
+        "installments": "included_in_oracle_set"
+      }
+    },
+    "T04": {
+      "confounded_by_ground_truth": [
+        "booking_lead_days",
+        "destination"
+      ],
+      "condition_features": [
+        "discount_rate",
+        "payment_method"
+      ],
+      "oracle_set_achievable": [
+        "booking_lead_days",
+        "destination"
+      ],
+      "confounded_by_fate": {
+        "booking_lead_days": "included_in_oracle_set",
+        "destination": "included_in_oracle_set"
+      }
+    },
+    "T05": {
+      "confounded_by_ground_truth": [
+        "destination",
+        "party_size",
+        "trip_duration_days",
+        "booking_lead_days"
+      ],
+      "condition_features": [
+        "manual_exception"
+      ],
+      "oracle_set_achievable": [
+        "booking_lead_days",
+        "destination",
+        "party_size",
+        "trip_duration_days"
+      ],
+      "confounded_by_fate": {
+        "destination": "included_in_oracle_set",
+        "party_size": "included_in_oracle_set",
+        "trip_duration_days": "included_in_oracle_set",
+        "booking_lead_days": "included_in_oracle_set"
+      }
+    }
+  },
+  "t02b_full_ground_truth_oracle_set": [
+    "booking_month",
+    "trip_duration_days"
+  ],
+  "t02b_booking_month_derivation": "booking_month := month(booking_date)",
+  "run_results": {
+    "T01": {
+      "run_label": "t01-oracle",
+      "candidate_id": "TASK078-T01-counterfactual",
+      "conditions": [
+        "manager eq Manager 2"
+      ],
+      "oracle_override_applied": [
+        "booking_lead_days",
+        "destination",
+        "party_size",
+        "trip_duration_days"
+      ],
+      "adjustment_columns_used": [
+        "booking_lead_days",
+        "destination",
+        "party_size",
+        "trip_duration_days"
+      ],
+      "confounder_stratum_coverage": 0.7810509554140127,
+      "adjusted_harm_per_booking": -68.98695154404598,
+      "e_value": 1.3947855268440688,
+      "raw_effect_eur": -29.14918774493708,
+      "adjusted_effect_eur": -68.98695154404598,
+      "adjusted_effect_ci": [
+        -116.64305556814261,
+        -19.926214966424055
+      ],
+      "evidence_level": "descriptive_observation",
+      "policy_readiness": "not_ready",
+      "gate_of_death_non_g13_g14": "G03_SAMPLE_ADEQUACY",
+      "gate_of_death_detail": "n_exposed=1256, clusters=2834, MDE80=68.7 EUR vs observed harm=-29.1 EUR.",
+      "family_size": 33085,
+      "gate_trace": [
+        {
+          "gate_id": "G00_LINEAGE_PREREGISTRATION",
+          "outcome": "pass",
+          "satisfied": true,
+          "detail": "Candidate is PERSISTED with a resolvable dataset/outcome reference."
+        },
+        {
+          "gate_id": "G01_TARGET_LEAKAGE",
+          "outcome": "pass",
+          "satisfied": true,
+          "detail": "All condition features are DECISION_TIME."
+        },
+        {
+          "gate_id": "G02_POST_TREATMENT_CONTROLS",
+          "outcome": "pass",
+          "satisfied": true,
+          "detail": "Adjustment set ('booking_lead_days', 'destination', 'party_size', 'trip_duration_days') is decision-time and excludes condition features."
+        },
+        {
+          "gate_id": "G03_SAMPLE_ADEQUACY",
+          "outcome": "fail",
+          "satisfied": false,
+          "detail": "n_exposed=1256, clusters=2834, MDE80=68.7 EUR vs observed harm=-29.1 EUR."
+        },
+        {
+          "gate_id": "G04_UNCERTAINTY",
+          "outcome": "fail",
+          "satisfied": false,
+          "detail": "95% CI [-76.8, 19.9] EUR."
+        },
+        {
+          "gate_id": "G05_MULTIPLE_COMPARISONS",
+          "outcome": "fail",
+          "satisfied": false,
+          "detail": "Normal-approx p (bootstrap SE)=0.23, BH-adjusted p=1 over family_size=33085 (alpha=0.1)."
+        },
+        {
+          "gate_id": "G06_CONFOUNDING",
+          "outcome": "fail",
+          "satisfied": false,
+          "detail": "Adjusted for ('booking_lead_days', 'destination', 'party_size', 'trip_duration_days'): harm -29.1 -> -69.0 EUR (attenuation -1.37, coverage 0.78, E-value 1.39, floor 1.5)."
+        },
+        {
+          "gate_id": "G07_SELECTION_AND_COLLIDER",
+          "outcome": "pass",
+          "satisfied": true,
+          "detail": "Primary-outcome missingness: exposed=0, comparison=0."
+        },
+        {
+          "gate_id": "G08_SURVIVORSHIP_COHORT",
+          "outcome": "pass",
+          "satisfied": true,
+          "detail": "Full eligible cohort; no post-decision filter applied."
+        },
+        {
+          "gate_id": "G09_SIMPSON_AND_HETEROGENEITY",
+          "outcome": "pass",
+          "satisfied": true,
+          "detail": "Sign reverses in customer_segment strata covering 0.0% of exposure (threshold 20%)."
+        },
+        {
+          "gate_id": "G10_TEMPORAL_STABILITY",
+          "outcome": "fail",
+          "satisfied": false,
+          "detail": "Same sign across ['development', 'validation', 'future_holdout']: False; holdout retains 25% of development magnitude (floor 50%)."
+        },
+        {
+          "gate_id": "G11_SEASONALITY",
+          "outcome": "pass",
+          "satisfied": true,
+          "detail": "Max monthly exposure/cohort concentration ratio 1.23 (threshold 1.5)."
+        },
+        {
+          "gate_id": "G12_ROBUSTNESS",
+          "outcome": "fail",
+          "satisfied": false,
+          "detail": "Sign agreement 89% over 9 perturbations (floor 90%); max magnitude deviation 26% (ceiling 50%); semantics one_bin_relative_v2; threshold refit states {'estimated': 0, 'vacuous_identical_rule': 0, 'degenerate_no_contrast': 0, 'unrepresentable_step': 0}. Declared alternative outcome 'gross_profit_eur' is inadmissible_decomposition_of_the_primary_outcome and is reported as a decomposition diagnostic, not counted here."
+        },
+        {
+          "gate_id": "G13_IDENTIFICATION_DESIGN",
+          "outcome": "fail",
+          "satisfied": false,
+          "detail": "Observational data; no quasi-experimental design exists."
+        },
+        {
+          "gate_id": "G14_RANDOMIZATION_INTEGRITY",
+          "outcome": "fail",
+          "satisfied": false,
+          "detail": "No prospective randomized assignment; retrospective data only."
+        },
+        {
+          "gate_id": "G15_ECONOMIC_MATERIALITY",
+          "outcome": "fail",
+          "satisfied": false,
+          "detail": "Combined-window exposure 95% CI [-49737, 133204] EUR, outcome share 0.610%."
+        }
+      ],
+      "verdict": "DOWNGRADE"
+    },
+    "T03": {
+      "run_label": "t03-oracle",
+      "candidate_id": "CAND-014",
+      "conditions": [
+        "acquisition_channel eq paid_search",
+        "discount_rate ge 0.08"
+      ],
+      "oracle_override_applied": [
+        "customer_type",
+        "installments"
+      ],
+      "adjustment_columns_used": [
+        "customer_type",
+        "installments"
+      ],
+      "confounder_stratum_coverage": 1.0,
+      "adjusted_harm_per_booking": 219.98375003306066,
+      "e_value": 1.9397595781345252,
+      "raw_effect_eur": 217.67351912346487,
+      "adjusted_effect_eur": 219.98375003306066,
+      "adjusted_effect_ci": [
+        160.0350808023174,
+        279.39477998516156
+      ],
+      "evidence_level": "adjusted_observational_association",
+      "policy_readiness": "shadow_policy",
+      "gate_of_death_non_g13_g14": null,
+      "gate_of_death_detail": null,
+      "family_size": 33085,
+      "gate_trace": [
+        {
+          "gate_id": "G00_LINEAGE_PREREGISTRATION",
+          "outcome": "pass",
+          "satisfied": true,
+          "detail": "Candidate is PERSISTED with a resolvable dataset/outcome reference."
+        },
+        {
+          "gate_id": "G01_TARGET_LEAKAGE",
+          "outcome": "pass",
+          "satisfied": true,
+          "detail": "All condition features are DECISION_TIME."
+        },
+        {
+          "gate_id": "G02_POST_TREATMENT_CONTROLS",
+          "outcome": "pass",
+          "satisfied": true,
+          "detail": "Adjustment set ('customer_type', 'installments') is decision-time and excludes condition features."
+        },
+        {
+          "gate_id": "G03_SAMPLE_ADEQUACY",
+          "outcome": "pass",
+          "satisfied": true,
+          "detail": "n_exposed=645, clusters=2834, MDE80=88.5 EUR vs observed harm=217.7 EUR."
+        },
+        {
+          "gate_id": "G04_UNCERTAINTY",
+          "outcome": "pass",
+          "satisfied": true,
+          "detail": "95% CI [157.7, 277.1] EUR."
+        },
+        {
+          "gate_id": "G05_MULTIPLE_COMPARISONS",
+          "outcome": "pass",
+          "satisfied": true,
+          "detail": "Normal-approx p (bootstrap SE)=3.18e-13, BH-adjusted p=1.05e-08 over family_size=33085 (alpha=0.1)."
+        },
+        {
+          "gate_id": "G06_CONFOUNDING",
+          "outcome": "pass",
+          "satisfied": true,
+          "detail": "Adjusted for ('customer_type', 'installments'): harm 217.7 -> 220.0 EUR (attenuation -0.01, coverage 1.00, E-value 1.94, floor 1.5)."
+        },
+        {
+          "gate_id": "G07_SELECTION_AND_COLLIDER",
+          "outcome": "pass",
+          "satisfied": true,
+          "detail": "Primary-outcome missingness: exposed=0, comparison=0."
+        },
+        {
+          "gate_id": "G08_SURVIVORSHIP_COHORT",
+          "outcome": "pass",
+          "satisfied": true,
+          "detail": "Full eligible cohort; no post-decision filter applied."
+        },
+        {
+          "gate_id": "G09_SIMPSON_AND_HETEROGENEITY",
+          "outcome": "pass",
+          "satisfied": true,
+          "detail": "Sign reverses in customer_segment strata covering 0.0% of exposure (threshold 20%)."
+        },
+        {
+          "gate_id": "G10_TEMPORAL_STABILITY",
+          "outcome": "pass",
+          "satisfied": true,
+          "detail": "Same sign across ['development', 'validation', 'future_holdout']: True; holdout retains 116% of development magnitude (floor 50%)."
+        },
+        {
+          "gate_id": "G11_SEASONALITY",
+          "outcome": "pass",
+          "satisfied": true,
+          "detail": "Max monthly exposure/cohort concentration ratio 1.17 (threshold 1.5)."
+        },
+        {
+          "gate_id": "G12_ROBUSTNESS",
+          "outcome": "pass",
+          "satisfied": true,
+          "detail": "Sign agreement 100% over 11 perturbations (floor 90%); max magnitude deviation 43% (ceiling 50%); semantics one_bin_relative_v2; threshold refit states {'estimated': 2, 'vacuous_identical_rule': 0, 'degenerate_no_contrast': 0, 'unrepresentable_step': 0}. Declared alternative outcome 'gross_profit_eur' is inadmissible_decomposition_of_the_primary_outcome and is reported as a decomposition diagnostic, not counted here."
+        },
+        {
+          "gate_id": "G13_IDENTIFICATION_DESIGN",
+          "outcome": "fail",
+          "satisfied": false,
+          "detail": "Observational data; no quasi-experimental design exists."
+        },
+        {
+          "gate_id": "G14_RANDOMIZATION_INTEGRITY",
+          "outcome": "fail",
+          "satisfied": false,
+          "detail": "No prospective randomized assignment; retrospective data only."
+        },
+        {
+          "gate_id": "G15_ECONOMIC_MATERIALITY",
+          "outcome": "pass",
+          "satisfied": true,
+          "detail": "Combined-window exposure 95% CI [233914, 349070] EUR, outcome share 4.945%."
+        }
+      ],
+      "verdict": "PASS"
+    },
+    "T04": {
+      "run_label": "t04-oracle",
+      "candidate_id": "CAND-015",
+      "conditions": [
+        "discount_rate ge 0.05",
+        "payment_method eq bank_transfer"
+      ],
+      "oracle_override_applied": [
+        "booking_lead_days",
+        "destination"
+      ],
+      "adjustment_columns_used": [
+        "booking_lead_days",
+        "destination"
+      ],
+      "confounder_stratum_coverage": 1.0,
+      "adjusted_harm_per_booking": 154.13596032829093,
+      "e_value": 1.7043689851149526,
+      "raw_effect_eur": 166.4586186039286,
+      "adjusted_effect_eur": 154.13596032829093,
+      "adjusted_effect_ci": [
+        98.08763054379648,
+        208.50608275709249
+      ],
+      "evidence_level": "adjusted_observational_association",
+      "policy_readiness": "shadow_policy",
+      "gate_of_death_non_g13_g14": null,
+      "gate_of_death_detail": null,
+      "family_size": 33085,
+      "gate_trace": [
+        {
+          "gate_id": "G00_LINEAGE_PREREGISTRATION",
+          "outcome": "pass",
+          "satisfied": true,
+          "detail": "Candidate is PERSISTED with a resolvable dataset/outcome reference."
+        },
+        {
+          "gate_id": "G01_TARGET_LEAKAGE",
+          "outcome": "pass",
+          "satisfied": true,
+          "detail": "All condition features are DECISION_TIME."
+        },
+        {
+          "gate_id": "G02_POST_TREATMENT_CONTROLS",
+          "outcome": "pass",
+          "satisfied": true,
+          "detail": "Adjustment set ('booking_lead_days', 'destination') is decision-time and excludes condition features."
+        },
+        {
+          "gate_id": "G03_SAMPLE_ADEQUACY",
+          "outcome": "pass",
+          "satisfied": true,
+          "detail": "n_exposed=1006, clusters=2834, MDE80=74.0 EUR vs observed harm=166.5 EUR."
+        },
+        {
+          "gate_id": "G04_UNCERTAINTY",
+          "outcome": "pass",
+          "satisfied": true,
+          "detail": "95% CI [110.4, 220.8] EUR."
+        },
+        {
+          "gate_id": "G05_MULTIPLE_COMPARISONS",
+          "outcome": "pass",
+          "satisfied": true,
+          "detail": "Normal-approx p (bootstrap SE)=4.12e-09, BH-adjusted p=0.000136 over family_size=33085 (alpha=0.1)."
+        },
+        {
+          "gate_id": "G06_CONFOUNDING",
+          "outcome": "pass",
+          "satisfied": true,
+          "detail": "Adjusted for ('booking_lead_days', 'destination'): harm 166.5 -> 154.1 EUR (attenuation 0.07, coverage 1.00, E-value 1.70, floor 1.5)."
+        },
+        {
+          "gate_id": "G07_SELECTION_AND_COLLIDER",
+          "outcome": "pass",
+          "satisfied": true,
+          "detail": "Primary-outcome missingness: exposed=0, comparison=0."
+        },
+        {
+          "gate_id": "G08_SURVIVORSHIP_COHORT",
+          "outcome": "pass",
+          "satisfied": true,
+          "detail": "Full eligible cohort; no post-decision filter applied."
+        },
+        {
+          "gate_id": "G09_SIMPSON_AND_HETEROGENEITY",
+          "outcome": "pass",
+          "satisfied": true,
+          "detail": "Sign reverses in customer_segment strata covering 0.0% of exposure (threshold 20%)."
+        },
+        {
+          "gate_id": "G10_TEMPORAL_STABILITY",
+          "outcome": "pass",
+          "satisfied": true,
+          "detail": "Same sign across ['development', 'validation', 'future_holdout']: True; holdout retains 83% of development magnitude (floor 50%)."
+        },
+        {
+          "gate_id": "G11_SEASONALITY",
+          "outcome": "pass",
+          "satisfied": true,
+          "detail": "Max monthly exposure/cohort concentration ratio 1.22 (threshold 1.5)."
+        },
+        {
+          "gate_id": "G12_ROBUSTNESS",
+          "outcome": "pass",
+          "satisfied": true,
+          "detail": "Sign agreement 100% over 11 perturbations (floor 90%); max magnitude deviation 21% (ceiling 50%); semantics one_bin_relative_v2; threshold refit states {'estimated': 2, 'vacuous_identical_rule': 0, 'degenerate_no_contrast': 0, 'unrepresentable_step': 0}. Declared alternative outcome 'gross_profit_eur' is inadmissible_decomposition_of_the_primary_outcome and is reported as a decomposition diagnostic, not counted here."
+        },
+        {
+          "gate_id": "G13_IDENTIFICATION_DESIGN",
+          "outcome": "fail",
+          "satisfied": false,
+          "detail": "Observational data; no quasi-experimental design exists."
+        },
+        {
+          "gate_id": "G14_RANDOMIZATION_INTEGRITY",
+          "outcome": "fail",
+          "satisfied": false,
+          "detail": "No prospective randomized assignment; retrospective data only."
+        },
+        {
+          "gate_id": "G15_ECONOMIC_MATERIALITY",
+          "outcome": "pass",
+          "satisfied": true,
+          "detail": "Combined-window exposure 95% CI [240498, 404416] EUR, outcome share 5.409%."
+        }
+      ],
+      "verdict": "PASS"
+    },
+    "T05": {
+      "run_label": "t05-oracle",
+      "candidate_id": "TASK078-T05-counterfactual",
+      "conditions": [
+        "manual_exception eq True"
+      ],
+      "oracle_override_applied": [
+        "booking_lead_days",
+        "destination",
+        "party_size",
+        "trip_duration_days"
+      ],
+      "adjustment_columns_used": [
+        "booking_lead_days",
+        "destination",
+        "party_size",
+        "trip_duration_days"
+      ],
+      "confounder_stratum_coverage": 0.17751479289940827,
+      "adjusted_harm_per_booking": -143.63056194223935,
+      "e_value": 1.6651743126953464,
+      "raw_effect_eur": -29.584419982506233,
+      "adjusted_effect_eur": -143.63056194223935,
+      "adjusted_effect_ci": [
+        -223.49931261782143,
+        -61.960749771931575
+      ],
+      "evidence_level": "descriptive_observation",
+      "policy_readiness": "not_ready",
+      "gate_of_death_non_g13_g14": "G03_SAMPLE_ADEQUACY",
+      "gate_of_death_detail": "n_exposed=338, clusters=2834, MDE80=118.7 EUR vs observed harm=-29.6 EUR.",
+      "family_size": 33085,
+      "gate_trace": [
+        {
+          "gate_id": "G00_LINEAGE_PREREGISTRATION",
+          "outcome": "pass",
+          "satisfied": true,
+          "detail": "Candidate is PERSISTED with a resolvable dataset/outcome reference."
+        },
+        {
+          "gate_id": "G01_TARGET_LEAKAGE",
+          "outcome": "pass",
+          "satisfied": true,
+          "detail": "All condition features are DECISION_TIME."
+        },
+        {
+          "gate_id": "G02_POST_TREATMENT_CONTROLS",
+          "outcome": "pass",
+          "satisfied": true,
+          "detail": "Adjustment set ('booking_lead_days', 'destination', 'party_size', 'trip_duration_days') is decision-time and excludes condition features."
+        },
+        {
+          "gate_id": "G03_SAMPLE_ADEQUACY",
+          "outcome": "fail",
+          "satisfied": false,
+          "detail": "n_exposed=338, clusters=2834, MDE80=118.7 EUR vs observed harm=-29.6 EUR."
+        },
+        {
+          "gate_id": "G04_UNCERTAINTY",
+          "outcome": "fail",
+          "satisfied": false,
+          "detail": "95% CI [-109.5, 52.1] EUR."
+        },
+        {
+          "gate_id": "G05_MULTIPLE_COMPARISONS",
+          "outcome": "fail",
+          "satisfied": false,
+          "detail": "Normal-approx p (bootstrap SE)=0.472, BH-adjusted p=1 over family_size=33085 (alpha=0.1)."
+        },
+        {
+          "gate_id": "G06_CONFOUNDING",
+          "outcome": "fail",
+          "satisfied": false,
+          "detail": "Adjusted for ('booking_lead_days', 'destination', 'party_size', 'trip_duration_days'): harm -29.6 -> -143.6 EUR (attenuation -3.85, coverage 0.18, E-value 1.67, floor 1.5)."
+        },
+        {
+          "gate_id": "G07_SELECTION_AND_COLLIDER",
+          "outcome": "pass",
+          "satisfied": true,
+          "detail": "Primary-outcome missingness: exposed=0, comparison=0."
+        },
+        {
+          "gate_id": "G08_SURVIVORSHIP_COHORT",
+          "outcome": "pass",
+          "satisfied": true,
+          "detail": "Full eligible cohort; no post-decision filter applied."
+        },
+        {
+          "gate_id": "G09_SIMPSON_AND_HETEROGENEITY",
+          "outcome": "fail",
+          "satisfied": false,
+          "detail": "Sign reverses in customer_segment strata covering 49.4% of exposure (threshold 20%)."
+        },
+        {
+          "gate_id": "G10_TEMPORAL_STABILITY",
+          "outcome": "fail",
+          "satisfied": false,
+          "detail": "Same sign across ['development', 'validation', 'future_holdout']: False; holdout retains 157% of development magnitude (floor 50%)."
+        },
+        {
+          "gate_id": "G11_SEASONALITY",
+          "outcome": "pass",
+          "satisfied": true,
+          "detail": "Max monthly exposure/cohort concentration ratio 1.31 (threshold 1.5)."
+        },
+        {
+          "gate_id": "G12_ROBUSTNESS",
+          "outcome": "fail",
+          "satisfied": false,
+          "detail": "Sign agreement 100% over 9 perturbations (floor 90%); max magnitude deviation 78% (ceiling 50%); semantics one_bin_relative_v2; threshold refit states {'estimated': 0, 'vacuous_identical_rule': 0, 'degenerate_no_contrast': 0, 'unrepresentable_step': 0}. Declared alternative outcome 'gross_profit_eur' is inadmissible_decomposition_of_the_primary_outcome and is reported as a decomposition diagnostic, not counted here."
+        },
+        {
+          "gate_id": "G13_IDENTIFICATION_DESIGN",
+          "outcome": "fail",
+          "satisfied": false,
+          "detail": "Observational data; no quasi-experimental design exists."
+        },
+        {
+          "gate_id": "G14_RANDOMIZATION_INTEGRITY",
+          "outcome": "fail",
+          "satisfied": false,
+          "detail": "No prospective randomized assignment; retrospective data only."
+        },
+        {
+          "gate_id": "G15_ECONOMIC_MATERIALITY",
+          "outcome": "fail",
+          "satisfied": false,
+          "detail": "Combined-window exposure 95% CI [-37199, 48169] EUR, outcome share 0.069%."
+        }
+      ],
+      "verdict": "DOWNGRADE"
+    },
+    "T02a": {
+      "run_label": "t02a-oracle-schema-feasible",
+      "candidate_id": "TASK078-T02-counterfactual",
+      "conditions": [
+        "supplier eq Atlas"
+      ],
+      "oracle_override_applied": [
+        "trip_duration_days"
+      ],
+      "adjustment_columns_used": [
+        "trip_duration_days"
+      ],
+      "confounder_stratum_coverage": 1.0,
+      "adjusted_harm_per_booking": -47.50930619535422,
+      "e_value": 1.3096431851964982,
+      "raw_effect_eur": -50.39218052875037,
+      "adjusted_effect_eur": -47.50930619535422,
+      "adjusted_effect_ci": [
+        -94.13192520516031,
+        -0.6188205401858298
+      ],
+      "evidence_level": "descriptive_observation",
+      "policy_readiness": "not_ready",
+      "gate_of_death_non_g13_g14": "G03_SAMPLE_ADEQUACY",
+      "gate_of_death_detail": "n_exposed=1257, clusters=2834, MDE80=68.6 EUR vs observed harm=-50.4 EUR.",
+      "family_size": 33085,
+      "gate_trace": [
+        {
+          "gate_id": "G00_LINEAGE_PREREGISTRATION",
+          "outcome": "pass",
+          "satisfied": true,
+          "detail": "Candidate is PERSISTED with a resolvable dataset/outcome reference."
+        },
+        {
+          "gate_id": "G01_TARGET_LEAKAGE",
+          "outcome": "pass",
+          "satisfied": true,
+          "detail": "All condition features are DECISION_TIME."
+        },
+        {
+          "gate_id": "G02_POST_TREATMENT_CONTROLS",
+          "outcome": "pass",
+          "satisfied": true,
+          "detail": "Adjustment set ('trip_duration_days',) is decision-time and excludes condition features."
+        },
+        {
+          "gate_id": "G03_SAMPLE_ADEQUACY",
+          "outcome": "fail",
+          "satisfied": false,
+          "detail": "n_exposed=1257, clusters=2834, MDE80=68.6 EUR vs observed harm=-50.4 EUR."
+        },
+        {
+          "gate_id": "G04_UNCERTAINTY",
+          "outcome": "pass",
+          "satisfied": true,
+          "detail": "95% CI [-97.0, -3.5] EUR."
+        },
+        {
+          "gate_id": "G05_MULTIPLE_COMPARISONS",
+          "outcome": "fail",
+          "satisfied": false,
+          "detail": "Normal-approx p (bootstrap SE)=0.0327, BH-adjusted p=1 over family_size=33085 (alpha=0.1)."
+        },
+        {
+          "gate_id": "G06_CONFOUNDING",
+          "outcome": "fail",
+          "satisfied": false,
+          "detail": "Adjusted for ('trip_duration_days',): harm -50.4 -> -47.5 EUR (attenuation 0.06, coverage 1.00, E-value 1.31, floor 1.5)."
+        },
+        {
+          "gate_id": "G07_SELECTION_AND_COLLIDER",
+          "outcome": "pass",
+          "satisfied": true,
+          "detail": "Primary-outcome missingness: exposed=0, comparison=0."
+        },
+        {
+          "gate_id": "G08_SURVIVORSHIP_COHORT",
+          "outcome": "pass",
+          "satisfied": true,
+          "detail": "Full eligible cohort; no post-decision filter applied."
+        },
+        {
+          "gate_id": "G09_SIMPSON_AND_HETEROGENEITY",
+          "outcome": "pass",
+          "satisfied": true,
+          "detail": "Sign reverses in customer_segment strata covering 0.0% of exposure (threshold 20%)."
+        },
+        {
+          "gate_id": "G10_TEMPORAL_STABILITY",
+          "outcome": "fail",
+          "satisfied": false,
+          "detail": "Same sign across ['development', 'validation', 'future_holdout']: False; holdout retains 30% of development magnitude (floor 50%)."
+        },
+        {
+          "gate_id": "G11_SEASONALITY",
+          "outcome": "pass",
+          "satisfied": true,
+          "detail": "Max monthly exposure/cohort concentration ratio 1.13 (threshold 1.5)."
+        },
+        {
+          "gate_id": "G12_ROBUSTNESS",
+          "outcome": "fail",
+          "satisfied": false,
+          "detail": "Sign agreement 100% over 9 perturbations (floor 90%); max magnitude deviation 57% (ceiling 50%); semantics one_bin_relative_v2; threshold refit states {'estimated': 0, 'vacuous_identical_rule': 0, 'degenerate_no_contrast': 0, 'unrepresentable_step': 0}. Declared alternative outcome 'gross_profit_eur' is inadmissible_decomposition_of_the_primary_outcome and is reported as a decomposition diagnostic, not counted here."
+        },
+        {
+          "gate_id": "G13_IDENTIFICATION_DESIGN",
+          "outcome": "fail",
+          "satisfied": false,
+          "detail": "Observational data; no quasi-experimental design exists."
+        },
+        {
+          "gate_id": "G14_RANDOMIZATION_INTEGRITY",
+          "outcome": "fail",
+          "satisfied": false,
+          "detail": "No prospective randomized assignment; retrospective data only."
+        },
+        {
+          "gate_id": "G15_ECONOMIC_MATERIALITY",
+          "outcome": "fail",
+          "satisfied": false,
+          "detail": "Combined-window exposure 95% CI [-169079, 694] EUR, outcome share 1.407%."
+        }
+      ],
+      "verdict": "DOWNGRADE"
+    },
+    "T02b": {
+      "run_label": "t02b-oracle-full-ground-truth",
+      "candidate_id": "TASK078-T02-counterfactual",
+      "conditions": [
+        "supplier eq Atlas"
+      ],
+      "oracle_override_applied": [
+        "booking_month",
+        "trip_duration_days"
+      ],
+      "adjustment_columns_used": [
+        "booking_month",
+        "trip_duration_days"
+      ],
+      "confounder_stratum_coverage": 1.0,
+      "adjusted_harm_per_booking": -47.85314342466313,
+      "e_value": 1.3110675727022052,
+      "raw_effect_eur": -50.39218052875037,
+      "adjusted_effect_eur": -47.85314342466313,
+      "adjusted_effect_ci": [
+        -94.47576243446923,
+        -0.96265776949474
+      ],
+      "evidence_level": "descriptive_observation",
+      "policy_readiness": "not_ready",
+      "gate_of_death_non_g13_g14": "G03_SAMPLE_ADEQUACY",
+      "gate_of_death_detail": "n_exposed=1257, clusters=2834, MDE80=68.6 EUR vs observed harm=-50.4 EUR.",
+      "family_size": 33085,
+      "gate_trace": [
+        {
+          "gate_id": "G00_LINEAGE_PREREGISTRATION",
+          "outcome": "pass",
+          "satisfied": true,
+          "detail": "Candidate is PERSISTED with a resolvable dataset/outcome reference."
+        },
+        {
+          "gate_id": "G01_TARGET_LEAKAGE",
+          "outcome": "pass",
+          "satisfied": true,
+          "detail": "All condition features are DECISION_TIME."
+        },
+        {
+          "gate_id": "G02_POST_TREATMENT_CONTROLS",
+          "outcome": "pass",
+          "satisfied": true,
+          "detail": "Adjustment set ('booking_month', 'trip_duration_days') is decision-time and excludes condition features."
+        },
+        {
+          "gate_id": "G03_SAMPLE_ADEQUACY",
+          "outcome": "fail",
+          "satisfied": false,
+          "detail": "n_exposed=1257, clusters=2834, MDE80=68.6 EUR vs observed harm=-50.4 EUR."
+        },
+        {
+          "gate_id": "G04_UNCERTAINTY",
+          "outcome": "pass",
+          "satisfied": true,
+          "detail": "95% CI [-97.0, -3.5] EUR."
+        },
+        {
+          "gate_id": "G05_MULTIPLE_COMPARISONS",
+          "outcome": "fail",
+          "satisfied": false,
+          "detail": "Normal-approx p (bootstrap SE)=0.0327, BH-adjusted p=1 over family_size=33085 (alpha=0.1)."
+        },
+        {
+          "gate_id": "G06_CONFOUNDING",
+          "outcome": "fail",
+          "satisfied": false,
+          "detail": "Adjusted for ('booking_month', 'trip_duration_days'): harm -50.4 -> -47.9 EUR (attenuation 0.05, coverage 1.00, E-value 1.31, floor 1.5)."
+        },
+        {
+          "gate_id": "G07_SELECTION_AND_COLLIDER",
+          "outcome": "pass",
+          "satisfied": true,
+          "detail": "Primary-outcome missingness: exposed=0, comparison=0."
+        },
+        {
+          "gate_id": "G08_SURVIVORSHIP_COHORT",
+          "outcome": "pass",
+          "satisfied": true,
+          "detail": "Full eligible cohort; no post-decision filter applied."
+        },
+        {
+          "gate_id": "G09_SIMPSON_AND_HETEROGENEITY",
+          "outcome": "pass",
+          "satisfied": true,
+          "detail": "Sign reverses in customer_segment strata covering 0.0% of exposure (threshold 20%)."
+        },
+        {
+          "gate_id": "G10_TEMPORAL_STABILITY",
+          "outcome": "fail",
+          "satisfied": false,
+          "detail": "Same sign across ['development', 'validation', 'future_holdout']: False; holdout retains 30% of development magnitude (floor 50%)."
+        },
+        {
+          "gate_id": "G11_SEASONALITY",
+          "outcome": "pass",
+          "satisfied": true,
+          "detail": "Max monthly exposure/cohort concentration ratio 1.13 (threshold 1.5)."
+        },
+        {
+          "gate_id": "G12_ROBUSTNESS",
+          "outcome": "fail",
+          "satisfied": false,
+          "detail": "Sign agreement 100% over 9 perturbations (floor 90%); max magnitude deviation 57% (ceiling 50%); semantics one_bin_relative_v2; threshold refit states {'estimated': 0, 'vacuous_identical_rule': 0, 'degenerate_no_contrast': 0, 'unrepresentable_step': 0}. Declared alternative outcome 'gross_profit_eur' is inadmissible_decomposition_of_the_primary_outcome and is reported as a decomposition diagnostic, not counted here."
+        },
+        {
+          "gate_id": "G13_IDENTIFICATION_DESIGN",
+          "outcome": "fail",
+          "satisfied": false,
+          "detail": "Observational data; no quasi-experimental design exists."
+        },
+        {
+          "gate_id": "G14_RANDOMIZATION_INTEGRITY",
+          "outcome": "fail",
+          "satisfied": false,
+          "detail": "No prospective randomized assignment; retrospective data only."
+        },
+        {
+          "gate_id": "G15_ECONOMIC_MATERIALITY",
+          "outcome": "fail",
+          "satisfied": false,
+          "detail": "Combined-window exposure 95% CI [-169079, 694] EUR, outcome share 1.407%."
+        }
+      ],
+      "verdict": "DOWNGRADE"
+    }
+  },
+  "acceptance_criterion_verdicts": {
+    "T01": "REJECTED_below_disqualifying_state",
+    "T03": "SURVIVED_disqualifying_state",
+    "T04": "SURVIVED_disqualifying_state",
+    "T05": "REJECTED_below_disqualifying_state",
+    "T02a": "REJECTED_below_disqualifying_state",
+    "T02b": "REJECTED_below_disqualifying_state"
+  },
+  "five_trap_aggregate_all_rejected_t02_reported_as_a": false,
+  "fork": "SURVIVOR_FOUND_open_second_forensic_layer_task_before_fix_design"
+}
