@@ -1,0 +1,768 @@
+{
+  "diagnostic": "TASK-079 second forensic layer (ADR-072)",
+  "dataset_identity_sha256": "b6128eb3c1bdb36515c90570aa4ccabfc3dff8d1026d9002f1c832774b60a683",
+  "branch1_t04_estimator_sufficiency": {
+    "candidate_conditions": [
+      "discount_rate ge 0.05",
+      "payment_method eq bank_transfer"
+    ],
+    "oracle_set_fixed": [
+      "booking_lead_days",
+      "destination"
+    ],
+    "raw_dev_harm_eur": 166.4586186039286,
+    "raw_dev_pooled_sd": 748.9241936351752,
+    "baseline_4bin_reproduction": {
+      "bins": 4,
+      "coverage": 1.0,
+      "adjusted_harm_eur": 154.13596032829093,
+      "attenuation": 0.07402835839313426,
+      "e_value": 1.7043689851149526,
+      "confounding_gate_ok": true,
+      "total_joint_cells": 20,
+      "usable_joint_cells": 20,
+      "usable_cell_fraction": 1.0
+    },
+    "bin_granularity_sweep": [
+      {
+        "bins": 2,
+        "coverage": 1.0,
+        "adjusted_harm_eur": 162.31597414625574,
+        "attenuation": 0.0248869328149951,
+        "e_value": 1.7333371892760643,
+        "confounding_gate_ok": true,
+        "total_joint_cells": 10,
+        "usable_joint_cells": 10,
+        "usable_cell_fraction": 1.0
+      },
+      {
+        "bins": 3,
+        "coverage": 1.0,
+        "adjusted_harm_eur": 157.82294421098928,
+        "attenuation": 0.05187880606823392,
+        "e_value": 1.71742474347143,
+        "confounding_gate_ok": true,
+        "total_joint_cells": 15,
+        "usable_joint_cells": 15,
+        "usable_cell_fraction": 1.0
+      },
+      {
+        "bins": 4,
+        "coverage": 1.0,
+        "adjusted_harm_eur": 154.13596032829093,
+        "attenuation": 0.07402835839313426,
+        "e_value": 1.7043689851149526,
+        "confounding_gate_ok": true,
+        "total_joint_cells": 20,
+        "usable_joint_cells": 20,
+        "usable_cell_fraction": 1.0
+      },
+      {
+        "bins": 5,
+        "coverage": 1.0,
+        "adjusted_harm_eur": 150.24076066038128,
+        "attenuation": 0.09742876685848312,
+        "e_value": 1.6905753750083097,
+        "confounding_gate_ok": true,
+        "total_joint_cells": 25,
+        "usable_joint_cells": 25,
+        "usable_cell_fraction": 1.0
+      },
+      {
+        "bins": 6,
+        "coverage": 1.0,
+        "adjusted_harm_eur": 146.98538632369022,
+        "attenuation": 0.11698542522795397,
+        "e_value": 1.6790451818970356,
+        "confounding_gate_ok": true,
+        "total_joint_cells": 30,
+        "usable_joint_cells": 30,
+        "usable_cell_fraction": 1.0
+      },
+      {
+        "bins": 8,
+        "coverage": 1.0,
+        "adjusted_harm_eur": 147.1588758542654,
+        "attenuation": 0.11594318703067574,
+        "e_value": 1.6796597459173437,
+        "confounding_gate_ok": true,
+        "total_joint_cells": 40,
+        "usable_joint_cells": 40,
+        "usable_cell_fraction": 1.0
+      },
+      {
+        "bins": 10,
+        "coverage": 1.0,
+        "adjusted_harm_eur": 147.35286990617107,
+        "attenuation": 0.11477776794013739,
+        "e_value": 1.6803469318985191,
+        "confounding_gate_ok": true,
+        "total_joint_cells": 50,
+        "usable_joint_cells": 50,
+        "usable_cell_fraction": 1.0
+      },
+      {
+        "bins": 12,
+        "coverage": 1.0,
+        "adjusted_harm_eur": 145.3295513379645,
+        "attenuation": 0.1269328524000226,
+        "e_value": 1.6731790159150957,
+        "confounding_gate_ok": true,
+        "total_joint_cells": 55,
+        "usable_joint_cells": 55,
+        "usable_cell_fraction": 1.0
+      }
+    ],
+    "pure_t04_counterfactual_no_discount_rate_compounding": {
+      "conditions": [
+        "payment_method eq bank_transfer"
+      ],
+      "oracle_set_applied": [
+        "booking_lead_days",
+        "destination"
+      ],
+      "raw_effect_eur": 66.90083534532133,
+      "adjusted_effect_eur": 51.1815470887423,
+      "confounder_stratum_coverage": 1.0,
+      "e_value": 1.3248177399223071,
+      "evidence_level": "descriptive_observation",
+      "policy_readiness": "experiment_only",
+      "gate_of_death_non_g13_g14": "G05_MULTIPLE_COMPARISONS",
+      "reaches_disqualifying_state": false
+    },
+    "discount_rate_hypothetical_g02_bypass_diagnostic_only": {
+      "note": "G02-bypassing hypothetical, diagnostic only, mirrors TASK-075 Section 2's own counterfactual discipline for T03/discount_rate. Not a proposal to bypass G02.",
+      "hypothetical_set": [
+        "booking_lead_days",
+        "destination",
+        "discount_rate"
+      ],
+      "coverage": 0.9801192842942346,
+      "adjusted_harm_eur": 79.09740308316962,
+      "attenuation": 0.5248224228546924,
+      "e_value": 1.4341303243447943,
+      "confounding_gate_ok": false
+    },
+    "regression_adjustment_variant": {
+      "method": "additive OLS: outcome ~ treatment + destination(4 dummies) + booking_lead_days(raw continuous)",
+      "n_rows": 4999,
+      "beta": [
+        200.10614598797548,
+        -156.00396846929743,
+        137.51983813103323,
+        46.73252732666016,
+        38.94712489011815,
+        8.372227270558483,
+        1.4002123568923621
+      ],
+      "treatment_coefficient_raw": -156.00396846929743,
+      "regression_adjusted_harm_eur": 156.00396846929743,
+      "attenuation": 0.06280630118352093,
+      "e_value": 1.710983599124207,
+      "confounding_gate_ok_if_applied": true
+    },
+    "adr043_prior_context": "ADR-043 (2026-08-21, HANDOFF-058) already tested additive multivariate regression vs full joint stratification on an earlier run's CAND-015-labeled candidate over its full 8-covariate adjustment-eligible pool (not the 2-variable oracle set held fixed here): additive regression showed harm 157.2->158.9 EUR (near-zero attenuation, direction opposite of attenuating), while an unrestricted 8-covariate joint stratification (ignoring the coverage floor, which collapsed to 0.21) showed harm collapsing to ~47.7 EUR. ADR-043 attributed the gap to interaction structure additive regression cannot capture. This task's own regression run (2-variable oracle set, not 8) is reported independently below, not as a re-litigation of ADR-043's already-decided scope.",
+    "p06_overlap_decomposition": {
+      "p06_rule": "destination=Tokyo AND booking_lead_days<10 AND payment_method=bank_transfer",
+      "overlap_subset": {
+        "n": 42,
+        "mean": -900.3130952380952
+      },
+      "exposed_only_subset": {
+        "n": 964,
+        "mean": 201.3733817427386
+      },
+      "comparison_subset": {
+        "n": 3993,
+        "mean": 321.83713749060854
+      },
+      "overlap_weighted_contribution_to_raw_effect_eur": 51.024164785890214,
+      "exposed_only_weighted_contribution_to_raw_effect_eur": 115.4344538180384,
+      "note": "hidden_ground_truth records T04's own direct_effect as 0 (payment_method=bank_transfer has no genuine causal effect on its own) -- any real signal in CAND-015's exposed population traces only to whatever fraction of it overlaps a true pattern (P06)."
+    }
+  },
+  "branch2_t03_candidate_condition_entanglement": {
+    "method": "For each trap's single-condition apparent_feature, compute discovery.engine's real, unmodified _development_score for the singleton, then for every DECISION_TIME adjustment-eligible pool feature, compute the score of compounding that feature's own best-scoring real atom (from engine._atoms) onto the singleton as a 2-condition rule. No discovery.engine code is modified; every call uses the shipped scoring function exactly as discover_candidates itself would.",
+    "per_trap": {
+      "T01": {
+        "apparent_feature": "manager=Manager 2",
+        "base_eligible": false
+      },
+      "T02": {
+        "apparent_feature": "supplier=Atlas",
+        "base_eligible": false
+      },
+      "T03": {
+        "apparent_feature": "acquisition_channel=paid_search",
+        "base_eligible": true,
+        "base_score": 3966.9100980201324,
+        "base_harm_per_booking_eur": 108.57047186104705,
+        "base_n_exposed": 1335,
+        "ground_truth_confounders": [
+          "customer_type",
+          "discount_rate",
+          "installments"
+        ],
+        "compounding_trials": [
+          {
+            "feature": "discount_rate",
+            "best_atom": "discount_rate ge 0.12",
+            "score": 5475.474062572842,
+            "score_delta_vs_singleton": 1508.5639645527094,
+            "score_increased": true,
+            "harm_per_booking_eur": 310.5980004009189,
+            "n_exposed": 411,
+            "is_ground_truth_confounder": true,
+            "eligible_atom_found": true
+          },
+          {
+            "feature": "booking_lead_days",
+            "best_atom": "booking_lead_days lt 23.0",
+            "score": 4396.858465106473,
+            "score_delta_vs_singleton": 429.94836708634057,
+            "score_increased": true,
+            "harm_per_booking_eur": 316.0242021795277,
+            "n_exposed": 256,
+            "is_ground_truth_confounder": false,
+            "eligible_atom_found": true
+          },
+          {
+            "feature": "installments",
+            "best_atom": "installments ge 2.0",
+            "score": 3864.601612692799,
+            "score_delta_vs_singleton": -102.30848532733353,
+            "score_increased": false,
+            "harm_per_booking_eur": 186.64271430242775,
+            "n_exposed": 567,
+            "is_ground_truth_confounder": true,
+            "eligible_atom_found": true
+          },
+          {
+            "feature": "customer_price_eur",
+            "best_atom": "customer_price_eur lt 3817.99",
+            "score": 3679.1121654301355,
+            "score_delta_vs_singleton": -287.7979325899969,
+            "score_increased": false,
+            "harm_per_booking_eur": 129.28440271050715,
+            "n_exposed": 1071,
+            "is_ground_truth_confounder": false,
+            "eligible_atom_found": true
+          },
+          {
+            "feature": "party_size",
+            "best_atom": "party_size ge 1.0",
+            "score": 3449.487041756637,
+            "score_delta_vs_singleton": -517.4230562634953,
+            "score_increased": false,
+            "harm_per_booking_eur": 108.57047186104705,
+            "n_exposed": 1335,
+            "is_ground_truth_confounder": false,
+            "eligible_atom_found": true
+          },
+          {
+            "feature": "quoted_cost_eur",
+            "best_atom": "quoted_cost_eur lt 2821.31",
+            "score": 3397.5956618974715,
+            "score_delta_vs_singleton": -569.3144361226609,
+            "score_increased": false,
+            "harm_per_booking_eur": 119.22501703021027,
+            "n_exposed": 1074,
+            "is_ground_truth_confounder": false,
+            "eligible_atom_found": true
+          },
+          {
+            "feature": "trip_duration_days",
+            "best_atom": "trip_duration_days lt 10.0",
+            "score": 3207.780503605047,
+            "score_delta_vs_singleton": -759.1295944150852,
+            "score_increased": false,
+            "harm_per_booking_eur": 117.0652129811325,
+            "n_exposed": 993,
+            "is_ground_truth_confounder": false,
+            "eligible_atom_found": true
+          },
+          {
+            "feature": "manual_exception",
+            "best_atom": "manual_exception eq False",
+            "score": 3101.409705837702,
+            "score_delta_vs_singleton": -865.5003921824305,
+            "score_increased": false,
+            "harm_per_booking_eur": 101.28523485355578,
+            "n_exposed": 1240,
+            "is_ground_truth_confounder": false,
+            "eligible_atom_found": true
+          },
+          {
+            "feature": "product_category",
+            "best_atom": "product_category eq standard",
+            "score": 2958.899154851642,
+            "score_delta_vs_singleton": -1008.0109431684905,
+            "score_increased": false,
+            "harm_per_booking_eur": 121.14053924357779,
+            "n_exposed": 789,
+            "is_ground_truth_confounder": false,
+            "eligible_atom_found": true
+          },
+          {
+            "feature": "customer_type",
+            "best_atom": "customer_type eq new",
+            "score": 2851.1843691176728,
+            "score_delta_vs_singleton": -1115.7257289024597,
+            "score_increased": false,
+            "harm_per_booking_eur": 113.87958518685653,
+            "n_exposed": 829,
+            "is_ground_truth_confounder": true,
+            "eligible_atom_found": true
+          },
+          {
+            "feature": "payment_method",
+            "best_atom": "payment_method eq bank_transfer",
+            "score": 2787.245065312053,
+            "score_delta_vs_singleton": -1179.6650327080793,
+            "score_increased": false,
+            "harm_per_booking_eur": 162.7260688302513,
+            "n_exposed": 388,
+            "is_ground_truth_confounder": false,
+            "eligible_atom_found": true
+          },
+          {
+            "feature": "destination",
+            "best_atom": "destination eq Zanzibar",
+            "score": 2566.6822084201794,
+            "score_delta_vs_singleton": -1400.227889599953,
+            "score_increased": false,
+            "harm_per_booking_eur": 171.27410859624183,
+            "n_exposed": 297,
+            "is_ground_truth_confounder": false,
+            "eligible_atom_found": true
+          },
+          {
+            "feature": "customer_segment",
+            "best_atom": "customer_segment eq leisure",
+            "score": 1853.6825589509608,
+            "score_delta_vs_singleton": -2113.2275390691716,
+            "score_increased": false,
+            "harm_per_booking_eur": 77.63320772761219,
+            "n_exposed": 754,
+            "is_ground_truth_confounder": false,
+            "eligible_atom_found": true
+          },
+          {
+            "feature": "manager",
+            "best_atom": "manager eq Manager 7",
+            "score": 1801.788168480127,
+            "score_delta_vs_singleton": -2165.121929540005,
+            "score_increased": false,
+            "harm_per_booking_eur": 172.67136614601216,
+            "n_exposed": 144,
+            "is_ground_truth_confounder": false,
+            "eligible_atom_found": true
+          },
+          {
+            "feature": "supplier",
+            "best_atom": "supplier eq BlueWing",
+            "score": 1586.404151235456,
+            "score_delta_vs_singleton": -2380.5059467846763,
+            "score_increased": false,
+            "harm_per_booking_eur": 89.2325978949874,
+            "n_exposed": 418,
+            "is_ground_truth_confounder": false,
+            "eligible_atom_found": true
+          }
+        ],
+        "n_features_increasing_score": 2,
+        "n_features_eligible": 15
+      },
+      "T04": {
+        "apparent_feature": "payment_method=bank_transfer",
+        "base_eligible": true,
+        "base_score": 2585.0053389622562,
+        "base_harm_per_booking_eur": 66.90083534532127,
+        "base_n_exposed": 1493,
+        "ground_truth_confounders": [
+          "booking_lead_days",
+          "destination"
+        ],
+        "compounding_trials": [
+          {
+            "feature": "discount_rate",
+            "best_atom": "discount_rate ge 0.12",
+            "score": 5249.024144044481,
+            "score_delta_vs_singleton": 2664.0188050822244,
+            "score_increased": true,
+            "harm_per_booking_eur": 299.9500227080949,
+            "n_exposed": 405,
+            "is_ground_truth_confounder": false,
+            "eligible_atom_found": true
+          },
+          {
+            "feature": "booking_lead_days",
+            "best_atom": "booking_lead_days lt 23.0",
+            "score": 4103.667205050037,
+            "score_delta_vs_singleton": 1518.6618660877812,
+            "score_increased": true,
+            "harm_per_booking_eur": 232.2175015284966,
+            "n_exposed": 413,
+            "is_ground_truth_confounder": true,
+            "eligible_atom_found": true
+          },
+          {
+            "feature": "destination",
+            "best_atom": "destination eq Tokyo",
+            "score": 2981.145686669815,
+            "score_delta_vs_singleton": 396.1403477075587,
+            "score_increased": true,
+            "harm_per_booking_eur": 189.0092642814837,
+            "n_exposed": 329,
+            "is_ground_truth_confounder": true,
+            "eligible_atom_found": true
+          },
+          {
+            "feature": "acquisition_channel",
+            "best_atom": "acquisition_channel eq paid_search",
+            "score": 2787.245065312053,
+            "score_delta_vs_singleton": 202.2397263497969,
+            "score_increased": true,
+            "harm_per_booking_eur": 162.7260688302513,
+            "n_exposed": 388,
+            "is_ground_truth_confounder": false,
+            "eligible_atom_found": true
+          },
+          {
+            "feature": "installments",
+            "best_atom": "installments ge 3.0",
+            "score": 2673.915169161049,
+            "score_delta_vs_singleton": 88.90983019879286,
+            "score_increased": true,
+            "harm_per_booking_eur": 177.53534891111582,
+            "n_exposed": 300,
+            "is_ground_truth_confounder": false,
+            "eligible_atom_found": true
+          },
+          {
+            "feature": "supplier",
+            "best_atom": "supplier eq BlueWing",
+            "score": 2549.097639450665,
+            "score_delta_vs_singleton": -35.90769951159109,
+            "score_increased": false,
+            "harm_per_booking_eur": 138.49857472945513,
+            "n_exposed": 448,
+            "is_ground_truth_confounder": false,
+            "eligible_atom_found": true
+          },
+          {
+            "feature": "trip_duration_days",
+            "best_atom": "trip_duration_days lt 10.0",
+            "score": 2370.3280785552097,
+            "score_delta_vs_singleton": -214.67726040704656,
+            "score_increased": false,
+            "harm_per_booking_eur": 83.09983583375896,
+            "n_exposed": 1076,
+            "is_ground_truth_confounder": false,
+            "eligible_atom_found": true
+          },
+          {
+            "feature": "party_size",
+            "best_atom": "party_size lt 2.0",
+            "score": 2361.453245490706,
+            "score_delta_vs_singleton": -223.55209347155005,
+            "score_increased": false,
+            "harm_per_booking_eur": 144.74576302893365,
+            "n_exposed": 352,
+            "is_ground_truth_confounder": false,
+            "eligible_atom_found": true
+          },
+          {
+            "feature": "product_category",
+            "best_atom": "product_category eq standard",
+            "score": 2342.0004917745327,
+            "score_delta_vs_singleton": -243.0048471877235,
+            "score_increased": false,
+            "harm_per_booking_eur": 90.58550082470597,
+            "n_exposed": 884,
+            "is_ground_truth_confounder": false,
+            "eligible_atom_found": true
+          },
+          {
+            "feature": "customer_price_eur",
+            "best_atom": "customer_price_eur lt 3134.8",
+            "score": 2205.906491514915,
+            "score_delta_vs_singleton": -379.0988474473411,
+            "score_increased": false,
+            "harm_per_booking_eur": 84.41916728310144,
+            "n_exposed": 903,
+            "is_ground_truth_confounder": false,
+            "eligible_atom_found": true
+          },
+          {
+            "feature": "manual_exception",
+            "best_atom": "manual_exception eq False",
+            "score": 2198.088838925891,
+            "score_delta_vs_singleton": -386.91650003636505,
+            "score_increased": false,
+            "harm_per_booking_eur": 67.60666231840696,
+            "n_exposed": 1398,
+            "is_ground_truth_confounder": false,
+            "eligible_atom_found": true
+          },
+          {
+            "feature": "manager",
+            "best_atom": "manager eq Manager 5",
+            "score": 2095.9211738981953,
+            "score_delta_vs_singleton": -489.0841650640609,
+            "score_increased": false,
+            "harm_per_booking_eur": 179.65385177883837,
+            "n_exposed": 180,
+            "is_ground_truth_confounder": false,
+            "eligible_atom_found": true
+          },
+          {
+            "feature": "quoted_cost_eur",
+            "best_atom": "quoted_cost_eur lt 2821.31",
+            "score": 1593.6781372974203,
+            "score_delta_vs_singleton": -991.3272016648359,
+            "score_increased": false,
+            "harm_per_booking_eur": 53.33023610474743,
+            "n_exposed": 1181,
+            "is_ground_truth_confounder": false,
+            "eligible_atom_found": true
+          },
+          {
+            "feature": "customer_segment",
+            "best_atom": "customer_segment eq family",
+            "score": 1513.2138418045122,
+            "score_delta_vs_singleton": -1071.791497157744,
+            "score_increased": false,
+            "harm_per_booking_eur": 85.83753444402723,
+            "n_exposed": 411,
+            "is_ground_truth_confounder": false,
+            "eligible_atom_found": true
+          },
+          {
+            "feature": "customer_type",
+            "best_atom": "customer_type eq new",
+            "score": 1416.1305360680913,
+            "score_delta_vs_singleton": -1168.874802894165,
+            "score_increased": false,
+            "harm_per_booking_eur": 54.49735173283136,
+            "n_exposed": 893,
+            "is_ground_truth_confounder": false,
+            "eligible_atom_found": true
+          }
+        ],
+        "n_features_increasing_score": 5,
+        "n_features_eligible": 15
+      },
+      "T05": {
+        "apparent_feature": "manual_exception=true",
+        "base_eligible": false
+      }
+    },
+    "aggregate_confounder_vs_nonconfounder_score_increase_rate": {
+      "n_confounder_trials": 5,
+      "confounder_score_increase_rate": 0.6,
+      "n_non_confounder_trials": 25,
+      "non_confounder_score_increase_rate": 0.16
+    },
+    "cand014_direct_trace": {
+      "singleton": "acquisition_channel eq paid_search",
+      "singleton_score": 3966.9100980201324,
+      "singleton_harm_eur": 108.57047186104705,
+      "singleton_n_exposed": 1335,
+      "compound_with_discount_rate": "acquisition_channel eq paid_search AND discount_rate ge 0.08",
+      "compound_score": 4807.149354206369,
+      "compound_harm_eur": 217.67351912346487,
+      "compound_n_exposed": 645,
+      "score_delta": 840.2392561862366,
+      "score_increased": true,
+      "matches_real_cand014_conditions": true
+    }
+  },
+  "branch3_t05_overlap_ceiling": {
+    "condition_tested": "manual_exception eq True",
+    "n_exposed_development": 338,
+    "oracle_set_full": [
+      "booking_lead_days",
+      "destination",
+      "party_size",
+      "trip_duration_days"
+    ],
+    "per_variable_marginal_cardinality_binned": {
+      "booking_lead_days": 4,
+      "destination": 5,
+      "party_size": 3,
+      "trip_duration_days": 4
+    },
+    "subset_coverage_sweep": [
+      {
+        "subset": [
+          "booking_lead_days"
+        ],
+        "size": 1,
+        "coverage": 1.0,
+        "total_joint_cells": 4,
+        "usable_joint_cells": 4,
+        "clears_0.50_floor": true
+      },
+      {
+        "subset": [
+          "destination"
+        ],
+        "size": 1,
+        "coverage": 1.0,
+        "total_joint_cells": 5,
+        "usable_joint_cells": 5,
+        "clears_0.50_floor": true
+      },
+      {
+        "subset": [
+          "party_size"
+        ],
+        "size": 1,
+        "coverage": 1.0,
+        "total_joint_cells": 3,
+        "usable_joint_cells": 3,
+        "clears_0.50_floor": true
+      },
+      {
+        "subset": [
+          "trip_duration_days"
+        ],
+        "size": 1,
+        "coverage": 1.0,
+        "total_joint_cells": 4,
+        "usable_joint_cells": 4,
+        "clears_0.50_floor": true
+      },
+      {
+        "subset": [
+          "booking_lead_days",
+          "party_size"
+        ],
+        "size": 2,
+        "coverage": 1.0,
+        "total_joint_cells": 12,
+        "usable_joint_cells": 12,
+        "clears_0.50_floor": true
+      },
+      {
+        "subset": [
+          "destination",
+          "party_size"
+        ],
+        "size": 2,
+        "coverage": 1.0,
+        "total_joint_cells": 15,
+        "usable_joint_cells": 15,
+        "clears_0.50_floor": true
+      },
+      {
+        "subset": [
+          "booking_lead_days",
+          "trip_duration_days"
+        ],
+        "size": 2,
+        "coverage": 1.0,
+        "total_joint_cells": 16,
+        "usable_joint_cells": 16,
+        "clears_0.50_floor": true
+      },
+      {
+        "subset": [
+          "destination",
+          "trip_duration_days"
+        ],
+        "size": 2,
+        "coverage": 1.0,
+        "total_joint_cells": 20,
+        "usable_joint_cells": 20,
+        "clears_0.50_floor": true
+      },
+      {
+        "subset": [
+          "party_size",
+          "trip_duration_days"
+        ],
+        "size": 2,
+        "coverage": 1.0,
+        "total_joint_cells": 12,
+        "usable_joint_cells": 12,
+        "clears_0.50_floor": true
+      },
+      {
+        "subset": [
+          "booking_lead_days",
+          "destination"
+        ],
+        "size": 2,
+        "coverage": 0.9881656804733728,
+        "total_joint_cells": 20,
+        "usable_joint_cells": 19,
+        "clears_0.50_floor": true
+      },
+      {
+        "subset": [
+          "destination",
+          "party_size",
+          "trip_duration_days"
+        ],
+        "size": 3,
+        "coverage": 0.849112426035503,
+        "total_joint_cells": 60,
+        "usable_joint_cells": 32,
+        "clears_0.50_floor": true
+      },
+      {
+        "subset": [
+          "booking_lead_days",
+          "destination",
+          "party_size"
+        ],
+        "size": 3,
+        "coverage": 0.8284023668639053,
+        "total_joint_cells": 60,
+        "usable_joint_cells": 30,
+        "clears_0.50_floor": true
+      },
+      {
+        "subset": [
+          "booking_lead_days",
+          "party_size",
+          "trip_duration_days"
+        ],
+        "size": 3,
+        "coverage": 0.8254437869822485,
+        "total_joint_cells": 48,
+        "usable_joint_cells": 28,
+        "clears_0.50_floor": true
+      },
+      {
+        "subset": [
+          "booking_lead_days",
+          "destination",
+          "trip_duration_days"
+        ],
+        "size": 3,
+        "coverage": 0.6745562130177515,
+        "total_joint_cells": 80,
+        "usable_joint_cells": 33,
+        "clears_0.50_floor": true
+      },
+      {
+        "subset": [
+          "booking_lead_days",
+          "destination",
+          "party_size",
+          "trip_duration_days"
+        ],
+        "size": 4,
+        "coverage": 0.17751479289940827,
+        "total_joint_cells": 240,
+        "usable_joint_cells": 10,
+        "clears_0.50_floor": false
+      }
+    ],
+    "max_joint_cells_supportable_even_allocation": 67,
+    "note": "max_joint_cells_supportable_even_allocation is n_exposed // MIN_STRATUM_CELL -- an upper bound under perfectly even allocation across cells (the best case any allocation could achieve); real data is never this even, so real usable-cell counts at a given joint cardinality are always <= this bound, generally well below it."
+  }
+}
