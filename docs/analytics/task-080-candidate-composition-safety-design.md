@@ -599,6 +599,13 @@ later implementation task:
   *consequence* of failing either is the same evidence ceiling). The gate's own `satisfied` value is
   `False` whenever the rule-level outcome above is confound-like or indeterminate for any atom, and
   `True` when every atom is interaction-like (or `k == 1`, vacuously).
+
+  **[Superseded by §15 (`ADR-077`) — `interaction_like` is no longer a reachable classification, so
+  `satisfied` simplifies to: `True` only when `k == 1` (vacuously — the check does not apply); `False`
+  for every `k >= 2` candidate, under the specific atom/reason recorded by the two-state classifier in
+  §15.3. The `GateId`/`GateSpec` wiring, the `CAP_EVIDENCE`/`PREDICTIVE` cap value, and the
+  `ValidationReport.__post_init__` invariant this subsection cites are all otherwise unchanged by the
+  second revision — only which classifications are reachable changed, not the integration mechanism.]**
 - This is what "mirroring `G02`'s own `CAP_EVIDENCE` pattern" in the original §8.1 text should mean
   *literally*, not merely by analogy, per `ADR-074`'s risk-5 finding, traced end to end and cited
   here rather than re-derived: `apply.py`'s `run_validation` -> `grading.classify_evidence_level`/
@@ -795,6 +802,15 @@ all, per this project's own `TASK-070` synthetic-first precedent:
 
 ## 13. Recommendation, stated plainly
 
+**Superseded by §15 (`ADR-077`, 2026-08-30) for the classifier-level recommendation specifically.**
+The architectural conclusion below (validation-stage, leave-one-out, `CAP_EVIDENCE`-style
+classification, computed from a candidate's own frozen condition tuple) still stands, unrevised and
+unreconsidered by this or the second revision. What no longer stands is the *three-outcome* framing
+this section describes — §15.5 concludes positive `interaction_like` is not safely identifiable from
+this design's information at all, and §15.3 recommends a **two-outcome** (`confound_like` /
+`indeterminate`) classification instead. Read this section for the architecture's own rationale
+(still valid); read §15 for the current classifier recommendation.
+
 **Revision status (`ADR-075`, 2026-08-29).** The recommendation below is unchanged in its
 architectural conclusion (validation-stage, leave-one-out, `CAP_EVIDENCE`-style three-outcome
 classification) — what changed is the classifier §8.1 specifies for `interaction_like`, now
@@ -822,6 +838,15 @@ later, distinct implementation task performs §10's test plan and, if it holds u
 implementation task opens.
 
 ## 14. Adversarial form-test suite results (`ADR-075` revision, new)
+
+**Superseded by §15 (`ADR-077`), read that section first.** `CODE_REVIEWER`'s re-review (`ADR-076`)
+found this section's own suite — accurate on its own narrow terms — does not establish the general
+safety property it was built to demonstrate: the suite below tests only a `u_prior=0.5`,
+complementary-odds DGP family, and §15's identifiability suite shows the classifier's
+`confound_like -> interaction_like` failure grows toward 100% with sample size once that one
+symmetric family is generalized. This section is retained in full for historical record (it is not
+wrong about what it tested, only insufficient as general evidence), except §14.5 and §8.1's signal 2
+above, which are marked REVOKED at their own locations, not merely superseded.
 
 **Script:** `scripts/diagnose_task080_composition_classifier_revision.py`. **Raw output:**
 `docs/benchmark/task-080-composition-classifier-revision-raw.json`. Calls the real, unmodified
@@ -1031,3 +1056,401 @@ tested here, at a disclosed, quantified cost to interaction-detection power (§1
 implementation task's own synthetic form tests (§10 item 1) should independently re-verify this
 combination against the real, shipped `_stratified_adjustment` call path, not treat this document's
 own script as a substitute for that verification.
+
+## 15. Second revision (`ADR-077`) — is positive `interaction_like` identification possible at all?
+
+**This section is this document's current, authoritative account of the classifier question. §6/§8.1
+above are retained for historical record but no longer state this document's recommendation; §14.5
+and §8.1's signal 2 are REVOKED, not merely superseded, at their own locations.**
+
+**Script:** `scripts/diagnose_task080_identifiability_suite.py` (all four directions below).
+**Supplementary script:** `scripts/diagnose_task080_odds_asymmetry_nsweep.py` (§15.1.5). **Raw
+output:** `docs/benchmark/task-080-identifiability-suite-raw.json` and
+`docs/benchmark/task-080-odds-asymmetry-nsweep-raw.json`. Both call the real, unmodified
+`policy_analytics.validation.apply._stratified_adjustment`, `DEFAULT_THRESHOLDS`, and
+`policy_analytics.validation.grading.normal_approx_two_sided_p` throughout — no estimator or
+significance test is reimplemented. The classifier under test (`classify_atom` in the suite script)
+is the identical `ADR-075` two-signal mechanism (§8.1 above), generalized only to accept a
+data-driven quantile threshold in place of the first revision's hardcoded `>= 0.5` split, so it
+applies unchanged to both jittered-binary and genuinely continuous proxy columns. All DGPs are
+known-by-construction synthetic data; no trap ID or ground-truth identity is referenced anywhere in
+this section or either script.
+
+### 15.1 Direction 1 — adversarial identifiability suite
+
+**Required safety property (`ADR-077`):** as `n -> infinity`, for every purely-confounded DGP in the
+admissible class, `P(interaction_like)` must not increase with `n` — ideally converging toward zero.
+**Finding: this property does NOT hold, on multiple independent axes, with real data across a full
+sample-size sweep, not merely at one or two points.**
+
+#### 15.1.1 Headline n-sweep — skewed confounder prevalence (the `ADR-076` adversarial point)
+
+`u_prior=0.2`, `concordance=0.75`, `t_odds=(0.75, 0.25)` (complementary — isolating the prevalence
+axis alone), `confound_strength=220`, true causal effect exactly zero, 60 trials per point:
+
+| n | `interaction_like` rate (v075 classifier) |
+|---:|---:|
+| 300 | 0.067 |
+| 600 | 0.400 |
+| 1,200 | 0.783 |
+| 2,400 | 1.000 |
+| 4,800 | 1.000 |
+| 9,600 | 1.000 |
+| 12,800 | 1.000 |
+
+**This is the required-property test, run properly (a real sweep from small to large `n`, not two
+isolated points): `P(interaction_like)` on a 100%-confounded, zero-true-effect DGP rises monotonically
+from `6.7%` at `n=300` to a `100%` plateau by `n=2,400`, and stays there through `n=12,800`.** This is
+not sampling noise (a Type-I artifact shrinks with `n`; this grows and then saturates) — it is the
+`ADR-077`-predicted behavior of a true, non-vanishing estimand bias, confirmed with a real,
+seven-point sample-size sweep, not merely reproduced at the two points `ADR-076`'s own re-review used.
+
+#### 15.1.2 Confounder-prevalence sweep
+
+`n=3,200`, `confound_strength=220`, `t_odds=(0.75,0.25)`, 40 trials per point, `u_prior` in
+`{0.1, 0.2, 0.3, 0.5, 0.7, 0.8, 0.9}`, `concordance` in `{0.65, 0.75, 0.85}`:
+
+`interaction_like` counts (out of 40): at `u_prior=0.5` (the original design's own assumed prior),
+**every single concordance point reads exactly `0`** — this is the one regime where the original
+`S14.5` proof's symmetry actually holds, and the classifier behaves exactly as advertised there. At
+every *other* tested prevalence (`0.1`, `0.2`, `0.3` on one side; `0.7`, `0.8`, `0.9` on the mirrored
+side — this suite tested the `<0.5` side directly, per `ADR-076`'s own finding that the failure is
+asymmetric in prevalence direction under the tested odds; `2a` below derives why the mirrored side
+fails identically under the odds this suite used), the failure is severe and grows with proxy
+quality: at `u_prior=0.2`, `concordance=0.75`: `40/40`; at `u_prior=0.1`, `concordance=0.85`: `40/40`.
+**The safety property fails across essentially the entire admissible prevalence range except the one
+exact point (`0.5`) the original design implicitly assumed.**
+
+#### 15.1.3 Asymmetric proxy measurement error
+
+`u_prior=0.3` (already skewed, to stress-test the combined case realistically — a real proxy's
+measurement error has no reason to be independent of the confounder's own prevalence), `n=3,200`, 40
+trials per point, `fp_rate`/`fn_rate` independently swept over `{0.05, 0.15, 0.30}`. Every one of the
+9 combinations produces substantial `interaction_like` failure (`18/40` to `40/40`) — asymmetric
+measurement error does not rescue the classifier; if anything the worst cases (`fp=0.05,fn=0.30`:
+`40/40`) are exactly the realistic case where a proxy is much better at confirming true positives than
+ruling out false ones. **Disclosed limitation of this specific panel:** because `u_prior=0.3` was held
+fixed to test the combined stress case, this panel does not, by itself, isolate proxy-error asymmetry
+from prevalence skew as an independent axis — §15.2's closed-form audit does that isolation
+analytically (asymmetric `fp`/`fn` breaks the `q_target + q_complement = 1` symmetry even at
+`u_prior=0.5`, confirmed by direct calculation, not run as a separate empirical panel here given this
+revision's effort budget and the abundance of other independent failure evidence already collected).
+
+#### 15.1.4 Continuous, nonlinear confounder
+
+Continuous `Z ~ Normal(0, 1)` (not a binary/categorical confounder), purely quadratic effect on `y`
+(`y = 1000 + 180*Z^2 + noise`, **no linear term at all**), logistic (nonlinear) `T|Z` assignment,
+continuous Gaussian proxy noise (`Ci_raw = Z + Normal(0, 0.6)`, not a threshold-derived binary proxy),
+40 trials per point:
+
+| n | `interaction_like` rate |
+|---:|---:|
+| 800 | 0.500 |
+| 3,200 | 0.475 |
+| 12,800 | 0.425 |
+
+**A structurally different DGP shape (continuous, nonlinear-in-outcome, nonlinear-in-assignment, all
+three of the axes `ADR-077` names) plateaus at a substantial `42%-50%` failure rate that does not
+shrink with `n` — it stays essentially flat across a 16x range of sample size.** This independently
+confirms `ADR-076`'s own check 2 (a differently-shaped continuous/nonlinear DGP found `48%` failure)
+with a fresh construction (purely quadratic, no linear term; logistic rather than probit-style
+assignment; independently chosen coefficients) and a wider `n` range.
+
+#### 15.1.5 Treatment-assignment-odds asymmetry, isolated from prevalence skew
+
+`u_prior=0.5` exactly (the one prevalence value that does *not* fail on its own), only the
+treatment-assignment odds made non-complementary (`t_odds_hi + t_odds_lo != 1`). §15.2's closed-form
+audit proves the true stratum-contrast is nonzero here too — a second, independent symmetry-breaking
+axis. The main suite's own 1e panel (`n=3,200` only, 9 odds combinations) found `0/40`
+`interaction_like` at every combination, complementary or not — at first read, this looked like the
+odds-asymmetry axis alone might not reproduce the growth-with-`n` pattern. A dedicated follow-up
+n-sweep (`scripts/diagnose_task080_odds_asymmetry_nsweep.py`), using a larger odds gap
+(`t_odds=(0.95, 0.35)`, analytic true delta `71.5` vs. the main panel's largest tested gap of `~32`)
+to give the axis more leverage, found:
+
+| n | `interaction_like` rate |
+|---:|---:|
+| 800 | 0.050 |
+| 1,600 | 0.125 |
+| 3,200 | 0.125 |
+| 6,400 | 0.075 |
+| 12,800 | 0.000 |
+| 25,600 | 0.000 |
+
+**This is a genuinely different pattern from §15.1.1/§15.1.4 — not growth, but a small bump that
+fades toward zero as `n` grows, despite the closed-form true delta (`71.5`) being unambiguously
+nonzero and growing more statistically detectable with `n` exactly like every other axis's true bias
+does.** The most likely mechanism, not fully diagnosed here given this revision's scope: the *second*
+signal (threshold-perturbation stability, itself REVOKED as independent evidence per §8.1/`ADR-077`)
+happens, for this specific odds/proxy-noise/threshold-step combination, to fail more often at large
+`n` — plausibly because the induced bias function `f(q)` (§15.2) is curved enough in this parameter
+region that a quantile-based threshold move changes the *effective* local concordance enough to move
+`delta`'s magnitude outside the retention floor, even though the production-threshold `delta` itself
+is real and growing more significant. **This is not read as evidence the classifier is safe on this
+axis** — it directly contradicts the closed-form nonzero-delta result, and a different odds gap,
+proxy-noise level, or `step_q` choice could plausibly restore or remove this fortuitous cancellation;
+it is reported honestly as a genuine, only-partially-explained result rather than omitted or smoothed
+over, and as further evidence that the two-signal mechanism's actual behavior is parameterization-
+sensitive and fragile rather than principled — a mechanism that only screens out an adversarial case
+by an unexplained numerical coincidence in one narrow corner of its parameter space is not a basis
+for a safety-critical, uncapped classification.
+
+#### 15.1.6 Overlap sweep
+
+`u_prior=0.25`, `concordance=0.75`, `n=3,200`, `t_odds` spread from poor overlap (`(0.55,0.45)`) to
+good overlap (`(0.90,0.10)`), 40 trials per combination: failure is **worse with better overlap**, not
+better — `0/40` at the narrowest spread rising to `40/40` once the spread exceeds roughly `0.30`. This
+is the expected direction (better overlap gives the estimator more power to detect the *true*, nonzero
+stratum-contrast bias with statistical confidence — it is not a defense against the bias, it is what
+lets the classifier see it clearly enough to misclassify it).
+
+#### 15.1.7 Interaction-strength sweep under skewed modifier prevalence
+
+Confirms the disclosed "acceptable" side of the asymmetric loss function still behaves as intended
+even under a skewed modifier prevalence (`d_prior=0.2`, not just `0.5`): weak genuine interactions
+(`modifier_strength=20`) degrade cleanly to `indeterminate` (`0` `interaction_like`, `40`
+`indeterminate`, `0` `confound_like`), never to `confound_like` — consistent with `ADR-076`'s own
+check 3. This axis is not where the second revision's problem lies; it is retained here to confirm
+the genuine-interaction side of the picture is unchanged by this revision's broader sweep.
+
+### 15.2 Direction 2 — estimand audit
+
+**Question, per `ADR-077`: for each candidate interaction-evidence signal, can the same observable
+distribution arise from both genuine interaction and residual confounding?**
+
+#### 15.2.1 Closed-form derivation of the true stratum-contrast
+
+For the binary-confounder DGP family (`U` a common cause, `T` assigned `t_odds_hi` if `U=1` else
+`t_odds_lo`, `y = 1000 + strength*U + noise`, true causal effect of `T` exactly zero), Bayes' rule
+gives the population-level confounder prevalence within each `Ci` stratum:
+
+```
+q_target     = P(U=1 | Ci=target)     = c*p / (c*p + (1-c)*(1-p))
+q_complement = P(U=1 | Ci=complement) = (1-c)*p / ((1-c)*p + c*(1-p))
+```
+
+where `p = P(U=1)` (prevalence) and `c` = concordance. These reduce to `(c, 1-c)` — the design's
+original assumption — **only when `p = 0.5` exactly.** The induced confounding bias within a stratum
+of prevalence `q` is
+
+```
+f(q) = strength * [ P(U=1|T=1,q) - P(U=1|T=0,q) ]
+     = strength * [ q*t_odds_hi/(q*t_odds_hi+(1-q)*t_odds_lo) - q*(1-t_odds_hi)/(q*(1-t_odds_hi)+(1-q)*(1-t_odds_lo)) ]
+```
+
+and the true (population, infinite-sample) stratum-contrast the classifier's signal 1 is testing for
+is `true_delta = f(q_target) - f(q_complement)`. **This is the general form of §14.5's (revoked)
+special case** — §14.5 implicitly required *two* independent symmetries at once: `p=0.5` (so
+`q_complement = 1-q_target`) **and** `t_odds_hi + t_odds_lo = 1` (so `f(q)=f(1-q)`). Breaking either
+one alone already makes `true_delta != 0`.
+
+**Verified numerically, not just derived:** 63 `(u_prior, concordance, t_odds)` combinations checked
+by direct computation of the closed form above. **Exactly 3 of 63 produce `true_delta = 0`, and every
+one of those 3 is the `(u_prior=0.5, complementary-odds)` case** — confirmed by an explicit assertion
+in the script, not eyeballed. The other 60 combinations, spanning realistic prevalence and odds
+values, all produce a nonzero true bias that signal 1's Wald test is *correctly* detecting as
+statistically real — the classifier is not making a Type-I error on these cases; it is accurately
+reporting a real, systematic, non-interaction stratum-contrast as if it were positive evidence for
+interaction, because the estimand itself cannot tell the two apart.
+
+#### 15.2.2 Matched-pair counterexample
+
+A pure-confound DGP (`u_prior=0.2`, `concordance=0.75`, `t_odds=(0.75,0.25)`, `confound_strength=220`,
+true causal effect **exactly zero**) and a genuine-interaction DGP (`d_prior=0.5`, `concordance=0.75`,
+`modifier_strength=68`, `true_effect=50`, **zero confounding role, `T` independent of `D`**), both at
+`n=6,400`, 80 trials each:
+
+| | `interaction_like` rate | mean `delta` | mean attenuation |
+|---|---:|---:|---:|
+| Confound DGP (true effect = 0) | 1.000 | 62.0 | 0.041 |
+| Interaction DGP (genuine effect modification) | 1.000 | 33.7 | 0.000 |
+
+**Both DGPs, with opposite ground truth, produce statistically indistinguishable classifier behavior**
+— both read `interaction_like` in 100% of trials, both show a real, significant, stable
+stratum-contrast, both clear the attenuation ceiling comfortably. This is the direction-2 audit's
+central, concrete demonstration: **signal 1 (and, since signal 2 is a conjunct of it, the whole
+two-signal mechanism) is a functional of the observed `(T, Ci, y)` joint distribution, and that
+distribution alone does not determine which of the two generative stories produced it** — exactly the
+formal non-identification `ADR-077`'s central question asks about, now shown with a constructed pair
+rather than asserted.
+
+#### 15.2.3 Per-signal audit summary
+
+| Signal | Same distribution from both confounding and interaction? | Qualifies as positive evidence alone? |
+|---|---|---|
+| `attenuation <= max_adjusted_attenuation` (pre-`ADR-075` implicit rule) | Yes (`ADR-074` Scenario C; §14.6) | No |
+| Signal 1: stratum-contrast heterogeneity (Wald test) | Yes (§15.2.1/§15.2.2 above) | No |
+| Signal 2: threshold-perturbation stability | Yes — and structurally dependent on signal 1 (`ADR-076` check 2: 0/400 sig2-without-sig1) | No |
+| OLS interaction coefficient / nested model comparison | Yes — algebraically identical to signal 1 in this design's saturated 2x2 table (§14.8: 0/1,435 mismatches) | No |
+
+**Every signal this design or its predecessor considered fails the audit.** None qualifies as
+independent positive evidence for interaction under `ADR-077`'s own standard, because each is
+computed from the same low-dimensional summary of the observed data (a `T x Ci` contingency table's
+cell means) that a stratum-varying confounding bias and a genuine interaction can both produce, at
+some admissible combination of prevalence, proxy error, and treatment-assignment asymmetry — none of
+which are observable or boundable from the frozen condition tuple and frame this design has access
+to, because they are properties of an *unmeasured* variable by construction.
+
+### 15.3 Direction 3 — the two-state fallback, tested as a first-class candidate
+
+**Design:** `confound_like` — unchanged from every prior revision (coverage floor, sign match,
+attenuation exceeds `max_adjusted_attenuation`; this branch was never the defect in any review round).
+Everything else — `indeterminate`. `interaction_like` is removed from the branch set entirely, not
+merely made harder to reach.
+
+**Structural safety, not merely empirical:** because `interaction_like` has no code path in the
+two-state design, `P(interaction_like) = 0` **by construction**, for every DGP, at every `n` — this is
+not a result that could be falsified by a cleverer adversarial DGP the way the `ADR-075` classifier's
+`0/1,100` headline number was. The entire direction-1 sweep (every row of §15.1) was re-run under the
+two-state design as a matter of course (the same `classify_atom` call computes both labels from the
+same underlying evidence) and confirms `0` `interaction_like` trials across all panels — reported here
+as confirmation, not as the load-bearing evidence (the code-level argument above is).
+
+**Does the fallback still detect confounds correctly?** Yes, unchanged — at concordance `>=0.85`
+across the full prevalence sweep, the two-state design's `confound_like` detection rate matches the
+`v075` classifier's `confound_like` branch exactly (same code path, same threshold). At low
+concordance the classifier correctly and safely degrades to `indeterminate`, exactly the "acceptable"
+half of the asymmetric loss function `ADR-075` established and this revision does not revisit.
+
+**Does the fallback ever mislabel a genuine interaction as `confound_like`?** This is the one new risk
+a two-state design could in principle introduce (trading "false interaction" safety for a new "false
+confound" problem). Checked directly across the full interaction-strength sweep (§15.1.7, skewed
+modifier prevalence, 160 trials total): **`0/160` genuine interactions misclassified `confound_like`
+under the two-state design** — because `confound_like`'s own criterion (large attenuation) is
+unchanged and was never the failure mode in any review round, this is expected, not a new finding, but
+it is verified here rather than assumed.
+
+**Recommendation of this revision: the two-state fallback is what `G16` v1 should implement.** It
+satisfies `ADR-077`'s required behavioral safety property exactly (not approximately, not "close to
+zero" — structurally zero) at zero cost to the `confound_like` branch's own, already-validated
+positive-evidence criterion, and it remains fully consistent with the accepted three-stage
+architecture (§7 above, unchanged by this revision): permissive discovery still finds and reports
+every candidate unchanged; validation still recomputes composition safety from the frozen condition
+tuple; the evidence ceiling still separates a detected risk from an unresolvable ambiguity — it simply
+never claims the specific, positive "this is genuine interaction" verdict this revision's own audit
+shows cannot be safely earned from what this design has access to.
+
+**A real behavioral consequence, disclosed plainly, not smoothed over: under the two-state design, no
+`k >= 2` candidate can ever leave `G16` uncapped.** §8.1's original rule-level outcome had three
+branches (any atom confound-like -> cap; else any atom indeterminate -> cap, different reason; else
+every atom interaction-like -> no cap). With `interaction_like` removed from the branch set, the third
+branch is unreachable — **every multi-atom candidate this check examines is capped by `G16`, always,
+under one of exactly two reason codes (`confound_like` naming which atom and why, or
+`composition_risk_indeterminate` when neither positive-evidence bar is cleared).** This is a stronger
+statement than §9's original acceptance-criterion-2 caveat (a genuine but weakly-powered interaction
+*sometimes* lands in `indeterminate`) — it is now *every* interaction, however strong or cleanly
+powered, because the mechanism this check would need to certify "this is genuine, no cap" no longer
+exists. **This is the direct, honest cost of this revision's own negative finding, not a separate
+design choice layered on top of it: `ADR-077` itself states this outcome — dropping to
+`confound_like`/`indeterminate` only — is fully acceptable, and names exactly why this cost is
+tolerable: search itself (`discovery.engine`) is completely unaffected (every candidate is still
+found, ranked, and reported identically), and a `k >= 2` candidate this gate caps is not rejected —
+it is available descriptively at a `PREDICTIVE`-or-below evidence level, the same evidence ceiling
+`G02` already applies to a structurally analogous circularity concern.** A single-atom (`k == 1`)
+candidate is entirely unaffected either way — `G16`'s per-atom loop never applies to it, exactly as
+§8.1 already specifies.
+
+### 15.4 Direction 4 — positive-interaction escape hatch attempts (gated strictly)
+
+Per `ADR-077`, this direction is pursued only because directions 1-2 above did not already foreclose
+it in principle — two candidate stronger estimands were constructed and tested against the same
+adversarial standard directions 1-2 apply to everything else.
+
+#### 15.4.1 Attempt A — sensitivity/E-value-style bound on the stratum contrast
+
+**Idea:** mirror `G06`'s own `e_value` — bound how large an unmeasured confounder would need to be to
+produce the observed `delta`, and treat a `delta` too large to plausibly arise from confounding as
+positive evidence for interaction.
+
+**Why it fails:** at a *weak*, barely-informative proxy (`concordance=0.60`) and an *ordinary* confound
+magnitude (`confound_strength=100`, well below this suite's own adversarial `220`, and below what a
+realistic real-world confound could easily produce), the maximum achievable true `delta` over an
+*unobservable* prevalence `p` is `14.0` — only `14%` of the confound's own strength, but reached at
+`p~=0.83`, a value neither implausible nor checkable. **There is no `delta`-magnitude threshold that
+is simultaneously low enough to flag this ordinary, entirely plausible confound and high enough not to
+also reject a real interaction of comparable strength** (§15.2.2's matched pair already shows
+comparable-strength confound and interaction DGPs producing comparable `delta` distributions). Setting
+such a bound would require **assuming a bound on the unmeasured confounder's own prevalence** (e.g.
+"`p` is close to `0.5`") — and `p` is, by construction, a property of a variable this design never
+observes. **This is exactly the class of strong, unobservable assumption `ADR-077` instructs against
+relying on**, named explicitly here rather than smuggled in as a constant.
+
+#### 15.4.2 Attempt B — negative-control / placebo calibration
+
+**Idea:** use an unrelated, presumed-independent variable to empirically calibrate the classifier's own
+false-positive rate against, the way a randomized experiment's negative control works.
+
+**Why it fails:** tested directly, `n=6,400`, 40 trials each. When the placebo genuinely is independent
+of the true confounder `U`, calibration correctly reads safe (`0/40` false positives). But when the
+placebo instead shares an upstream cause with `U` — a realistic situation, since real covariates in
+this project's own data are rarely all mutually independent, and this project's own prior tasks
+(`TASK-079`) have already found real confounding entangled across multiple correlated features — the
+same calibration silently underestimates risk (`5/40 = 12.5%` false positives, using the identical
+classifier and identical placebo-selection logic). **The method's validity depends entirely on an
+assumption — the placebo's independence from the true, unmeasured confounder — that is unverifiable
+from the frozen condition tuple and frame this design has access to,** because verifying it would
+require observing the very variable the whole problem stipulates is unmeasured.
+
+#### 15.4.3 Direction 4 conclusion
+
+**No escape-hatch candidate survives without relying on a strong, unobservable assumption.** Both
+attempts reduce, on inspection, to the same underlying requirement: some bound or independence
+property of an *unmeasured* variable, which is unverifiable by definition from what this design has
+access to (a frozen candidate's condition tuple plus the frame). Per `ADR-077`'s own instruction, this
+means positive `interaction_like` is excluded from `G16` v1.
+
+### 15.5 Answer to `ADR-077`'s central question, stated plainly
+
+**No.** There does not exist an observational estimand, computable from a frozen candidate's condition
+tuple plus the frame alone, that provides positive evidence for genuine interaction without turning
+residual proxy confounding — at realistic prevalence, measurement-error, and nonlinearity combinations
+— into `interaction_like`. This is not a defect this revision failed to fix; §15.2 shows it is a
+structural non-identification result: the leave-one-out check's only observable output (a `T x Ci`
+contingency table's cell means, and any closed-form or resampled functional of it) cannot distinguish
+"the base rule's effect is genuinely larger within `Ci`'s target stratum" from "the base rule's
+apparent effect is more strongly confounded within `Ci`'s target stratum, because `Ci`'s relationship
+to the true unmeasured confounder is not symmetric in the specific way the original design implicitly
+required." Both stories can, and — per §15.1's sweep — routinely do, produce the same signal-1 Wald
+statistic, the same signal-2 threshold-stability behavior, and the same OLS interaction coefficient,
+at growing statistical confidence as `n` grows, precisely because the underlying bias is a real,
+non-vanishing population quantity whenever the confounder's own prevalence or the treatment-assignment
+mechanism's odds are not exactly symmetric — properties of an unmeasured variable that cannot be
+checked from data this design has access to.
+
+**Final recommendation of this second revision: `G16` v1 should implement the two-state fallback only
+— `confound_like` (unchanged, positive-evidence criterion) / `indeterminate` (everything else).**
+Positive `interaction_like` is excluded from `G16` v1. This is not a design failure; per `ADR-077`'s
+own framing, it is the most conservative, and likely correct, `v1` design: the three-stage
+architecture (permissive discovery / recomputed validation-stage composition safety / named evidence
+ceiling under ambiguity) survives this finding completely intact — only the specific, positive "this
+is genuine interaction" claim is withdrawn, because it cannot be safely earned from what this design
+has access to. A candidate with a confound-like atom is still capped; a candidate with an ambiguous
+atom is still capped, under a distinct reason code, exactly as `ADR-075`'s asymmetric-loss discipline
+already required; nothing about a genuine interaction's own descriptive discovery is touched, because
+search (`discovery.engine`) remains completely unchanged by this or any revision of this design.
+
+### 15.6 What a future revision would need, if this question is ever reopened
+
+Not designed or scoped here, per this task's own repeated instruction not to force a positive result
+into existence — named as a real, disclosed open question for a possible future task, not a
+to-do this revision leaves half-finished:
+
+- **An actual instrument or natural experiment** for the candidate atom `Ci` — something that shifts
+  `Ci`'s value (or the probability of it) without going through the same unmeasured confounder `U`
+  that also drives the outcome. This is the standard identification strategy for exactly this
+  non-identification problem in causal inference generally; nothing in this project's current data
+  model provides one, and finding one would be a substantively different, decision-time-instrument-
+  discovery problem, not a classifier-design problem.
+- **A genuinely bounded, independently-justified prior on plausible unmeasured-confounder prevalence
+  and treatment-assignment asymmetry**, derived from domain knowledge external to this check's own
+  data (not tuned to any specific candidate, trap, or observed result) — §15.4.1 shows why an
+  unbounded or self-referential bound does not work; a domain-justified one might, but constructing
+  and defending one is a substantively different exercise than anything in this design's own scope.
+- **A verified negative control** — a variable with an independently justified (not merely assumed)
+  reason to be uncorrelated with any plausible unmeasured confounder for this specific outcome and
+  population, established by domain reasoning rather than by the check's own data. §15.4.2 shows an
+  unverified placebo does not work; a verified one is a different, harder requirement this revision's
+  scope does not extend to establishing.
+
+Any of these would need its own adversarial `CODE_REVIEWER` round before being incorporated — this
+section names the shape of what would be required, not a proposal.
