@@ -245,7 +245,7 @@ def classify_composition_safety(
         detail = (
             f"G16: no atom of {k} classifies confound_like; composition_risk_indeterminate -- "
             "no positive evidence of confounding found, and this two-state design (ADR-077/"
-            "ADR-078) never grants an uncapped interaction_like verdict. Evidence capped. "
+            "ADR-078) never grants an uncapped release on this basis. Evidence capped. "
             f"{joined_atom_detail}"
         )
 

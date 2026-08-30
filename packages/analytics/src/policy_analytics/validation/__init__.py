@@ -2,8 +2,18 @@
 
 The preregistered rules live in `contract`, the deterministic decision functions in `grading`, and
 the mandatory output format in `report`. Prose methodology: `docs/analytics/validation-contract.md`.
+`composition_safety` is `G16_CANDIDATE_COMPOSITION_SAFETY`'s own result-computation module
+(`TASK-081`, implementing `TASK-080`/`ADR-078`).
 """
 
+from policy_analytics.validation.composition_safety import (
+    AtomCompositionResult,
+    CompositionAtomClassification,
+    CompositionSafetyReason,
+    CompositionSafetyResult,
+    classify_atom,
+    classify_composition_safety,
+)
 from policy_analytics.validation.contract import (
     CONTRACT_VERSION,
     DEFAULT_THRESHOLDS,
@@ -42,7 +52,11 @@ __all__ = [
     "LANGUAGE_RULES",
     "LEVEL_ORDER",
     "LEVEL_REQUIREMENTS",
+    "AtomCompositionResult",
     "BiasClass",
+    "CompositionAtomClassification",
+    "CompositionSafetyReason",
+    "CompositionSafetyResult",
     "EffectEstimate",
     "FailureAction",
     "GateId",
@@ -57,6 +71,8 @@ __all__ = [
     "assign_policy_readiness",
     "benjamini_hochberg_adjusted",
     "bootstrap_two_sided_p",
+    "classify_atom",
+    "classify_composition_safety",
     "classify_evidence_level",
     "evidence_ceiling",
     "survives_fdr",
