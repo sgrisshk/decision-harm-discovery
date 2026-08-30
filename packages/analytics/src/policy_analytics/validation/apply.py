@@ -63,6 +63,7 @@ from policy_analytics.outcomes import (
     raw_difference,
     summarize_group,
 )
+from policy_analytics.validation.composition_safety import classify_composition_safety
 from policy_analytics.validation.contract import (
     DEFAULT_THRESHOLDS,
     ROBUSTNESS_SEMANTICS_VERSION,
@@ -630,6 +631,37 @@ def _validate_one(
         f"(attenuation {attenuation:.2f}, coverage {coverage:.2f}, E-value {ev:.2f}, "
         f"floor {DEFAULT_THRESHOLDS.min_e_value}).",
     )
+    # G16_CANDIDATE_COMPOSITION_SAFETY (TASK-081, implementing TASK-080's design per ADR-078's
+    # two-state, confound_like/composition_risk_indeterminate specification, §8.1/§15.3). Every
+    # condition atom (full 1..k enumeration, no order-dependent exclusion) gets its own
+    # leave-one-out check via the real, unmodified _stratified_adjustment above -- this is not a
+    # new estimator, only a new caller of the existing one. Vacuous (satisfied) for k == 1.
+    atom_masks: tuple[tuple[str, pl.Series], ...] = tuple(
+        (condition.feature, dev_frame.select(condition_expr(condition).alias("m"))["m"])
+        for condition in conditions
+    )
+    composition_result = classify_composition_safety(
+        dev_frame, atom_masks, outcome, _stratified_adjustment, DEFAULT_THRESHOLDS
+    )
+    gates[GateId.COMPOSITION_SAFETY] = GateResult(
+        gate_id=GateId.COMPOSITION_SAFETY,
+        outcome=GateOutcome.PASS if composition_result.satisfied else GateOutcome.FAIL,
+        detail=composition_result.detail,
+    )
+    diagnostics["composition_safety_reason"] = composition_result.reason.value
+    diagnostics["composition_safety_atoms"] = [
+        {
+            "atom_index": atom.atom_index,
+            "feature": atom.feature,
+            "classification": atom.classification.value,
+            "coverage": atom.coverage,
+            "raw_base_effect": atom.raw_base_effect,
+            "adjusted_effect": atom.adjusted_effect,
+            "attenuation": atom.attenuation,
+        }
+        for atom in composition_result.atom_results
+    ]
+
     shift = adjusted_harm - dev.harm_per_booking
     adjusted_effect = EffectEstimate(
         adjusted_harm,

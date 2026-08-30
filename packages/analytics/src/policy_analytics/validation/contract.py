@@ -151,6 +151,7 @@ class GateId(StrEnum):
     IDENTIFICATION = "G13_IDENTIFICATION_DESIGN"
     RANDOMIZATION = "G14_RANDOMIZATION_INTEGRITY"
     ECONOMIC_MATERIALITY = "G15_ECONOMIC_MATERIALITY"
+    COMPOSITION_SAFETY = "G16_CANDIDATE_COMPOSITION_SAFETY"
 
 
 class RobustnessSemantics(StrEnum):
@@ -564,6 +565,35 @@ GATE_SPECS: tuple[GateSpec, ...] = (
         ),
         on_failure=FailureAction.READINESS_ONLY,
     ),
+    GateSpec(
+        gate_id=GateId.COMPOSITION_SAFETY,
+        name="Candidate composition safety",
+        bias_class=BiasClass.CONFOUNDING,
+        question=(
+            "For a compound (k>=2 atom) candidate, does removing any one atom reveal it was "
+            "carrying a confound rather than a genuine, independently-checkable component of "
+            "the rule?"
+        ),
+        rule=(
+            "Vacuously satisfied when k == 1 (nothing to leave one atom out of); the candidate "
+            "is unaffected. For k >= 2, every atom 1..k (no order-dependent exclusion of any "
+            "kind) is leave-one-out checked: base_i is the candidate's other k-1 atoms, "
+            "stratified by atom i alone, reusing _stratified_adjustment's existing binning/"
+            "estimator logic. An atom is confound_like when that stratification clears "
+            "min_confounder_stratum_coverage, the adjusted effect keeps base_i's own raw sign, "
+            "and attenuation exceeds max_adjusted_attenuation (all three existing thresholds, "
+            "unchanged); otherwise the atom is indeterminate. Per ADR-077/ADR-078, positive "
+            "'this is genuine interaction' release is not identifiable from the information "
+            "this check has access to and is not a reachable classification in this design: if "
+            "any atom is confound_like the candidate's reason is confound_like (naming the "
+            "atom); otherwise (every atom indeterminate) the reason is "
+            "composition_risk_indeterminate. Both reasons carry an identical evidence cap -- "
+            "the reason differs only for diagnostics, never for cap severity. See "
+            "docs/analytics/task-080-candidate-composition-safety-design.md section 8.1/15.3."
+        ),
+        on_failure=FailureAction.CAP_EVIDENCE,
+        max_level_on_failure=EvidenceLevel.PREDICTIVE,
+    ),
 )
 
 GATE_SPEC_BY_ID: dict[GateId, GateSpec] = {spec.gate_id: spec for spec in GATE_SPECS}
@@ -591,6 +621,7 @@ _LEVEL_GATES: tuple[tuple[EvidenceLevel, tuple[GateId, ...]], ...] = (
             GateId.SELECTION_COLLIDER,
             GateId.SIMPSON,
             GateId.SEASONALITY,
+            GateId.COMPOSITION_SAFETY,
         ),
     ),
     (EvidenceLevel.QUASI_CAUSAL, (GateId.IDENTIFICATION,)),
