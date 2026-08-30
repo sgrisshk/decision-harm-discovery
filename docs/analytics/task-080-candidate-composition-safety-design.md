@@ -640,6 +640,17 @@ sets and neither substitutes for the other.
 
 ## 9. Acceptance-criteria matrix
 
+**Superseded by §15 (`ADR-077`) for `interaction_like`-specific content.** Item 2 below and the
+comparison table's "preserves interactions" column describe the three-outcome design (§8), under
+which an atom classified `interaction_like` received no cap. That classification no longer exists in
+this document's current recommendation (§15.3's two-state `confound_like`/`indeterminate` design) —
+`interaction_like` is not reachable, by construction, so there is no longer a "receives no cap"
+branch to evaluate. Items 1, 3, 4, 5 still apply to the current recommendation essentially unchanged
+(the underlying leave-one-out mechanism, `T05`-distinct reason coding, decision-time compatibility,
+and determinism are all preserved by §15.3's design, which reuses the same `confound_like` code path
+this section describes). Read this section for the original three-outcome matrix's own history; read
+§15.3 for the current design's own (simpler) acceptance framing.
+
 Applied to the recommended design (§8):
 
 1. **Eliminates or controls the proven advantage.** *Controls, does not eliminate the ranking
@@ -688,10 +699,27 @@ Applied to the recommended design (§8):
 
 ## 10. Test specification for a later implementation task
 
+**Superseded by §15 (`ADR-077`) — item 1 below is the original three-outcome test plan and is NOT
+what an implementation task should build. Do not implement item 1 as written: it requires the
+mechanism to classify a genuine effect modifier `interaction_like`, a classification §15.5 concludes
+is not safely identifiable and that §15.3's current recommendation removes from the design entirely.
+The corrected item 1 for the current, two-state design is: (a) the mechanism must classify a
+constructed pure-confound atom `confound_like`; (b) the mechanism must NOT classify a constructed
+genuine effect-modifier atom `confound_like` — landing it in `indeterminate` instead is the correct,
+expected outcome, not a test failure, per §15.3's own verification (`0/160` genuine interactions
+misclassified `confound_like` across its interaction-strength sweep); (c) a regression test must
+assert `interaction_like` has no reachable code path at all (structural, not merely empirical,
+per §15.3's own "`P(interaction_like)=0` by construction" argument) — at multiple population sizes
+including ones deliberately built to fail the coverage floor, verifying the `indeterminate` path
+fires correctly. Items 2–7 below still apply essentially unchanged, read against the two-state
+design.** Read this section for the original plan's own history; read §15.3 for the current design's
+own verification this corrected item 1 is built on.
+
 Not performed here (design-only). A later implementation task must, before travel is examined at
 all, per this project's own `TASK-070` synthetic-first precedent:
 
-1. **Synthetic form tests**, neutrally constructed (not travel-specific): a synthetic base rule with
+1. **[SUPERSEDED — see marker above, do not implement as written] Synthetic form tests**, neutrally
+   constructed (not travel-specific): a synthetic base rule with
    a known-by-design stable effect, compounded with (a) an atom constructed to be a pure confound
    (outcome-correlated via a shared cause, no true effect-modifying role) and (b) an atom constructed
    to be a genuine effect modifier (the base rule's true effect differs by design across the atom's
@@ -735,6 +763,15 @@ all, per this project's own `TASK-070` synthetic-first precedent:
    different gate, a future state transition — can silently re-raise the cap this check assigns.
 
 ## 11. Hard-fixed non-solutions — compliance confirmed
+
+**Superseded by §15 (`ADR-077`) for the depth-penalty bullet's own worked example.** That bullet's
+"a 3-condition rule whose every atom classifies interaction-like receives no cap at all" example
+describes an outcome (an uncapped, all-interaction-like rule) that is no longer reachable under
+§15.3's current two-state design — every `k >= 2` candidate this check examines is capped, always
+(§15.3's own disclosed consequence). The bullet's actual claim — depth itself never enters the
+classification — still holds unchanged under the two-state design (the leave-one-out loop is still
+per-atom, not per-depth); only its illustrative example is stale. Every other bullet in this section
+is unaffected by §15 and still holds as originally stated.
 
 - **No confounder-like feature named or class-identified anywhere in the design (§3–§9).** The
   mechanism is stated entirely in terms of "atom `Ci`," "base rule `base_i`," and generic
@@ -1306,11 +1343,26 @@ two-state design as a matter of course (the same `classify_atom` call computes b
 same underlying evidence) and confirms `0` `interaction_like` trials across all panels — reported here
 as confirmation, not as the load-bearing evidence (the code-level argument above is).
 
-**Does the fallback still detect confounds correctly?** Yes, unchanged — at concordance `>=0.85`
-across the full prevalence sweep, the two-state design's `confound_like` detection rate matches the
-`v075` classifier's `confound_like` branch exactly (same code path, same threshold). At low
-concordance the classifier correctly and safely degrades to `indeterminate`, exactly the "acceptable"
-half of the asymmetric loss function `ADR-075` established and this revision does not revisit.
+**What does `confound_like` actually mean under the two-state design, precisely — corrected
+(`CODE_REVIEWER`, `ADR-078` check 6b) from an earlier, unsupported claim in this section that
+`confound_like` "detects confounds correctly... across the full prevalence sweep."** That framing
+overstated what the data supports: at `u_prior=0.5`, §14.2's own ladder shows `confound_like` firing
+only at concordance `>=0.85` (`2/100` at `0.85`, rising to `93–100/100` at `0.90-0.99`) — nowhere does
+it claim, or need to claim, coverage of "the full prevalence sweep." At skewed prevalence, §15.1.2's
+own panel shows the opposite of "detects correctly": at concordance `0.85` across that panel's seven
+tested `u_prior` values, `confound_like` essentially never fires (its own criterion — large
+attenuation — is not met by a genuinely confounded case at skewed prevalence, exactly the estimand
+inconsistency §15.2's audit explains) — those cases correctly land `indeterminate` under the
+two-state design (never `interaction_like`, which is what actually matters for safety), but calling
+this "detecting confounds correctly" would be wrong. **The precise, defensible statement:**
+`confound_like` is unchanged code (same criterion, same threshold, as every prior revision) and is a
+*diagnostic reason code assigned only when positive evidence of confounding is found* — its absence
+under this design means `indeterminate`, **never** a claim that no confounding is present. This is
+the same asymmetric-loss discipline `ADR-075` established, restated precisely rather than summarized
+into an overclaim. At high concordance and unskewed prevalence, `confound_like` fires as designed;
+elsewhere, the design makes no positive detection claim at all — it only ever withholds release, via
+one of the two cap reasons, and never mistakes the absence of positive evidence for the absence of
+the underlying risk.
 
 **Does the fallback ever mislabel a genuine interaction as `confound_like`?** This is the one new risk
 a two-state design could in principle introduce (trading "false interaction" safety for a new "false
