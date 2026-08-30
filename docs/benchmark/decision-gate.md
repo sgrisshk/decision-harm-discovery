@@ -200,3 +200,85 @@ default is named in `TASK-073`'s `TASKS.md` entry; it is not fixed here.
 genuine default — the CLI/`Makefile` both default to `1.0` and require an explicit, signed override
 to activate the cap — so no comparable discrepancy exists for that parameter; this run correctly did
 not exercise `TASK-068`'s filter, matching the actual current default rather than testing it.
+
+---
+
+**2026-08-30, Statistics/Architect.** First official `TASK-015`-equivalent blind run under contract
+**v1.3.0 with `G16_CANDIDATE_COMPOSITION_SAFETY` present** (`TASK-083`, pre-registered by `ADR-081`,
+implementing `G16` per `TASK-081`'s independently `APPROVED` implementation of `TASK-080`/`ADR-078`'s
+design, accepted as Branch A product semantics by `ADR-080`/`TASK-082`). Run
+`task-083-official-20260830-001` — same engine version, config, seed, and dataset identity as
+`TASK-073`'s own run (`discovery-engine-v0.6.0`, `beam_rules_per_structure=2` (still the unconditional,
+undisclosed-as-such default — separately re-verified this run, not merely assumed unchanged; see the
+configuration-disclosure note below), `max_feature_identity_fraction=1.0`, seed `1729`, dataset
+`travel-bookings-analytical-v1.1.0`, identity
+`b6128eb3c1bdb36515c90570aa4ccabfc3dff8d1026d9002f1c832774b60a683`) — followed the full
+`ADR-008`/`051`/`052` protocol (rehearsal → issue → verify → launch → freeze) end to end, validated
+under contract **v1.3.0** (`artifacts/validation/task-019-official-20260830-task-083-001.json`), scored
+by `TASK-028` (`artifacts/evaluation/task-028-task-083-official-001.json`). Blind-custody chain
+independently re-verified in this same pass: all three frozen output files' SHA-256 hashes and the
+issued manifest's HMAC evaluator signature were both re-derived from scratch (own implementation, not
+the tool's own internal check) and matched exactly; `engine.py`'s recorded provenance hash matches the
+current checkout exactly (no drift). Full record: `ADR-082`.
+
+**The two `ADR-081` questions, answered separately (its own central discipline).** (1) Is the pipeline
+safe after `G16`? Not re-litigated here (`TASK-081` already answered it) — but this is the first
+official-cycle confirmation at real scale: `T03` (`CAND-014`) and `T04` (`CAND-015`), the same two trap
+candidates that appeared in `TASK-073`, both reappeared here (same seed/config/dataset) and both are
+now capped at `predictive_association`/`experiment_only` by `G16` — **zero traps promoted**, down from
+`TASK-073`'s two. (2) Is there still useful evidence yield under that safety? Yes, but it collapses
+essentially completely for this run — see the evidence-level split below — and that collapse is shown
+to be fully attributable to `G16`, not to a separate discovery-quality regression (the discovery-metric
+set below is byte-identical to `TASK-073`'s own).
+
+| Metric | Pre-registered band met | Actual result | Notes |
+|---|---|---|---|
+| Top-K precision | STRONG (≥60%) | 70% (7/10) | Identical composition to `TASK-073` (same candidates, same seed/config/dataset) |
+| Economic-weighted recall | PROMISING (25–49%) | 45.2% | Identical to `TASK-073` — only P01, P06 recovered of 7 scoreable patterns |
+| Confounder trap rejection | **PROMISING, not STRONG** | 0/5 promoted | `T03`/`T04` (`CAND-014`/`CAND-015`) both appeared as candidates and are both actively, demonstrably capped below `SHADOW_POLICY` by `G16` (reason `composition_risk_indeterminate`, explicit leave-one-out detail recorded and surfaced as a warning on each) — a real, caveated downgrade, not mere absence. `T01`/`T02`/`T05` did not appear as candidates at all, so only 2 of 5 traps carry an active caveat rather than absence; `decision-gate.md`'s own STRONG band requires "5/5 ... each with a stated confounding caveat," which this mixed case does not clear. **Hard disqualifier 2 does not fire** — a first for this project's official history. |
+| Leakage violations | passes | 0 | Hard disqualifier 1 did not fire |
+| Effect direction accuracy | STRONG (100%) | 100% (9/9) | Identical to `TASK-073` |
+| Economic impact estimation error | **FAILED (>100%)** | median 219.9% (6.5%–464.6% range, n=9) | Identical to `TASK-073` — a pre-existing, `G16`-independent estimation-granularity defect (first diagnosed 2026-08-16), not caused or affected by `G16` in any way |
+| **Overall verdict** | — | **FAILED** | No hard disqualifier fires this run (a categorical difference from `TASK-073`'s hard-disqualifier-driven FAILED) — driven purely by metric 6 alone under the weakest-graded-band rule, exactly as the very first (2026-08-16) entry was |
+| **Action taken** | — | Do not proceed to real customer data | See `ADR-082` for the full statement distinguishing the (improved) safety result from the (unimproved) yield/estimation result |
+
+**Evidence-level distributions, pre-`G16`-ceiling and final (`ADR-081` item 6 — the single most
+important addition this cycle makes to this document's format).** Computed by re-calling the real,
+unmodified `grading.classify_evidence_level` over each candidate's persisted gate results, once as-is
+(confirmed to reproduce every candidate's frozen `evidence_level` exactly) and once with `G16`'s gate
+result forced to `PASS`:
+
+| Evidence level | Pre-`G16` (`G00`–`G15` alone) | Final (with `G16`) |
+|---|---|---|
+| `adjusted_observational_association` | 11 | **0** |
+| `predictive_association` | 1 | 12 |
+| `descriptive_observation` | 3 | 3 |
+
+11 of 15 candidates — including both trap candidates — would have reached
+`adjusted_observational_association` without `G16`; `G16` caps every one of them to
+`predictive_association`. The other 4 candidates' levels are unaffected by `G16` either way (a different,
+earlier gate already capped them). Net: `ADJUSTED_OBSERVATIONAL`-and-above findings go from 11/15 to
+0/15 in this run.
+
+**Singleton accounting (`ADR-081` item 7).** `0` of 15 candidates are `k==1`; `15/15` are `k>=2`.
+Matches `TASK-082`'s own 150/150-`k>=2`, 0-`k==1` finding across this project's entire prior
+recoverable candidate record — an unchanged, disclosed operational fact about `discovery.engine`'s
+current selection behavior, not a `G16` failure.
+
+**Capability/yield ceiling vs. discovery-quality problem, kept visibly separate (`ADR-081` items 5/9).**
+The complete `ADJUSTED_OBSERVATIONAL`-and-above disappearance above is a measured capability/yield
+ceiling of the current discovery-semantics + available-observational-information combination — not an
+implementation failure, exactly as `ADR-081` named in advance. It is **not** the reason this run's
+overall verdict is FAILED: every discovery-quality number (Top-10 precision, recall, candidate
+composition, direction accuracy) is unchanged from `TASK-073`, and the metric that actually drives the
+FAILED verdict (economic impact estimation error) is a pre-existing, `G16`-independent defect, unrelated
+to and unaffected by the yield ceiling. Neither fact is used to excuse or launder the other.
+
+**Configuration disclosure (Statistics, `TASK-083` scope item 2, separately re-verified, not assumed
+unchanged).** `engine.py`'s `DiscoveryConfig.beam_rules_per_structure` default is still `2`, with no
+override path anywhere in the real official-run pipeline (re-confirmed by reading `engine.py` and
+`scripts/run_discovery.py` directly, not by trusting `TASK-073`'s prior disclosure) — unchanged since
+`TASK-073` first disclosed this; the narrow documentation-only follow-on named there remains open and
+unaddressed by this task, per its own hard rule. `max_feature_identity_fraction=1.0` remains the
+correct, genuine, correctly-documented default. No new rejected-experimental-parameter-as-default case
+was found.
