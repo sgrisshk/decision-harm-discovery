@@ -45,11 +45,12 @@ not import `policy_analytics.validation.apply` and cannot create an import cycle
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from enum import StrEnum
 from functools import reduce
 from operator import and_
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     import polars as pl
@@ -130,12 +131,12 @@ class CompositionSafetyResult:
 
 
 def classify_atom(
-    frame: "pl.DataFrame",
-    atom_masks: "tuple[tuple[str, pl.Series], ...]",
+    frame: pl.DataFrame,
+    atom_masks: tuple[tuple[str, pl.Series], ...],
     atom_position: int,
-    outcome: "OutcomeDefinition",
+    outcome: OutcomeDefinition,
     stratified_adjustment: StratifiedAdjustmentFn,
-    thresholds: "ValidationThresholds",
+    thresholds: ValidationThresholds,
 ) -> AtomCompositionResult:
     """Classify one atom (`atom_masks[atom_position]`) via the leave-one-out check.
 
@@ -144,7 +145,9 @@ def classify_atom(
     "beyond the first" exclusion anywhere in this function).
     """
     feature_i, mask_i = atom_masks[atom_position]
-    other_masks = [mask for position, (_, mask) in enumerate(atom_masks) if position != atom_position]
+    other_masks = [
+        mask for position, (_, mask) in enumerate(atom_masks) if position != atom_position
+    ]
     base_i_mask = reduce(and_, other_masks)
 
     raw_base_diff, _ = stratified_adjustment(frame, base_i_mask, outcome, ())
@@ -197,11 +200,11 @@ def classify_atom(
 
 
 def classify_composition_safety(
-    frame: "pl.DataFrame",
-    atom_masks: "tuple[tuple[str, pl.Series], ...]",
-    outcome: "OutcomeDefinition",
+    frame: pl.DataFrame,
+    atom_masks: tuple[tuple[str, pl.Series], ...],
+    outcome: OutcomeDefinition,
     stratified_adjustment: StratifiedAdjustmentFn,
-    thresholds: "ValidationThresholds",
+    thresholds: ValidationThresholds,
 ) -> CompositionSafetyResult:
     """`G16`'s candidate-level result.
 
@@ -234,7 +237,9 @@ def classify_composition_safety(
     )
     joined_atom_detail = " | ".join(atom.detail for atom in atom_results)
     if confound_like_atoms:
-        names = ", ".join(f"{atom.feature!r} (atom {atom.atom_index})" for atom in confound_like_atoms)
+        names = ", ".join(
+            f"{atom.feature!r} (atom {atom.atom_index})" for atom in confound_like_atoms
+        )
         reason = CompositionSafetyReason.CONFOUND_LIKE
         detail = (
             f"G16: {len(confound_like_atoms)}/{k} atom(s) classify confound_like ({names}); "

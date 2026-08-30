@@ -36,7 +36,9 @@ OUTCOME = OutcomeDefinition(
     unit="unit",
     higher_is_worse=True,
     missing_data_policy=MissingDataPolicy.COMPLETE,
-    description="Neutral synthetic outcome for G16's structural tests. Unrelated to any real domain.",
+    description=(
+        "Neutral synthetic outcome for G16's structural tests. Unrelated to any real domain."
+    ),
     valid_range=(-1.0e9, 1.0e9),
     aggregation_rule="mean of the outcome column over the group",
     harm_direction_phrase="Value increases",
@@ -98,7 +100,9 @@ def _synthetic_frame(n: int, seed: int) -> pl.DataFrame:
     return pl.DataFrame({"A": a, "B": b, "C": c, "y": y})
 
 
-def _atom_masks(frame: pl.DataFrame, features: tuple[str, ...]) -> tuple[tuple[str, pl.Series], ...]:
+def _atom_masks(
+    frame: pl.DataFrame, features: tuple[str, ...]
+) -> tuple[tuple[str, pl.Series], ...]:
     return tuple((feature, frame[feature] == 1) for feature in features)
 
 
@@ -119,7 +123,7 @@ def test_composition_atom_classification_has_exactly_two_members() -> None:
         CompositionAtomClassification("interaction_like")
 
 
-def test_composition_safety_reason_has_exactly_three_members_none_of_them_interaction_like() -> None:
+def test_composition_safety_reason_has_exactly_three_members_none_interaction_like() -> None:
     members = list(CompositionSafetyReason)
     assert len(members) == 3
     assert {member.value for member in members} == {
@@ -151,7 +155,7 @@ def _source_excluding_docstrings(module: object) -> str:
     tree = ast.parse(source)
     excluded_lines: set[int] = set()
     for node in ast.walk(tree):
-        if isinstance(node, (ast.Module, ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+        if isinstance(node, ast.Module | ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef):
             body = node.body
             if (
                 body
@@ -191,7 +195,11 @@ def test_classify_atom_classification_assignment_is_binary_by_construction() -> 
     assigned_names: set[str] = set()
     for node in ast.walk(tree):
         if isinstance(node, ast.Assign):
-            targets = [t.id for t in node.targets if isinstance(t, ast.Name) and t.id == "classification"]
+            targets = [
+                t.id
+                for t in node.targets
+                if isinstance(t, ast.Name) and t.id == "classification"
+            ]
             if targets and isinstance(node.value, ast.Attribute):
                 assigned_names.add(node.value.attr)
     assert assigned_names == {"CONFOUND_LIKE", "INDETERMINATE"}
@@ -355,13 +363,13 @@ def test_classification_is_deterministic_across_repeated_calls() -> None:
         assert [a.coverage for a in other.atom_results] == [a.coverage for a in first.atom_results]
 
 
-def test_classify_atom_and_classify_composition_safety_source_has_no_random_or_bootstrap_call() -> None:
+def test_composition_safety_source_has_no_random_or_bootstrap_call() -> None:
     import policy_analytics.validation.composition_safety as module
 
     source = inspect.getsource(module)
     forbidden = ("random.", "rng.", "bootstrap", "np.random", "resample")
     for token in forbidden:
-        assert token not in source, f"unexpected randomness-related token {token!r} in module source"
+        assert token not in source, f"unexpected randomness token {token!r} in module source"
 
 
 # =====================================================================================
@@ -390,7 +398,9 @@ def test_classify_atom_matches_the_per_atom_result_inside_classify_composition_s
     """
     frame = _synthetic_frame(n=500, seed=13)
     atom_masks = _atom_masks(frame, ("A", "B", "C"))
-    direct = classify_atom(frame, atom_masks, 1, OUTCOME, _stratified_adjustment, DEFAULT_THRESHOLDS)
+    direct = classify_atom(
+        frame, atom_masks, 1, OUTCOME, _stratified_adjustment, DEFAULT_THRESHOLDS
+    )
     via_candidate = classify_composition_safety(
         frame, atom_masks, OUTCOME, _stratified_adjustment, DEFAULT_THRESHOLDS
     )

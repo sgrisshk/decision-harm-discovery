@@ -110,7 +110,9 @@ OUTCOME = OutcomeDefinition(
 )
 
 
-def _atom_masks(frame: pl.DataFrame, features: tuple[str, ...]) -> tuple[tuple[str, pl.Series], ...]:
+def _atom_masks(
+    frame: pl.DataFrame, features: tuple[str, ...]
+) -> tuple[tuple[str, pl.Series], ...]:
     return tuple((feature, frame[feature] == 1) for feature in features)
 
 
@@ -171,27 +173,21 @@ def test_confound_like_and_indeterminate_reach_the_identical_evidence_ceiling() 
     indeterminate_gate = GateResult(
         GateId.COMPOSITION_SAFETY, GateOutcome.FAIL, indeterminate_result.detail
     )
-
-    ceiling_confound = evidence_ceiling(
-        _all_gates({GateId.COMPOSITION_SAFETY: GateOutcome.FAIL}), IdentificationDesign.OBSERVATIONAL
-    )
-    ceiling_indeterminate = ceiling_confound  # both gate sets are built identically below
     results_confound = tuple(
         confound_gate if g.gate_id is GateId.COMPOSITION_SAFETY else g for g in _all_gates()
     )
     results_indeterminate = tuple(
         indeterminate_gate if g.gate_id is GateId.COMPOSITION_SAFETY else g for g in _all_gates()
     )
-    assert evidence_ceiling(results_confound, IdentificationDesign.OBSERVATIONAL) == ceiling_confound
-    assert (
-        evidence_ceiling(results_indeterminate, IdentificationDesign.OBSERVATIONAL)
-        == ceiling_indeterminate
-    )
-    assert ceiling_confound is EvidenceLevel.PREDICTIVE
+    design = IdentificationDesign.OBSERVATIONAL
+    ceiling_confound = evidence_ceiling(results_confound, design)
+    ceiling_indeterminate = evidence_ceiling(results_indeterminate, design)
 
-    assert classify_evidence_level(
-        results_confound, IdentificationDesign.OBSERVATIONAL
-    ) is classify_evidence_level(results_indeterminate, IdentificationDesign.OBSERVATIONAL)
+    assert ceiling_confound is EvidenceLevel.PREDICTIVE
+    assert ceiling_confound == ceiling_indeterminate
+    assert classify_evidence_level(results_confound, design) == classify_evidence_level(
+        results_indeterminate, design
+    )
 
 
 def test_g16_gatespec_cap_matches_g02s_own_pattern_exactly() -> None:
@@ -251,7 +247,9 @@ def test_no_downstream_gate_or_state_transition_can_silently_re_raise_the_g16_ca
         all_pass_except_g16, IdentificationDesign.OBSERVATIONAL
     ) is EvidenceLevel.PREDICTIVE
     with pytest.raises(ValueError, match="not supported by the gate results"):
-        _report(gate_results=all_pass_except_g16, evidence_level=EvidenceLevel.ADJUSTED_OBSERVATIONAL)
+        _report(
+            gate_results=all_pass_except_g16, evidence_level=EvidenceLevel.ADJUSTED_OBSERVATIONAL
+        )
 
 
 # =====================================================================================
@@ -260,7 +258,9 @@ def test_no_downstream_gate_or_state_transition_can_silently_re_raise_the_g16_ca
 # =====================================================================================
 
 
-def _write_candidates(tmp_path: Path, conditions: list[dict[str, object]], outcome_id: str) -> tuple[Path, Path]:
+def _write_candidates(
+    tmp_path: Path, conditions: list[dict[str, object]], outcome_id: str
+) -> tuple[Path, Path]:
     candidates_path = tmp_path / "candidates.json"
     metrics_path = tmp_path / "discovery_metrics.json"
     candidates_path.write_text(
@@ -269,7 +269,11 @@ def _write_candidates(tmp_path: Path, conditions: list[dict[str, object]], outco
                 "status": "PERSISTED",
                 "outcome": {"outcome_id": outcome_id, "outcome_definition_version": "1.1.0"},
                 "candidates": [
-                    {"candidate_id": "G16-SAFETY-K2", "conditions": conditions, "outcome": outcome_id}
+                    {
+                        "candidate_id": "G16-SAFETY-K2",
+                        "conditions": conditions,
+                        "outcome": outcome_id,
+                    }
                 ],
             }
         ),
@@ -319,13 +323,13 @@ def test_every_k_ge_2_candidate_through_run_validation_has_a_g16_result(tmp_path
     g16_result = next(g for g in report.gate_results if g.gate_id is GateId.COMPOSITION_SAFETY)
     # k=2 real candidate: G16 must have actually executed (applicable), never silently skipped.
     assert g16_result.outcome in (GateOutcome.PASS, GateOutcome.FAIL)
-    if not g16_result.satisfied:
+    if not g16_result.satisfied and report.evidence_level is not None:
         # The one executable invariant, re-verified against the REAL pipeline output, not a
         # hand-built GateResult: G16 failing means the real, fully-assembled report cannot
         # exceed PREDICTIVE, regardless of what every other real gate computed.
         assert LEVEL_ORDER.index(report.evidence_level) <= LEVEL_ORDER.index(
             EvidenceLevel.PREDICTIVE
-        ) if report.evidence_level is not None else True
+        )
 
 
 @pytest.mark.skipif(not REAL_DATASET.exists(), reason="delivered analytical dataset not present")
@@ -333,8 +337,9 @@ def test_single_atom_real_candidate_is_unaffected_by_g16(tmp_path: Path) -> None
     """A k=1 candidate must reach G16 (it appears in gate_results, satisfying `_result_map`'s
     completeness check) but must always be vacuously satisfied -- never capped by this gate.
     """
+    single_condition = [{"feature": "discount_rate", "operator": "ge", "value": 0.08}]
     candidates_path, metrics_path = _write_candidates(
-        tmp_path, [{"feature": "discount_rate", "operator": "ge", "value": 0.08}], primary_outcome().outcome_id
+        tmp_path, single_condition, primary_outcome().outcome_id
     )
     results, _ = run_validation(
         dataset_root=REAL_DATASET,
@@ -345,7 +350,8 @@ def test_single_atom_real_candidate_is_unaffected_by_g16(tmp_path: Path) -> None
         analysis_run_id="g16-safety-k1-test",
         metrics_path=metrics_path,
     )
-    g16_result = next(g for g in results[0].report.gate_results if g.gate_id is GateId.COMPOSITION_SAFETY)
+    gate_results = results[0].report.gate_results
+    g16_result = next(g for g in gate_results if g.gate_id is GateId.COMPOSITION_SAFETY)
     assert g16_result.satisfied is True
     assert g16_result.outcome is GateOutcome.PASS
 
