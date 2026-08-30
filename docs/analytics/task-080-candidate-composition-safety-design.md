@@ -1,4 +1,4 @@
-# TASK-080 — Candidate-composition safety: design document (`ADR-073`, revised `ADR-075`)
+# TASK-080 — Candidate-composition safety: design document (`ADR-073`, revised `ADR-075`, revised again `ADR-077`)
 
 **Status: DESIGN ONLY. No implementation.** Nothing in this document changes, or proposes changing,
 `discovery.engine`, `apply.py`, `G02`, `G06`, `_development_score`, any threshold value, or
@@ -6,6 +6,31 @@
 mechanism, it is describing the *existing* codebase (read, not modified) or specifying what a later,
 distinct implementation task would need to build. `CODE_REVIEWER` reviews this document; no
 implementation task opens until that review completes, per this task's own binding instruction.
+
+**2026-08-30 SECOND revision banner (`ADR-077`), read this first — it supersedes the `ADR-075`
+banner below for the specific claims named here.** `CODE_REVIEWER`'s narrow re-review (`ADR-076`)
+found the `ADR-075` classifier's safety property does **not** hold generally: two independently
+constructed DGPs outside the reviewed suite's narrow shape (non-uniform confounder prevalence; a
+continuous/nonlinear multi-covariate DGP) reproduce `confound_like -> interaction_like` at rates
+**growing toward 100% with sample size** — not sampling noise, a true, non-vanishing bias. Per
+`ADR-077`, this is treated as more fundamental than a fixable classifier defect: **the problem is
+estimand inconsistency under proxy/confounder imbalance, not power or threshold calibration.**
+`ADR-077` reframes the task's central question (is positive `interaction_like` identification
+possible *at all* from this design's information) and authorizes this second revision. **Two prior
+claims are explicitly REVOKED as evidence, not merely superseded — see the inline markers at each
+location:** §14.5's zero-true-delta proof (revoked: it depended on an unstated, unverifiable
+symmetry — uniform confounder prevalence AND complementary treatment-assignment odds — that does not
+hold for real confounders in general); and §8.1's signal 2 (threshold-perturbation stability,
+revoked: it structurally requires signal 1's own significance test as a conjunct, so it provides no
+protection against a systematic, non-noise bias, which is by definition stable under nearby
+threshold perturbations). **This revision's own findings are in new §15, which is now this
+document's authoritative classifier specification — §6/§8.1 below are retained for historical
+record (marked at each revoked point) but no longer state this document's final recommendation.**
+**Final recommendation of this second revision, stated here so it cannot be missed: positive
+`interaction_like` is excluded from `G16` v1. The recommended design is the two-state fallback —
+`confound_like` (unchanged, positive-evidence criterion) / `indeterminate` (everything else) — see
+§15 for the full identifiability suite, estimand audit, and escape-hatch attempts that produced this
+conclusion.**
 
 **2026-08-29 revision banner (`ADR-075`).** `CODE_REVIEWER`'s independent adversarial review
 (`ADR-074`) found one real, signature-level defect in the classifier this document originally
@@ -503,7 +528,16 @@ For a promoted candidate `R = (C1, ..., Ck)`:
        new resampling procedure) **and** its sign must be consistent with the direction `harm(R)`
        itself already points. A low-attenuation reading with no real level-to-level contrast (the
        Scenario-C shape §14 tests directly) fails this signal, by design.
-    2. **Consistency under threshold perturbation.** For an atom derived by thresholding a numeric
+    2. **Consistency under threshold perturbation.** **[REVOKED, `ADR-077`/§15 — this signal is no
+       longer treated as an independent evidence channel and must not be relied on as this design's
+       second positive-interaction signal.** `ADR-076`'s review found it structurally requires
+       signal 1's own significance condition as one of its three conjuncts (0/400
+       sig2-fires-without-sig1 across 400 trials) — it is signal 1's own statistic re-evaluated at
+       nearby partitions, not a logically independent second test, and therefore provides
+       essentially no protection against a *systematic* (non-noise) stratum-contrast bias, which is
+       by definition stable under nearby threshold perturbations. §15's own direction-2 estimand
+       audit reconfirms this. The mechanism description below is retained for historical record
+       only.]** For an atom derived by thresholding a numeric
        or otherwise perturbable feature, the same contrast is recomputed at one bin below and one
        bin above the atom's own production threshold — the identical one-bin-perturbation
        *mechanism* `G12`'s robustness battery already applies to a candidate rule's own numeric
@@ -905,6 +939,16 @@ asymmetric loss function in `ADR-075` authorizes ("false interaction... acceptab
 confounding-as-interaction... a safety failure, full stop").
 
 ### 14.5 Why the confound DGP's true heterogeneity contrast is exactly zero (analytical confirmation)
+
+**[REVOKED, `ADR-077`/§15 — this proof is no longer valid as general evidence and must not be relied
+on.** It holds only within the narrow symmetric-DGP family it assumed (confounder prevalence exactly
+`0.5` **and** treatment-assignment odds exactly complementary, i.e. summing to `1`) — `ADR-076`'s
+review found that relaxing prevalence alone reproduces a large, non-vanishing safety failure growing
+toward 100% with sample size, and §15's own direction-2 estimand audit derives the general closed
+form showing the true delta is nonzero whenever *either* symmetry is broken (two independent
+symmetry-breaking axes, not one). The proof below is retained for historical record — it correctly
+describes the one narrow case it was built for, but that case is not representative of real
+confounders in general, which have no reason to respect either symmetry.]**
 
 For the confound DGP, `P(U=1 | Ci=target) = concordance` and `P(U=1 | Ci=complement) = 1 -
 concordance` by construction (uniform prior on `U`). Because `T`'s assignment probabilities given `U`
