@@ -1,0 +1,33 @@
+{
+  "task": "TASK-085",
+  "adr": "ADR-089",
+  "check": 2,
+  "claim_tested": "Old metric 6 (evaluate_benchmark.py's |O1 - O3| / O3) is invalid as a quality gate independent of any specific benchmark result: it can score near-perfectly under total population mismatch (case A) and score badly under a flawless, unbiased O1 estimator (case B).",
+  "case_a": {
+    "name": "case_a_zero_overlap_numeric_accident",
+    "true_population_A_n": 100,
+    "true_effect_per_record_eur": 1000.0,
+    "truth_impact_O3_eur": 100000.0,
+    "candidate_population_E_n": 250,
+    "candidate_per_record_value_eur": 400.0,
+    "candidate_exposure_O1_eur": 100000.0,
+    "overlap_E_and_A_n": 0,
+    "metric6_relative_error": 0.0,
+    "interpretation": "E and A share zero members (candidate rule is conceptually unrelated to the injected mechanism); O1 lands on O3 purely because an unrelated confound's magnitude (250 records x ~447.62 EUR) numerically coincides with the true pattern's total (100 x 1000 EUR). metric 6 scores this as a near-perfect estimate."
+  },
+  "case_b": {
+    "name": "case_b_flawless_estimator_partial_coverage",
+    "true_population_A_n": 200,
+    "true_effect_per_record_eur": 800.0,
+    "truth_impact_O3_eur": 160000.0,
+    "candidate_population_E_n": 80,
+    "candidate_per_record_value_eur": 800.0,
+    "true_per_record_effect_eur": 800.0,
+    "per_record_bias_eur": 0.0,
+    "candidate_exposure_O1_eur": 64000.0,
+    "metric6_relative_error": 0.6,
+    "interpretation": "The candidate's rule captures a strict, correctly-measured subset of the true mechanism population (recall_of_true_pattern < 1, matching TASK-084's own Branch 2/3 finding). O1's per-record effect estimate exactly equals the true per-record effect -- zero bias, zero estimator flaw. metric 6 still scores this candidate badly, purely because O1's population is, by design, narrower than O3's."
+  },
+  "both_constructible": true,
+  "conclusion": "Both adversarial cases are concretely constructible using the real, unmodified O1 computation path composed with metric 6's own published comparison formula. This confirms metric 6's pass/fail behavior is not a function of estimator quality -- it is a function of how numerically close two structurally different estimands' populations and magnitudes happen to land. The 219.9% figure TASK-083 actually produced is not needed to reach this conclusion."
+}
