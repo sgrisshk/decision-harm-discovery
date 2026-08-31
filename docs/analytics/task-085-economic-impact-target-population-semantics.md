@@ -12,6 +12,16 @@ correct against the current contract; the error is an estimand mismatch, not a c
 `TASK-080`/`ADR-077` (`APPROVED`, `ADR-078`) — an independently reviewed, closely analogous
 non-identifiability result this document extends rather than re-derives (§4).
 
+**Review status: `CODE_REVIEWER` `APPROVED WITH REVISION NEEDED` (`ADR-089`), corrected in place,
+2026-08-31 — no further independent review round required.** The central `O1`/`O2`/`O3`
+non-conflation architecture (`ADR-089`'s own approval standard) was independently re-derived and
+held. One real, code-confirmed defect was found in tier 2's original population specification (§5.2)
+— fixed normatively here, not merely disclosed, per the founder's own instruction; see §5.2's inline
+correction note for the full record. An additional `O1`≠`O3` divergence (time horizon, via
+`active_booking_months`) was independently found and is folded into §8.1. Neither finding disturbs
+`O1`/`O2`/`O3`'s non-conflation, so `ADR-089`'s own approval standard already holds without a new
+review round, per its own explicit fork for documentation/specification-level findings.
+
 ---
 
 ## 0. The three objects, restated once, used consistently throughout
@@ -299,8 +309,26 @@ is exactly the ladder-shaped claim `ADR-087` asks this semantics to design.
 | Tier | Evidence level required | What is computed | Population | Name | Claim permitted |
 |---|---|---|---|---|---|
 | 1 | `descriptive_observation`+ (1+) | `per_record_value` = raw `harm_per_booking`, `historical_value` = `per_record_value × exposed_total` — **unchanged computation from today** | `E` (`O1`) | **Candidate exposure** | "Value at stake in these records" (§8's own existing wording) — never "impact," never "savings" |
-| 2 | `adjusted_observational_association`+ (3+) | Same population `E`, but `per_record_value` = `adjusted_effect` (already computed by `G06`, currently discarded at this layer) — a strictly more defensible per-record term, **still over `E`, not a narrower population** | `E` (`O1`, refined per-record term) | **Adjustment-consistent candidate exposure** | Same "exposure" framing — **explicitly not upgraded to "attributable" or "impact" language**, because the population term is unchanged and §4 established the dominant source of `TASK-084`'s error is population dilution, not per-record bias alone |
+| 2 | `adjusted_observational_association`+ (3+) | `per_record_value` = `adjusted_effect` (already computed by `G06`), aggregated **only over the population `adjusted_effect` was actually estimated on** — the development split — never transported to a wider window | `E_dev = E ∩ {development split}` (`O1`'s own definition, restricted, **strictly narrower than tier 1's `E`**) | **Adjustment-consistent candidate exposure (development-split scope)** | Same "exposure" framing, scoped explicitly to the development-split population in its own name and figure — **explicitly not upgraded to "attributable" or "impact" language**, and explicitly not presented as a figure for the same population as tier 1 |
 | 3 | `quasi_causal_evidence`/`experimental_evidence` (4–5), i.e. `G13`/`G14` satisfied | The candidate's own exposed population is now, by identification-design construction (not by search happenstance), the mechanism's population — `O1` and `O2` coincide by design, not by estimation | `A` (design-identified, ≈ `O2`) | **Attributable harmful impact** | Causal language becomes permitted per the existing `LANGUAGE_RULES` for levels 4–5; "recoverable"/"savings" only with a positive backtest, per §8's existing final sentence |
+
+**Correction (2026-08-31, founder, following the independent `CODE_REVIEWER` review's Check 3,
+`ADR-089`).** The original version of this table's tier-2 row stated the population stayed "over `E`,
+not a narrower population." Independent code tracing (`apply.py`) found this false as originally
+specified: `adjusted_effect` is fit by `_stratified_adjustment` on the development split alone, but
+the draft's own computation multiplied it by `exposed_total` — the *combined* development +
+validation + future_holdout count — a silent cross-split transport of a development-only-fit effect
+onto a wider population it was never estimated on. This did not cause `O1`/`O2` conflation (both
+tier 1 and tier 2 remained `O1`-family, candidate-exposure quantities, never claimed as `O2`), so it
+did not breach `ADR-089`'s own approval standard — but it was a real, code-confirmed defect in tier
+2's own specification and is fixed here normatively, not merely disclosed: **tier 2's population is
+now `E_dev`, explicitly narrower than tier 1's `E`, matching exactly the population `adjusted_effect`
+was actually estimated on. No transport assumption is introduced.** If a future implementation
+task finds `E_dev`-scoped reporting insufficiently useful on its own terms (e.g. too small a sample,
+or confusing next to tier 1's wider figure), the correct response is to leave tier 2 **unavailable**
+until a genuine cross-split methodology (e.g. refitting `adjusted_effect` over the combined
+population, itself a new statistical-machinery question this design document does not authorize) is
+separately designed and reviewed — never to silently re-widen the population tier 2 reports over.
 
 Tier 3 is not new machinery — it is the observation that `ADR-087`'s central question already has an
 answer in the existing evidence ladder, once stated precisely: **`O2` becomes reportable exactly when,
@@ -343,9 +371,11 @@ better than a tier that is silently filled with an unidentified number.
   beyond "this rule's own population" is being made.
 - Tier 2's adjustment-consistent refinement: partially mitigates confounding *within* the per-record
   term (to whatever extent `G06`'s adjustment ceiling allows — itself disclosed as incomplete,
-  `validation-contract.md` §11), but does **not** address dilution/breadth at all, since the population
-  term is unchanged. This must never be presented as solving the breadth problem `TASK-084` diagnosed
-  as dominant (Branch 4's `r≈0.998` positive control).
+  `validation-contract.md` §11), but does **not** address dilution/breadth at all, since tier 2's own
+  population (`E_dev`, per the correction above) is itself just as much a raw candidate-defined
+  surrogate population as tier 1's `E` — narrower in *window*, not narrower in the sense of excluding
+  non-mechanism records. This must never be presented as solving the breadth problem `TASK-084`
+  diagnosed as dominant (Branch 4's `r≈0.998` positive control).
 - Under partial coverage (`recall_of_true_pattern < 1`, `TASK-084` §3.3), `O1` may in fact be *smaller*
   than the true mechanism's own full population for that same rule shape — the honest exposure figure
   can understate `O3` just as often as it overstates it via dilution. Nothing in this design corrects
@@ -389,15 +419,22 @@ rule.
 
 ## 7. Formal estimands, stated with the rigor this project's other estimands use
 
-**`O1` — Candidate exposure (tiers 1–2 of §5.2).**
+**`O1` — Candidate exposure (tiers 1–2 of §5.2). Two distinct population scopes, corrected 2026-08-31
+per `ADR-089` Check 3 — tier 2 is no longer stated as sharing tier 1's population.**
 
-- Target population: `E = {records where rule_expr(candidate.conditions) holds}` over the combined
-  (development + validation + future_holdout) observed window.
-- Estimand: `Σ_{i ∈ E} (Y_i − μ_{E^c})`, equivalently `|E| · (μ_E − μ_{E^c})`, where `μ_E`, `μ_{E^c}`
-  are the outcome's mean over `E` and its complement within the same cohort/window (`apply.py`'s
-  `split_stats`/`raw_difference`). Tier 1 uses the unadjusted `μ_E − μ_{E^c}`; tier 2 substitutes `G06`'s
-  `adjusted_effect` for the same difference, computed via the existing greedy, coverage-gated joint
-  stratification (`validation-contract.md` §4b), unchanged.
+- **Tier 1 target population:** `E = {records where rule_expr(candidate.conditions) holds}` over the
+  combined (development + validation + future_holdout) observed window.
+- **Tier 1 estimand:** `Σ_{i ∈ E} (Y_i − μ_{E^c})`, equivalently `|E| · (μ_E − μ_{E^c})`, where `μ_E`,
+  `μ_{E^c}` are the outcome's mean over `E` and its complement within the same cohort/window
+  (`apply.py`'s `split_stats`/`raw_difference`) — the unadjusted `μ_E − μ_{E^c}`.
+- **Tier 2 target population:** `E_dev = E ∩ {development split}` — strictly narrower than `E`,
+  matching exactly the population `G06`'s `_stratified_adjustment` fits `adjusted_effect` on. **Not**
+  the combined window — that would silently transport a development-only-fit effect onto records it
+  was never estimated on, the defect this correction fixes.
+- **Tier 2 estimand:** `|E_dev| · adjusted_effect`, where `adjusted_effect` is `G06`'s own
+  confounder-adjusted difference, computed via the existing greedy, coverage-gated joint
+  stratification (`validation-contract.md` §4b), unchanged — evaluated and aggregated over `E_dev`
+  only.
 - Uncertainty: cluster bootstrap over `customer_id`, `DIAGNOSTIC_BOOTSTRAP_REPS` replicates, percentile
   interval — unchanged from today's computation.
 - Evidence claim permitted: mirrors `LANGUAGE_RULES` at the candidate's own evidence level for the
@@ -439,6 +476,14 @@ diagnosed and `ADR-087` asked this document to resolve.** Under §6's recommende
 product would ever make asserts `O1 ≈ O3` — that equivalence was never true, is not the target this
 design recommends reporting, and no version of (a)/(b)/(c) makes it true. A metric built to check it is
 therefore checking a property the corrected system does not claim to have.
+
+**Additional, independently confirmed divergence (2026-08-31, `CODE_REVIEWER`, `ADR-089` Check 1) —
+`O1` and `O3` differ on time horizon too, not only population definition.** `O1`'s window is `E`'s
+combined development+validation+future_holdout observed window, unconditionally. `O3`'s window is
+`hidden_ground_truth.json`'s own `active_booking_months` for the matched pattern, which for several
+patterns restricts `O3` to a narrower window than `O1`'s combined window ever uses. This is a further,
+independently-found confirmation that `O1 ≠ O3` — the two sides of metric 6 disagree on population
+*and* time horizon, strengthening (not merely restating) the case for prospective retirement in §8.4.
 
 ### 8.2 Is metric 6 semantically valid as a product-quality gate, given §6's conclusion? — the consequence, reached from the reasoning above
 
@@ -541,7 +586,7 @@ None of these exist today. Naming them is not a promise they will be built; it i
 
 | Acceptance item (`TASK-085`/`ADR-087`) | Addressed |
 |---|---|
-| Name of each quantity | §0, §7 — `O1` candidate exposure (+ adjustment-consistent refinement), `O2` attributable harmful impact, `O3` latent affected-population impact |
+| Name of each quantity | §0, §7 — `O1` candidate exposure (tier 1, over `E`) + adjustment-consistent candidate exposure (tier 2, over `E_dev`, corrected 2026-08-31), `O2` attributable harmful impact, `O3` latent affected-population impact |
 | Target population | §7, per quantity |
 | Formal estimand | §7, stated with the same rigor as this project's other estimands |
 | Evidence claim permitted | §7, per quantity, tied to `LANGUAGE_RULES` |
@@ -552,6 +597,9 @@ None of these exist today. Naming them is not a promise they will be built; it i
 | Three candidate semantics genuinely investigated, none preselected | §3 (a), §4 (b), §5 (c) |
 | Partial-identification achievability investigated, not assumed | §4, negative conclusion, checked against `ADR-077`'s already-reviewed result plus two further avenues |
 | Prohibited easy path avoided | §8.3 states explicitly what is and is not proposed; no ground-truth-overlap comparison is recommended anywhere in this document |
+| Tier 2 has no implicit cross-split transport (`ADR-089` Check 3, corrected 2026-08-31) | §5.2's inline correction, §7's `O1` estimand — tier 2 scoped to `E_dev`, never the combined window |
+| `O1`/`O3` divergence independently reconfirmed on a second axis (`ADR-089` Check 1) | §8.1 — time horizon (`active_booking_months`), in addition to population |
+| Historical custody preserved (`ADR-089` Check 6) | §8.4 — `TASK-073`/`TASK-083` unchanged, retirement prospective only |
 | Metric 6's fate reached as a consequence, not an assumption | §8.1–§8.4 |
 | `TASK-073`/`TASK-083` historical verdicts not rewritten | §8.4, explicit |
 | A real, disclosed recommendation given | §6 |
