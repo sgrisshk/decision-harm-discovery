@@ -90,7 +90,8 @@ class CandidateExposureResult:
 
     **Claim permitted.** Per `TASK-085` §7: "value at stake in these records," never "impact,"
     never "savings," at every tier this type represents — regardless of the candidate's own
-    evidence level. Causal/savings language only becomes available at tier 3 (`AttributableImpactResult`).
+    evidence level. Causal/savings language only becomes available at tier 3
+    (`AttributableImpactResult`).
 
     **Annualization is not implemented.** `annualized_candidate_exposure` is always `None` and
     `annualization_justified` is always `False` — unchanged scope gap from `v1.0.0`, tracked as
@@ -162,7 +163,10 @@ class CandidateExposureResult:
 
     @property
     def historical_impact(self) -> EffectEstimate:
-        """Deprecated pre-`TASK-086` alias for `candidate_exposure`. See `impact_contract_version`."""
+        """Deprecated pre-`TASK-086` alias for `candidate_exposure`.
+
+        See `impact_contract_version`.
+        """
         return self.candidate_exposure
 
     @property

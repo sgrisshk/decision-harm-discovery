@@ -235,7 +235,9 @@ def test_sign_convention_positive_means_harm_matches_outcome_contract() -> None:
 
 
 def test_build_tier2_reuses_adjusted_effect_without_recomputation() -> None:
-    adjusted_effect = EffectEstimate(120.0, 90.0, 150.0, 0.95, "stratified_generalized_adjustment", "EUR")
+    adjusted_effect = EffectEstimate(
+        120.0, 90.0, 150.0, 0.95, "stratified_generalized_adjustment", "EUR"
+    )
     result = build_candidate_exposure_result_tier2(
         outcome=_outcome(),
         dev_exposed_records=200,
@@ -259,7 +261,9 @@ def test_tier2_uses_e_dev_not_combined_exposed_total() -> None:
     the `E_dev` count passed in -- never a wider count the caller might have (incorrectly) also
     had lying around.
     """
-    adjusted_effect = EffectEstimate(10.0, 8.0, 12.0, 0.95, "stratified_generalized_adjustment", "EUR")
+    adjusted_effect = EffectEstimate(
+        10.0, 8.0, 12.0, 0.95, "stratified_generalized_adjustment", "EUR"
+    )
     dev_exposed_records = 50
     combined_exposed_records = 500  # deliberately different and much larger
 
@@ -279,7 +283,9 @@ def test_tier2_uses_e_dev_not_combined_exposed_total() -> None:
 
 
 def test_tier2_interval_scales_linearly_with_e_dev_and_widens_to_contain_the_point() -> None:
-    adjusted_effect = EffectEstimate(-40.0, -60.0, -20.0, 0.95, "stratified_generalized_adjustment", "EUR")
+    adjusted_effect = EffectEstimate(
+        -40.0, -60.0, -20.0, 0.95, "stratified_generalized_adjustment", "EUR"
+    )
     result = build_candidate_exposure_result_tier2(
         outcome=_outcome(),
         dev_exposed_records=25,
@@ -359,7 +365,9 @@ def test_load_v2_payload_round_trips() -> None:
 
 
 def test_load_v2_tier2_payload_round_trips() -> None:
-    adjusted_effect = EffectEstimate(10.0, 8.0, 12.0, 0.95, "stratified_generalized_adjustment", "EUR")
+    adjusted_effect = EffectEstimate(
+        10.0, 8.0, 12.0, 0.95, "stratified_generalized_adjustment", "EUR"
+    )
     built = build_candidate_exposure_result_tier2(
         outcome=_outcome(),
         dev_exposed_records=50,

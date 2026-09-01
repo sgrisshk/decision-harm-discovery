@@ -788,6 +788,8 @@ def test_tier2_exposure_uses_e_dev_not_combined_exposed_total_end_to_end(tmp_pat
     )
 
     result = results[0]
+    assert result.exposure_tier1 is not None
+    assert result.exposure_tier2 is not None
     dev_exposed = result.split_results["development"].n_exposed
     combined_exposed = result.exposure_tier1.affected_records
     tier2 = result.exposure_tier2

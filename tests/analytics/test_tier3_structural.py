@@ -26,7 +26,8 @@ from policy_analytics.validation.report import EffectEstimate
 
 pytestmark = pytest.mark.analytics
 
-_ALL_OTHER_GATE_IDS = tuple(g for g in GateId if g not in (GateId.IDENTIFICATION, GateId.RANDOMIZATION))
+_EXCLUDED_TIER3_GATES = (GateId.IDENTIFICATION, GateId.RANDOMIZATION)
+_ALL_OTHER_GATE_IDS = tuple(g for g in GateId if g not in _EXCLUDED_TIER3_GATES)
 
 
 def _outcome():
@@ -42,7 +43,9 @@ def _mechanism_population() -> MechanismPopulationEstimate:
     return MechanismPopulationEstimate(
         affected_records=25,
         per_record_effect=estimate,
-        attributable_impact=EffectEstimate(1250.0, 750.0, 1750.0, 0.95, "hypothetical_design_estimator", "EUR"),
+        attributable_impact=EffectEstimate(
+            1250.0, 750.0, 1750.0, 0.95, "hypothetical_design_estimator", "EUR"
+        ),
     )
 
 
@@ -80,7 +83,8 @@ def test_tier3_identification_satisfied_depends_only_on_real_g13_g14_satisfactio
 
 def test_tier3_identification_satisfied_ignores_every_other_gate() -> None:
     """Flipping every OTHER gate to PASS must never make tier 3 reachable -- only G13/G14 count."""
-    gate_results = tuple(_gate(g, GateOutcome.PASS) for g in _ALL_OTHER_GATE_IDS) + (
+    gate_results = (
+        *(_gate(g, GateOutcome.PASS) for g in _ALL_OTHER_GATE_IDS),
         _gate(GateId.IDENTIFICATION, GateOutcome.FAIL),
         _gate(GateId.RANDOMIZATION, GateOutcome.FAIL),
     )
