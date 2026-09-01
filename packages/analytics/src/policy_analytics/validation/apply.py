@@ -66,6 +66,7 @@ from policy_analytics.outcomes import (
 from policy_analytics.validation.composition_safety import classify_composition_safety
 from policy_analytics.validation.contract import (
     DEFAULT_THRESHOLDS,
+    LEVEL_ORDER,
     ROBUSTNESS_SEMANTICS_VERSION,
     AlternativeOutcomeAdmissibility,
     GateId,
@@ -77,9 +78,12 @@ from policy_analytics.validation.contract import (
     RobustnessSemantics,
 )
 from policy_analytics.validation.economic_impact import (
-    EconomicImpactResult,
-    build_economic_impact_result,
+    CandidateExposureResult,
+    build_candidate_exposure_result_tier1,
+    build_candidate_exposure_result_tier2,
+    tier3_identification_satisfied,
 )
+from policy_analytics.validation.exposure_disclosure import build_exposure_disclosure
 from policy_analytics.validation.grading import (
     assign_policy_readiness,
     benjamini_hochberg_adjusted,
@@ -490,7 +494,8 @@ class CandidateInterim:
     p_value: float
     gates_except_multiplicity: dict[GateId, GateResult]
     diagnostics: dict[str, Any]
-    economic_impact: EconomicImpactResult
+    exposure_tier1: CandidateExposureResult
+    exposure_tier2: CandidateExposureResult
 
 
 def _validate_one(
@@ -661,6 +666,13 @@ def _validate_one(
         }
         for atom in composition_result.atom_results
     ]
+    # TASK-086 / TASK-085 §5.3: the user-facing disclosure package, built purely from the
+    # composition_safety_atoms diagnostic just above -- no new computation.
+    disclosure = build_exposure_disclosure(diagnostics["composition_safety_atoms"])
+    diagnostics["exposure_disclosure"] = {
+        "g16_caveat": disclosure.g16_caveat,
+        "non_identifiability_statement": disclosure.non_identifiability_statement,
+    }
 
     shift = adjusted_harm - dev.harm_per_booking
     adjusted_effect = EffectEstimate(
@@ -853,6 +865,17 @@ def _validate_one(
         False,
         "No prospective randomized assignment; retrospective data only.",
     )
+    # TASK-086 / TASK-085 §5.2 tier 3 ("O2", attributable harmful impact): the *only* function
+    # allowed to decide whether tier 3 exists inspects the real G13/G14 gate outcomes above
+    # directly -- never evidence_level, never any other proxy. Both are hardcoded FAIL for every
+    # real candidate (observational data only), so this is always None today -- the disclosed
+    # "always-empty slot" -- but it is wired to the actual gate state, not a second hardcoded
+    # constant, so it would reflect a real future change to those gates rather than requiring one
+    # here too.
+    tier3_identification_gate = tier3_identification_satisfied(tuple(gates.values()))
+    diagnostics["tier3_identification_gate"] = (
+        tier3_identification_gate.value if tier3_identification_gate is not None else None
+    )
 
     combined_mask = full_mask
     # TASK-023 / economic_impact.py: the combined (development + validation + future_holdout)
@@ -874,6 +897,9 @@ def _validate_one(
     outcome_share = abs(historical_value) / total_outcome_abs if total_outcome_abs else 0.0
     diagnostics["historical_exposure_ci_eur"] = [min(exp_low, exp_high), max(exp_low, exp_high)]
     diagnostics["historical_exposure_outcome_share"] = outcome_share
+    # G15/materiality is unchanged (TASK-086 scope: no gate change of any kind) -- it is computed
+    # once, from tier 1's own combined-window figures, and that single verdict is reused for both
+    # tiers below; it is never recomputed per tier.
     material = min(exp_low, exp_high) > 0 and (
         min(exp_low, exp_high) >= DEFAULT_THRESHOLDS.min_material_annual_impact
         or outcome_share >= DEFAULT_THRESHOLDS.min_material_outcome_share
@@ -885,7 +911,7 @@ def _validate_one(
         f"{max(exp_low, exp_high):.0f}] "
         f"EUR, outcome share {outcome_share:.3%}.",
     )
-    economic_impact = build_economic_impact_result(
+    exposure_tier1 = build_candidate_exposure_result_tier1(
         outcome=outcome,
         affected_records=exposed_total,
         per_record_value=per_record_value,
@@ -895,6 +921,17 @@ def _validate_one(
         historical_value=historical_value,
         historical_ci_low=exp_low,
         historical_ci_high=exp_high,
+        materiality_pass=material,
+    )
+    # Tier 2 (TASK-085 §5.2/§7, corrected 2026-08-31, ADR-089 Check 3): population is E_dev --
+    # `dev.n_exposed`, the development split's OWN exposed count -- never `exposed_total`
+    # (the combined-window count computed just above). `adjusted_effect` is G06's own
+    # already-computed confounder-adjusted effect (`_stratified_adjustment`, fit on the
+    # development split alone); it is reused here verbatim, never recomputed.
+    exposure_tier2 = build_candidate_exposure_result_tier2(
+        outcome=outcome,
+        dev_exposed_records=dev.n_exposed,
+        adjusted_effect=adjusted_effect,
         materiality_pass=material,
     )
 
@@ -907,7 +944,8 @@ def _validate_one(
         dev_effect=dev_effect,
         adjusted_effect=adjusted_effect,
         p_value=p_value,
-        economic_impact=economic_impact,
+        exposure_tier1=exposure_tier1,
+        exposure_tier2=exposure_tier2,
         gates_except_multiplicity=gates,
         diagnostics=diagnostics,
     )
@@ -1240,13 +1278,42 @@ def _robustness_battery(
 
 @dataclass(frozen=True, slots=True)
 class CandidateValidation:
+    """`exposure_tier1`/`exposure_tier2` are the raw computed `O1` quantities (`TASK-085` §5.2);
+    whether either is actually *reportable* for this candidate depends on the evidence level it
+    reached, per `reportable_exposure_tiers` below — computing them is not the same as clearing
+    them for display, matching this project's own "compute once, gate at the reporting layer"
+    discipline (`G16`'s cap is the closest existing precedent: never folded into the point
+    estimate, always a separate, disclosed check).
+    """
+
     candidate_id: str
     conditions: tuple[Condition, ...]
     report: ValidationReport
     verdict: str
     split_results: dict[str, SplitStats]
     diagnostics: dict[str, Any]
-    economic_impact: EconomicImpactResult | None = None
+    exposure_tier1: CandidateExposureResult | None = None
+    exposure_tier2: CandidateExposureResult | None = None
+
+    def reportable_exposure_tiers(self) -> tuple[CandidateExposureResult, ...]:
+        """`TASK-085` §5.2's tiered-availability rule, applied to this candidate's own evidence
+        level -- never to a proxy. Tier 1 requires `descriptive_observation` (1+); tier 2 requires
+        `adjusted_observational_association` (3+). A rejected candidate (`evidence_level is None`)
+        gets neither. This never invents a tier-3 (`O2`) entry: that type
+        (`AttributableImpactResult`) is not even representable by this method's own return type.
+        """
+        level = self.report.evidence_level
+        if level is None:
+            return ()
+        rank = LEVEL_ORDER.index(level)
+        tiers: list[CandidateExposureResult] = []
+        if self.exposure_tier1 is not None and rank >= LEVEL_ORDER.index(EvidenceLevel.DESCRIPTIVE):
+            tiers.append(self.exposure_tier1)
+        if self.exposure_tier2 is not None and rank >= LEVEL_ORDER.index(
+            EvidenceLevel.ADJUSTED_OBSERVATIONAL
+        ):
+            tiers.append(self.exposure_tier2)
+        return tuple(tiers)
 
 
 def verdict_for(report: ValidationReport) -> str:
@@ -1497,7 +1564,8 @@ def run_validation(
                 verdict,
                 interim.split_results,
                 interim.diagnostics,
-                economic_impact=interim.economic_impact,
+                exposure_tier1=interim.exposure_tier1,
+                exposure_tier2=interim.exposure_tier2,
             )
         )
 

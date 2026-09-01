@@ -706,3 +706,188 @@ def test_run_validation_raises_a_clear_error_for_insufficient_candidates(tmp_pat
             outcome_definition_version="1.1.0",
             analysis_run_id="x",
         )
+
+
+@pytest.mark.skipif(not REAL_DATASET.exists(), reason="delivered analytical dataset not present")
+def test_tier2_exposure_uses_e_dev_not_combined_exposed_total_end_to_end(tmp_path: Path) -> None:
+    """`TASK-086` / `TASK-085` §5.2's corrected tier 2 (`ADR-089` Check 3), traced through the
+    real `run_validation` pipeline end to end -- not just the isolated builder function.
+
+    `discount_rate >= 0.12` is exposed across all three splits on the real analytical dataset, so
+    its development-only exposed count (`E_dev`) and its combined development+validation+
+    future_holdout exposed count (`E`, tier 1's own population) are genuinely different numbers,
+    not a coincidental match -- exactly the "combined and E_dev populations differ" construction
+    `TASK-086` requires. If tier 2 silently transported `adjusted_effect` onto the combined count
+    (the exact defect `TASK-085`'s independent `CODE_REVIEWER` review found and `ADR-089`
+    corrected), this test's second assertion would fail.
+    """
+    Candidate, CandidatesDocument, BlindCondition, MetricsDocument = _blind_schema_models()
+    outcome = primary_outcome()
+
+    manifest = json.loads((REAL_DATASET / "manifest.json").read_text(encoding="utf-8"))
+    identity = manifest["dataset_identity_sha256"]
+
+    condition = BlindCondition(feature="discount_rate", operator="ge", value=0.12)
+    candidates = [
+        Candidate(
+            candidate_id=f"TIER2-{index:03d}",
+            conditions=[condition],
+            outcome=outcome.outcome_id,
+            sample_size=1,
+            support=0.01,
+            raw_effect=0.0,
+            economic_exposure=0.0,
+            discovery_method="test-fixture",
+            description="synthetic test candidate; not a real discovery result",
+        )
+        for index in range(1, 11)
+    ]
+    document = CandidatesDocument(
+        schema_version="1.1.0",
+        run_id="test-run",
+        status="PERSISTED",
+        blind_bundle_id="a" * 64,
+        run_contract_version="1.0.0",
+        dataset_version=manifest["dataset_version"],
+        dataset_identity_sha256=identity,
+        outcome_contract_version="1.1.0",
+        discovery_contract_version="1.1.0",
+        discovery_method_version="test-fixture-1.0.0",
+        search_fit_split="development",
+        diagnostic_only_splits=["validation", "future_holdout"],
+        selection_used_only_fit_split=True,
+        input_provenance_hashes={},
+        feature_timing_classes={},
+        candidates=candidates,
+    )
+    candidates_path = tmp_path / "candidates.json"
+    candidates_path.write_text(document.model_dump_json(), encoding="utf-8")
+
+    metrics = MetricsDocument(
+        schema_version="1.1.0",
+        run_id="test-run",
+        evaluated_hypotheses=500,
+        random_seed=1,
+        run_contract_version="1.0.0",
+        dataset_identity_sha256=identity,
+        discovery_method_version="test-fixture-1.0.0",
+        search_fit_split="development",
+        selection_used_only_fit_split=True,
+    )
+    metrics_path = tmp_path / "discovery_metrics.json"
+    metrics_path.write_text(metrics.model_dump_json(), encoding="utf-8")
+
+    results, _run_manifest = run_validation(
+        dataset_root=REAL_DATASET,
+        candidates_path=candidates_path,
+        outcome=outcome,
+        dataset_version=manifest["dataset_version"],
+        outcome_definition_version="1.1.0",
+        analysis_run_id="tier2-e-dev-test",
+        metrics_path=metrics_path,
+    )
+
+    result = results[0]
+    assert result.exposure_tier1 is not None
+    assert result.exposure_tier2 is not None
+    dev_exposed = result.split_results["development"].n_exposed
+    combined_exposed = result.exposure_tier1.affected_records
+    tier2 = result.exposure_tier2
+    adjusted_effect = result.report.adjusted_effect
+
+    # The two populations must actually differ for this to be a real regression proof, not a
+    # vacuously-true coincidence.
+    assert dev_exposed != combined_exposed
+
+    # Tier 2's own population is E_dev, not tier 1's combined-window E.
+    assert tier2.tier == 2
+    assert tier2.population_scope == "E_dev"
+    assert tier2.affected_records == dev_exposed
+
+    assert adjusted_effect is not None
+    expected_dev_scoped = adjusted_effect.value * dev_exposed
+    wrong_combined_scoped = adjusted_effect.value * combined_exposed
+    assert tier2.candidate_exposure.value == pytest.approx(expected_dev_scoped)
+    # The exact ADR-089 Check 3 defect this fixes: multiplying the development-fit adjusted
+    # effect by the WIDER combined-window count instead. Must not match.
+    assert tier2.candidate_exposure.value != pytest.approx(wrong_combined_scoped)
+    assert tier2.per_record_effect.value == pytest.approx(adjusted_effect.value)
+
+
+@pytest.mark.skipif(not REAL_DATASET.exists(), reason="delivered analytical dataset not present")
+def test_tier3_attributable_impact_is_always_none_in_the_real_pipeline(tmp_path: Path) -> None:
+    """`TASK-086` / `TASK-085` §5.2 tier 3's "always-empty slot", traced through the real
+    pipeline: `G13_IDENTIFICATION_DESIGN` and `G14_RANDOMIZATION_INTEGRITY` are hardcoded `FAIL`
+    for every candidate (observational data only), so `tier3_identification_satisfied` -- the only
+    function allowed to decide tier 3 exists -- must find neither satisfied for every real
+    candidate this pipeline can produce today.
+    """
+    Candidate, CandidatesDocument, BlindCondition, MetricsDocument = _blind_schema_models()
+    outcome = primary_outcome()
+
+    manifest = json.loads((REAL_DATASET / "manifest.json").read_text(encoding="utf-8"))
+    identity = manifest["dataset_identity_sha256"]
+
+    condition = BlindCondition(feature="discount_rate", operator="ge", value=0.12)
+    candidates = [
+        Candidate(
+            candidate_id=f"TIER3-{index:03d}",
+            conditions=[condition],
+            outcome=outcome.outcome_id,
+            sample_size=1,
+            support=0.01,
+            raw_effect=0.0,
+            economic_exposure=0.0,
+            discovery_method="test-fixture",
+            description="synthetic test candidate; not a real discovery result",
+        )
+        for index in range(1, 11)
+    ]
+    document = CandidatesDocument(
+        schema_version="1.1.0",
+        run_id="test-run",
+        status="PERSISTED",
+        blind_bundle_id="a" * 64,
+        run_contract_version="1.0.0",
+        dataset_version=manifest["dataset_version"],
+        dataset_identity_sha256=identity,
+        outcome_contract_version="1.1.0",
+        discovery_contract_version="1.1.0",
+        discovery_method_version="test-fixture-1.0.0",
+        search_fit_split="development",
+        diagnostic_only_splits=["validation", "future_holdout"],
+        selection_used_only_fit_split=True,
+        input_provenance_hashes={},
+        feature_timing_classes={},
+        candidates=candidates,
+    )
+    candidates_path = tmp_path / "candidates.json"
+    candidates_path.write_text(document.model_dump_json(), encoding="utf-8")
+
+    metrics = MetricsDocument(
+        schema_version="1.1.0",
+        run_id="test-run",
+        evaluated_hypotheses=500,
+        random_seed=1,
+        run_contract_version="1.0.0",
+        dataset_identity_sha256=identity,
+        discovery_method_version="test-fixture-1.0.0",
+        search_fit_split="development",
+        selection_used_only_fit_split=True,
+    )
+    metrics_path = tmp_path / "discovery_metrics.json"
+    metrics_path.write_text(metrics.model_dump_json(), encoding="utf-8")
+
+    results, _run_manifest = run_validation(
+        dataset_root=REAL_DATASET,
+        candidates_path=candidates_path,
+        outcome=outcome,
+        dataset_version=manifest["dataset_version"],
+        outcome_definition_version="1.1.0",
+        analysis_run_id="tier3-always-empty-test",
+        metrics_path=metrics_path,
+    )
+
+    assert results
+    for result in results:
+        assert result.diagnostics["tier3_identification_gate"] is None
