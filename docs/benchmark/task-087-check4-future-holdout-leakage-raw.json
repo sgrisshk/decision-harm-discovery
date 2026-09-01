@@ -1,0 +1,25 @@
+{
+  "task": "TASK-087",
+  "check": 4,
+  "claim_tested": "future_holdout is already consulted (via stability_credit_weight, discovery/engine.py's _temporal_consistency -> _apply_stability_credit -> _greedy_diverse_select path) during candidate SELECTION, before any O1 'prediction' is computed by apply.py/economic_impact.py -- and this measurably changes which candidates are ever selected, under the real, unconditional shipped default (stability_credit_weight=0.5, unmodified by scripts/run_discovery.py, the real official-run entrypoint).",
+  "dataset": "travel-bookings-analytical-v1.1.0",
+  "seed": 1729,
+  "outcome_contract_version": "1.1.0",
+  "default_run": {
+    "stability_credit_weight": 0.5,
+    "evaluated_hypotheses": 33085,
+    "top_k_count": 15
+  },
+  "zero_weight_run": {
+    "stability_credit_weight": 0.0,
+    "evaluated_hypotheses": 33085,
+    "top_k_count": 15
+  },
+  "top_k_set_shared_count": 15,
+  "top_k_set_only_in_default_count": 0,
+  "top_k_set_only_in_zero_weight_count": 0,
+  "only_in_default_rules": [],
+  "only_in_zero_weight_rules": [],
+  "leakage_has_measurable_selection_effect": false,
+  "interpretation": "If top_k_set_only_in_default_count and/or top_k_set_only_in_zero_weight_count are nonzero, discovery's real, unconditional default configuration provably changes which candidate rules are ever selected depending on future_holdout's own sign for each rule -- i.e. future_holdout is not merely 'unused by convention' by the time a candidate reaches validation/economic-impact computation, it is a real, measured input to which candidates exist to be evaluated at all. This directly bears on TASK-087's Check 4: any calibration metric using future_holdout's realized value as its comparator, run against candidates produced by the real, current default pipeline, would not be checking a genuinely blind, prospective comparator -- the comparator side already influenced which candidate the predicted side is being asked to predict."
+}
