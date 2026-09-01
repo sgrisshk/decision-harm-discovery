@@ -206,9 +206,23 @@ def main(argv: list[str] | None = None) -> None:
                 "candidate_id": result.candidate_id,
                 "verdict": result.verdict,
                 "validation_report": result.report.to_dict(),
-                "economic_impact": (
-                    result.economic_impact.to_dict() if result.economic_impact else None
-                ),
+                # TASK-086 (implementing TASK-085 §5.2/§7, ADR-089): O1-honest tiered exposure,
+                # not a single "impact" figure. `tier1`/`tier2` are always computed (cheap,
+                # reused quantities); `reportable_tiers` is the evidence-gated subset a consumer
+                # may actually display for this candidate, per `reportable_exposure_tiers`.
+                # `attributable_impact` (tier 3 / O2) is always null in this project's own
+                # history -- the disclosed "always-empty slot", never bridged by a fallback.
+                "economic_impact": {
+                    "exposure_contract_version": (
+                        result.exposure_tier1.exposure_contract_version
+                        if result.exposure_tier1
+                        else None
+                    ),
+                    "tier1": result.exposure_tier1.to_dict() if result.exposure_tier1 else None,
+                    "tier2": result.exposure_tier2.to_dict() if result.exposure_tier2 else None,
+                    "reportable_tiers": [t.tier for t in result.reportable_exposure_tiers()],
+                    "attributable_impact": None,
+                },
                 "diagnostics": result.diagnostics,
             }
             for result in results
