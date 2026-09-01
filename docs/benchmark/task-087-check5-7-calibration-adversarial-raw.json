@@ -1,0 +1,56 @@
+{
+  "task": "TASK-087",
+  "checks": [
+    5,
+    7
+  ],
+  "claim_tested": "A prospective, out-of-sample O1 calibration design (predict-window per-record rate vs. realize-window per-record rate, same rule, disjoint time windows, no ground-truth membership anywhere in the computation) distinguishes well-calibrated from poorly-calibrated O1 INDEPENDENT of ground-truth overlap (check 7), and has explicit, tested, disclosed behavior under population drift (check 5).",
+  "case_c_well_calibrated_zero_overlap": {
+    "name": "case_c_well_calibrated_despite_zero_ground_truth_overlap",
+    "overlap_E_and_A_n": 0,
+    "predicted_per_record_rate_eur": 238.21638366343518,
+    "predicted_rate_ci_95": [
+      228.50212540016696,
+      248.15244537296857
+    ],
+    "realized_per_record_rate_eur": 237.14980701401444,
+    "calibration_ok_ci_coverage": true,
+    "predicted_n_exposed_reference": 600,
+    "realized_n_exposed": 600,
+    "population_size_ratio_realize_over_predict": 1.0,
+    "interpretation": "E shares zero members with the true mechanism A, yet the calibration check correctly reads well-calibrated: E's own effect is genuinely stable across the predict/realize split, independent of any relationship to A. This is the well-calibrated-despite-poor-overlap case check 7 requires."
+  },
+  "case_d_poorly_calibrated_high_overlap": {
+    "name": "case_d_poorly_calibrated_despite_high_ground_truth_overlap",
+    "overlap_E_and_A_fraction": 0.9,
+    "predicted_per_record_rate_eur": 700.8147904077931,
+    "predicted_rate_ci_95": [
+      697.8632611383298,
+      703.6984782059676
+    ],
+    "realized_per_record_rate_eur": 0.607047868464054,
+    "calibration_ok_ci_coverage": false,
+    "predicted_n_exposed_reference": 300,
+    "realized_n_exposed": 300,
+    "population_size_ratio_realize_over_predict": 1.0,
+    "interpretation": "E overlaps A at 90% (a good localization of the true mechanism by construction), yet the calibration check correctly reads poorly-calibrated: the mechanism itself genuinely ended between the predict and realize windows (a real regime shift, not an estimator flaw), so the predict-window effect does not hold up. This is the poorly-calibrated-despite-good-overlap case check 7 requires -- and it is exactly the kind of period-limited effect G10's own temporal-stability gate exists to catch, now demonstrated for the impact quantity specifically."
+  },
+  "case_e_population_drift": {
+    "name": "case_e_population_drift_rate_stable_size_shrinks",
+    "predicted_per_record_rate_eur": 401.3659041046377,
+    "predicted_rate_ci_95": [
+      399.7343956350981,
+      403.0124715072873
+    ],
+    "realized_per_record_rate_eur": 399.85418115710917,
+    "calibration_ok_ci_coverage": true,
+    "predicted_n_exposed_reference": 600,
+    "realized_n_exposed": 180,
+    "population_size_ratio_realize_over_predict": 0.3,
+    "interpretation": "The rule's own realized population shrank to 30% of the predict-window reference count, while the per-record rate stayed genuinely stable and calibration still reads TRUE. This demonstrates the design's defined behavior under population drift: the coverage verdict is a statement about the RATE only, reported alongside (never blended with) a separate, explicit population-size-ratio diagnostic -- a consumer reading only the coverage verdict would incorrectly assume the TOTAL dollar figure also held up, when in fact a total-dollar prediction was never validated by this design at all (see this document's own disclosed scope limitation)."
+  },
+  "check7_both_cases_constructible": true,
+  "check7_metric_correctly_distinguishes_calibration_independent_of_overlap": true,
+  "check5_population_drift_behavior_disclosed_and_tested": true,
+  "conclusion": "Both adversarial cases (C well-calibrated/zero-overlap, D poorly-calibrated/high-overlap) are concretely constructible using the real, unmodified split_stats/cluster_bootstrap machinery, and the proposed calibration verdict tracks calibration quality, not ground-truth overlap -- the property the old metric 6 could not provide. Case E shows the design's calibration verdict is well-defined but SCOPE-LIMITED under population drift: it validates the per-record RATE only, and is silent (by explicit design, not omission) on whether a TOTAL dollar figure -- which depends on the future population's unknown size -- would also hold up. This scope limitation is separate from, and does not resolve, the Check 4 leakage finding recorded in docs/benchmark/task-087-check4-future-holdout-leakage-raw.json."
+}
