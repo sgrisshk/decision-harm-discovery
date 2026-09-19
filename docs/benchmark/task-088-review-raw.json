@@ -1,0 +1,91 @@
+{
+  "task": "TASK-088",
+  "reviewer": "CODE_REVIEWER",
+  "date": "2026-09-19",
+  "environment": {
+    "postgres": "docker run postgres:16.4-alpine (ephemeral, container task088-review-pg, host port 5544), matching docker-compose.yml/.github/workflows/ci.yml's own established postgres:16.4-alpine pattern",
+    "migrations": "cd apps/api && uv run alembic upgrade head -- applied cleanly, 9 revisions to 20260822_0009",
+    "alembic_check": "uv run alembic check -> 'No new upgrade operations detected.' (confirms TASK-088 is genuinely serialization-layer only, no schema drift)"
+  },
+  "check1_end_to_end_reproduction": {
+    "claim_tested": "scripts/promote_findings.py runs end-to-end against a real fresh v2-shaped validation report without error, and the persisted impact_snapshot JSONB genuinely carries the tiered v2 shape.",
+    "method": "Ran the real, unmodified discover_candidates() (DiscoveryConfig() literal defaults, seed=1729) against the real committed synthetic_data/analytical/travel-bookings-analytical-v1.0.0 dataset, wrote its output in the same candidate-document shape scripts/run_discovery.py itself writes (same code path minus the blind-agent signing ceremony, which is an orthogonal protocol not touched by TASK-088), then ran scripts/rank_candidates.py -> scripts/validate_candidates.py --no-blind-compliant --no-founder-block-lifted -> scripts/promote_findings.py, all real, unmodified scripts, entirely to scratch paths.",
+    "result": "discover_candidates produced 15 candidates; rank_candidates.py ranked all 15; validate_candidates.py graded all 15 DOWNGRADE (9 predictive_association, ... descriptive_observation mix -- expected for a non-blind-compliant reproduction run, unrelated to TASK-088); promote_findings.py exited 0: 'Persisted analysis_run=92c41681-b150-4aea-ad6f-c5f4057ac7b3 (candidates.json) with 15 candidate_patterns/validation_reports, promoted 15 findings.'",
+    "validate_candidates_output_economic_impact_keys": {
+      "exposure_contract_version": "2.0.0",
+      "tier1_keys": ["affected_records","annualization_justified","annualized_candidate_exposure","candidate_exposure","exposure_contract_version","materiality_pass","outcome_name","outcome_unit","per_record_effect","population_scope","quantity_name","tier"],
+      "tier2_keys": ["affected_records","annualization_justified","annualized_candidate_exposure","candidate_exposure","exposure_contract_version","materiality_pass","outcome_name","outcome_unit","per_record_effect","population_scope","quantity_name","tier"],
+      "reportable_tiers": [1],
+      "attributable_impact": null
+    },
+    "persisted_jsonb_direct_psql_query": {
+      "query": "SELECT jsonb_pretty(impact_snapshot) FROM findings WHERE id = '00a57ec9-5766-4fb1-ba24-794497fda5c2'",
+      "confirmed_shape": "genuine tiered v2.0.0: exposure_contract_version=2.0.0, tier1 (population_scope=E, affected_records=2595, candidate_exposure.value=798796.65, method=cluster_bootstrap_customer_id_combined_window), tier2 (population_scope=E_dev, affected_records=1283, candidate_exposure.value=370015.21, method=stratified_generalized_adjustment_scaled_by_development_split_exposure), reportable_tiers=[1] (tier2 computed but not reportable at this candidate's predictive_association evidence level -- correctly gated), attributable_impact=null",
+      "note": "affected_records strictly narrower for tier2 (1283) than tier1 (2595), confirming E_dev subset-of-E population semantics carried through persistence correctly, not re-flattened."
+    },
+    "live_api_route_check": "GET /api/v1/findings/00a57ec9-5766-4fb1-ba24-794497fda5c2 via a real FastAPI TestClient against the same live Postgres: status 200, impact.exposure_contract_version == '2.0.0', impact.tier1.population_scope == 'E'.",
+    "verdict": "CONFIRMED"
+  },
+  "check2_legacy_v1_migration": {
+    "claim_tested": "An already-persisted v1.0.0-shaped Finding row remains readable, parsed under its own recorded version, via both the Pydantic model directly and the live GET /api/v1/findings/{id} route.",
+    "own_v1_payload_provenance": "Field names and shape independently confirmed by reading `git show f557390^:packages/analytics/src/policy_analytics/validation/economic_impact.py` directly (the commit immediately before TASK-086's rename) -- EconomicImpactResult.to_dict()'s real pre-TASK-086 fields: impact_contract_version, outcome_name, outcome_unit, affected_records, per_record_effect, historical_impact, annualized_impact, annualization_justified, materiality_pass. Own numeric values used throughout (affected_records=777/4210, values -42.75/-33216.75 and -18.20/-76622.00), not copied from tests/unit/test_finding_contracts.py's fixture (-1000/-1500/-500 etc).",
+    "pydantic_model_direct": "EconomicImpactPersistence.model_validate(own_v1_payload) -> exposure_contract_version='1.0.0' (preserved verbatim, not re-graded to 2.0.0), tier1.tier=1, tier1.population_scope='E', tier1.candidate_exposure.value==-33216.75 (own value, round-trips exactly), tier2=None, reportable_tiers=(1,). PASS.",
+    "live_api_route": "Hand-inserted the second own-independent v1.0.0 payload via raw SQL UPDATE (bypassing all app persistence code) into an already-promoted Finding row's impact_snapshot/impact_contract_version columns, then GET /api/v1/findings/{id} via a real FastAPI TestClient against live Postgres: status 200, exposure_contract_version='1.0.0', tier1.population_scope='E', tier1.candidate_exposure.value==-76622.00 (own value, round-trips exactly), tier2=null, reportable_tiers=[1].",
+    "mixed_list_check": "GET /api/v1/findings with one v1.0.0-shaped and one genuine v2.0.0-shaped Finding in the same result set: status 200, both render correctly with their own respective exposure_contract_version, no cross-contamination.",
+    "verdict": "CONFIRMED"
+  },
+  "check3_ambiguous_and_malformed_payload_probes": {
+    "claim_tested": "Whether the version-dispatching model_validator ever silently misinterprets an ambiguous or malformed payload as the wrong version, rather than failing loudly.",
+    "probes": [
+      {
+        "name": "neither exposure_contract_version nor impact_contract_version key present",
+        "result": "Raises pydantic.ValidationError with an explicit message naming both missing keys. FAILS LOUDLY, correctly. No defect."
+      },
+      {
+        "name": "BOTH exposure_contract_version and impact_contract_version keys present (conflation probe)",
+        "result": "The v2 branch is checked first (exposure_contract_version wins) and the leftover v1-only keys (impact_contract_version, outcome_name, historical_impact, etc.) are then rejected by ContractModel's extra='forbid' as 'Extra inputs are not permitted' (9 validation errors). FAILS LOUDLY, correctly -- this exact input shape cannot arise from any real producer (validate_candidates.py's v2 dict never carries impact_contract_version), so this is a defensive-depth confirmation, not a live gap.",
+        "severity": "none -- correct behavior"
+      },
+      {
+        "name": "v1-shaped payload missing a required legacy field (own probes: missing 'historical_impact', separately missing 'materiality_pass')",
+        "result": "normalize_economic_impact_payload does direct dict indexing (data['historical_impact'], data['materiality_pass'], etc.) for several legacy fields. A missing key raises a raw, UNWRAPPED KeyError, not a pydantic.ValidationError -- pydantic's model_validator(mode='before') only auto-wraps ValueError/TypeError/AssertionError into ValidationError, not KeyError, so this propagates as a bare Python exception (a 500 with an opaque stack trace at the live API route, not a clean validation error message) rather than the clean, informative failure the neither-key-present branch produces.",
+        "severity": "minor -- FINDING, not blocking. Still fails loudly (a hard crash, not a silent misinterpretation or wrong-version reinterpretation) -- the central migration-safety invariant holds -- but the failure mode is inconsistent and less operable/debuggable than the rest of the same function. Only reachable via a genuinely corrupted/truncated legacy DB row, which the real pipeline never produces."
+      },
+      {
+        "name": "v2-shaped payload with tier1=None AND tier2=None but reportable_tiers=[1] (self-contradictory: claims tier 1 reportable while carrying no tier1 data)",
+        "result": "ACCEPTED without any validation error. No cross-field invariant on EconomicImpactPersistence checks that reportable_tiers only references tiers that are actually populated (contrast: CandidateExposureTierPersistence DOES have such a check for its own annualization fields). impact.outcome_name property then silently returns None rather than raising.",
+        "severity": "minor -- FINDING, not blocking. This is a same-version internal-consistency gap, not a v1/v2 conflation -- it never causes a payload to be misread as the wrong contract version. Not reachable through the real pipeline: validate_candidates.py always derives reportable_tiers from CandidateValidation.reportable_exposure_tiers(), which is itself derived from the actually-populated tier1/tier2 objects, so reportable_tiers can never legitimately name an unpopulated tier in practice. Only reachable via hand-crafted or corrupted input. Downstream effect if it did occur: app.policies.backtest_service.trigger_backtest would see outcome_name=None, compare != _SUPPORTED_OUTCOME, and return a clean (if slightly misleading) 409 -- not a crash, not silent wrong data exposed to a user."
+      },
+      {
+        "name": "empty-string impact_contract_version",
+        "result": "Raises pydantic.ValidationError (string_too_short on the nested tier1.exposure_contract_version, min_length=1). FAILS LOUDLY, correctly."
+      },
+      {
+        "name": "garbage dict with unrelated keys, no version markers",
+        "result": "Raises the same clean 'neither key present' ValidationError. FAILS LOUDLY, correctly."
+      }
+    ],
+    "verdict": "CONFIRMED overall (no silent v1/v2 conflation found under adversarial construction) -- two minor, non-blocking, non-silent robustness findings disclosed above, neither reachable through the real pipeline."
+  },
+  "check4_backtest_service_fix": {
+    "claim_tested": "The backtest_service.py outcome_name fix (found as a regression during implementation, commit 3f705cf) is correct and complete, and no OTHER site in the codebase reads the old top-level outcome_name/historical_impact fields off an impact object.",
+    "live_test_run": "uv run pytest tests/api/test_policy_backtest.py -q against the same live ephemeral Postgres: 5 passed (including the three commit 3f705cf names as previously-failing: test_trigger_backtest_matches_a_direct_engine_call, test_rerunning_creates_a_new_row_not_an_overwrite, test_cost_per_review_is_echoed_back_and_netted).",
+    "broad_grep_sweep": "grepped historical_impact|impact_contract_version|outcome_name|annualized_impact across apps/, packages/, scripts/, tools/, apps/web/ (all .py/.ts/.tsx, excluding node_modules and test files) for raw-dict-style access on an impact/exposure payload. Found exactly three categories, none missed: (1) app.findings.contracts.normalize_economic_impact_payload itself -- the intentional dispatcher; (2) scripts/evaluate_benchmark.py:540's raw_economic_impact.get('historical_impact') -- already known, already TASKS.md-documented as TASK-089's own origin (TASK-086's review Check 5), explicitly out of TASK-088's scope, not a missed regression; (3) apps/web's frontend (lib/api/types.ts, FindingCoreContent.tsx, ExposureFigure.tsx, sortFindings.ts, PolicyCandidateDetailView.tsx) -- already correctly spun out as TASK-090 by the implementer, confirmed genuinely real (these files do read finding.impact.historical_impact, which does not exist on a live v2 API response) but correctly out of scope for TASK-088/this review.",
+    "verdict": "CONFIRMED correct and complete; no missed call site found."
+  },
+  "check5_scope_discipline": {
+    "method": "git diff --stat c2a6ea6..030ef2e (the four TASK-088 commits: ea4b76c, 3f705cf, d440f80, 030ef2e, parent c2a6ea6 is the task-opening commit immediately before ADR-091)",
+    "files_touched": ["DECISIONS.md","PROJECT_CONTEXT.md","TASKS.md","apps/api/app/api/schemas.py","apps/api/app/findings/contracts.py","apps/api/app/findings/persistence.py","apps/api/app/policies/backtest_service.py","tests/api/test_promote_findings.py","tests/unit/test_finding_contracts.py"],
+    "economic_impact_py_apply_py_gates_thresholds_decision_gate_md": "NOT in the touched-files list -- confirmed untouched by any TASK-088 commit.",
+    "decisions_and_project_context_md_note": "DECISIONS.md/PROJECT_CONTEXT.md changes are from commit 0c389a1 (ADR-091, strategic reframing), which is the task-opening parent commit, NOT one of TASK-088's own four commits -- read in full, confirmed unrelated to any gate/threshold/economic_impact.py content.",
+    "alembic_check": "'No new upgrade operations detected' -- confirms no schema/migration drift, consistent with a genuinely serialization-layer-only change.",
+    "verdict": "CONFIRMED clean"
+  },
+  "lint_type_test_results": {
+    "ruff_whole_project": "233 pre-existing errors, none in any TASK-088-touched file (grep-confirmed against the full output).",
+    "ruff_scoped_to_touched_files": "uv run ruff check apps/api/app/findings/contracts.py apps/api/app/api/schemas.py apps/api/app/findings/persistence.py apps/api/app/policies/backtest_service.py tests/unit/test_finding_contracts.py tests/api/test_promote_findings.py -> 'All checks passed!'",
+    "pyright_whole_project": "176 errors project-wide, ALL in scripts/review_task084_*/review_task087_* forensic scripts (pre-existing, unrelated to TASK-088). Zero errors touching any of contracts.py/schemas.py/persistence.py/backtest_service.py.",
+    "pyright_config_note": "pyproject.toml's [tool.pyright].include = ['apps/api/app', 'packages/analytics/src', 'packages/schemas/src', 'scripts', 'tools'] -- tests/ is NOT in the project's own configured include scope, so the project's real `uv run pyright` invocation never checks tests/unit/test_finding_contracts.py or tests/api/test_promote_findings.py at all (by pre-existing project convention, not something TASK-088 changed). Scoping pyright directly at those two test files standalone surfaces 19 reportCallIssue-type errors from pydantic's synthesized __init__ signature not modeling the mode='before' validator's extra accepted legacy kwargs -- these are NOT part of what the project's own CI-equivalent `uv run pyright` checks, and every one of the 5 production files IS in scope and clean.",
+    "pytest_full_suite": "775 passed, 4 failed, 3 skipped in 179.68s -- independently reproduced verbatim against the reviewer's own ephemeral Postgres. All 4 failures are FileNotFoundError against artifacts/discovery/task-015-candidates.json (gitignored, not present on this checkout) in tests/analytics/test_evaluate_benchmark.py, tests/analytics/test_validate_candidates.py (x1), tests/analytics/test_validation_apply.py (x2) -- none of these touch findings/contracts.py, schemas.py, persistence.py, or backtest_service.py; all 3 skips are the same gitignored-closing-run-artifact limitation. Confirmed unrelated to TASK-088."
+  }
+}
