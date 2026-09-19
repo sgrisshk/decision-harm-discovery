@@ -1,0 +1,34 @@
+{
+  "adr": "ADR-090",
+  "check_2_grep_match_count_including_def_line": 2,
+  "check_2_actual_call_site_count_excluding_def_line": 1,
+  "check_2_claim_tested": "Tier 2 is genuinely restricted to E_dev across EVERY code path, not only in one test fixture.",
+  "check_2_end_to_end_confirmation": "In addition to the static trace above, tests/analytics/test_validation_apply.py::test_tier2_exposure_uses_e_dev_not_combined_exposed_total_end_to_end runs the REAL run_validation() pipeline (not a mocked builder call) against a real candidate (discount_rate >= 0.12) on the real dataset where E_dev and the combined E genuinely differ, and asserts the persisted tier-2 result uses E_dev's own count. This reviewer read that test in full and independently confirmed its construction is non-vacuous (dev_exposed != combined_exposed is itself asserted) rather than accepting its passing status alone.",
+  "check_2_method": "grep -rn 'build_candidate_exposure_result_tier2(' packages/ scripts/ (excluding test files) to enumerate every production call site of the ONLY function that can construct a tier-2 CandidateExposureResult, then read each call site's argument provenance directly. The grep necessarily also matches the function's own `def` line; the actual call-site count below excludes it.",
+  "check_2_grep_matches_raw": [
+    "packages/analytics/src/policy_analytics/validation/apply.py:931:    exposure_tier2 = build_candidate_exposure_result_tier2(",
+    "packages/analytics/src/policy_analytics/validation/economic_impact.py:390:def build_candidate_exposure_result_tier2("
+  ],
+  "check_2_actual_call_sites": [
+    "packages/analytics/src/policy_analytics/validation/apply.py:931:    exposure_tier2 = build_candidate_exposure_result_tier2("
+  ],
+  "check_2_trace": "Exactly one production call site: packages/analytics/src/policy_analytics/validation/apply.py lines 931-936, inside _validate_one(). Its dev_exposed_records argument is dev.n_exposed, where `dev = split_results.get('development')` (apply.py:525) and split_results['development'] is built by split_stats(s_frame, s_mask, outcome, 'development') (apply.py:516-523) with s_mask = full_mask.filter(frame['split_label'] == 'development') -- i.e. exactly E_dev = E (the candidate's own full_mask) intersected with the development split, never the combined-window exposed_total (a separate variable, computed later at apply.py:889 from combined_stats = split_stats(frame, combined_mask, ...) over ALL three splits, and never passed into build_candidate_exposure_result_tier2 anywhere). Its adjusted_effect argument is interim's own adjusted_effect, built at apply.py:678-684 from adjusted_harm = _stratified_adjustment(binned_dev_frame, dev_mask, outcome, adjustment_set) (apply.py:616-617) -- fit on the development split alone, the identical population. CandidateExposureResult.__post_init__ additionally rejects, structurally, any attempt to label a tier-2 result with tier-1's population_scope/quantity_name or vice versa (defense in depth, independent of call-site correctness) -- see tests/analytics/test_economic_impact.py::test_candidate_exposure_result_rejects_tier1_labeled_as_e_dev and ..._rejects_tier2_labeled_as_e.",
+  "check_3_adversarial_attempt": "Attempted to construct a candidate/data shape that could flip gates[GateId.IDENTIFICATION] or gates[GateId.RANDOMIZATION] to True: none exists, because the assignment is a literal Python boolean (`False`), not a function of `frame`, `candidate`, `conditions`, or any other per-candidate input -- no value passed into _validate_one/run_validation can change it without editing apply.py's own source. The only way tier 3 becomes reachable is a future, separate task actually wiring a real G13/G14 identification-design evaluator (explicitly out of TASK-086's scope and not done here) -- consistent with TASK-085 Section 5.2's disclosed 'always-empty slot' and TASK-081's own 'no reachable third state' G16 precedent this task's test file explicitly mirrors.",
+  "check_3_grep_match_count_including_def_line": 1,
+  "check_3_actual_call_site_count_excluding_def_line": 0,
+  "check_3_claim_tested": "Tier 3 is provably unreachable without a real G13/G14 identification result.",
+  "check_3_exhaustive_test_read_not_solely_relied_on": [
+    "tests/analytics/test_tier3_structural.py::test_tier3_identification_satisfied_depends_only_on_real_g13_g14_satisfaction is parametrized over all 16 GateOutcome x GateOutcome combinations for G13/G14 and confirms tier3_identification_satisfied's OWN logic matches PASS/WARN-satisfies semantics exactly. This reviewer read this test as corroboration of the gating FUNCTION's logic, but the actual check-3 verdict above rests on the separate, independent trace of apply.py's own hardcoded gate assignment and call graph -- not on this test passing."
+  ],
+  "check_3_method": "grep -rn 'build_attributable_impact_result(' packages/ scripts/ (excluding test files) to confirm the ONLY function that can construct an AttributableImpactResult has zero production call sites; read apply.py's G13/G14 gate computation directly to determine whether it is data-dependent or a hardcoded literal; attempted to construct a hypothetical path to reachability. The single grep match is the function's own `def` line -- zero actual call sites in packages/ or scripts/.",
+  "check_3_grep_matches_raw": [
+    "packages/analytics/src/policy_analytics/validation/economic_impact.py:280:def build_attributable_impact_result("
+  ],
+  "check_3_actual_call_sites": [],
+  "check_3_trace": "Zero production call sites for build_attributable_impact_result anywhere in packages/ or scripts/ -- it is defined and exercised only in tests/analytics/test_tier3_structural.py. The real pipeline (apply.py:860-867) sets gates[GateId.IDENTIFICATION] = _gate(GateId.IDENTIFICATION, False, ...) and gates[GateId.RANDOMIZATION] = _gate(GateId.RANDOMIZATION, False, ...) -- the second argument to _gate is a Python literal `False`, not a value derived from any candidate's data, mask, conditions, or evidence level. _gate(gate_id, satisfied, ...) maps satisfied=False to GateOutcome.FAIL unconditionally (apply.py:476-480), and GateResult.satisfied is True only for PASS/WARN (contract.py:711-713). apply.py:875 computes tier3_identification_gate = tier3_identification_satisfied(tuple(gates.values())), which per economic_impact.py:263-277 returns non-None only if a GateResult for G13 or G14 has .satisfied True -- structurally impossible here since both are the literal False. This diagnostic value is stored (diagnostics['tier3_identification_gate']) but build_attributable_impact_result is never called with it or anything else in apply.py or validate_candidates.py -- tier 3 is not merely gated shut for today's candidates, the function that would construct it is not wired into the pipeline at all.",
+  "checks": [
+    2,
+    3
+  ],
+  "task": "TASK-086"
+}
