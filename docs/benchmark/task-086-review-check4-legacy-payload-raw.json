@@ -1,0 +1,51 @@
+{
+  "adr": "ADR-090",
+  "all_assertions_passed": true,
+  "assertions": {
+    "candidate_exposure_value_matches_original_historical_impact_value": true,
+    "loaded_as_tier_1": true,
+    "loaded_population_scope_is_e": true,
+    "loaded_result_exposure_contract_version_equals_original_1_0_0": true,
+    "loaded_result_not_upgraded_to_current_contract_version": true,
+    "payload_has_impact_contract_version_not_exposure_contract_version": true
+  },
+  "candidate_id": "CAND-001",
+  "check": 4,
+  "claim_tested": "v1.0.0 frozen artifacts are read strictly under their own recorded version, never reinterpreted under the new v2.0.0 semantics.",
+  "current_contract_version_for_comparison": "2.0.0",
+  "legacy_payload_v1_0_0_shape": {
+    "affected_records": 2595,
+    "annualization_justified": false,
+    "annualized_impact": null,
+    "historical_impact": {
+      "ci_high": 885935.1054383348,
+      "ci_low": 714851.6317873548,
+      "confidence_level": 0.95,
+      "method": "cluster_bootstrap_customer_id_combined_window",
+      "unit": "EUR per booking (nominal; single currency; no inflation or FX adjustment)",
+      "value": 798796.6491222146
+    },
+    "impact_contract_version": "1.0.0",
+    "materiality_pass": true,
+    "outcome_name": "contribution_margin_eur",
+    "outcome_unit": "EUR per booking (nominal; single currency; no inflation or FX adjustment)",
+    "per_record_effect": {
+      "ci_high": 341.4008113442523,
+      "ci_low": 275.47269047682266,
+      "confidence_level": 0.95,
+      "method": "cluster_bootstrap_customer_id_combined_window",
+      "unit": "EUR per booking (nominal; single currency; no inflation or FX adjustment)",
+      "value": 307.82144474844495
+    }
+  },
+  "loaded_result_under_current_code": {
+    "candidate_exposure_value": 798796.6491222146,
+    "exposure_contract_version": "1.0.0",
+    "population_scope": "E",
+    "quantity_name": "candidate_exposure",
+    "tier": 1
+  },
+  "method": "Generated a GENUINE (not hand-synthesized) v1.0.0-shaped payload by running the real, unmodified pre-TASK-086 EconomicImpactResult.to_dict() (commit 86fb95b, checked out into an isolated git worktree) against the real frozen candidate CAND-001, then fed that exact payload into the CURRENT code's load_candidate_exposure_result() and inspected the result.",
+  "source_commit_for_legacy_payload": "86fb95bb43e7086673ee6dee644a6c26d7e5a583",
+  "task": "TASK-086"
+}
