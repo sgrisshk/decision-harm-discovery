@@ -1,0 +1,406 @@
+{
+  "adr": "ADR-090",
+  "all_15_candidates_numerically_identical": true,
+  "all_15_verdicts_identical": true,
+  "check": 1,
+  "claim_tested": "Tier 1 (CandidateExposureResult tier=1) preserves the prior O1 arithmetic exactly -- the pre-TASK-086 EconomicImpactResult.historical_impact computation reproduces today's real numbers bit-for-bit, not just the code 'looking unchanged'.",
+  "commits_compared": {
+    "post_task086": "HEAD (worktree-agent-a204c286dba7e1fad, includes 2164c6f TASK-086 merge)",
+    "pre_task086": "86fb95bb43e7086673ee6dee644a6c26d7e5a583"
+  },
+  "method": "Ran the REAL run_validation() end-to-end against the real frozen artifacts (synthetic_data/analytical/travel-bookings-analytical-v1.0.0, artifacts/discovery/task-015-candidates.json) under two actual git commits: (a) 86fb95b (TASK-081 merge, the commit immediately preceding any TASK-086 change, checked out into an isolated `git worktree add --detach`), reading each result's `economic_impact.historical_impact` (pre-rename shape); (b) the current worktree HEAD, reading each result's `exposure_tier1.candidate_exposure` (post-rename v2 shape). Both runs used the identical dataset/candidates files and the same default bootstrap seed. No reimplementation of the estimator -- both runs call the real, unmodified policy_analytics.validation.apply.run_validation.",
+  "per_candidate": {
+    "CAND-001": {
+      "diffs": {
+        "affected_records_diff": 0,
+        "ci_high_diff": 0.0,
+        "ci_low_diff": 0.0,
+        "per_record_diff": 0.0,
+        "value_diff": 0.0,
+        "verdict_match": true
+      },
+      "post_task086_candidate_exposure_tier1": {
+        "affected_records": 2595,
+        "candidate_exposure_ci_high": 885935.1054383348,
+        "candidate_exposure_ci_low": 714851.6317873548,
+        "candidate_exposure_value": 798796.6491222146,
+        "per_record_value": 307.82144474844495,
+        "verdict": "DOWNGRADE"
+      },
+      "pre_task086_historical_impact": {
+        "affected_records": 2595,
+        "historical_impact_ci_high": 885935.1054383348,
+        "historical_impact_ci_low": 714851.6317873548,
+        "historical_impact_value": 798796.6491222146,
+        "per_record_value": 307.82144474844495,
+        "verdict": "DOWNGRADE"
+      }
+    },
+    "CAND-002": {
+      "diffs": {
+        "affected_records_diff": 0,
+        "ci_high_diff": 0.0,
+        "ci_low_diff": 0.0,
+        "per_record_diff": 0.0,
+        "value_diff": 0.0,
+        "verdict_match": true
+      },
+      "post_task086_candidate_exposure_tier1": {
+        "affected_records": 2250,
+        "candidate_exposure_ci_high": 762778.1753371914,
+        "candidate_exposure_ci_low": 606858.4634810131,
+        "candidate_exposure_value": 683978.2274193548,
+        "per_record_value": 303.99032329749105,
+        "verdict": "DOWNGRADE"
+      },
+      "pre_task086_historical_impact": {
+        "affected_records": 2250,
+        "historical_impact_ci_high": 762778.1753371914,
+        "historical_impact_ci_low": 606858.4634810131,
+        "historical_impact_value": 683978.2274193548,
+        "per_record_value": 303.99032329749105,
+        "verdict": "DOWNGRADE"
+      }
+    },
+    "CAND-003": {
+      "diffs": {
+        "affected_records_diff": 0,
+        "ci_high_diff": 0.0,
+        "ci_low_diff": 0.0,
+        "per_record_diff": 0.0,
+        "value_diff": 0.0,
+        "verdict_match": true
+      },
+      "post_task086_candidate_exposure_tier1": {
+        "affected_records": 2231,
+        "candidate_exposure_ci_high": 766676.6534682363,
+        "candidate_exposure_ci_low": 617540.1643566989,
+        "candidate_exposure_value": 691955.2671064488,
+        "per_record_value": 310.15475890024595,
+        "verdict": "DOWNGRADE"
+      },
+      "pre_task086_historical_impact": {
+        "affected_records": 2231,
+        "historical_impact_ci_high": 766676.6534682363,
+        "historical_impact_ci_low": 617540.1643566989,
+        "historical_impact_value": 691955.2671064488,
+        "per_record_value": 310.15475890024595,
+        "verdict": "DOWNGRADE"
+      }
+    },
+    "CAND-004": {
+      "diffs": {
+        "affected_records_diff": 0,
+        "ci_high_diff": 0.0,
+        "ci_low_diff": 0.0,
+        "per_record_diff": 0.0,
+        "value_diff": 0.0,
+        "verdict_match": true
+      },
+      "post_task086_candidate_exposure_tier1": {
+        "affected_records": 2239,
+        "candidate_exposure_ci_high": 751541.4023453812,
+        "candidate_exposure_ci_low": 616334.343265086,
+        "candidate_exposure_value": 681882.9706674397,
+        "per_record_value": 304.54799940484133,
+        "verdict": "DOWNGRADE"
+      },
+      "pre_task086_historical_impact": {
+        "affected_records": 2239,
+        "historical_impact_ci_high": 751541.4023453812,
+        "historical_impact_ci_low": 616334.343265086,
+        "historical_impact_value": 681882.9706674397,
+        "per_record_value": 304.54799940484133,
+        "verdict": "DOWNGRADE"
+      }
+    },
+    "CAND-005": {
+      "diffs": {
+        "affected_records_diff": 0,
+        "ci_high_diff": 0.0,
+        "ci_low_diff": 0.0,
+        "per_record_diff": 0.0,
+        "value_diff": 0.0,
+        "verdict_match": true
+      },
+      "post_task086_candidate_exposure_tier1": {
+        "affected_records": 2259,
+        "candidate_exposure_ci_high": 725738.4339397171,
+        "candidate_exposure_ci_low": 570056.1063638143,
+        "candidate_exposure_value": 647497.7972290403,
+        "per_record_value": 286.630277657831,
+        "verdict": "DOWNGRADE"
+      },
+      "pre_task086_historical_impact": {
+        "affected_records": 2259,
+        "historical_impact_ci_high": 725738.4339397171,
+        "historical_impact_ci_low": 570056.1063638143,
+        "historical_impact_value": 647497.7972290403,
+        "per_record_value": 286.630277657831,
+        "verdict": "DOWNGRADE"
+      }
+    },
+    "CAND-006": {
+      "diffs": {
+        "affected_records_diff": 0,
+        "ci_high_diff": 0.0,
+        "ci_low_diff": 0.0,
+        "per_record_diff": 0.0,
+        "value_diff": 0.0,
+        "verdict_match": true
+      },
+      "post_task086_candidate_exposure_tier1": {
+        "affected_records": 2689,
+        "candidate_exposure_ci_high": 582189.148067106,
+        "candidate_exposure_ci_low": 399297.43789813196,
+        "candidate_exposure_value": 490181.647907263,
+        "per_record_value": 182.29142726190517,
+        "verdict": "DOWNGRADE"
+      },
+      "pre_task086_historical_impact": {
+        "affected_records": 2689,
+        "historical_impact_ci_high": 582189.148067106,
+        "historical_impact_ci_low": 399297.43789813196,
+        "historical_impact_value": 490181.647907263,
+        "per_record_value": 182.29142726190517,
+        "verdict": "DOWNGRADE"
+      }
+    },
+    "CAND-007": {
+      "diffs": {
+        "affected_records_diff": 0,
+        "ci_high_diff": 0.0,
+        "ci_low_diff": 0.0,
+        "per_record_diff": 0.0,
+        "value_diff": 0.0,
+        "verdict_match": true
+      },
+      "post_task086_candidate_exposure_tier1": {
+        "affected_records": 3192,
+        "candidate_exposure_ci_high": 563446.8380056579,
+        "candidate_exposure_ci_low": 390285.8774280862,
+        "candidate_exposure_value": 478514.60264394834,
+        "per_record_value": 149.9105898007357,
+        "verdict": "DOWNGRADE"
+      },
+      "pre_task086_historical_impact": {
+        "affected_records": 3192,
+        "historical_impact_ci_high": 563446.8380056579,
+        "historical_impact_ci_low": 390285.8774280862,
+        "historical_impact_value": 478514.60264394834,
+        "per_record_value": 149.9105898007357,
+        "verdict": "DOWNGRADE"
+      }
+    },
+    "CAND-008": {
+      "diffs": {
+        "affected_records_diff": 0,
+        "ci_high_diff": 0.0,
+        "ci_low_diff": 0.0,
+        "per_record_diff": 0.0,
+        "value_diff": 0.0,
+        "verdict_match": true
+      },
+      "post_task086_candidate_exposure_tier1": {
+        "affected_records": 1818,
+        "candidate_exposure_ci_high": 524591.8350116963,
+        "candidate_exposure_ci_low": 382516.63967058476,
+        "candidate_exposure_value": 453567.1280493767,
+        "per_record_value": 249.48686911406858,
+        "verdict": "DOWNGRADE"
+      },
+      "pre_task086_historical_impact": {
+        "affected_records": 1818,
+        "historical_impact_ci_high": 524591.8350116963,
+        "historical_impact_ci_low": 382516.63967058476,
+        "historical_impact_value": 453567.1280493767,
+        "per_record_value": 249.48686911406858,
+        "verdict": "DOWNGRADE"
+      }
+    },
+    "CAND-009": {
+      "diffs": {
+        "affected_records_diff": 0,
+        "ci_high_diff": 0.0,
+        "ci_low_diff": 0.0,
+        "per_record_diff": 0.0,
+        "value_diff": 0.0,
+        "verdict_match": true
+      },
+      "post_task086_candidate_exposure_tier1": {
+        "affected_records": 1596,
+        "candidate_exposure_ci_high": 482896.53099071025,
+        "candidate_exposure_ci_low": 333568.66725734784,
+        "candidate_exposure_value": 403459.62129938125,
+        "per_record_value": 252.7942489344494,
+        "verdict": "DOWNGRADE"
+      },
+      "pre_task086_historical_impact": {
+        "affected_records": 1596,
+        "historical_impact_ci_high": 482896.53099071025,
+        "historical_impact_ci_low": 333568.66725734784,
+        "historical_impact_value": 403459.62129938125,
+        "per_record_value": 252.7942489344494,
+        "verdict": "DOWNGRADE"
+      }
+    },
+    "CAND-010": {
+      "diffs": {
+        "affected_records_diff": 0,
+        "ci_high_diff": 0.0,
+        "ci_low_diff": 0.0,
+        "per_record_diff": 0.0,
+        "value_diff": 0.0,
+        "verdict_match": true
+      },
+      "post_task086_candidate_exposure_tier1": {
+        "affected_records": 2176,
+        "candidate_exposure_ci_high": 498081.785635846,
+        "candidate_exposure_ci_low": 357817.83498891105,
+        "candidate_exposure_value": 427675.2088957054,
+        "per_record_value": 196.5419158528058,
+        "verdict": "DOWNGRADE"
+      },
+      "pre_task086_historical_impact": {
+        "affected_records": 2176,
+        "historical_impact_ci_high": 498081.785635846,
+        "historical_impact_ci_low": 357817.83498891105,
+        "historical_impact_value": 427675.2088957054,
+        "per_record_value": 196.5419158528058,
+        "verdict": "DOWNGRADE"
+      }
+    },
+    "CAND-011": {
+      "diffs": {
+        "affected_records_diff": 0,
+        "ci_high_diff": 0.0,
+        "ci_low_diff": 0.0,
+        "per_record_diff": 0.0,
+        "value_diff": 0.0,
+        "verdict_match": true
+      },
+      "post_task086_candidate_exposure_tier1": {
+        "affected_records": 2903,
+        "candidate_exposure_ci_high": 526815.1037499065,
+        "candidate_exposure_ci_low": 330930.92845188564,
+        "candidate_exposure_value": 425881.8581020148,
+        "per_record_value": 146.70405032794173,
+        "verdict": "DOWNGRADE"
+      },
+      "pre_task086_historical_impact": {
+        "affected_records": 2903,
+        "historical_impact_ci_high": 526815.1037499065,
+        "historical_impact_ci_low": 330930.92845188564,
+        "historical_impact_value": 425881.8581020148,
+        "per_record_value": 146.70405032794173,
+        "verdict": "DOWNGRADE"
+      }
+    },
+    "CAND-012": {
+      "diffs": {
+        "affected_records_diff": 0,
+        "ci_high_diff": 0.0,
+        "ci_low_diff": 0.0,
+        "per_record_diff": 0.0,
+        "value_diff": 0.0,
+        "verdict_match": true
+      },
+      "post_task086_candidate_exposure_tier1": {
+        "affected_records": 2716,
+        "candidate_exposure_ci_high": 473487.6470642576,
+        "candidate_exposure_ci_low": 325001.8870482852,
+        "candidate_exposure_value": 393181.8211696869,
+        "per_record_value": 144.7650298857463,
+        "verdict": "DOWNGRADE"
+      },
+      "pre_task086_historical_impact": {
+        "affected_records": 2716,
+        "historical_impact_ci_high": 473487.6470642576,
+        "historical_impact_ci_low": 325001.8870482852,
+        "historical_impact_value": 393181.8211696869,
+        "per_record_value": 144.7650298857463,
+        "verdict": "DOWNGRADE"
+      }
+    },
+    "CAND-013": {
+      "diffs": {
+        "affected_records_diff": 0,
+        "ci_high_diff": 0.0,
+        "ci_low_diff": 0.0,
+        "per_record_diff": 0.0,
+        "value_diff": 0.0,
+        "verdict_match": true
+      },
+      "post_task086_candidate_exposure_tier1": {
+        "affected_records": 1811,
+        "candidate_exposure_ci_high": 433761.31704502576,
+        "candidate_exposure_ci_low": 332131.46480541973,
+        "candidate_exposure_value": 383540.7738612773,
+        "per_record_value": 211.7839723143442,
+        "verdict": "DOWNGRADE"
+      },
+      "pre_task086_historical_impact": {
+        "affected_records": 1811,
+        "historical_impact_ci_high": 433761.31704502576,
+        "historical_impact_ci_low": 332131.46480541973,
+        "historical_impact_value": 383540.7738612773,
+        "per_record_value": 211.7839723143442,
+        "verdict": "DOWNGRADE"
+      }
+    },
+    "CAND-014": {
+      "diffs": {
+        "affected_records_diff": 0,
+        "ci_high_diff": 0.0,
+        "ci_low_diff": 0.0,
+        "per_record_diff": 0.0,
+        "value_diff": 0.0,
+        "verdict_match": true
+      },
+      "post_task086_candidate_exposure_tier1": {
+        "affected_records": 3765,
+        "candidate_exposure_ci_high": 482398.3175781871,
+        "candidate_exposure_ci_low": 277930.73958651564,
+        "candidate_exposure_value": 369796.17437850835,
+        "per_record_value": 98.21943542589864,
+        "verdict": "DOWNGRADE"
+      },
+      "pre_task086_historical_impact": {
+        "affected_records": 3765,
+        "historical_impact_ci_high": 482398.3175781871,
+        "historical_impact_ci_low": 277930.73958651564,
+        "historical_impact_value": 369796.17437850835,
+        "per_record_value": 98.21943542589864,
+        "verdict": "DOWNGRADE"
+      }
+    },
+    "CAND-015": {
+      "diffs": {
+        "affected_records_diff": 0,
+        "ci_high_diff": 0.0,
+        "ci_low_diff": 0.0,
+        "per_record_diff": 0.0,
+        "value_diff": 0.0,
+        "verdict_match": true
+      },
+      "post_task086_candidate_exposure_tier1": {
+        "affected_records": 2675,
+        "candidate_exposure_ci_high": 471890.9567576027,
+        "candidate_exposure_ci_low": 331320.57635397336,
+        "candidate_exposure_value": 400795.50017064856,
+        "per_record_value": 149.83009352173778,
+        "verdict": "DOWNGRADE"
+      },
+      "pre_task086_historical_impact": {
+        "affected_records": 2675,
+        "historical_impact_ci_high": 471890.9567576027,
+        "historical_impact_ci_low": 331320.57635397336,
+        "historical_impact_value": 400795.50017064856,
+        "per_record_value": 149.83009352173778,
+        "verdict": "DOWNGRADE"
+      }
+    }
+  },
+  "result": "max_abs_diff_across_all_15_candidates_all_fields=0.0",
+  "task": "TASK-086"
+}
