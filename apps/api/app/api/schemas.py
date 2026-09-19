@@ -1,8 +1,7 @@
 from datetime import date, datetime
-from typing import Any
+from typing import Any, cast
 from uuid import UUID
 
-from app.findings.contracts import normalize_economic_impact_payload
 from policy_analytics.validation.contract import IdentificationDesign, PolicyReadiness
 from policy_schemas.domain import (
     DataQualityRating,
@@ -20,6 +19,8 @@ from policy_schemas.domain import (
     ResourceStatus,
 )
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, model_validator
+
+from app.findings.contracts import normalize_economic_impact_payload
 
 
 class ApiModel(BaseModel):
@@ -268,7 +269,7 @@ class FindingImpactRead(ApiModel):
         Candidate persisted before `TASK-088`) is read as tier 1 under its own recorded contract
         version, never silently reinterpreted."""
         if isinstance(data, dict):
-            return normalize_economic_impact_payload(data)
+            return normalize_economic_impact_payload(cast("dict[str, Any]", data))
         return data
 
 

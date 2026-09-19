@@ -276,7 +276,8 @@ def test_legacy_v1_kwargs_construction_also_normalizes() -> None:
     as a plain dict either way. Several other already-existing tests in this project
     (`tests/api/test_policy_backtest.py`, `tests/api/test_policy_candidates.py`, etc.) still build
     `EconomicImpactPersistence` with the old flat kwargs; this is what keeps them passing
-    unmodified after `TASK-088`, exactly the same normalization a genuinely old database row gets."""
+    unmodified after `TASK-088`, exactly the same normalization a genuinely old database row
+    gets."""
     impact = EconomicImpactPersistence(
         impact_contract_version="1.0.0",
         outcome_name="contribution_margin_eur",
