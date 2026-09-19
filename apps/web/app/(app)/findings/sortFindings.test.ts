@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { EffectEstimate, Finding } from "@/lib/api/types";
+import type { CandidateExposureTier, EffectEstimate, Finding, FindingImpact } from "@/lib/api/types";
 import { PAGE_SIZE, filterFindings, paginateFindings, sortFindings } from "./sortFindings";
 
 function estimate(overrides: Partial<EffectEstimate> = {}): EffectEstimate {
@@ -10,6 +10,35 @@ function estimate(overrides: Partial<EffectEstimate> = {}): EffectEstimate {
     confidence_level: 0.95,
     method: "test",
     unit: "EUR",
+    ...overrides,
+  };
+}
+
+function tier1(overrides: Partial<CandidateExposureTier> = {}): CandidateExposureTier {
+  return {
+    exposure_contract_version: "2.0.0",
+    tier: 1,
+    population_scope: "E",
+    quantity_name: "candidate_exposure",
+    outcome_name: "contribution_margin_eur",
+    outcome_unit: "EUR",
+    affected_records: 100,
+    per_record_effect: estimate(),
+    candidate_exposure: estimate({ ci_low: 1000, ci_high: 2000 }),
+    annualized_candidate_exposure: null,
+    annualization_justified: false,
+    materiality_pass: true,
+    ...overrides,
+  };
+}
+
+function impact(overrides: Partial<FindingImpact> = {}): FindingImpact {
+  return {
+    exposure_contract_version: "2.0.0",
+    tier1: tier1(),
+    tier2: null,
+    reportable_tiers: [1],
+    attributable_impact: null,
     ...overrides,
   };
 }
@@ -50,17 +79,7 @@ function finding(overrides: Partial<Finding> = {}): Finding {
       recommended_validation: "",
       permitted_language: "",
     },
-    impact: {
-      impact_contract_version: "1.0.0",
-      outcome_name: "contribution_margin_eur",
-      outcome_unit: "EUR",
-      affected_records: 100,
-      per_record_effect: estimate(),
-      historical_impact: estimate({ ci_low: 1000, ci_high: 2000 }),
-      annualized_impact: null,
-      annualization_justified: false,
-      materiality_pass: true,
-    },
+    impact: impact(),
     policy_readiness: "not_ready",
     lifecycle_status: "ACTIVE",
     created_at: "2026-08-17T00:00:00Z",
@@ -70,19 +89,44 @@ function finding(overrides: Partial<Finding> = {}): Finding {
 }
 
 describe("sortFindings", () => {
-  it("default (exposure) sorts descending by historical_impact.ci_low", () => {
-    const low = finding({ id: "low", impact: { ...finding().impact, historical_impact: estimate({ ci_low: 100, ci_high: 200 }) } });
-    const high = finding({ id: "high", impact: { ...finding().impact, historical_impact: estimate({ ci_low: 900, ci_high: 1200 }) } });
+  it("default (exposure) sorts descending by tier1.candidate_exposure.ci_low", () => {
+    const low = finding({
+      id: "low",
+      impact: impact({ tier1: tier1({ candidate_exposure: estimate({ ci_low: 100, ci_high: 200 }) }) }),
+    });
+    const high = finding({
+      id: "high",
+      impact: impact({ tier1: tier1({ candidate_exposure: estimate({ ci_low: 900, ci_high: 1200 }) }) }),
+    });
     const sorted = sortFindings([low, high], "exposure");
     expect(sorted.map((f) => f.id)).toEqual(["high", "low"]);
   });
 
   it("exposure sort places non-material findings (ci_low <= 0) after material ones, never dropped", () => {
-    const material = finding({ id: "material", impact: { ...finding().impact, historical_impact: estimate({ ci_low: 100, ci_high: 200 }) } });
-    const nonMaterial = finding({ id: "non-material", impact: { ...finding().impact, historical_impact: estimate({ ci_low: -10, ci_high: 200 }) } });
+    const material = finding({
+      id: "material",
+      impact: impact({ tier1: tier1({ candidate_exposure: estimate({ ci_low: 100, ci_high: 200 }) }) }),
+    });
+    const nonMaterial = finding({
+      id: "non-material",
+      impact: impact({ tier1: tier1({ candidate_exposure: estimate({ ci_low: -10, ci_high: 200 }) }) }),
+    });
     const sorted = sortFindings([nonMaterial, material], "exposure");
     expect(sorted.map((f) => f.id)).toEqual(["material", "non-material"]);
     expect(sorted).toHaveLength(2);
+  });
+
+  it("exposure sort treats a non-reportable tier 1 the same as non-material", () => {
+    const material = finding({
+      id: "material",
+      impact: impact({ tier1: tier1({ candidate_exposure: estimate({ ci_low: 100, ci_high: 200 }) }) }),
+    });
+    const notReportable = finding({
+      id: "not-reportable",
+      impact: impact({ tier1: tier1(), reportable_tiers: [] }),
+    });
+    const sorted = sortFindings([notReportable, material], "exposure");
+    expect(sorted.map((f) => f.id)).toEqual(["material", "not-reportable"]);
   });
 
   it("sorts by readiness rank, most actionable first", () => {

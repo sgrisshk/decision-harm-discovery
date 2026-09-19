@@ -1,4 +1,5 @@
 import type {
+  CandidateExposureTier,
   EvidenceLevel,
   FeedbackActionability,
   FeedbackCertainty,
@@ -42,6 +43,38 @@ export const READINESS_LABELS: Record<PolicyReadiness, string> = {
  */
 export function impactFramingLabel(): "exposure" {
   return "exposure";
+}
+
+/**
+ * `TASK-090`. Tier 1 (`population_scope: "E"`) and tier 2
+ * (`population_scope: "E_dev"`) are two distinct, both-correct numbers over
+ * different populations (`docs/analytics/task-085-economic-impact-target-
+ * population-semantics.md` §5.2) — never interchangeable and never rendered
+ * without saying which population they cover, so a reader isn't misled into
+ * thinking they're the same figure. These labels are informed by, not a
+ * verbatim echo of, each tier's own `population_scope`/`quantity_name`.
+ */
+export function tierPopulationLabel(populationScope: string): string {
+  switch (populationScope) {
+    case "E":
+      return "full historical population";
+    case "E_dev":
+      return "development-split population only";
+    case "A":
+      return "attributable population";
+    default:
+      return populationScope;
+  }
+}
+
+/**
+ * Tier 2 is explicitly never upgraded to "attributable"/"impact" language
+ * (`task-085-economic-impact-target-population-semantics.md` §5.2's own
+ * wording rule for the tier-2 quantity) — it stays "exposure," scoped
+ * explicitly to its own narrower population.
+ */
+export function tierQuantityLabel(tier: CandidateExposureTier): string {
+  return tier.tier === 2 ? "Adjustment-consistent exposure" : "Observed exposure";
 }
 
 /**

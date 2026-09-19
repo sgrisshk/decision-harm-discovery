@@ -106,19 +106,62 @@ export type FindingEvidence = {
   permitted_language: string;
 };
 
-// apps/api/app/api/schemas.py: FindingImpactRead
-// materiality_pass is pass/fail only — the underlying threshold is never
-// exposed (still a Statistics/Customer-Discovery-owned placeholder, §3).
-export type FindingImpact = {
-  impact_contract_version: string;
+// apps/api/app/api/schemas.py: CandidateExposureTierRead
+// One tier (1 or 2) of O1 -- observed candidate exposure (TASK-085 §5.2,
+// TASK-086/ADR-089, TASK-088). affected_records is scoped to this tier's own
+// population_scope (tier 1: "E", the full combined window; tier 2: "E_dev",
+// development-split only) -- the two are both-correct, different numbers,
+// never interchangeable and never re-flattened into one figure.
+export type CandidateExposureTier = {
+  exposure_contract_version: string;
+  tier: number;
+  population_scope: string;
+  quantity_name: string;
   outcome_name: string;
   outcome_unit: string;
   affected_records: number;
   per_record_effect: EffectEstimate;
-  historical_impact: EffectEstimate;
-  annualized_impact: EffectEstimate | null;
+  candidate_exposure: EffectEstimate;
+  annualized_candidate_exposure: EffectEstimate | null;
   annualization_justified: boolean;
   materiality_pass: boolean;
+};
+
+// apps/api/app/api/schemas.py: AttributableImpactRead
+// Tier 3 -- O2, attributable harmful impact (TASK-085 §5.2). Always absent on
+// every real Finding in this project's own history -- the disclosed
+// "always-empty slot" -- but the shape is real, not a placeholder.
+export type AttributableImpact = {
+  exposure_contract_version: string;
+  tier: number;
+  population_scope: string;
+  quantity_name: string;
+  outcome_name: string;
+  outcome_unit: string;
+  affected_records: number;
+  per_record_effect: EffectEstimate;
+  attributable_impact: EffectEstimate;
+  identification_gate: string;
+  materiality_pass: boolean;
+};
+
+// apps/api/app/api/schemas.py: FindingImpactRead
+// materiality_pass is pass/fail only — the underlying threshold is never
+// exposed (still a Statistics/Customer-Discovery-owned placeholder, §3).
+//
+// TASK-088/TASK-090: tier1/tier2 are two distinct, both-correct numbers over
+// different populations, never re-flattened into one "impact" figure.
+// reportable_tiers names which of tier1/tier2 this Finding's own evidence
+// level actually cleared for display -- a tier object being non-null does
+// NOT mean it may be rendered; only its number appearing in reportable_tiers
+// does. attributable_impact (tier 3) is always null in this project's real
+// history today but must be handled defensively, not assumed present.
+export type FindingImpact = {
+  exposure_contract_version: string | null;
+  tier1: CandidateExposureTier | null;
+  tier2: CandidateExposureTier | null;
+  reportable_tiers: number[];
+  attributable_impact: AttributableImpact | null;
 };
 
 // apps/api/app/api/schemas.py: FindingRead
