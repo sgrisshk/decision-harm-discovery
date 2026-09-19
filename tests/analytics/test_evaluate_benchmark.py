@@ -32,6 +32,7 @@ from evaluate_benchmark import (  # noqa: E402
     _parse_apparent_feature,
     _record_id_column,
     _scoreable_pattern_ids,
+    _tier1_per_record_effect,
     _trap_apparent_conditions,
     _verify_evaluation_lineage,
     main,
@@ -287,6 +288,81 @@ def test_attribution_narrowed_impact_is_zero_for_an_empty_overlap() -> None:
     point, ci = _attribution_narrowed_impact(per_record_effect, overlap_n=0)
     assert point == 0.0
     assert ci == (0.0, 0.0)
+
+
+# --- _tier1_per_record_effect (TASK-089 revision fix) ---------------------------------------------
+#
+# CODE_REVIEWER's real, independently-reproduced crash: a genuinely `v2`-shaped `economic_impact`
+# dict (`scripts/validate_candidates.py` post-TASK-086, "tier1"/"tier2"/"reportable_tiers" keys,
+# no top-level "per_record_effect") raised `KeyError: 'per_record_effect'` at the old
+# `economic_impact["per_record_effect"]` line, because that field moved one level deeper, under
+# "tier1", when TASK-086 introduced the tiered shape. The existing end-to-end regression test above
+# never caught this because it only replays the stale, pre-TASK-086 frozen artifact. These tests
+# build a genuinely v2-shaped dict via the real `CandidateExposureResult`/
+# `build_candidate_exposure_result_tier1` construction and `to_dict()` — not a hand-typed dict —
+# reproducing the exact shape `validate_candidates.py` actually writes.
+
+
+def test_tier1_per_record_effect_reads_v2_shape_nested_under_tier1() -> None:
+    from policy_analytics.outcomes import OUTCOME_BY_ID
+    from policy_analytics.validation.economic_impact import build_candidate_exposure_result_tier1
+
+    tier1 = build_candidate_exposure_result_tier1(
+        outcome=OUTCOME_BY_ID["contribution_margin_eur"],
+        affected_records=142,
+        per_record_value=998.35,
+        per_record_ci_low=850.0,
+        per_record_ci_high=1100.0,
+        confidence_level=0.95,
+        historical_value=141765.41,
+        historical_ci_low=120000.0,
+        historical_ci_high=155000.0,
+        materiality_pass=True,
+    )
+    # The exact shape scripts/validate_candidates.py writes (TASK-086): a top-level dict with
+    # "tier1"/"tier2"/"reportable_tiers"/"attributable_impact" keys, never a top-level
+    # "per_record_effect" -- the pre-fix crash's own reproduction shape.
+    economic_impact = {
+        "exposure_contract_version": tier1.exposure_contract_version,
+        "tier1": tier1.to_dict(),
+        "tier2": None,
+        "reportable_tiers": [1],
+        "attributable_impact": None,
+    }
+    assert "per_record_effect" not in economic_impact
+    result = _tier1_per_record_effect(economic_impact)
+    assert result is not None
+    assert result["value"] == pytest.approx(998.35)
+
+
+def test_tier1_per_record_effect_is_none_when_tier1_itself_is_none() -> None:
+    # No development-split exposure was ever computed for this candidate (interim is None,
+    # apply.py::run_validation) -- a disclosed skip, not a crash or a silently wrong number.
+    economic_impact = {
+        "exposure_contract_version": "2.0.0",
+        "tier1": None,
+        "tier2": None,
+        "reportable_tiers": [],
+        "attributable_impact": None,
+    }
+    assert _tier1_per_record_effect(economic_impact) is None
+
+
+def test_tier1_per_record_effect_reads_legacy_v1_flat_shape() -> None:
+    # Pre-TASK-086 frozen artifacts have no "tier1" key at all -- per_record_effect sits directly
+    # at the top level. Must keep working unchanged, per ADR-015 (frozen artifacts not rewritten).
+    economic_impact = {
+        "impact_contract_version": "1.0.0",
+        "per_record_effect": {"value": 998.35, "ci_low": 850.0, "ci_high": 1100.0},
+        "historical_impact": {"value": 141765.41, "ci_low": 120000.0, "ci_high": 155000.0},
+    }
+    result = _tier1_per_record_effect(economic_impact)
+    assert result is not None
+    assert result["value"] == pytest.approx(998.35)
+
+
+def test_tier1_per_record_effect_is_none_for_a_shape_with_neither_key() -> None:
+    assert _tier1_per_record_effect({}) is None
 
 
 # --- CLI input-source parameterization (--dataset-root/--ground-truth) ---------------------------

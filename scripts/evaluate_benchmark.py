@@ -20,6 +20,17 @@ different estimands, `O1` candidate exposure vs. `O3` latent affected-population
 `TASK-073`'s and `TASK-083`'s historical comparison-log entries in `decision-gate.md`, scored under
 the six-metric contract that governed them at the time, are unchanged.
 
+**Disclosed, out of this file's own scope to fix:** three frozen `TASK-084` forensic scripts
+(`scripts/diagnose_task084_branch1_engine_regression.py`,
+`scripts/review_task084_check4_alt_order_ablation.py`,
+`scripts/diagnose_task084_branch2_3_error_decomposition.py`) index
+`metrics["economic_impact_estimation_error"]` against a fresh call to this file's own `main()` and
+would raise `KeyError` if literally re-executed today, now that that key no longer exists in this
+file's own output — their own output was already frozen and committed before metric 6's removal, and
+per this task's scope boundary (`TASK-089`) their own logic is historical and never edited
+retroactively (`ADR-015` precedent). Nothing in this file's own scope assumes those three scripts
+still run unmodified; do not treat them as regression coverage for this file's current output shape.
+
 **Matching statistic (Statistics' methodological call, delegated by decision-gate.md §"True pattern
 match"):** a candidate C recovers pattern P if recall(P by C) = |C.exposed ∩ P.affected| /
 |P.affected| >= MATCH_RECALL_THRESHOLD (0.5 — a majority of the pattern's affected bookings fall
@@ -89,7 +100,7 @@ from policy_analytics.validation.contract import DEFAULT_THRESHOLDS  # noqa: E40
 #: `--ground-truth` (mirroring `--validation-report`/`--output`, `ADR-025`) let this evaluator run
 #: against any other domain's analytical dataset and ground truth (e.g. a `TASK-061` domain, once
 #: it has a discovery run of its own to score) without editing this file. The metric logic itself
-#: (matching, the six metrics, the diagnostic) is untouched by this parameterization.
+#: (matching, the five metrics, the diagnostic) is untouched by this parameterization.
 DEFAULT_DATASET_ROOT = REPOSITORY / "synthetic_data/analytical/travel-bookings-analytical-v1.0.0"
 DEFAULT_GROUND_TRUTH_PATH = REPOSITORY / "synthetic_data/evaluation/hidden_ground_truth.json"
 DEFAULT_VALIDATION_REPORT_PATH = (
@@ -315,6 +326,40 @@ def _attribution_overlap_ids(
     for pid in matched_patterns:
         overlap |= exposed_ids & _affected_ids(patterns_by_id[pid])
     return overlap
+
+
+def _tier1_per_record_effect(economic_impact: dict[str, object]) -> dict[str, object] | None:
+    """The `TASK-059` diagnostic's per-record-effect input, read from whichever `economic_impact`
+    shape is actually present, and always tier 1's raw quantity — the natural, semantically
+    equivalent successor to the pre-`TASK-086` flat field this function replaces.
+
+    Before `TASK-086` (`ADR-089`), `scripts/validate_candidates.py` wrote
+    `economic_impact = result.economic_impact.to_dict()` where `economic_impact` was a single
+    `EconomicImpactResult` (now `CandidateExposureResult`) — always tier 1's unchanged computation
+    (`historical_impact = per_record_effect x affected_records` over the combined `E` window) — so
+    `economic_impact["per_record_effect"]` *was* tier 1's own per-record value, just not labeled as
+    a tier yet. `TASK-086` did not move that quantity; it wrapped it one level deeper, alongside a
+    new sibling `tier2` (`E_dev`-scoped, `G06`'s `adjusted_effect` — a genuinely different quantity,
+    never substitutable here), at `economic_impact["tier1"]["per_record_effect"]`.
+
+    - A `v2` `economic_impact` dict (`"tier1"` key present, `scripts/validate_candidates.py`
+      post-`TASK-086`) reads `economic_impact["tier1"]["per_record_effect"]` — `None` if `tier1`
+      itself is `None` (no development-split exposure was ever computed for this candidate; the
+      `interim is None` path in `apply.py::run_validation`), a disclosed skip, never a crash or a
+      silently wrong number, matching this project's own `NOT_EVALUATED` discipline (`G11`,
+      `TASK-087`'s zero-exposure fix).
+    - A legacy `v1` `economic_impact` dict (`"tier1"` absent, pre-`TASK-086` frozen artifact) reads
+      `economic_impact["per_record_effect"]` directly, unchanged from this function's original
+      behavior — the same quantity, under its pre-rename flat name.
+    - Anything else (a malformed or unexpectedly-shaped dict carrying neither key) returns `None`,
+      the same disclosed-skip path, rather than raising `KeyError`.
+    """
+    if "tier1" in economic_impact:
+        tier1 = economic_impact["tier1"]
+        if tier1 is None:
+            return None
+        return cast(dict[str, object], tier1)["per_record_effect"]  # type: ignore[index]
+    return cast(dict[str, object] | None, economic_impact.get("per_record_effect"))
 
 
 def _attribution_narrowed_impact(
@@ -559,11 +604,26 @@ def main(argv: list[str] | None = None) -> None:
                 }
             )
             continue
+        per_record = _tier1_per_record_effect(economic_impact)
+        if per_record is None:
+            attribution_details.append(
+                {
+                    "candidate_id": s.candidate_id,
+                    "skipped_reason": (
+                        "economic_impact has no tier1 result (no development-split exposure was "
+                        "ever computed for this candidate, v2 CandidateExposureResult shape, "
+                        "TASK-086/TASK-089) - cannot compute a per-record-effect-scaled narrowed "
+                        "estimate. Disclosed skip, not a silent wrong number (mirrors this "
+                        "project's NOT_EVALUATED discipline, e.g. G11, TASK-087's zero-exposure "
+                        "fix)."
+                    ),
+                }
+            )
+            continue
         overlap_ids = _attribution_overlap_ids(
             exposed_ids_by_candidate[s.candidate_id], s.matched_patterns, patterns_by_id
         )
         overlap_n = len(overlap_ids)
-        per_record = economic_impact["per_record_effect"]
         narrowed_point, narrowed_ci = _attribution_narrowed_impact(per_record, overlap_n)
         truth_impact = float(
             sum(
