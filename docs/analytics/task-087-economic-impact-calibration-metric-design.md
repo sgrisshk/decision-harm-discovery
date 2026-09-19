@@ -23,6 +23,20 @@ reconfirms a property `TASK-084` already established, **the recommendation is to
 a form-test/regression-suite check, never as a `decision-gate.md` founder-level graded metric** — see
 §8/§9.
 
+**Review status: `CODE_REVIEWER` `APPROVED WITH REVISION NEEDED` (`ADR-090`), corrected in place,
+2026-09-19 — no further independent review round required for this specific correction.** The core
+like-with-like property (identical population masks, calibration kept separate from localization
+quality, the adversarial Case C/D property, and the coupling to `TASK-085`'s own `O1`/`O2` estimand
+rather than `TASK-086`'s implementation details) was independently re-derived and held. One real,
+concrete defect was found: the original §1 specification did not define behavior when a candidate's
+`future_holdout` exposure is genuinely zero (`split_stats` returns `None`), which crashed with an
+uncaught `AssertionError` rather than resolving — fixed normatively here, not merely disclosed, by
+mirroring `G10`'s own existing `None`-handling discipline with a named `NOT_EVALUATED` state; see
+§1's inline correction and §7's new Case F1 for the full record. This is a specification-level fix
+that does not touch the core like-with-like architecture `ADR-090`'s own approval standard tests, so
+it is corrected in place per that ADR's own fork for documentation/specification-level findings, the
+same pattern `TASK-080`/`ADR-078` and `TASK-085`/`ADR-089` already established in this project.
+
 ---
 
 ## 1. The design, precisely
@@ -45,6 +59,28 @@ interval. This is a direct generalization of `G10`'s own existing `min_holdout_e
 floor (`apply.py` line ~739, `retention = |holdout.harm_per_booking / dev.harm_per_booking| ≥ 0.50`)
 from a single ratio threshold to a full interval-coverage test — same inputs, same splits, more
 statistically honest than a fixed ratio floor.
+
+**Correction (2026-09-11/2026-09-19, following the independent `CODE_REVIEWER` review's mandate-3
+finding, `ADR-090`).** The original version of this section specified `calibration_ok` unconditionally
+— it did not state what happens when `split_stats` returns `None` for either side (zero exposed or
+zero comparison rows in that window; `apply.py`'s own `split_stats`, read directly: `if exposed.height
+== 0 or comparison.height == 0: return None`). The review found this is a real, plausible boundary —
+not contrived — since `discover_candidates` selects candidates using only development-split
+eligibility, so a candidate can easily have zero rows in `future_holdout`. Implemented literally as
+originally specified (and as the review's own reproduction of the diagnostic script confirmed), this
+boundary raises an uncaught `AssertionError` instead of resolving. **`G10`'s own existing code, using
+these identical inputs, already handles this defensively — `holdout = split_results.get
+("future_holdout")`, then `retention = |holdout.harm_per_booking / dev.harm_per_booking| if holdout
+and dev.harm_per_booking else 0.0`, a `None` holdout degrading to a clean gate failure, never a
+crash.** This design now inherits the identical discipline, fixed normatively, not merely disclosed:
+**if `split_stats` returns `None` for either the predicted side (`development` ∪ `validation`) or the
+realized side (`future_holdout`), the verdict is a named, disclosed `NOT_EVALUATED` state — never
+`True`, never `False`, and never an unhandled exception.** `NOT_EVALUATED` is reported and counted
+separately from `calibration_ok`'s own `True`/`False` population in any aggregate summary a future
+implementation produces (mirroring how `GateOutcome.NOT_EVALUATED` already works elsewhere in this
+contract, e.g. `G11` when no seasonality role is declared) — it must never be silently coerced into
+either verdict, and must never be treated as "the candidate is fine" or "the candidate failed
+calibration." See §7's own Case F1 for the constructed boundary case this fix addresses.
 
 **What this explicitly does NOT do, by design:**
 - Never touches `hidden_ground_truth.json` or any pattern-membership information (Check 3, §5).
@@ -275,8 +311,24 @@ blended into it. A candidate whose population genuinely shrinks or grows between
 diagnostic separately to learn whether the *population itself* also drifted, and must not infer
 anything about the *total* dollar figure from `calibration_ok` alone (§6).
 
-**Verdict: Check 5 PASSES (explicit, tested, disclosed behavior); Check 7 PASSES (both adversarial
-cases constructible and correctly resolved, independent of ground-truth overlap).**
+**Check 5 — Case F1 (zero `future_holdout` exposure; added 2026-09-19, `CODE_REVIEWER`'s own
+construction, `ADR-090`).** A candidate whose condition mask selects zero rows in `future_holdout` —
+`split_stats` returns `None` for the realized side. Under the corrected §1 specification, this
+resolves to `calibration_ok = NOT_EVALUATED`, disclosed with the reason ("zero rows matched this
+candidate's own condition in the realization window — no realized rate exists to compare against"),
+not an `AssertionError` and not a silent `True`/`False`. This is the boundary Case E's smooth 30%
+shrink never reaches (Case E's realized population is small, `180`, but never zero) — Case F1
+specifically exercises the discontinuity at zero, on the realized side, which is where `CODE_REVIEWER`
+constructed and verified it. **By construction of the corrected spec above (the `None`-check applies
+to "either side," not only the realized one), the identical `NOT_EVALUATED` resolution follows for a
+zero-exposure predicted side too** — a case that should not arise in practice, since discovery itself
+requires development-split eligibility, and is not separately constructed or empirically verified
+here; a future implementation task's own test suite should add this symmetric case explicitly rather
+than rely on this document's own reasoning-by-construction claim alone.
+
+**Verdict: Check 5 PASSES (explicit, tested, disclosed behavior, now including the zero-exposure
+boundary); Check 7 PASSES (both adversarial cases constructible and correctly resolved, independent
+of ground-truth overlap).**
 
 ## 8. Scope questions
 
@@ -346,7 +398,7 @@ disclosed, monitored caveat) is scoped, by its own Check 6/Check 2 findings, to 
 | 2. Identical economic unit and time horizon | PASSES, asymmetry named and designed around | §3 — rate-only scope specifically avoids a horizon-mismatch reintroduction |
 | 3. No ground-truth overlap or narrowing | PASSES | §5 — no code path touches `hidden_ground_truth.json` |
 | 4. No leakage from `future_holdout` | CONDITIONAL — predicted side clean; selection-stage caveat disclosed, quantified, pre-existing (shared with `G10`), empirically null on the one real run tested | §4, `scripts/diagnose_task087_check4_future_holdout_leakage.py` |
-| 5. Defined behavior under population drift | PASSES | §7 Case E — rate-only verdict, size-ratio surfaced separately |
+| 5. Defined behavior under population drift | PASSES, including the zero-exposure boundary (corrected 2026-09-19, `ADR-090`) | §7 Case E — rate-only verdict, size-ratio surfaced separately; §7 Case F1 — zero-exposure `NOT_EVALUATED`, not a crash |
 | 6. Calibration kept separate from localization quality | PASSES; rate-vs-total scope limitation disclosed | §6, §7 Cases C/D |
 | 7. Synthetic adversarial cases (Case A/B analog) | PASSES, both cases constructible and correctly resolved | §7, `scripts/diagnose_task087_check5_7_calibration_adversarial.py` |
 | Explicit "no valid replacement" boundary respected | Not invoked — a design meeting the checks (with one disclosed caveat) was found | This document's own determination, §0 |
