@@ -1,0 +1,33 @@
+{
+  "task": "TASK-086",
+  "adr": "ADR-090",
+  "topic": "Independent confirmation the two named test failures predate TASK-086, plus full pytest/ruff/pyright results",
+  "claim_tested": "test_run_validation_against_the_real_frozen_candidates and test_pre_v1_3_0_semantics_reproduce_the_previous_contract_versions_verdicts are pre-existing failures, unrelated to TASK-086, not to be fixed inside this review.",
+  "method": "Checked out commit 86fb95b (TASK-081 merge, the commit immediately preceding any TASK-086 change) into an isolated `git worktree add --detach`, copied the same untracked/gitignored real dataset artifacts (artifacts/discovery/task-015-candidates.json) used at HEAD, and ran the real pytest suite there directly -- not re-reading the implementer's own claim.",
+  "commit_checked": "86fb95bb43e7086673ee6dee644a6c26d7e5a583",
+  "command": "uv run pytest tests/analytics/test_validation_apply.py -k \"test_run_validation_against_the_real_frozen_candidates or test_pre_v1_3_0_semantics_reproduce_the_previous_contract_versions_verdicts\" -v",
+  "result_at_86fb95b": "2 failed, 27 deselected -- both tests fail at this commit, before TASK-086 exists.",
+  "result_at_head": "2 failed, 29 deselected -- both tests fail identically at HEAD (post-TASK-086), same failure mode (verdict-mismatch AssertionError, same set of candidates disagreeing), confirming no new divergence was introduced.",
+  "conclusion": "Independently confirmed, by executing the real tests against the real commit rather than accepting the implementer's claim: both failures predate TASK-086. Left unfixed per this review's explicit scope boundary.",
+  "full_suite_run": {
+    "command": "uv run pytest -q",
+    "environment_note": "This worktree checkout was initially missing several untracked/gitignored real-data artifacts (artifacts/discovery/task-015-candidates.json, artifacts/evaluation/task-028-benchmark-evaluation.json, artifacts/validation/task-019-official-*.json, artifacts/blind, artifacts/baseline, artifacts/backtest) that exist in the main checkout but are not copied by `git worktree add`. Copied them from the main checkout before the final run below; this is a per-worktree setup gap, not a code defect -- confirmed by first observing a spurious third failure (test_evaluate_benchmark.py's frozen-result test) that disappeared entirely once the missing artifact was copied in.",
+    "final_result": "2 failed, 701 passed, 74 skipped in 272.36s",
+    "failures": [
+      "tests/analytics/test_validation_apply.py::test_run_validation_against_the_real_frozen_candidates",
+      "tests/analytics/test_validation_apply.py::test_pre_v1_3_0_semantics_reproduce_the_previous_contract_versions_verdicts"
+    ],
+    "note": "Exactly the two pre-declared, pre-existing failures and nothing else. All four TASK-086 test files (test_economic_impact.py, test_exposure_disclosure.py, test_tier3_structural.py, test_validation_apply.py) pass in full except these two pre-existing cases."
+  },
+  "ruff_check": {
+    "command_project_wide": "uv run ruff check .",
+    "project_wide_result": "188 errors found, entirely in pre-existing files this task did not touch (e.g. scripts/review_task084_check2_counterexample.py E702 semicolons, scripts/review_task085_check2_metric6_adversarial.py import-sort/line-length -- the latter is a TASK-087 review artifact, not TASK-086's)",
+    "command_task086_files_only": "uv run ruff check packages/analytics/src/policy_analytics/validation/economic_impact.py packages/analytics/src/policy_analytics/validation/exposure_disclosure.py packages/analytics/src/policy_analytics/validation/apply.py scripts/validate_candidates.py tests/analytics/test_economic_impact.py tests/analytics/test_exposure_disclosure.py tests/analytics/test_tier3_structural.py tests/analytics/test_validation_apply.py",
+    "task086_files_result": "All checks passed!"
+  },
+  "pyright": {
+    "command": "uv run pyright",
+    "project_wide_result": "170 errors, 0 warnings -- all 13 files with any error are pre-existing forensic/diagnostic scripts (scripts/diagnose_task075_*.py, diagnose_task078_*.py, diagnose_task079_*.py, diagnose_task080_*.py (x3), diagnose_task084_*.py (x3), diagnose_task087_check5_7_*.py, review_task084_check1/2/4_*.py) -- none are files TASK-086 touched (economic_impact.py, exposure_disclosure.py, apply.py, validate_candidates.py, or the four TASK-086 test files); the errors themselves are pre-existing polars-typing gaps (e.g. `.filter()`/`.append()` returning partially-unknown types), unrelated to the exposure-ladder rename.",
+    "task086_files_result": "Zero pyright errors attributed to any TASK-086-touched file in the full project-wide run."
+  }
+}
