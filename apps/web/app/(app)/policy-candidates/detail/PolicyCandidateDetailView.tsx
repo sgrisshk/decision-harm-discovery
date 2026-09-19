@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import { ErrorState, LoadingState } from "@/components/states";
 import { EvidencePill } from "@/components/findings/EvidencePill";
-import { ExposureFigure } from "@/components/findings/ExposureFigure";
+import { ImpactTiers } from "@/components/findings/ImpactTiers";
 import { PolicyCandidateActions } from "@/components/policies/PolicyCandidateActions";
 import { toErrorDisplay } from "@/lib/api/display";
 import { getPolicyCandidate } from "@/lib/api/policyCandidates";
@@ -111,9 +111,7 @@ export function PolicyCandidateDetailView() {
       </Section>
 
       <Section number={3} title="Expected benefit (exposure, not a guarantee)">
-        <p className="findingDetail-exposureHeadline">
-          <ExposureFigure estimate={candidate.expected_benefit_snapshot.historical_impact} />
-        </p>
+        <ImpactTiers impact={candidate.expected_benefit_snapshot} />
         <p className="findingDetail-disclaimer">
           This reflects the source finding&apos;s observed history, not a validated forward-looking
           benefit — that requires a historical backtest (below, once approved).

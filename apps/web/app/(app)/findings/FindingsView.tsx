@@ -10,6 +10,7 @@ import { ReadinessPill } from "@/components/findings/ReadinessPill";
 import { WarningBadge } from "@/components/findings/WarningBadge";
 import { listFindings } from "@/lib/api/findings";
 import { toErrorDisplay } from "@/lib/api/display";
+import { reportableTier1 } from "@/lib/api/impact";
 import type { Finding } from "@/lib/api/types";
 import { FindingsControls } from "./FindingsControls";
 import { filterFindings, paginateFindings, sortFindings } from "./sortFindings";
@@ -102,6 +103,7 @@ export function FindingsView() {
 }
 
 function FindingRow({ finding }: { finding: Finding }) {
+  const tier1 = reportableTier1(finding.impact);
   return (
     <li className="resourceCard findingRow">
       <Link href={`/findings/detail?id=${finding.id}`} className="findingRow-link">
@@ -112,10 +114,16 @@ function FindingRow({ finding }: { finding: Finding }) {
           <WarningBadge count={finding.evidence.warnings.length} />
         </span>
         <span className="findingRow-figures">
-          <ExposureFigure estimate={finding.impact.historical_impact} />
-          <span className="findingRow-population">
-            {finding.impact.affected_records.toLocaleString("en-US")} bookings affected
-          </span>
+          {tier1 ? (
+            <>
+              <ExposureFigure estimate={tier1.candidate_exposure} />
+              <span className="findingRow-population">
+                {tier1.affected_records.toLocaleString("en-US")} bookings affected
+              </span>
+            </>
+          ) : (
+            <span className="findingRow-population">No reportable exposure figure yet.</span>
+          )}
         </span>
         <span className="findingRow-meta">
           Generated {new Date(finding.generated_at).toLocaleDateString("en-US")}

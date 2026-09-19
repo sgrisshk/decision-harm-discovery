@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { ExposureFigure } from "@/components/findings/ExposureFigure";
+import { ImpactTiers } from "@/components/findings/ImpactTiers";
 import { EVIDENCE_LABELS } from "@/lib/copy/findingLanguage";
 import type { EvidenceLevel, Finding } from "@/lib/api/types";
 
@@ -55,19 +55,7 @@ export function FindingCoreContent({ finding }: { finding: Finding }) {
       </Section>
 
       <Section number={3} title="Money at stake">
-        <p className="findingDetail-exposureHeadline">
-          <ExposureFigure estimate={finding.impact.historical_impact} />{" "}
-          <span className="findingDetail-meta">
-            ({finding.impact.outcome_name}, historical period only)
-          </span>
-        </p>
-        {finding.impact.annualization_justified && finding.impact.annualized_impact ? (
-          <p>
-            Annualized estimate: <ExposureFigure estimate={finding.impact.annualized_impact} />
-          </p>
-        ) : (
-          <p className="findingDetail-meta">Not enough history to project forward.</p>
-        )}
+        <ImpactTiers impact={finding.impact} />
         <p className="findingDetail-disclaimer">
           This reflects observed history, not a guaranteed future saving.
         </p>

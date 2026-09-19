@@ -1,3 +1,4 @@
+import { headlineExposureCiLow } from "@/lib/api/impact";
 import type { Finding } from "@/lib/api/types";
 
 const READINESS_RANK: Record<Finding["policy_readiness"], number> = {
@@ -16,12 +17,16 @@ const EVIDENCE_RANK: Record<Finding["evidence_level"], number> = {
 };
 
 /**
- * Default sort ("exposure"): descending by impact.historical_impact.ci_low — the
- * conservative lower bound, not the point estimate, per
- * docs/product/findings-list-screen.md's sort rule. Findings whose interval does
- * not exclude zero (no usable ci_low to rank by) sort after every material
- * finding but keep their relative order among themselves — the spec's only fixed
- * requirement for them is that they must still appear, never be dropped.
+ * Default sort ("exposure"): descending by tier 1's own `candidate_exposure.
+ * ci_low` (population `E`, the full historical window) — the conservative
+ * lower bound, not the point estimate, per
+ * docs/product/findings-list-screen.md's sort rule and `TASK-090`'s tiered
+ * shape. A finding whose tier 1 isn't reportable (`headlineExposureCiLow`
+ * returns `null`) has no usable headline figure and is treated the same as
+ * "not material" for ranking purposes — it sorts after every material
+ * finding but keeps its relative order among such findings — the spec's only
+ * fixed requirement for them is that they must still appear, never be
+ * dropped.
  */
 export function sortFindings(findings: Finding[], sort: string): Finding[] {
   const copy = [...findings];
@@ -41,15 +46,17 @@ export function sortFindings(findings: Finding[], sort: string): Finding[] {
     case "exposure":
     default:
       return copy.sort((a, b) => {
-        const aMaterial = a.impact.historical_impact.ci_low > 0;
-        const bMaterial = b.impact.historical_impact.ci_low > 0;
+        const aCiLow = headlineExposureCiLow(a.impact);
+        const bCiLow = headlineExposureCiLow(b.impact);
+        const aMaterial = aCiLow !== null && aCiLow > 0;
+        const bMaterial = bCiLow !== null && bCiLow > 0;
         if (aMaterial !== bMaterial) {
           return aMaterial ? -1 : 1;
         }
         if (!aMaterial) {
           return 0;
         }
-        return b.impact.historical_impact.ci_low - a.impact.historical_impact.ci_low;
+        return (bCiLow as number) - (aCiLow as number);
       });
   }
 }
