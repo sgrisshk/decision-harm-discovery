@@ -291,7 +291,7 @@ def test_attribution_narrowed_impact_is_zero_for_an_empty_overlap() -> None:
 
 # --- CLI input-source parameterization (--dataset-root/--ground-truth) ---------------------------
 #
-# Mirrors --validation-report/--output's existing shape (ADR-025). No test here touches the six
+# Mirrors --validation-report/--output's existing shape (ADR-025). No test here touches the five
 # metrics' own logic — only which files parse_args()/main() read them from.
 
 
@@ -335,10 +335,15 @@ def test_main_with_no_dataset_root_or_ground_truth_flags_reproduces_the_frozen_t
 ) -> None:
     """The actual regression check: run `main()` passing only `--output` (redirected to a scratch
     path) — every other flag, including the new `--dataset-root`/`--ground-truth`, is left at its
-    default — and confirm the six metrics match `artifacts/evaluation/
+    default — and confirm the five metrics match `artifacts/evaluation/
     task-028-benchmark-evaluation.json`'s already-frozen values exactly. Proves the input-source
     parameterization changed nothing about default (travel) behavior, not just that the new flags
     parse.
+
+    `TASK-089` retired the frozen artifact's sixth metric (`economic_impact_estimation_error`) from
+    the evaluator's own output shape; this regression check no longer compares it — the frozen
+    artifact itself is historical and unchanged, still carrying that key under the six-metric
+    contract that governed it at the time (`ADR-015` precedent, not rewritten).
     """
     frozen = json.loads(
         (REPOSITORY / "artifacts/evaluation/task-028-benchmark-evaluation.json").read_text(
@@ -382,9 +387,9 @@ def test_main_with_no_dataset_root_or_ground_truth_flags_reproduces_the_frozen_t
     assert fresh_metrics["effect_direction_accuracy"]["value"] == pytest.approx(
         frozen_metrics["effect_direction_accuracy"]["value"]
     )
-    assert fresh_metrics["economic_impact_estimation_error"]["median_relative_error"] == (
-        pytest.approx(frozen_metrics["economic_impact_estimation_error"]["median_relative_error"])
-    )
+    # TASK-089: economic_impact_estimation_error (metric 6) is retired from the evaluator's own
+    # output shape and is deliberately not asserted here; see this test's own docstring.
+    assert "economic_impact_estimation_error" not in fresh_metrics
 
     # The dynamically-computed hash must equal the value that used to be hardcoded as
     # "ground_truth_sha256_expected" — proof the switch from a pinned literal to a computed digest

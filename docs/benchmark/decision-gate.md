@@ -4,9 +4,21 @@
 **Recorded:** 2026-08-13, against commit `317bde01de76872322bec1936c8471d793120a3a`
 **Status:** PRE-REGISTERED. Ground truth is confirmed unopened as of this commit (see below). This document must not be edited after `TASK-028`/`TASK-029` produce results — only appended to, under "Post-benchmark comparison."
 
+**`TASK-089` edit note (2026-09-19, Statistics), the one authorized exception to the rule directly
+above.** `TASK-085`/`TASK-087` (`ADR-089`/`ADR-090`) found metric 6 (economic impact estimation
+error, comparing `O1` candidate exposure against `O3` latent affected-population impact) compares
+two different estimands and is semantically invalid as a graded product-quality gate; `TASK-085`
+§8.4 named "a distinct, later task" as the proper owner of actually retiring metric 6's slot from
+this document, and `TASK-089` is that task. The **"Graded metrics" section below is edited by this
+task** to remove metric 6's own band definition, prospectively only — every entry already recorded
+under "Post-benchmark comparison" (`TASK-073`'s, `TASK-083`'s, and the 2026-08-16/2026-08-17
+entries) is **not rewritten**, stands exactly as recorded under the six-metric contract that
+governed it at the time, matching `ADR-015`'s own versioning precedent. This document now grades
+**five** metrics, not six, for any run scored from this point forward.
+
 ## Why this exists, and why now
 
-`docs/analytics/validation-contract.md` §10 already fixes a qualitative acceptance test for the validation methodology. This document is the founder-level companion to it: a business decision gate, using the six metrics `TASK-028` is scoped to compute, that turns those numbers into one of four verdicts — **STRONG / PROMISING / WEAK / FAILED** — and a bound action. It does not change discovery methodology, validation gates, or thresholds owned by `docs/analytics/validation-contract.md`; it interprets their output for a go/no-go call that is properly Founder's to make (`agents/FOUNDER_STRATEGY.md`: "go/no-go decisions", "prioritization").
+`docs/analytics/validation-contract.md` §10 already fixes a qualitative acceptance test for the validation methodology. This document is the founder-level companion to it: a business decision gate, using the five metrics `TASK-028` is scoped to compute (six prior to `TASK-089`'s metric-6 retirement — see the edit note above), that turns those numbers into one of four verdicts — **STRONG / PROMISING / WEAK / FAILED** — and a bound action. It does not change discovery methodology, validation gates, or thresholds owned by `docs/analytics/validation-contract.md`; it interprets their output for a go/no-go call that is properly Founder's to make (`agents/FOUNDER_STRATEGY.md`: "go/no-go decisions", "prioritization").
 
 **Confirmed pre-registration condition, checked before writing this document:** `TASK-017` (blind discovery test) is `BLOCKED`; `TASK-028` (ground-truth evaluator) is `BLOCKED`, depending on `TASK-022`/`TASK-023`, both `BLOCKED`. `TASK-015` itself was reverted to `BLOCKED` on 2026-08-13 because its existing candidate artifact predates the current pinned dataset identity and the formal `TASK-012` temporal-split contract, and must be rerun before it counts. No evaluation of `synthetic_data/evaluation/hidden_ground_truth.json` has occurred. These criteria are therefore genuinely fixed before anyone — including this agent — has seen a result.
 
@@ -34,7 +46,7 @@ These mirror `docs/analytics/validation-contract.md` §10's own weighting ("a fa
 2. **Any confounding trap (T01–T05) reaches `SHADOW_POLICY` or `HIGH_CONFIDENCE` policy readiness**, i.e. is promoted rather than rejected/downgraded → overall verdict is **FAILED**, regardless of every other metric. A run that finds real patterns but also promotes a trap has failed, per the contract's own standing rule.
 3. **Any single validated finding above the materiality threshold has the wrong effect direction** (sign contradicts the realized counterfactual ground truth) → overall verdict is **FAILED**, regardless of aggregate direction accuracy. One materially-sized wrong-direction recommendation is worse than several small misses — it tells a future customer to do the opposite of what helps them.
 
-If none of these trigger, grade the four metrics below and take the **weakest** of the four bands as the overall verdict.
+If none of these trigger, grade the five numbered metrics below and take the **weakest** of the four *banded* metrics (1, 2, 3, and 5) as the overall verdict — metric 4 (leakage violations) is a binary disqualifier only, handled above, and never itself contributes a band. (`TASK-089` note: this document graded six numbered metrics, five of them banded — 1, 2, 3, 5, 6 — before `TASK-089` retired metric 6; see the edit note under "Status" above. `HANDOFF-027`'s document-quality note, recorded against the 2026-08-16 "Post-benchmark comparison" entry below, first flagged this section's own "four" wording against six numbered subsections — that entry is historical and unchanged; this sentence is the actual fix, applied here once the metric it was about was itself retired.)
 
 ## Graded metrics
 
@@ -75,18 +87,17 @@ If none of these trigger, grade the four metrics below and take the **weakest** 
 | WEAK | 70–89% correct |
 | FAILED | < 70% correct, or any materially-sized miss — see hard disqualifier 3 |
 
-### 6. Economic impact estimation error (median relative error of reported historical exposure vs. realized ground-truth effect, validated findings only)
-
-| Band | Threshold |
-|---|---|
-| STRONG | ≤ 25% |
-| PROMISING | 25–50% |
-| WEAK | 50–100% |
-| FAILED | > 100% (off by more than 2×), or an undisclosed systematic directional bias |
+**Metric 6 (economic impact estimation error) is retired, `TASK-089` (`ADR-089`/`ADR-090`).** It used
+to compare median relative error of reported historical exposure against realized ground-truth
+effect, validated findings only, with bands STRONG ≤25%, PROMISING 25–50%, WEAK 50–100%, FAILED
+>100%. `TASK-085`/`TASK-087` found this compares two different estimands (`O1` candidate exposure
+vs. `O3` latent affected-population impact) and is not a valid product-quality gate; retirement is
+prospective only — see the `TASK-089` edit note under "Status" above. No replacement metric occupies
+this numbered slot.
 
 ## Overall verdict and bound action
 
-**Overall verdict = the weakest of the four graded bands, unless a hard disqualifier fires, in which case overall = FAILED.**
+**Overall verdict = the weakest of the four banded metrics (1, 2, 3, 5 — see "Hard disqualifiers" above), unless a hard disqualifier fires, in which case overall = FAILED.**
 
 | Overall verdict | What it means | Action |
 |---|---|---|

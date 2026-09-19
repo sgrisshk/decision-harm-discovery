@@ -5,11 +5,20 @@ only because this runs strictly after candidate commitment and validation are al
 blind boundary this protects is upstream, at discovery and validation time, not here). `--dataset-
 root`/`--ground-truth` (mirroring `--validation-report`/`--output`, `ADR-025`) let this evaluator
 run against any domain's own analytical dataset and ground truth instead of hardcoding travel's —
-purely an input-source change; the matching statistic and all six metrics below are untouched.
-Computes the six metrics
+purely an input-source change; the matching statistic and all five metrics below are untouched.
+Computes the five metrics
 `docs/benchmark/decision-gate.md` is scoped against: Top-K precision, economic-weighted recall,
-confounder trap rejection, leakage violations, effect direction accuracy, and economic impact
-estimation error. Writes one frozen, versioned report; does not edit the decision gate document.
+confounder trap rejection, leakage violations, and effect direction accuracy. Writes one frozen,
+versioned report; does not edit the decision gate document.
+
+**`TASK-089` (`ADR-089`/`ADR-090`):** the former metric 6 (`economic_impact_estimation_error`,
+comparing each matched candidate's whole-rule reported historical impact against the matched
+pattern(s)' true impact) is retired outright, not patched to the `v2` `CandidateExposureResult`
+field names — `TASK-085`/`TASK-087` found the comparison semantically invalid (it compared two
+different estimands, `O1` candidate exposure vs. `O3` latent affected-population impact), and
+`decision-gate.md` now carries five graded metrics, not six. Retirement is prospective only:
+`TASK-073`'s and `TASK-083`'s historical comparison-log entries in `decision-gate.md`, scored under
+the six-metric contract that governed them at the time, are unchanged.
 
 **Matching statistic (Statistics' methodological call, delegated by decision-gate.md §"True pattern
 match"):** a candidate C recovers pattern P if recall(P by C) = |C.exposed ∩ P.affected| /
@@ -39,18 +48,15 @@ literal, and each pattern's affected-id list is located by key pattern (`affecte
 travel's own key (`affected_booking_ids`) and every `TASK-061` domain's key (`affected_record_ids`)
 differ.
 
-**`TASK-059` addition (`HANDOFF-043` remediation part 1):** metric 6's governing number
-(`metrics.economic_impact_estimation_error`) is unchanged — it still compares each matched
-candidate's *whole-rule* reported historical impact against the matched pattern(s)' true impact,
-exactly as `docs/benchmark/decision-gate.md` pre-registered it. A second, clearly-separate,
-diagnostic-only sibling metric
-(`metrics.economic_impact_estimation_error_attribution_narrowed_diagnostic`) is added alongside it:
-same matched-candidate population, but the reported side is recomputed over just the booking IDs a
-candidate's exposed set shares with its matched pattern's affected-record-id set (only knowable
-here, against `hidden_ground_truth.json`, never for a real customer finding — `HANDOFF-043`, ML
-Discovery dissent). **This diagnostic does not govern the decision gate and must not be substituted
-for `economic_impact_estimation_error` when reading `docs/benchmark/decision-gate.md`'s bands** —
-it exists to show how much of the whole-rule error is attributable to population dilution
+**`TASK-059` addition (`HANDOFF-043` remediation part 1), survives the `TASK-089` metric-6
+retirement unchanged:** a diagnostic-only metric
+(`metrics.economic_impact_estimation_error_attribution_narrowed_diagnostic`) recomputes each
+matched candidate's reported impact over just the booking IDs its exposed set shares with its
+matched pattern's affected-record-id set (only knowable here, against `hidden_ground_truth.json`,
+never for a real customer finding — `HANDOFF-043`, ML Discovery dissent). It never governed
+`docs/benchmark/decision-gate.md` — before `TASK-089` it was described as a sibling of the
+decision gate's own metric 6 (the whole-rule comparison, now removed); it exists to show how much
+of a candidate's exposed-population error is attributable to population dilution
 (`task-029-benchmark-report-v1.md` §3.6) versus genuine per-booking effect misestimation, and, per
 `HANDOFF-043`'s own warning, is not by itself sufficient grounds for a re-grade without `TASK-058`
 (tighter candidates at search time) as well.
@@ -530,58 +536,14 @@ def main(argv: list[str] | None = None) -> None:
         direction_correct_count / len(direction_results) if direction_results else None
     )
 
-    # --- Metric 6: economic impact estimation error (validated, matched findings only) ------------
-    impact_errors: list[dict[str, object]] = []
-    relative_errors: list[float] = []
-    for s in validated_matched:
-        raw_economic_impact = report_by_id[s.candidate_id].get("economic_impact")
-        if not isinstance(raw_economic_impact, dict):
-            raise ValueError(f"candidate {s.candidate_id} has no bound economic impact")
-        historical_impact = cast(dict[str, object], raw_economic_impact).get("historical_impact")
-        if not isinstance(historical_impact, dict):
-            raise ValueError(f"candidate {s.candidate_id} has no bound historical impact")
-        typed_impact = cast(dict[str, object], historical_impact)
-        if typed_impact.get("unit") != outcome_unit:
-            raise ValueError(f"candidate {s.candidate_id} historical-impact unit mismatch")
-        ci_low, ci_high = typed_impact.get("ci_low"), typed_impact.get("ci_high")
-        if not isinstance(ci_low, int | float) or not isinstance(ci_high, int | float):
-            raise ValueError(f"candidate {s.candidate_id} historical-impact CI is invalid")
-        reported_point = (float(ci_low) + float(ci_high)) / 2  # midpoint of the 95% CI
-        truth_impact = float(
-            sum(
-                patterns_by_id[pid]["true_effect"]["realized_economic_impact"]
-                for pid in s.matched_patterns
-            )
-        )
-        relative_error = abs(reported_point - truth_impact) / truth_impact if truth_impact else None
-        if relative_error is not None:
-            relative_errors.append(relative_error)
-        impact_errors.append(
-            {
-                "candidate_id": s.candidate_id,
-                "matched_patterns": s.matched_patterns,
-                "reported_exposure_ci_midpoint_eur": reported_point,
-                "matched_ground_truth_impact_eur": truth_impact,
-                "relative_error": relative_error,
-            }
-        )
-    sorted_errors = sorted(relative_errors)
-    median_impact_error: float | None = None
-    if sorted_errors:
-        midpoint = len(sorted_errors) // 2
-        median_impact_error = (
-            sorted_errors[midpoint]
-            if len(sorted_errors) % 2 == 1
-            else (sorted_errors[midpoint - 1] + sorted_errors[midpoint]) / 2
-        )
-
     # --- Diagnostic (TASK-059, benchmark-evaluation-only, does not govern the decision gate):
-    # attribution-narrowed economic impact error. Same matched-candidate population as metric 6,
-    # but the reported side uses only the bookings a candidate's exposed set shares with its
-    # matched pattern's affected-record-id set, scaled by the candidate's own reported per-record
-    # effect — the same linear scaling `economic_impact.py` already uses for
-    # `historical_impact = per_record_effect x affected_records`, just over a narrower population.
-    # Only possible here, against hidden_ground_truth.json; no analog exists for a real finding.
+    # attribution-narrowed economic impact error. Same matched-candidate population the retired
+    # metric 6 (TASK-089) used to grade, but the reported side uses only the bookings a candidate's
+    # exposed set shares with its matched pattern's affected-record-id set, scaled by the
+    # candidate's own reported per-record effect — the same linear scaling `economic_impact.py`
+    # already uses for `candidate_exposure = per_record_effect x affected_records`, just over a
+    # narrower population. Only possible here, against hidden_ground_truth.json; no analog exists
+    # for a real finding.
     attribution_details: list[dict[str, object]] = []
     attribution_relative_errors: list[float] = []
     for s in validated_matched:
@@ -651,11 +613,12 @@ def main(argv: list[str] | None = None) -> None:
             ),
             "attribution_narrowed_diagnostic": (
                 "TASK-059 (HANDOFF-043 remediation part 1): "
-                "metrics.economic_impact_estimation_error_attribution_narrowed_diagnostic is a "
-                "benchmark-evaluation-only sibling of metric 6, computed only because "
-                "hidden_ground_truth.json's affected-record-id sets are available here. It does "
-                "NOT govern docs/benchmark/decision-gate.md and must not replace "
-                "metrics.economic_impact_estimation_error when reading that document's bands."
+                "metrics.economic_impact_estimation_error_attribution_narrowed_diagnostic is "
+                "computed only because hidden_ground_truth.json's affected-record-id sets are "
+                "available here. It never governed docs/benchmark/decision-gate.md; before "
+                "TASK-089 retired the decision gate's own metric 6 (the whole-rule comparison "
+                "this diagnostic was a sibling of), it explicitly did not substitute for that "
+                "metric either. decision-gate.md now grades five metrics, not six."
             ),
         },
         "inputs": {
@@ -699,10 +662,6 @@ def main(argv: list[str] | None = None) -> None:
                 "total": len(direction_results),
                 "details": direction_results,
             },
-            "economic_impact_estimation_error": {
-                "median_relative_error": median_impact_error,
-                "details": impact_errors,
-            },
             "economic_impact_estimation_error_attribution_narrowed_diagnostic": {
                 "note": (
                     "DIAGNOSTIC ONLY - does not govern docs/benchmark/decision-gate.md. See "
@@ -722,10 +681,9 @@ def main(argv: list[str] | None = None) -> None:
     print(f"Any trap promoted: {any_trap_promoted}")
     print(f"Leakage violations: {leakage_violations}")
     print(f"Direction accuracy: {direction_accuracy}")
-    print(f"Median impact error (whole-rule, governs decision-gate): {median_impact_error}")
     print(
-        "Median impact error (attribution-narrowed, DIAGNOSTIC ONLY, TASK-059): "
-        f"{median_attribution_narrowed_error}"
+        "Median impact error (attribution-narrowed, DIAGNOSTIC ONLY, TASK-059, does not govern "
+        f"decision-gate): {median_attribution_narrowed_error}"
     )
 
 
