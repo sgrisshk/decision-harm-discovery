@@ -21,6 +21,7 @@ from policy_analytics.validation.apply import Condition, Operator, load_analytic
 from sqlalchemy.orm import Session
 
 from app.db.models import PolicyBacktestRunModel, PolicyCandidateModel
+from app.findings.contracts import EconomicImpactPersistence
 from app.policies.contracts import PolicyCandidateBacktestSnapshot
 
 _ANALYTICAL_DATASET_DIR = (
@@ -59,7 +60,11 @@ def trigger_backtest(
                 "not eligible for a backtest (§1)"
             ),
         )
-    outcome_name = candidate.expected_benefit_snapshot.get("outcome_name")
+    # `TASK-088`: `expected_benefit_snapshot` is the tiered `v2.0.0` shape now (or a legacy `v1`
+    # payload normalized to it on the way in) — no top-level `outcome_name` key anymore, so this
+    # goes through `EconomicImpactPersistence` rather than a raw dict `.get`.
+    expected_benefit = EconomicImpactPersistence.model_validate(candidate.expected_benefit_snapshot)
+    outcome_name = expected_benefit.outcome_name
     if outcome_name != _SUPPORTED_OUTCOME:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,

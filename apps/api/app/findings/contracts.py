@@ -5,7 +5,7 @@ validated reports and economic-impact results.
 """
 
 from datetime import datetime
-from typing import Annotated, Any, Literal
+from typing import Annotated, Any, Literal, cast
 from uuid import UUID
 
 from policy_analytics.validation.contract import (
@@ -271,8 +271,23 @@ class EconomicImpactPersistence(ContractModel):
     @classmethod
     def _dispatch_contract_version(cls, data: Any) -> Any:
         if isinstance(data, dict):
-            return normalize_economic_impact_payload(data)
+            return normalize_economic_impact_payload(cast("dict[str, Any]", data))
         return data
+
+    @property
+    def outcome_name(self) -> str | None:
+        """The candidate's own outcome id, read off whichever tier is actually populated —
+        `tier1`/`tier2`/`attributable_impact` all name the same candidate's same outcome by
+        construction, so the first populated one is authoritative. Replaces `v1`'s top-level
+        `outcome_name` field for downstream consumers (e.g. `app.policies.backtest_service`) that
+        only need to know which outcome this payload is about, not its full tiered detail."""
+        if self.tier1 is not None:
+            return self.tier1.outcome_name
+        if self.tier2 is not None:
+            return self.tier2.outcome_name
+        if self.attributable_impact is not None:
+            return self.attributable_impact.outcome_name
+        return None
 
 
 class FindingPromotion(ContractModel):
