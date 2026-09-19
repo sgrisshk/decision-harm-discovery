@@ -85,6 +85,8 @@ def persist_validation_report(
         recommended_validation=payload.recommended_validation,
         warnings=list(payload.warnings),
         permitted_language=payload.permitted_language,
+        non_identifiability_statement=payload.non_identifiability_statement,
+        g16_caveat=payload.g16_caveat,
         lineage=[reference.model_dump(mode="json") for reference in lineage],
     )
     session.add(model)
@@ -173,6 +175,11 @@ def promote_finding(
             "recommended_validation": report.recommended_validation,
             "warnings": report.warnings,
             "permitted_language": report.permitted_language,
+            # TASK-091 (`TASK-085` §5.3): `non_identifiability_statement` is always present on a
+            # real candidate; `g16_caveat` is `None` whenever `k == 1` (`G16` did not run) — both
+            # already-computed by `exposure_disclosure.py`, never re-derived here.
+            "non_identifiability_statement": report.non_identifiability_statement,
+            "g16_caveat": report.g16_caveat,
         },
         impact_snapshot=impact.model_dump(mode="json"),
         impact_contract_version=impact.exposure_contract_version,

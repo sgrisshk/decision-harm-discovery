@@ -104,6 +104,14 @@ export type FindingEvidence = {
   failure_modes: string[];
   recommended_validation: string;
   permitted_language: string;
+  // TASK-091 (TASK-085 §5.3, TASK-086's exposure_disclosure.py): the required
+  // attributable-share disclosure, verbatim -- never rendered as a numeric
+  // adjustment. non_identifiability_statement is non-null for every real
+  // candidate on the current pipeline. g16_caveat is null whenever k == 1
+  // (G16 did not run) -- by design, not a loading state. Both are null on a
+  // Finding promoted before TASK-091 (absent from its persisted snapshot).
+  non_identifiability_statement: string | null;
+  g16_caveat: string | null;
 };
 
 // apps/api/app/api/schemas.py: CandidateExposureTierRead

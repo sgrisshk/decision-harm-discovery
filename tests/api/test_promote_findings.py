@@ -8,7 +8,13 @@ from pathlib import Path
 from uuid import uuid4
 
 import pytest
-from app.db.models import AnalysisRunModel, CandidatePatternModel, DatasetModel, FindingModel
+from app.db.models import (
+    AnalysisRunModel,
+    CandidatePatternModel,
+    DatasetModel,
+    FindingModel,
+    ValidationReportModel,
+)
 from app.findings.contracts import (
     CandidateExposureTierPersistence,
     CandidateMetric,
@@ -27,7 +33,7 @@ from app.findings.persistence import (
     promote_finding,
 )
 from fastapi.testclient import TestClient
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
 import scripts.promote_findings as promote_findings_script
@@ -190,6 +196,128 @@ def test_promote_finding_rejects_a_report_without_evidence_level(
         select(FindingModel).where(FindingModel.candidate_pattern_id == candidate.id)
     ).all()
     assert list(findings) == []
+
+
+def test_exposure_disclosure_persists_on_report_and_finding_and_reads_back_legacy_safely(
+    postgres_session: Session, db_client: TestClient
+) -> None:
+    """`TASK-091` (`TASK-085` §5.3): `non_identifiability_statement`/`g16_caveat` persist on both
+    the audit-trail `validation_reports` row and the read-optimized `Finding.validation_snapshot`,
+    and reach a real `GET /api/v1/findings/{id}` response. A `Finding` promoted before `TASK-091`
+    (both fields absent from its persisted `validation_snapshot` entirely, not merely `null`) must
+    still read back as `None` rather than erroring -- simulated here by deleting the keys directly
+    via SQL, bypassing all app persistence code, exactly like a genuinely pre-migration row."""
+    run = _seed_run_and_dataset(postgres_session)
+    candidate = persist_candidate_pattern(
+        postgres_session,
+        CandidatePatternPersistence(
+            id=uuid4(),
+            analysis_run_id=run.id,
+            candidate_key="CAND-DISCLOSURE-TEST",
+            conditions=(PatternCondition(feature="x", operator="eq", value=True),),
+            fit_split="development",
+            rank=1,
+            rank_score=0.5,
+            actionability="HIGH",
+            metrics=(
+                CandidateMetric(
+                    split="development",
+                    n_population=100,
+                    n_exposed=10,
+                    support=0.1,
+                    exposed_mean=1.0,
+                    comparison_mean=2.0,
+                    raw_difference=-1.0,
+                    harm_per_booking=1.0,
+                    historical_exposure=10.0,
+                ),
+            ),
+            warnings=(),
+            artifact_sha256="e" * 64,
+            persisted_at=datetime.now(UTC),
+            lineage=(
+                LineageReference(kind="candidate_artifact", uri="test://fixture", sha256="f" * 64),
+            ),
+        ),
+    )
+    statement = (
+        "The portion of this exposure specifically attributable to the discovered mechanism, as "
+        "opposed to co-selected records, cannot currently be estimated from this data."
+    )
+    caveat = "2 of 3 conditions in this rule show no evidence against a confounding explanation."
+    metadata = ValidationMetadataPersistence(
+        contract_version="1.1.0",
+        outcome_definition_version="1.1.0",
+        outcome_definition="test outcome",
+        exposed_records=10,
+        comparison_records=90,
+        clustering_key="customer_id",
+        raw_effect=_effect(),
+        identification_design="observational",  # type: ignore[arg-type]
+        gate_results=(
+            GateResultPersistence(
+                gate_id="G05_MULTIPLE_COMPARISONS",  # type: ignore[arg-type]
+                outcome="pass",  # type: ignore[arg-type]
+                detail="passed",
+            ),
+        ),
+        evidence_level="descriptive_observation",  # type: ignore[arg-type]
+        policy_readiness="experiment_only",  # type: ignore[arg-type]
+        recommended_validation="more data",
+        permitted_language="descriptive only",
+        non_identifiability_statement=statement,
+        g16_caveat=caveat,
+    )
+    report = persist_validation_report(
+        postgres_session, candidate.id, metadata, generated_at=datetime.now(UTC)
+    )
+    # Persisted on the audit-trail validation_reports row, not just the Finding snapshot.
+    persisted_report = postgres_session.get(ValidationReportModel, report.id)
+    assert persisted_report is not None
+    assert persisted_report.non_identifiability_statement == statement
+    assert persisted_report.g16_caveat == caveat
+
+    finding = promote_finding(
+        postgres_session,
+        dataset_id=run.dataset_id,
+        analysis_run_id=run.id,
+        candidate=candidate,
+        report=report,
+        validation=metadata,
+        impact=_impact(),
+        harm_direction_phrase="Test drops",
+        generated_at=datetime.now(UTC),
+    )
+    postgres_session.commit()
+    assert finding.validation_snapshot["non_identifiability_statement"] == statement
+    assert finding.validation_snapshot["g16_caveat"] == caveat
+
+    response = db_client.get(f"/api/v1/findings/{finding.id}")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["evidence"]["non_identifiability_statement"] == statement
+    assert body["evidence"]["g16_caveat"] == caveat
+
+    # Simulate a Finding promoted before TASK-091: both keys entirely absent from the persisted
+    # JSONB (not merely null), via raw SQL bypassing all app persistence code -- must read back as
+    # None, not 500.
+    postgres_session.execute(
+        text(
+            "UPDATE findings SET validation_snapshot = validation_snapshot "
+            "- 'non_identifiability_statement' - 'g16_caveat' WHERE id = :id"
+        ),
+        {"id": str(finding.id)},
+    )
+    postgres_session.commit()
+    # expire_on_commit=False (postgres_session fixture) means the already-identity-mapped
+    # `finding` object would otherwise keep serving its stale in-memory validation_snapshot to
+    # the route below (same session) rather than the row this raw UPDATE just changed.
+    postgres_session.expire_all()
+    legacy_response = db_client.get(f"/api/v1/findings/{finding.id}")
+    assert legacy_response.status_code == 200
+    legacy_body = legacy_response.json()
+    assert legacy_body["evidence"]["non_identifiability_statement"] is None
+    assert legacy_body["evidence"]["g16_caveat"] is None
 
 
 @pytest.mark.skipif(

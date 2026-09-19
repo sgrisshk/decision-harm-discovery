@@ -55,7 +55,11 @@ export function FindingCoreContent({ finding }: { finding: Finding }) {
       </Section>
 
       <Section number={3} title="Money at stake">
-        <ImpactTiers impact={finding.impact} />
+        <ImpactTiers
+          impact={finding.impact}
+          nonIdentifiabilityStatement={finding.evidence.non_identifiability_statement}
+          g16Caveat={finding.evidence.g16_caveat}
+        />
         <p className="findingDetail-disclaimer">
           This reflects observed history, not a guaranteed future saving.
         </p>

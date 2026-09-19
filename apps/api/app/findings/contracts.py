@@ -116,6 +116,18 @@ class GateResultPersistence(ContractModel):
 
 
 class ValidationMetadataPersistence(ContractModel):
+    """`non_identifiability_statement`/`g16_caveat` (`TASK-091`, `TASK-085` §5.3,
+    `TASK-086`'s `exposure_disclosure.build_exposure_disclosure`) are evidence-interpretation
+    text, not economic-impact figures, so they travel alongside the rest of this candidate's
+    validation metadata rather than on `EconomicImpactPersistence`. Both are read from the raw
+    validation report's sibling `diagnostics["exposure_disclosure"]` key by
+    `scripts/promote_findings.py` — not part of `ValidationReport.to_dict()` itself — and are
+    optional here (`None` default) so a legacy validation-report artifact predating `TASK-086`
+    still validates. `non_identifiability_statement` is non-`None` for every real candidate
+    graded by the current pipeline; `g16_caveat` is `None` whenever `k == 1` (`G16` did not run),
+    by design, not a migration artifact.
+    """
+
     contract_version: str = Field(min_length=1, max_length=64)
     outcome_definition_version: str = Field(min_length=1, max_length=64)
     outcome_definition: str = Field(min_length=1)
@@ -138,6 +150,8 @@ class ValidationMetadataPersistence(ContractModel):
     recommended_validation: str = Field(min_length=1)
     warnings: tuple[str, ...] = ()
     permitted_language: str = Field(min_length=1)
+    non_identifiability_statement: str | None = None
+    g16_caveat: str | None = None
 
 
 class CandidateExposureTierPersistence(ContractModel):

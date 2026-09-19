@@ -170,6 +170,48 @@ def test_rejected_candidate_cannot_be_promoted_to_finding() -> None:
         )
 
 
+def test_exposure_disclosure_fields_default_none_and_roundtrip() -> None:
+    """`TASK-091` (`TASK-085` §5.3): `non_identifiability_statement`/`g16_caveat` are optional,
+    additive fields on `ValidationMetadataPersistence` -- absent on a legacy validation-report
+    artifact predating `TASK-086` (must default to `None`, not raise), and carried through
+    unchanged when a real candidate's `diagnostics["exposure_disclosure"]` supplies them."""
+    legacy = _validation("descriptive_observation")
+    assert legacy.non_identifiability_statement is None
+    assert legacy.g16_caveat is None
+
+    disclosed = ValidationMetadataPersistence(
+        contract_version="1.0.0",
+        outcome_definition_version="1.1.0",
+        outcome_definition="contribution_margin_eur",
+        exposed_records=100,
+        comparison_records=900,
+        clustering_key="customer_id",
+        raw_effect=_effect(),
+        identification_design=IdentificationDesign.OBSERVATIONAL,
+        gate_results=(
+            GateResultPersistence(
+                gate_id=GateId.LINEAGE, outcome=GateOutcome.PASS, detail="lineage verified"
+            ),
+        ),
+        evidence_level="descriptive_observation",
+        policy_readiness=PolicyReadiness.NOT_READY,
+        recommended_validation="Run the remaining preregistered gates.",
+        permitted_language="In this dataset and window, these records differ.",
+        non_identifiability_statement=(
+            "The portion of this exposure specifically attributable to the discovered "
+            "mechanism, as opposed to co-selected records, cannot currently be estimated "
+            "from this data."
+        ),
+        g16_caveat="2 of 3 conditions in this rule show no evidence against a confounding "
+        "explanation.",
+    )
+    assert disclosed.non_identifiability_statement is not None
+    assert "cannot currently be estimated from this data" in disclosed.non_identifiability_statement
+    assert disclosed.g16_caveat == (
+        "2 of 3 conditions in this rule show no evidence against a confounding explanation."
+    )
+
+
 def test_annualized_candidate_exposure_requires_justification() -> None:
     """`v2.0.0`'s annualization gate lives on `CandidateExposureTierPersistence` now (one tier's
     own figure), not on the envelope — same invariant as `v1`'s `annualized_impact`/

@@ -189,7 +189,14 @@ class FindingEvidenceRead(ApiModel):
     """How strong is the evidence — §1. `raw_effect` carries no interval by construction (must be
     displayed as "descriptive, unadjusted, no interval — not a validated estimate", never styled
     as a validated figure — §3); `adjusted_effect` is required whenever `evidence_level` is at
-    least `adjusted_observational_association`, enforced upstream by `ValidationReport`."""
+    least `adjusted_observational_association`, enforced upstream by `ValidationReport`.
+
+    `non_identifiability_statement`/`g16_caveat` (`TASK-091`, `TASK-085` §5.3): the required
+    attributable-share disclosure, verbatim from `exposure_disclosure.py` — never rendered as a
+    numeric adjustment to any reported figure. Both default to `None` so a Finding promoted
+    before `TASK-091` reads back without either field rather than failing validation;
+    `non_identifiability_statement` is non-`None` for every real candidate on the current
+    pipeline, `g16_caveat` is legitimately `None` whenever `k == 1` (`G16` did not run)."""
 
     raw_effect: EffectEstimateRead
     adjusted_effect: EffectEstimateRead | None
@@ -201,6 +208,8 @@ class FindingEvidenceRead(ApiModel):
     failure_modes: list[str]
     recommended_validation: str
     permitted_language: str
+    non_identifiability_statement: str | None = None
+    g16_caveat: str | None = None
 
 
 class CandidateExposureTierRead(ApiModel):

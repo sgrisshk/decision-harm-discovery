@@ -208,6 +208,12 @@ class ValidationReportModel(TimestampMixin, Base):
     warnings: Mapped[list[str]] = mapped_column(JSONB, nullable=False, default=list)
     permitted_language: Mapped[str] = mapped_column(Text, nullable=False)
     lineage: Mapped[list[dict[str, Any]]] = mapped_column(JSONB, nullable=False, default=list)
+    # TASK-091 (`TASK-085` §5.3 / `TASK-086`'s `exposure_disclosure.py`): nullable/additive, so
+    # rows persisted before this task read back as `NULL` rather than failing.
+    # `non_identifiability_statement` is non-`NULL` for every real candidate graded by the
+    # current pipeline; `g16_caveat` is legitimately `NULL` whenever `k == 1` (`G16` did not run).
+    non_identifiability_statement: Mapped[str | None] = mapped_column(Text, nullable=True)
+    g16_caveat: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     candidate_pattern: Mapped[CandidatePatternModel] = relationship(
         back_populates="validation_reports"

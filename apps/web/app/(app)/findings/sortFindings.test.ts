@@ -78,6 +78,8 @@ function finding(overrides: Partial<Finding> = {}): Finding {
       failure_modes: [],
       recommended_validation: "",
       permitted_language: "",
+      non_identifiability_statement: null,
+      g16_caveat: null,
     },
     impact: impact(),
     policy_readiness: "not_ready",

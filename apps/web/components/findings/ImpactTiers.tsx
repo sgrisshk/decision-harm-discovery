@@ -20,8 +20,27 @@ import type { CandidateExposureTier, FindingImpact } from "@/lib/api/types";
  * one finding). `attributable_impact` (tier 3) is always absent in this
  * project's real history today; rendered defensively, with no elaborate UI
  * for a slot that has never once been populated.
+ *
+ * `nonIdentifiabilityStatement`/`g16Caveat` (`TASK-091`, `TASK-085` §5.3): the required
+ * attributable-share disclosure that belongs alongside these same figures — rendered verbatim,
+ * never rephrased or folded into any figure above. Optional props, not read off `impact` itself:
+ * both live on a Finding's `evidence` (`FindingEvidenceRead`), not its `impact` snapshot, so a
+ * caller passes them explicitly when it has them. `PolicyCandidateDetailView` does not currently
+ * have a live source for either (`PolicyCandidateEvidenceRead` is a narrower frozen-at-generation
+ * copy that does not carry them, and `TASK-031`'s generator that would populate a real Policy
+ * Candidate row does not exist yet — `TASK-030`'s own docstring: this table is confirmed empty in
+ * every environment) — so it renders `ImpactTiers` without them, same as any other Finding whose
+ * evidence predates `TASK-091`.
  */
-export function ImpactTiers({ impact }: { impact: FindingImpact }) {
+export function ImpactTiers({
+  impact,
+  nonIdentifiabilityStatement = null,
+  g16Caveat = null,
+}: {
+  impact: FindingImpact;
+  nonIdentifiabilityStatement?: string | null;
+  g16Caveat?: string | null;
+}) {
   const tier1 = reportableTier1(impact);
   const tier2 = reportableTier2(impact);
 
@@ -39,6 +58,10 @@ export function ImpactTiers({ impact }: { impact: FindingImpact }) {
           ): <ExposureFigure estimate={impact.attributable_impact.attributable_impact} />
         </p>
       )}
+      {nonIdentifiabilityStatement && (
+        <p className="findingDetail-permittedLanguage">{nonIdentifiabilityStatement}</p>
+      )}
+      {g16Caveat && <p className="findingDetail-permittedLanguage">{g16Caveat}</p>}
     </>
   );
 }

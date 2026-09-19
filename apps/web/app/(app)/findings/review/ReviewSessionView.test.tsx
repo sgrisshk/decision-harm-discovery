@@ -32,6 +32,8 @@ function finding(id: string, title: string) {
       failure_modes: [],
       recommended_validation: "",
       permitted_language: "descriptive only",
+      non_identifiability_statement: null,
+      g16_caveat: null,
     },
     impact: {
       exposure_contract_version: "2.0.0",

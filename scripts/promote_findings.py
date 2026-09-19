@@ -276,6 +276,18 @@ def _promote_one(
     raw_report = dict(cast(dict[str, Any], validation_by_id[candidate_id]["validation_report"]))
     for key in _VALIDATION_REPORT_EXTRA_KEYS:
         raw_report.pop(key, None)
+    # TASK-091: `exposure_disclosure` lives in the sibling `diagnostics` key written by
+    # `scripts/validate_candidates.py`, not inside `validation_report` itself (it is
+    # `apply.py`'s `diagnostics["exposure_disclosure"]`, built by
+    # `exposure_disclosure.build_exposure_disclosure` — TASK-085 §5.3/TASK-086). Folded into the
+    # `ValidationMetadataPersistence` payload here so it persists alongside the rest of this
+    # candidate's validation metadata. `.get(...)` throughout: a validation artifact predating
+    # TASK-086 has no `diagnostics`/`exposure_disclosure` key at all, and must read back as
+    # `None`, not crash.
+    diagnostics = cast(dict[str, Any], validation_by_id[candidate_id].get("diagnostics") or {})
+    disclosure = cast(dict[str, Any], diagnostics.get("exposure_disclosure") or {})
+    raw_report["non_identifiability_statement"] = disclosure.get("non_identifiability_statement")
+    raw_report["g16_caveat"] = disclosure.get("g16_caveat")
     validation_payload = ValidationMetadataPersistence.model_validate(raw_report)
     report_row = persist_validation_report(
         session,
