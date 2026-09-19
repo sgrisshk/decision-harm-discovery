@@ -2,6 +2,7 @@ from datetime import date, datetime
 from typing import Any
 from uuid import UUID
 
+from app.findings.contracts import normalize_economic_impact_payload
 from policy_analytics.validation.contract import IdentificationDesign, PolicyReadiness
 from policy_schemas.domain import (
     DataQualityRating,
@@ -18,7 +19,7 @@ from policy_schemas.domain import (
     PolicyCandidateStatus,
     ResourceStatus,
 )
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, model_validator
 
 
 class ApiModel(BaseModel):
@@ -201,22 +202,74 @@ class FindingEvidenceRead(ApiModel):
     permitted_language: str
 
 
+class CandidateExposureTierRead(ApiModel):
+    """One tier (1 or 2) of `O1` — observed candidate exposure (`TASK-085` §5.2, `TASK-086`/
+    `ADR-089`, `TASK-088`). `affected_records` is scoped to this tier's own `population_scope`
+    (tier 1: `E`, the full combined window; tier 2: `E_dev`, development-split only) — the two are
+    both-correct, different numbers, never interchangeable."""
+
+    exposure_contract_version: str
+    tier: int
+    population_scope: str
+    quantity_name: str
+    outcome_name: str
+    outcome_unit: str
+    affected_records: int
+    per_record_effect: EffectEstimateRead
+    candidate_exposure: EffectEstimateRead
+    annualized_candidate_exposure: EffectEstimateRead | None
+    annualization_justified: bool
+    materiality_pass: bool
+
+
+class AttributableImpactRead(ApiModel):
+    """Tier 3 — `O2`, attributable harmful impact (`TASK-085` §5.2). Always absent on every real
+    Finding in this project's own history — the disclosed "always-empty slot" — but the shape is
+    real, not a placeholder."""
+
+    exposure_contract_version: str
+    tier: int
+    population_scope: str
+    quantity_name: str
+    outcome_name: str
+    outcome_unit: str
+    affected_records: int
+    per_record_effect: EffectEstimateRead
+    attributable_impact: EffectEstimateRead
+    identification_gate: str
+    materiality_pass: bool
+
+
 class FindingImpactRead(ApiModel):
     """Money at stake — §1. `affected_records` (not `exposed_records`) per Statistics'
     `HANDOFF-046` recommendation: it is the full combined-window population the pattern touches,
     the customer-relevant number. `materiality_pass` is shown as pass/fail only — the underlying
     threshold value is never exposed (§3, Statistics/Customer-Discovery owned, still a
-    placeholder)."""
+    placeholder).
 
-    impact_contract_version: str
-    outcome_name: str
-    outcome_unit: str
-    affected_records: int
-    per_record_effect: EffectEstimateRead
-    historical_impact: EffectEstimateRead
-    annualized_impact: EffectEstimateRead | None
-    annualization_justified: bool
-    materiality_pass: bool
+    `TASK-088`: mirrors `EconomicImpactPersistence`'s tiered `v2.0.0` shape — `tier1`/`tier2` are
+    two distinct, both-correct numbers over different populations, never re-flattened into one
+    "impact" figure; `reportable_tiers` names which of them this Finding's own evidence level
+    actually cleared for display. A legacy `v1`-shaped `impact_snapshot` (a Finding promoted before
+    `TASK-088`) is normalized to this same tiered shape before validation — see
+    `FindingRead`'s `impact` field."""
+
+    exposure_contract_version: str | None
+    tier1: CandidateExposureTierRead | None
+    tier2: CandidateExposureTierRead | None
+    reportable_tiers: list[int]
+    attributable_impact: AttributableImpactRead | None
+
+    @model_validator(mode="before")
+    @classmethod
+    def _dispatch_contract_version(cls, data: Any) -> Any:
+        """Same version dispatch as `EconomicImpactPersistence` (`app.findings.contracts`) — a
+        legacy `v1`-shaped `impact_snapshot`/`expected_benefit_snapshot` (a Finding or Policy
+        Candidate persisted before `TASK-088`) is read as tier 1 under its own recorded contract
+        version, never silently reinterpreted."""
+        if isinstance(data, dict):
+            return normalize_economic_impact_payload(data)
+        return data
 
 
 class FindingRead(ApiModel):

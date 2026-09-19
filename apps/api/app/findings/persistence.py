@@ -122,6 +122,17 @@ def promote_finding(
         raise PromotionError(
             f"candidate {candidate.candidate_key!r} has no evidence_level and cannot be promoted"
         )
+    if impact.exposure_contract_version is None:
+        # A promotable candidate (evidence_level is not None) always has at least tier 1
+        # computed by `apply.py` (`TASK-085` §5.2's threshold is `descriptive_observation`, tier
+        # 1's own floor), so `exposure_contract_version` is always recorded in practice. Refusing
+        # rather than silently defaulting keeps `TASK-088`'s versioning invariant strict: every
+        # persisted Finding's `impact_contract_version` column names the contract version that
+        # actually graded it.
+        raise PromotionError(
+            f"candidate {candidate.candidate_key!r} economic-impact payload has no "
+            "exposure_contract_version and cannot be promoted"
+        )
     conditions = tuple(validation_conditions(candidate))
     title = generate_title(harm_direction_phrase, conditions)
     summary = generate_summary(harm_direction_phrase, conditions)
@@ -164,7 +175,7 @@ def promote_finding(
             "permitted_language": report.permitted_language,
         },
         impact_snapshot=impact.model_dump(mode="json"),
-        impact_contract_version=impact.impact_contract_version,
+        impact_contract_version=impact.exposure_contract_version,
         policy_readiness=report.policy_readiness,
         lineage=[reference.model_dump(mode="json") for reference in lineage],
     )

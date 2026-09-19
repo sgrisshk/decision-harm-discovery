@@ -10,6 +10,7 @@ from uuid import uuid4
 import pytest
 from app.db.models import AnalysisRunModel, CandidatePatternModel, DatasetModel, FindingModel
 from app.findings.contracts import (
+    CandidateExposureTierPersistence,
     CandidateMetric,
     CandidatePatternPersistence,
     EconomicImpactPersistence,
@@ -46,6 +47,31 @@ _CLOSING_RUN_ARTIFACTS = (
 def _effect() -> EffectEstimatePersistence:
     return EffectEstimatePersistence(
         value=10.0, ci_low=5.0, ci_high=15.0, confidence_level=0.95, method="test", unit="EUR"
+    )
+
+
+def _impact() -> EconomicImpactPersistence:
+    """`TASK-088` `v2.0.0` tiered shape — the real shape `scripts/promote_findings.py` now
+    constructs from a real `CandidateExposureResult`, not the pre-`TASK-086` flat shape."""
+    tier1 = CandidateExposureTierPersistence(
+        exposure_contract_version="2.0.0",
+        tier=1,
+        population_scope="E",
+        quantity_name="candidate_exposure",
+        outcome_name="test",
+        outcome_unit="EUR",
+        affected_records=10,
+        per_record_effect=_effect(),
+        candidate_exposure=_effect(),
+        annualization_justified=False,
+        materiality_pass=False,
+    )
+    return EconomicImpactPersistence(
+        exposure_contract_version="2.0.0",
+        tier1=tier1,
+        tier2=None,
+        reportable_tiers=(1,),
+        attributable_impact=None,
     )
 
 
@@ -154,16 +180,7 @@ def test_promote_finding_rejects_a_report_without_evidence_level(
             candidate=candidate,
             report=report,
             validation=metadata,
-            impact=EconomicImpactPersistence(
-                impact_contract_version="1.0.0",
-                outcome_name="test",
-                outcome_unit="EUR",
-                affected_records=10,
-                per_record_effect=_effect(),
-                historical_impact=_effect(),
-                annualization_justified=False,
-                materiality_pass=False,
-            ),
+            impact=_impact(),
             harm_direction_phrase="Test drops",
             generated_at=datetime.now(UTC),
         )
@@ -282,9 +299,13 @@ def test_promote_findings_script_against_real_closing_run(
         "method",
         "unit",
     }
-    assert sample["impact"]["affected_records"] > sample["exposed_records"]
+    # TASK-088: `impact` is the tiered v2.0.0 shape now — tier 1's own `affected_records` (the
+    # full combined-window population `E`), not a re-flattened top-level figure.
+    assert sample["impact"]["tier1"] is not None
+    assert sample["impact"]["tier1"]["affected_records"] > sample["exposed_records"]
     assert "min_material_annual_impact" not in str(sample["impact"])
-    assert sample["impact"]["materiality_pass"] is True
+    assert sample["impact"]["tier1"]["materiality_pass"] is True
+    assert set(sample["impact"]["reportable_tiers"]) <= {1, 2}
 
     detail = db_client.get(f"/api/v1/findings/{sample['id']}").json()
     assert detail["id"] == sample["id"]
