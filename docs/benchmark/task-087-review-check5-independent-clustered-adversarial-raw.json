@@ -1,0 +1,36 @@
+{
+  "task": "TASK-087",
+  "review_check": 5,
+  "claim_tested": "The proposed calibration metric's verdict tracks calibration quality, not ground-truth overlap, under a genuinely clustered population (multi-row customer clusters with correlated within-cluster noise) -- independent evidence, materially different from the implementer's own one-row-per-cluster construction.",
+  "case_c_independent_clustered": {
+    "name": "case_c_independent_clustered_well_calibrated_zero_overlap",
+    "overlap_E_and_A_n": 0,
+    "predicted_per_record_rate_eur": 239.25703309004118,
+    "predicted_rate_ci_95": [
+      228.41609849598484,
+      249.69459574369242
+    ],
+    "realized_per_record_rate_eur": 236.36433679309886,
+    "calibration_ok_ci_coverage": true,
+    "predicted_n_exposed_reference": 586,
+    "realized_n_exposed": 614,
+    "n_distinct_clusters_predict_window": 1350
+  },
+  "case_d_independent_clustered": {
+    "name": "case_d_independent_clustered_poorly_calibrated_high_overlap",
+    "overlap_E_and_A_fraction": 0.9,
+    "predicted_per_record_rate_eur": 695.056576266868,
+    "predicted_rate_ci_95": [
+      688.6251397190651,
+      701.9183194159739
+    ],
+    "realized_per_record_rate_eur": 2.267919457746995,
+    "calibration_ok_ci_coverage": false,
+    "predicted_n_exposed_reference": 324,
+    "realized_n_exposed": 307,
+    "n_distinct_clusters_predict_window": 1100
+  },
+  "independently_confirms_calibration_not_overlap": true,
+  "gap_in_implementer_evidence_this_fills": "The implementer's own case_c/case_d (diagnose_task087_check5_7_calibration_adversarial.py) assign a UNIQUE customer_id per record, so every cluster_cells entry has exactly one record -- the cluster bootstrap's clustering never actually engages. The real dataset has genuine repeat-customer clustering (3200 customers over 10000 rows, most customers contributing 3-4 rows). This script re-derives Check 7's conclusion under real cluster structure instead.",
+  "conclusion": "Both cases resolve as required (C well-calibrated despite zero overlap, D poorly calibrated despite 90% overlap) under genuine multi-row clustering. This independently confirms, with a materially different construction, that the design's verdict tracks calibration quality, not ground-truth overlap."
+}

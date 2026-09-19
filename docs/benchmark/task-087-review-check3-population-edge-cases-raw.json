@@ -1,0 +1,43 @@
+{
+  "task": "TASK-087",
+  "review_check": 3,
+  "claim_tested": "The design document's Check 5 ('defined behavior under population drift') is fully defined -- including at the boundary where a candidate's future_holdout population vanishes entirely, not merely the smooth 30% shrinkage its own Case E tested.",
+  "case_f1_population_vanishes": {
+    "name": "case_f1_population_vanishes_to_zero_in_future_holdout",
+    "computable": false,
+    "predict_stats_is_none": false,
+    "realize_stats_is_none": true,
+    "would_raise_assertionerror_under_designs_own_literal_implementation": true
+  },
+  "case_f2_population_explodes": {
+    "name": "case_f2_population_explodes_40x_rate_shifts_moderately",
+    "computable": true,
+    "predicted_per_record_rate_eur": 296.0976948588673,
+    "predicted_rate_ci_95": [
+      292.83722256579193,
+      299.2492158630541
+    ],
+    "predicted_rate_ci_width_eur": 6.411993297262143,
+    "realized_per_record_rate_eur": 259.98682181410067,
+    "calibration_ok_ci_coverage": false,
+    "predicted_n_exposed_reference": 80,
+    "realized_n_exposed": 3200,
+    "population_size_ratio_realize_over_predict": 40.0
+  },
+  "case_f3_tiny_realize_population": {
+    "name": "case_f3_tiny_realize_population_n5_rate_genuinely_off",
+    "computable": true,
+    "predicted_per_record_rate_eur": 299.7831243605799,
+    "predicted_rate_ci_95": [
+      298.52200567853373,
+      301.0864556787083
+    ],
+    "predicted_rate_ci_width_eur": 2.5644500001745882,
+    "realized_per_record_rate_eur": 799.0928191764478,
+    "calibration_ok_ci_coverage": false,
+    "predicted_n_exposed_reference": 600,
+    "realized_n_exposed": 5,
+    "population_size_ratio_realize_over_predict": 0.008333333333333333
+  },
+  "finding": "Case F1 falsifies the design document's Check 5 claim of fully 'defined behavior under population drift': when a candidate's future_holdout exposure is zero (a plausible, not contrived, outcome given discover_candidates selects candidates using only development-split eligibility), the design's own proposed computation -- literally as specified in Sec 1 and implemented in its own diagnostic script's `_calibration_check` -- raises an uncaught AssertionError rather than returning any verdict at all. This is a real gap relative to G10's own existing temporal-stability gate (apply.py lines ~741-757), which already handles an absent future_holdout split defensively (same_sign=False, retention=0.0, gate fails cleanly) precisely because this scenario is a known, expected case for that gate's own inputs -- the same inputs this design proposes to reuse. Cases F2/F3 (population explodes 40x; shrinks to n=5) remain correctly computable and resolve sensibly, confirming the defect is specific to the unguarded zero-population boundary, not the population-drift design generally."
+}

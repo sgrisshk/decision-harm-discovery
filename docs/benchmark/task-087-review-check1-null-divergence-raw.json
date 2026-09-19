@@ -1,0 +1,33 @@
+{
+  "task": "TASK-087",
+  "review_check": 1,
+  "claim_tested": "Null handling in rule_expr's boolean mask does not create a hidden population divergence (different effective eligible population) between the predicted side (development+validation) and realized side (future_holdout) for any DECISION_TIME feature in the real dataset.",
+  "dataset": "travel-bookings-analytical-v1.1.0",
+  "decision_time_features_checked": [
+    "destination",
+    "supplier",
+    "product_category",
+    "customer_price_eur",
+    "quoted_cost_eur",
+    "discount_rate",
+    "manager",
+    "acquisition_channel",
+    "customer_segment",
+    "customer_type",
+    "party_size",
+    "trip_duration_days",
+    "booking_lead_days",
+    "payment_method",
+    "installments",
+    "manual_exception",
+    "travel_month"
+  ],
+  "split_sizes": {
+    "validation": 2462,
+    "future_holdout": 2539,
+    "development": 4999
+  },
+  "features_with_any_null_by_split": {},
+  "zero_null_divergence_confirmed": true,
+  "interpretation": "Zero nulls found in any DECISION_TIME feature, in any split, for the real dataset this project validates against today. The theoretical null-handling divergence channel this probe checks for does not materialize here -- Check 1's 'identical population masks on both sides' claim is independently confirmed clean, not merely by the design doc's own mask-slicing code trace (which does not itself address null-handling parity) but by direct inspection of the actual data. This is dataset-contingent, not an architectural guarantee: a future dataset version with nulls in a DECISION_TIME feature would need this check re-run."
+}

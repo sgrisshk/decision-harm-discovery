@@ -1,0 +1,26 @@
+{
+  "task": "TASK-087",
+  "review_check": 2,
+  "claim_tested": "The design document's Check 4 disclosed 'empirically null' finding (byte-identical top-15 at stability_credit_weight 0.5 vs 0.0, one dataset/seed) holds more broadly, not merely as a coincidence of that one run.",
+  "synthetic_engineered_tie_break": {
+    "name": "synthetic_engineered_tie_break",
+    "default_weight_0_5_selected": [
+      "feat_aeqyes"
+    ],
+    "zero_weight_selected": [
+      "feat_beqyes"
+    ],
+    "selection_changed_by_stability_credit": true
+  },
+  "cross_dataset_v1_0_0": {
+    "dataset": "travel-bookings-analytical-v1.0.0",
+    "outcome_contract_version": "1.1.0",
+    "top_k_default": 15,
+    "top_k_zero": 15,
+    "only_in_default_count": 0,
+    "only_in_zero_count": 0,
+    "identical_top_k_sets": true
+  },
+  "v1_1_0_reference": "Not re-run here (design doc's own scripts/diagnose_task087_check4_future_holdout_leakage.py already tested v1.1.0/seed 1729: byte-identical top-15, docs/benchmark/task-087-check4-future-holdout-leakage-raw.json).",
+  "finding": "The cross-dataset comparison (v1.0.0, a genuinely different domain instance the design document never tested) reproduces the design doc's own 'byte-identical top-15' result: identical_top_k_sets=True. This strengthens, but does not settle, the 'empirically null' claim. The engineered tie-break case settles the underlying question directly: R2 (feat_b==yes) has a ~10% HIGHER raw development-split score than R1 (feat_a==yes) by construction. Under stability_credit_weight=0.0 (raw score only), R2 correctly wins the single top-K slot (['feat_beqyes']). Under stability_credit_weight=0.5 -- the real, unconditional shipped default -- the winner FLIPS to R1 (['feat_aeqyes']), because R1's cross-split sign consistency (1.0, stable in validation/future_holdout) earns a 1.5x credit that overturns R2's raw-score lead (R2's consistency is 0.0, no credit). selection_changed_by_stability_credit=True. This is decisive, constructive proof -- using the real, unmodified discover_candidates/_temporal_consistency/_apply_stability_credit/_greedy_diverse_select code -- that the channel IS capable of determining real top-K candidate membership by reading future_holdout's sign, whenever a rule's raw development score is close enough to a competitor's that the credit margin (up to 1.5x for weight=0.5) can overturn the ranking. The design document's own 'empirically null' finding (Sec 4.3-4.4) is therefore correctly disclosed as a property of the ONE real dataset/run tested, not a structural guarantee -- exactly the caveat the design document itself already flags as unresolved (Sec 4.4: 'a candidate pool with more genuinely mixed-sign later-split behavior near the relevance_floor_percentile cutoff could see this channel actually reorder or exclude a candidate'). This review independently confirms that hypothetical is realizable, not just plausible, strengthening rather than overturning the design document's own disclosed Check 4 CONDITIONAL verdict."
+}
