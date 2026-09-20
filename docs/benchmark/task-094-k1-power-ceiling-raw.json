@@ -1,0 +1,155 @@
+{
+  "config": {
+    "beam_rules_per_structure": 2,
+    "beam_width": 80,
+    "max_conditions": 3,
+    "max_support": 0.4,
+    "min_n": 40,
+    "min_support": 0.01,
+    "seed": 1729
+  },
+  "dataset_identity_sha256": "b6128eb3c1bdb36515c90570aa4ccabfc3dff8d1026d9002f1c832774b60a683",
+  "diagnostic": "POST_HOC_DIAGNOSTIC",
+  "disclosure": "Not an official TASK-015/TASK-019/TASK-028 run. Produces no official metric, changes no gate/threshold, proposes no mechanism. Opens no hidden ground truth \u2014 a purely structural comparison of the real eligible pool's own k==1 vs k>=2 power characteristics under G03's and G05's real formulas.",
+  "eligible_k1_count": 26,
+  "eligible_k_ge2_count": 22536,
+  "eligible_pool_size": 22562,
+  "engine_version": "discovery-engine-v0.6.1",
+  "evaluated_hypotheses": 33085,
+  "family_size_used_for_bh": 33085,
+  "g03_thresholds": {
+    "min_exposed_records": 50,
+    "z_95": 1.959964,
+    "z_power_80": 0.841621
+  },
+  "g05_thresholds": {
+    "fdr_alpha": 0.1
+  },
+  "k1_pool_summary": {
+    "abs_harm_per_booking_eur": {
+      "max": 325.8143,
+      "median": 49.1084,
+      "min": 0.9082
+    },
+    "clears_bh_rank1_bound_count": 2,
+    "clears_bh_rank1_bound_fraction": 0.0769,
+    "clears_both_g03_and_bh_rank1_count": 2,
+    "clears_both_g03_and_bh_rank1_fraction": 0.0769,
+    "clears_g03_floor_count": 26,
+    "clears_g03_floor_fraction": 1.0,
+    "clears_g03_power_count": 9,
+    "clears_g03_power_fraction": 0.3462,
+    "count": 26,
+    "label": "k==1 (singleton) eligible pool",
+    "minimum_detectable_effect_eur": {
+      "max": 97.4232,
+      "median": 71.5687,
+      "min": 60.6955
+    },
+    "n_exposed": {
+      "max": 1999,
+      "median": 1062.0,
+      "min": 522,
+      "p25": 999.0,
+      "p75": 1375.0
+    }
+  },
+  "k_ge2_pool_summary": {
+    "abs_harm_per_booking_eur": {
+      "max": 938.8047,
+      "median": 94.0284,
+      "min": 0.0047
+    },
+    "clears_bh_rank1_bound_count": 2532,
+    "clears_bh_rank1_bound_fraction": 0.1124,
+    "clears_both_g03_and_bh_rank1_count": 2532,
+    "clears_both_g03_and_bh_rank1_fraction": 0.1124,
+    "clears_g03_floor_count": 22536,
+    "clears_g03_floor_fraction": 1.0,
+    "clears_g03_power_count": 7069,
+    "clears_g03_power_fraction": 0.3137,
+    "count": 22536,
+    "label": "k>=2 (compound) eligible pool",
+    "minimum_detectable_effect_eur": {
+      "max": 299.4036,
+      "median": 139.2209,
+      "min": 61.1972
+    },
+    "n_exposed": {
+      "max": 1912,
+      "median": 240.0,
+      "min": 50,
+      "p25": 128.0,
+      "p75": 450.0
+    }
+  },
+  "structural_subset_check": {
+    "description": "For every eligible k>=2 rule, its n_exposed should never exceed any of its leave-one-out parent rules' n_exposed (conjunction only removes rows).",
+    "parent_pairs_checked": 66218,
+    "violations": 0
+  },
+  "task": "TASK-094 scope question 1 (does more k==1 representation buy anything)",
+  "top_scoring_interaction": {
+    "bh_rank1_bound": 3.0225177572918242e-06,
+    "clears_bh_rank1_bound": true,
+    "development_score": 9664.968586169833,
+    "g03_would_pass_on_floor": true,
+    "g03_would_pass_on_power": true,
+    "harm_per_booking": 310.3023,
+    "k": 2,
+    "minimum_detectable_effect_eur": 67.0929,
+    "n_comparison": 3716,
+    "n_exposed": 1283,
+    "optimistic_unclustered_p": 2.1382640823146143e-38,
+    "pooled_sd": 739.5752,
+    "rule": "discount_rate ge 0.12 AND manual_exception eq False",
+    "shortfall_factor_at_rank1": 7.074446716337901e-33,
+    "support": 0.2566513302660532
+  },
+  "top_scoring_single": {
+    "bh_rank1_bound": 3.0225177572918242e-06,
+    "clears_bh_rank1_bound": true,
+    "development_score": 12081.517204480237,
+    "g03_would_pass_on_floor": true,
+    "g03_would_pass_on_power": true,
+    "harm_per_booking": 325.8143,
+    "k": 1,
+    "minimum_detectable_effect_eur": 65.4589,
+    "n_comparison": 3624,
+    "n_exposed": 1375,
+    "optimistic_unclustered_p": 3.3949727328684873e-44,
+    "pooled_sd": 737.6816,
+    "rule": "discount_rate ge 0.12",
+    "shortfall_factor_at_rank1": 1.123226728669539e-38,
+    "support": 0.2750550110022004
+  },
+  "top_scoring_single_full_pipeline_check": {
+    "evidence_level": "adjusted_observational_association",
+    "failed_gates": [
+      "G13_IDENTIFICATION_DESIGN",
+      "G14_RANDOMIZATION_INTEGRITY"
+    ],
+    "family_size": 33085,
+    "gate_outcomes": {
+      "G00_LINEAGE_PREREGISTRATION": "pass",
+      "G01_TARGET_LEAKAGE": "pass",
+      "G02_POST_TREATMENT_CONTROLS": "pass",
+      "G03_SAMPLE_ADEQUACY": "pass",
+      "G04_UNCERTAINTY": "pass",
+      "G05_MULTIPLE_COMPARISONS": "pass",
+      "G06_CONFOUNDING": "pass",
+      "G07_SELECTION_AND_COLLIDER": "pass",
+      "G08_SURVIVORSHIP_COHORT": "pass",
+      "G09_SIMPSON_AND_HETEROGENEITY": "pass",
+      "G10_TEMPORAL_STABILITY": "pass",
+      "G11_SEASONALITY": "pass",
+      "G12_ROBUSTNESS": "pass",
+      "G13_IDENTIFICATION_DESIGN": "fail",
+      "G14_RANDOMIZATION_INTEGRITY": "fail",
+      "G15_ECONOMIC_MATERIALITY": "pass",
+      "G16_CANDIDATE_COMPOSITION_SAFETY": "pass"
+    },
+    "policy_readiness": "shadow_policy",
+    "rule": "discount_rate ge 0.12"
+  }
+}
