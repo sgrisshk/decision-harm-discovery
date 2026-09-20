@@ -185,8 +185,9 @@ definitions (`_LEVEL_GATES`, `LEVEL_REQUIREMENTS`) and `grading.py`'s `classify_
   candidates in **both** arms — `ecommerce`'s analytical dataset manifest declares no reviewed
   `heterogeneity_column`/`robustness_group_column` (`analytical_bridge.analytical_dataset_config`
   sets both to `None` for every `TASK-061` domain generically; this is the exact, pre-disclosed
-  condition `docs/benchmark/task-068-ecommerce-preregistration.md` §R3 recorded in advance, and
-  `ADR-092` Q4's own text names, before this task ran). `GateOutcome.NOT_EVALUATED` is treated
+  condition `docs/benchmark/task-068-ecommerce-preregistration.md` §R3 recorded in advance, before
+  this task ran — `ADR-092` Q4's own text does not mention `G09` or heterogeneity anywhere; only
+  §R3 pre-discloses it). `GateOutcome.NOT_EVALUATED` is treated
   exactly like `FAIL` (`contract.py`'s own docstring: "an unrun check is not a passed check").
   `G09`'s `GateSpec` has `on_failure=CAP_EVIDENCE, max_level_on_failure=EvidenceLevel.DESCRIPTIVE`
   — **independent of every other gate's outcome, an unsatisfied `G09` caps every candidate's
