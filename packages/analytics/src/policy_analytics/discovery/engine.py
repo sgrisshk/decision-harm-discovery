@@ -39,6 +39,18 @@ trimming an already-ranked, already-diversified selection down to `top_k` while 
 final slots any single feature name may occupy — never re-ranking, never reconsidering a rule
 `_greedy_diverse_select` already excluded. See its docstring and
 `docs/analytics/discovery-engine-v0.md`.
+
+`v0.6.1` (`TASK-071`) is a local correctness fix to the depth->1 leave-one-out redundancy check in
+`discover_candidates`, not a mechanism change: it compares each rule's exposed *row set*
+(`_exposed_rows`) against each immediate leave-one-out parent's exposed row set, instead of only
+their `n_exposed` counts. A conjunctive child rule's exposed rows are always a subset of an
+immediate parent's (dropping a required condition can only admit more rows), so equal counts there
+already implied equal row sets — verified both by proof and empirically (two full real searches,
+69,311 child/parent pairs, zero disagreements between the two checks) — so this changes no
+candidate-stage outcome on any domain checked. It replaces an implicit, non-obvious subset argument
+with a comparison that is correct by construction and does not depend on that argument continuing
+to hold if this call site is ever changed. See its inline comment and
+`docs/analytics/discovery-engine-v0.md`.
 """
 
 from __future__ import annotations
@@ -69,7 +81,7 @@ class OutcomeDefinition(Protocol):
 
 
 Operator = Literal["eq", "ge", "lt"]
-DISCOVERY_METHOD_VERSION = "discovery-engine-v0.6.0"
+DISCOVERY_METHOD_VERSION = "discovery-engine-v0.6.1"
 
 
 @dataclass(frozen=True, slots=True, order=True)
@@ -643,14 +655,31 @@ def discover_candidates(
             if _eligible(metric, config):
                 assert metric is not None
                 if depth > 1:
+                    # Exposure-identical means the leave-one-out parent's exposed *rows* are the
+                    # exact same set as the child's, not merely the same count (TASK-071).
+                    # `n_exposed` equality used to stand in for that directly. It is not actually
+                    # a coincidence-prone proxy here: `rule` is `parent_rule` AND one extra
+                    # condition, so `_exposed_rows(rule)` is always a strict subset of
+                    # `_exposed_rows(parent_rule)` (conjunction only ever removes rows). A subset
+                    # with equal cardinality is the same set, so the old count check was already
+                    # exact for this specific parent/child relationship — confirmed empirically
+                    # against every depth->1 eligible rule in two full real searches (travel,
+                    # b2b_sales; 69,311 child/parent pairs, zero disagreements). This still moves
+                    # to the direct, self-evidently-correct row-set comparison rather than relying
+                    # on that subset invariant implicitly: it removes a non-obvious correctness
+                    # argument from the code's actual behavior and stays correct even if some
+                    # future change to this comparison (e.g. comparing to non-immediate ancestors)
+                    # broke the subset guarantee.
+                    parent_rules = [tuple(c for c in rule if c != removed) for removed in rule]
                     parent_metrics = [
-                        _metric(
-                            frame, tuple(c for c in rule if c != removed), outcome, "development"
-                        )
-                        for removed in rule
+                        _metric(frame, parent_rule, outcome, "development")
+                        for parent_rule in parent_rules
                     ]
+                    child_exposed_rows = _exposed_rows(development, rule)
                     if any(
-                        parent and parent.n_exposed == metric.n_exposed for parent in parent_metrics
+                        parent is not None
+                        and _exposed_rows(development, parent_rule) == child_exposed_rows
+                        for parent_rule, parent in zip(parent_rules, parent_metrics, strict=True)
                     ):
                         continue
                 scored[rule] = (_development_score(metric, depth, config), metric)

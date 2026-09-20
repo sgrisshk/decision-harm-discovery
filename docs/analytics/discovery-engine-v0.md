@@ -30,8 +30,9 @@ remain excluded from atoms.
   as `< threshold` or `>= threshold`. Categorical conditions use equality for features with no
   more than 12 levels.
 - Deterministic beam search evaluates conjunctions of one to three conditions. Conditions in a
-  conjunction must reference different features. A conjunction is rejected as tautological if it
-  does not strictly reduce the exposed population relative to every immediate parent rule.
+  conjunction must reference different features. A conjunction is rejected as tautological if its
+  exposed row set is identical (`v0.6.1`, `TASK-071`: compared directly by row set, not only by
+  count) to that of any immediate parent rule formed by dropping one of its own conditions.
 - Development eligibility requires `N >= 40`, support between 1% and 40%, and harmful raw outcome
   direction. The score-core beam width is 80; v0.5.0 additionally retains up to two best eligible
   rules per feature/operator structural signature before expansion. Seed is 1729 (the search is
@@ -429,6 +430,48 @@ a column withheld from `feature_columns` never appears in any candidate, cap ena
 **Not yet run:** this is implementation only. No domain is selected and no official blind run is
 authorized by this section — `ADR-055`/`ADR-056` require a separate preregistration, after Code
 Reviewer approval, naming exactly one still-untouched `TASK-061` domain before any run begins.
+
+## Exposure-identical means row-identical, v0.6.1 (`TASK-071`)
+
+**Origin:** `TASK-069` item 7 (oracle decomposition) found `P02`'s tightest representable rule
+discarded during search as "exposure-identical to its own depth-2 parent." The depth->1
+leave-one-out redundancy check in `discover_candidates` that produces this verdict compared only
+`SplitMetric.n_exposed` — a row *count* — between a rule and each parent formed by dropping one of
+its conditions, not the actual exposed row sets. Read at face value that looks like it could admit
+a false positive: two differently-shaped rules whose exposed populations happen to be the same
+*size* but are not the same *rows* being wrongly treated as redundant.
+
+**What the code actually does, confirmed rather than assumed.** `discover_candidates` only ever
+runs this check between a rule and its own immediate leave-one-out parents — parents obtained by
+removing exactly one of the rule's own conditions, never an unrelated same-depth sibling. Because
+`_rule_expr` ANDs conditions together, and dropping a conjunct can only admit rows (never exclude
+one that the fuller conjunction admitted), a child rule's exposed row set is *always* a subset of
+that specific parent's — this holds under Polars' three-valued (`True`/`False`/`null`) filter
+semantics too, not only for total booleans. A subset with equal cardinality is the same set, by
+elementary finite-set arithmetic: for this exact comparison, `n_exposed` equality was already
+logically equivalent to full row-set equality; the coincidental-collision scenario the count check
+looks like it could admit cannot actually happen here. Confirmed two ways: a direct proof (above),
+and empirically — every depth->1 eligible rule in two full real searches (travel
+`travel-bookings-analytical-v1.0.0`, `b2b_sales-analytical-v1.0.0`; 69,311 child/parent pairs in
+total) was checked with both the count comparison and a `_exposed_rows`-based set comparison, and
+the two never disagreed. `P02`'s branch is exposure-identical to its parent in the exact-row-set
+sense too, not merely in count — the earlier verdict was correct, not a bug's false positive.
+
+**Fix, made anyway.** The check now compares `_exposed_rows(development, rule)` against
+`_exposed_rows(development, parent_rule)` directly (set equality) instead of `n_exposed` counts.
+Behaviorally a no-op everywhere checked (see above), by design: the change replaces an implicit,
+non-obvious subset argument with a comparison that states and enforces the actual intended
+condition — identical exposed rows — directly, and stays correct even if this call site is later
+generalized to compare against something other than an immediate leave-one-out parent, where the
+subset guarantee would no longer hold automatically.
+
+**Not a recall initiative.** `TASK-069`'s separate validation-power autopsy already established
+`P02`'s ceiling is `G05` (multiple-comparisons dilution), independent of this check. Because the
+fix changes no candidate-stage outcome, `TASK-069`'s recall figures (`2/7` raw, `2/2` of the
+currently-chaseable-achievable set) are unchanged by construction, not just by later remeasurement.
+`DISCOVERY_METHOD_VERSION` bumps `"discovery-engine-v0.6.0"` → `"discovery-engine-v0.6.1"` because
+`discover_candidates`'s internal logic changed, even though its observable output on every domain
+checked did not.
 
 ## Reproduction
 

@@ -9,6 +9,7 @@ from policy_analytics.discovery.engine import (
     _apply_feature_identity_cap,
     _apply_stability_credit,
     _development_score,
+    _exposed_rows,
     _greedy_diverse_select,
     _percentile,
     _select_expansion_beam,
@@ -153,7 +154,106 @@ def test_discover_candidates_with_exponent_one_matches_manual_pure_exposure_repr
         )
         assert result["candidate_count"] > 0
         assert all(candidate["fit_split"] == "development" for candidate in result["candidates"])
-        assert result["methodology_version"] == "discovery-engine-v0.6.0"
+        assert result["methodology_version"] == "discovery-engine-v0.6.1"
+
+
+# --- TASK-071: exposure-identical redundancy pruning compares row sets, not counts ---
+
+
+def test_exposed_rows_equal_count_does_not_imply_equal_rows() -> None:
+    """The exact equivalence condition the depth->1 redundancy check now enforces is row-set
+    identity, not count identity — and count identity is not a safe proxy for it *in general*.
+    Two unrelated conditions here select disjoint four-row groups: equal `n_exposed`, completely
+    different rows. `_exposed_rows` (what the fixed check compares) correctly reports them as
+    unequal; a hypothetical count-only check would have wrongly called them redundant.
+
+    `discover_candidates`'s own redundancy check never actually presents `_exposed_rows` with a
+    pair like this: it only ever compares a rule to a leave-one-out parent formed by dropping one
+    of the rule's own conditions, and conjunction only ever removes rows, so that specific
+    comparison's child is always a subset of its parent (see
+    `test_child_exposed_rows_are_always_a_subset_of_its_leave_one_out_parent` below) — meaning
+    equal counts there already implied equal rows even before this fix. This test proves the
+    primitive the fix now relies on is exact on its own terms, independent of that call-site
+    guarantee, matching this project's own `ADR-007`/`ADR-012` discipline of testing the actual
+    invariant rather than trusting an incidental correctness argument.
+    """
+    frame = pl.DataFrame(
+        {
+            "group_low": [True, True, True, True, False, False, False, False],
+            "group_high": [False, False, False, False, True, True, True, True],
+        }
+    )
+    low_rows = _exposed_rows(frame, (Condition("group_low", "eq", True),))
+    high_rows = _exposed_rows(frame, (Condition("group_high", "eq", True),))
+    assert len(low_rows) == len(high_rows) == 4  # equal n_exposed ...
+    assert low_rows != high_rows  # ... but not the same rows
+    assert low_rows.isdisjoint(high_rows)
+
+
+def test_child_exposed_rows_are_always_a_subset_of_its_leave_one_out_parent() -> None:
+    """Confirms the structural fact the redundancy check's soundness rests on: for a rule formed
+    by adding one condition to a parent rule, the child's exposed rows are always a subset of the
+    parent's (a conjunction can only ever remove rows, never admit one the parent excluded). This
+    is what makes `n_exposed` equality between a rule and its own leave-one-out parent logically
+    equivalent to full row-set equality — verified directly here on a small generic fixture, and
+    confirmed to hold with zero exceptions across two full real searches in `TASK-071`'s own
+    write-up (`docs/analytics/discovery-engine-v0.md`)."""
+    frame = pl.DataFrame(
+        {
+            "region": ["north", "north", "south", "north", "south", "north", "north", "south"],
+            "tier": ["gold", "gold", "gold", "silver", "silver", "gold", "silver", "gold"],
+        }
+    )
+    parent_rule = (Condition("region", "eq", "north"),)
+    child_rule = (Condition("region", "eq", "north"), Condition("tier", "eq", "gold"))
+    parent_rows = _exposed_rows(frame, parent_rule)
+    child_rows = _exposed_rows(frame, child_rule)
+    assert child_rows <= parent_rows
+    assert child_rows != parent_rows  # this particular pair is not redundant
+
+
+def test_exposure_identical_child_rule_is_pruned_from_final_candidates() -> None:
+    """Positive case: a depth-2 rule that looks different from its depth-1 parent (an extra
+    condition on a second feature) but, on this data, selects the exact identical row set — the
+    second feature's positive value co-occurs with the first feature's positive value on every
+    single row — must still be discarded as redundant, end to end through the public
+    `discover_candidates` API. `signal_flag` and `redundant_flag` are two differently-named,
+    differently-shaped conditions that happen to partition the development split identically
+    (`redundant_flag == "yes"` exactly when `signal_flag == "A"`), so every non-empty depth-2
+    combination of them is exposure-identical to one of its depth-1 parents. If the redundancy
+    check ever under-pruned (a false negative), a two-condition candidate combining both features
+    would appear below; it must not."""
+    rows: list[tuple[str, str, float, str]] = []
+    for split in ("development", "validation", "future_holdout"):
+        for index in range(400):
+            signal = "A" if index % 4 == 0 else ("B" if index % 4 == 1 else "C")
+            redundant = "yes" if index % 4 == 0 else "no"
+            harm = 80.0 if signal == "A" else 0.0
+            rows.append((signal, redundant, 200.0 - harm, split))
+    frame = pl.DataFrame(
+        rows,
+        schema=["signal_flag", "redundant_flag", "contribution_margin_eur", "split_label"],
+        orient="row",
+    )
+    result = discover_candidates(
+        frame,
+        ("signal_flag", "redundant_flag"),
+        primary_outcome(),
+        DiscoveryConfig(min_n=20, beam_width=30, top_k=5),
+    )
+    assert result["candidate_count"] > 0
+    for candidate in result["candidates"]:
+        conditions = candidate["conditions"]
+        assert len(conditions) == 1, (
+            "the only non-empty two-condition combination of signal_flag/redundant_flag is "
+            "exposure-identical to its own parent and must be pruned before selection"
+        )
+    selected_features = {
+        condition["feature"]
+        for candidate in result["candidates"]
+        for condition in candidate["conditions"]
+    }
+    assert selected_features & {"signal_flag", "redundant_flag"}  # the real signal still surfaces
 
 
 # --- TASK-064: feature/operator-structure coverage in the expansion beam ---
@@ -858,7 +958,7 @@ def test_identity_cap_disabled_reproduces_v050_selection_exactly() -> None:
         ),
     )
     assert implicit_default["candidates"] == explicit_disabled["candidates"]
-    assert implicit_default["methodology_version"] == "discovery-engine-v0.6.0"
+    assert implicit_default["methodology_version"] == "discovery-engine-v0.6.1"
 
     # `_apply_feature_identity_cap` on the actual selected output must be a true no-op at the
     # default -- confirms the guarantee structurally, not just behaviorally.
