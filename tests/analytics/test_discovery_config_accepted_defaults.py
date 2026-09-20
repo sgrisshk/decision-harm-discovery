@@ -29,8 +29,9 @@ pytestmark = pytest.mark.analytics
 
 # ACCEPTED_DEFAULTS -- the "currently accepted defaults" manifest `ADR-070` authorizes.
 #
-# One entry per `DiscoveryConfig` field (19 fields as of this writing -- `engine.py`, commit
-# `dd81ea9`, `TASK-068`). Each value is commented with the task/ADR that last approved it, seeded
+# One entry per `DiscoveryConfig` field (20 fields as of this writing -- `engine.py`, `TASK-097`
+# adding `reserve_k1_slot` to the 19 recorded at `TASK-068`). Each value is commented with the
+# task/ADR that last approved it, seeded
 # by reading `engine.py`'s own field docstrings (each field narrates its own provenance) and
 # cross-checked against `git blame`/`git log -p` on that file and the cited `TASKS.md`/
 # `DECISIONS.md` entries.
@@ -92,6 +93,12 @@ ACCEPTED_DEFAULTS: dict[str, object] = {
     # Introduced at `1.0` (commit `9a4eee1`, 2026-08-22), which never binds (equals `top_k` itself),
     # so `discovery-engine-v0.5.0` selection is reproduced exactly; unchanged since.
     "max_feature_identity_fraction": 1.0,  # TASK-068 (commit 9a4eee1, 2026-08-22), ADR-056/ADR-057.
+    # `TASK-097` (implementing `TASK-095`'s twice-reviewed design,
+    # `docs/analytics/task-095-k1-reservation-design.md`) -- bounded k==1 top-K reservation, Stage 3
+    # of final assembly. Introduced at `False`, a byte-identical no-op for candidate selection (the
+    # new Stage 3 code path is never evaluated unless explicitly enabled) -- matching every prior
+    # `TASK-060`/`TASK-068` field addition's own no-op-default convention.
+    "reserve_k1_slot": False,  # TASK-097 (TASK-095's design), design doc §4.1/§8.
 }
 
 

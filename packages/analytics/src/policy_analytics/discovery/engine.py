@@ -51,10 +51,24 @@ candidate-stage outcome on any domain checked. It replaces an implicit, non-obvi
 with a comparison that is correct by construction and does not depend on that argument continuing
 to hold if this call site is ever changed. See its inline comment and
 `docs/analytics/discovery-engine-v0.md`.
+
+`TASK-097` (implementing `TASK-095`'s twice-reviewed design,
+`docs/analytics/task-095-k1-reservation-design.md`) adds a bounded, opt-in Stage 3 to final
+candidate assembly: `DiscoveryConfig.reserve_k1_slot` (default `False`) reserves at most one final
+top-K slot for the single best-qualifying `k==1` candidate when interactions alone would otherwise
+fill every slot (`docs/benchmark/task-094-k1-selection-scoping.md` found this is the structural
+norm, not an edge case, and that a genuinely high-quality single can be unreachable "regardless of
+relative score" purely because of the interactions-first ordering). `False` is a genuine no-op,
+confirmed structurally: the new `_reserve_k1_slot` code path is never evaluated, not merely
+output-equivalent, and `DISCOVERY_METHOD_VERSION` does not change either way — this addition does
+not bump it, matching the design's own explicit "unchanged... when this field is False" scoping of
+that claim. See `_reserve_k1_slot`'s own docstring for the mechanism and
+`docs/analytics/task-095-k1-reservation-design.md` §4 for the full, twice-reviewed specification.
 """
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import asdict, dataclass, replace
 from typing import Any, Literal, Protocol, cast
 
@@ -221,6 +235,26 @@ class DiscoveryConfig:
     #: `DECISION_TIME` can appear in any rule's conditions at all, so this cap can never see a
     #: `POST_DECISION`/`OUTCOME`/`UNKNOWN` field. Must be in `[0.0, 1.0]`.
     max_feature_identity_fraction: float = 1.0
+    #: Whether final assembly reserves at most one top-K slot for the single best-qualifying k==1
+    #: candidate, when interactions alone would otherwise fill every slot (`TASK-095`/`TASK-097`,
+    #: `docs/analytics/task-095-k1-reservation-design.md`). `False` (default) is a byte-identical
+    #: no-op for candidate selection: the new Stage 3 code path (`_reserve_k1_slot`) is not even
+    #: evaluated when this is `False` — `discover_candidates`'s control flow and the selected
+    #: candidates themselves (identity, order, count, every per-candidate field) and
+    #: `DISCOVERY_METHOD_VERSION` are all unchanged from `discovery-engine-v0.6.1` when this field
+    #: is `False`. This does NOT mean the full returned dict is byte-identical: the `"search"`
+    #: metadata block already includes `asdict(config)`, which will unconditionally report
+    #: `reserve_k1_slot: False` as one more key once this field exists — exactly as every prior
+    #: `TASK-060`/`TASK-068` config field addition already changed that same metadata block's key
+    #: set, expected and not a defect, but distinct from candidate-selection byte-identity. Must be
+    #: explicitly enabled to take effect — matching this project's own convention for every prior
+    #: `TASK-060` addition (`diversity_discount_weight`, `min_diversity_relevance_ratio`,
+    #: `stability_credit_weight`, `relevance_floor_percentile`, `max_feature_identity_fraction` all
+    #: shipped with a no-op default that reproduces the prior version exactly). Not a count: the
+    #: reserved-slot count is fixed at 1 by design (`task-095-k1-reservation-design.md` §8) and is
+    #: deliberately not exposed as a tunable integer — a larger count needs its own separate,
+    #: checked justification, not a config value someone can raise without one.
+    reserve_k1_slot: bool = False
 
     def __post_init__(self) -> None:
         if self.beam_width < 1:
@@ -624,6 +658,153 @@ def _apply_feature_identity_cap(
     return final
 
 
+def _reserve_k1_slot(
+    final_selected: list[tuple[Condition, ...]],
+    singles: list[tuple[Condition, ...]],
+    exposures: dict[tuple[Condition, ...], frozenset[int]],
+    effective_score: dict[tuple[Condition, ...], float],
+    atom_usage: dict[Condition, int],
+    max_overlap: dict[tuple[Condition, ...], float],
+    config: DiscoveryConfig,
+    prepare: Callable[[list[tuple[Condition, ...]]], None],
+) -> tuple[list[tuple[Condition, ...]], dict[str, Any]]:
+    """Bounded `k==1` top-K reservation (`TASK-095`/`TASK-097`,
+    `docs/analytics/task-095-k1-reservation-design.md` §4.3 — the six steps below are numbered to
+    match that document's own, round-2-revised numbering exactly).
+
+    Called by `discover_candidates` only when `config.reserve_k1_slot` is `True` and Stage 1/2
+    already filled `config.top_k` with zero `k==1` members — the common case
+    (`docs/benchmark/task-094-k1-selection-scoping.md`) where interactions alone crowd out every
+    single regardless of relative score. Probes exactly one additional slot via the real,
+    unmodified `_greedy_diverse_select` and, on a qualifying single, drops `final_selected[-1]`
+    (the weakest incumbent by marginal-gain order — `_greedy_diverse_select` builds `selected` in
+    strictly non-increasing marginal-gain order and `_apply_feature_identity_cap` preserves that
+    order, so no new comparison is needed to find it) in its favor. Exact fallback — returns
+    `final_selected` unchanged — when no single qualifies. `top_k` itself never grows: this is a
+    bounded reduction in interaction slots, never a `top_k` increase.
+
+    `max_overlap` and `atom_usage` are the same shared accumulators `_greedy_diverse_select`
+    mutated during Stage 1/2; both are mutated in place here too (consistent with that existing
+    convention), though nothing downstream reads either again once this function returns.
+    `prepare` is `discover_candidates`'s own `_prepare` closure, passed in explicitly so this stays
+    a plain, directly testable top-level function; it is idempotent (only computes for rules not
+    already cached), matching step 1 below.
+
+    Returns the (possibly updated) selected list and a disclosed `"k1_reservation"` metadata dict
+    (design §4.1/§4.3): `{"eligible": True, "activated": bool, "promoted_conditions": str | None,
+    "displaced_conditions": str | None}`. `"eligible"` is always `True` here — the caller only
+    invokes this function once its own trigger condition (`len(final_selected) == config.top_k`
+    and every member is `k>=2`) already holds; a caller that does not invoke this function at all
+    (`reserve_k1_slot=False`, or the trigger did not hold) reports `"eligible": False` itself.
+    """
+    metadata: dict[str, Any] = {
+        "eligible": True,
+        "activated": False,
+        "promoted_conditions": None,
+        "displaced_conditions": None,
+    }
+    if not singles:
+        return final_selected, metadata  # nothing to promote; identical to today by construction
+
+    # 1. Prepare singles exactly as the existing fallback already would (unchanged helper, same
+    #    exposures/temporal-consistency/effective-score computation as Stage 2 already performs
+    #    when it runs at all).
+    prepare(singles)  # existing helper (discover_candidates's own _prepare), unmodified
+
+    # 2. FIRST CORRECTION -- self-found before round 1 review (design §10.1): seed each single's
+    #    max_overlap against every incumbent in final_selected, not just 0.0. _prepare's own
+    #    initialization sets max_overlap to 0.0 for any rule seen for the first time -- correct
+    #    when a phase starts from an empty selected list (Stage 1's own first call), but wrong
+    #    here, because Stage 3 always starts from a *full* top_k of incumbents.
+    incumbent_exposures = [exposures[rule] for rule in final_selected]
+    for single in singles:
+        max_overlap[single] = max(
+            (_jaccard(exposures[single], exposure) for exposure in incumbent_exposures),
+            default=0.0,
+        )
+
+    # 3. SECOND CORRECTION -- found by round 1 independent review, not self-found (design §10.6):
+    #    recompute atom_usage relative to final_selected too, the identical discipline step 2 just
+    #    applied to max_overlap. The atom_usage dict this function receives is Stage 1/2's own raw
+    #    accumulator, which can carry phantom counts for atoms belonging only to candidates
+    #    _apply_feature_identity_cap dropped (it trims via its own, separate, local feature_usage
+    #    counter and never decrements the shared atom_usage dict for whatever it drops). Recomputed
+    #    fresh here instead, counting only conditions actually present in final_selected's own
+    #    rules -- exactly what max_candidates_per_atom's own name says it should be measuring. No
+    #    branch on identity_cap_active is needed: when the cap is not active, final_selected ==
+    #    selected (nothing was ever trimmed), so this recomputation is provably identical, count
+    #    for count, to what atom_usage already holds -- a strict generalization, not a special case.
+    atom_usage_for_probe: dict[Condition, int] = {}
+    for rule in final_selected:
+        for condition in rule:
+            atom_usage_for_probe[condition] = atom_usage_for_probe.get(condition, 0) + 1
+
+    # 4. Non-destructive probe: copy the mutable state _greedy_diverse_select mutates, run it with
+    #    a budget of exactly one more than the current final_selected size. The while loop's own
+    #    guard (`len(selected) < config.top_k`) then admits at most one candidate, through the
+    #    *exact* same relevance-floor/overlap-discount/hard-jaccard-ceiling/atom-usage-cap logic
+    #    interactions already went through in this run -- _greedy_diverse_select itself is called
+    #    completely unmodified.
+    probe_selected = list(final_selected)
+    probe_selected_exposures = list(incumbent_exposures)
+    probe_atom_usage = atom_usage_for_probe  # step 3's correction -- NOT dict(atom_usage)
+    probe_max_overlap = dict(max_overlap)
+    _greedy_diverse_select(
+        singles,
+        effective_score,
+        exposures,
+        replace(config, top_k=len(final_selected) + 1),
+        probe_selected,
+        probe_selected_exposures,
+        probe_atom_usage,
+        probe_max_overlap,
+    )
+    if len(probe_selected) == len(final_selected):
+        return final_selected, metadata  # no single cleared the floor/overlap/atom-usage bar --
+        # exact fallback, requirement 1
+
+    promoted = probe_selected[-1]  # the one single _greedy_diverse_select's own marginal-gain
+    # comparison picked
+
+    # 5. Re-validate max_feature_identity_fraction's own invariant for the promoted single alone
+    #    (design §5.5 -- only the promoted single's own feature(s) need checking, never a full
+    #    re-walk: Stage 3 only ever removes one incumbent, which can only *decrease* every
+    #    feature's count, and adds one single, which can only *increase* the count of that single's
+    #    own -- exactly one -- feature). Inlined directly, not via a separate helper (design §14
+    #    revision 2): the same accumulation pattern _apply_feature_identity_cap itself already uses,
+    #    restricted here to final_selected's surviving incumbents.
+    if config.max_feature_identity_fraction < 1.0:
+        max_per_feature = max(1, int(config.max_feature_identity_fraction * config.top_k))
+        usage_without_dropped: dict[str, int] = {}
+        for rule in final_selected[:-1]:  # the about-to-be-dropped weakest incumbent excluded --
+            for condition in rule:  # its own feature(s) can only ever help this check, never hurt
+                usage_without_dropped[condition.feature] = (
+                    usage_without_dropped.get(condition.feature, 0) + 1
+                )
+        if any(
+            usage_without_dropped.get(feature, 0) >= max_per_feature
+            for feature in {condition.feature for condition in promoted}
+        ):
+            return final_selected, metadata  # promotion would reopen the cap's own invariant --
+            # decline, exact fallback, requirement 1
+
+    # 6. Commit: drop the weakest incumbent (final_selected's own last element), append the
+    #    promoted single. The shared atom_usage/max_overlap dicts (not the fresh
+    #    atom_usage_for_probe from step 3) are updated too, though nothing in this run reads either
+    #    again after this point -- discover_candidates's own remaining code treats `selected` as an
+    #    opaque ordered list of rule tuples and never looks at either dict again. Kept consistent
+    #    for any future reader, not because this run depends on it.
+    dropped = final_selected[-1]
+    for condition in dropped:
+        atom_usage[condition] -= 1
+    for condition in promoted:
+        atom_usage[condition] = atom_usage.get(condition, 0) + 1
+    metadata["activated"] = True
+    metadata["promoted_conditions"] = str(promoted)
+    metadata["displaced_conditions"] = str(dropped)
+    return [*final_selected[:-1], promoted], metadata
+
+
 def discover_candidates(
     frame: pl.DataFrame,
     feature_columns: tuple[str, ...],
@@ -766,6 +947,38 @@ def discover_candidates(
         )
     if identity_cap_active:
         selected = _apply_feature_identity_cap(selected, config)
+
+    # TASK-097 (TASK-095's design, docs/analytics/task-095-k1-reservation-design.md §4.2/§4.3):
+    # Stage 3, new, runs only when opted in and only when Stage 1/2's own combined output already
+    # reached config.top_k with zero k==1 members -- covers both "interactions did not fill top_k"
+    # (Stage 2 already gave singles a fair, unmodified shot) and "Stage 2 already promoted >=1
+    # single into the final set" (nothing further to reserve). This trigger check operates on
+    # `selected` *after* the identity-cap post-filter above, per the design's own §4.2 ordering
+    # requirement (checking the pre-cap, oversold list would ask the wrong question).
+    k1_trigger_met = len(selected) == config.top_k and all(len(rule) >= 2 for rule in selected)
+    k1_reservation: dict[str, Any] = {
+        "eligible": config.reserve_k1_slot and k1_trigger_met,
+        "activated": False,
+        "promoted_conditions": None,
+        "displaced_conditions": None,
+    }
+    if config.reserve_k1_slot and k1_trigger_met:
+        selected, k1_reservation = _reserve_k1_slot(
+            selected,
+            singles,
+            exposures,
+            effective_score,
+            atom_usage,
+            max_overlap,
+            config,
+            _prepare,
+        )
+    # Design §4.3's own recommended (non-mandatory) auditability addition: the promoted single, if
+    # any, is always selected[-1] (step 6 appends it last) -- identified here, not inside
+    # _reserve_k1_slot, so that function stays a pure selection primitive with no Candidate/warnings
+    # knowledge, matching _greedy_diverse_select's own separation of concerns.
+    k1_promoted_rule = selected[-1] if k1_reservation["activated"] else None
+
     candidates: list[Candidate] = []
     for index, rule in enumerate(selected, start=1):
         score, development_metric = scored[rule]
@@ -779,6 +992,11 @@ def discover_candidates(
         if actionability_label(rule) != "HIGH":
             warnings.append(
                 "Actionability requires business review; condition may not be controllable."
+            )
+        if rule == k1_promoted_rule:
+            warnings.append(
+                "Promoted via the bounded k==1 reservation quota (TASK-095), displacing a k>=2 "
+                "candidate from the final top-K."
             )
         candidates.append(
             Candidate(
@@ -806,4 +1024,5 @@ def discover_candidates(
         "candidate_count": len(candidates),
         "candidates": [asdict(candidate) for candidate in candidates],
         "evidence_boundary": "Candidate discovery only; requires Statistics validation.",
+        "k1_reservation": k1_reservation,
     }

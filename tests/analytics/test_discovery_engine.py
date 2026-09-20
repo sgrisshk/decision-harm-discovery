@@ -11,7 +11,9 @@ from policy_analytics.discovery.engine import (
     _development_score,
     _exposed_rows,
     _greedy_diverse_select,
+    _jaccard,
     _percentile,
+    _reserve_k1_slot,
     _select_expansion_beam,
     _temporal_consistency,
     discover_candidates,
@@ -1016,3 +1018,604 @@ def test_identity_cap_never_admits_a_feature_outside_the_supplied_decision_time_
         for candidate in result["candidates"]:
             for condition in candidate["conditions"]:
                 assert condition["feature"] != "excluded_non_decision_time_field"
+
+
+# --- TASK-097 (TASK-095's twice-reviewed design,
+# docs/analytics/task-095-k1-reservation-design.md): bounded k==1 top-K reservation, Stage 3 of
+# final assembly ---
+#
+# Two layers, matching this project's own established convention (TASK-060/TASK-068 tests above
+# call _greedy_diverse_select/_apply_feature_identity_cap directly with synthetic Condition tuples
+# *and* end to end through discover_candidates):
+#   (a) direct-level tests call _reserve_k1_slot itself with hand-built final_selected/singles/
+#       exposures/effective_score/atom_usage/max_overlap fixtures -- full control over every
+#       mechanism edge case, matching the design's own worked traces (design §7) and test spec
+#       (design §11).
+#   (b) end-to-end tests call discover_candidates itself, reusing the *existing*,
+#       already-established "supplier"/"discount_rate"/"party_size" fixture used several times
+#       above for unrelated mechanisms (never a new travel/domain-flavored fixture), to prove the
+#       real trigger-condition wiring inside discover_candidates -- not merely _reserve_k1_slot's
+#       own internals -- is correct.
+# No test in this section is tuned or verified by reference to travel's specific pattern
+# identities or feature values: every Condition/feature/value below is invented, and the one real
+# dataset reused (the supplier fixture) is the same fully-synthetic fixture already established
+# above for unrelated TASK-058/TASK-060 tests.
+
+
+def _noop_prepare(pool: list[tuple[Condition, ...]]) -> None:
+    """Direct-level tests already populate exposures/effective_score for every rule passed to
+    _reserve_k1_slot, so the real _prepare closure (discover_candidates's own, idempotent) has
+    nothing left to do -- this stands in for it without needing a frame/outcome."""
+
+
+def _pair(feature1: str, value1: object, feature2: str, value2: object) -> tuple[Condition, ...]:
+    return (Condition(feature1, "eq", value1), Condition(feature2, "eq", value2))
+
+
+def test_reserve_k1_slot_defaults_to_false() -> None:
+    assert DiscoveryConfig().reserve_k1_slot is False
+
+
+# --- (a) direct-level tests of _reserve_k1_slot itself ---
+
+
+def test_reserve_k1_slot_no_qualifying_single_is_exact_fallback() -> None:
+    """Design test 2 / §11: every single in the pool fails either the relevance floor or
+    max_candidate_jaccard -- _reserve_k1_slot must return final_selected byte-identical, with
+    activated=False disclosed in the metadata."""
+    i1, i2 = _pair("gate", "one", "gate_x", "1"), _pair("gate", "two", "gate_x", "2")
+    final_selected = [i1, i2]
+    # S_dup: high raw score, but exposures overlap i1 at jaccard 0.9 > the default 0.85 ceiling --
+    # only excluded because step 2 correctly seeds max_overlap against the real incumbents.
+    s_dup = _rule("near", "dup")
+    # S_weak: disjoint exposures (zero overlap), but its score (20) sits well under the singles
+    # pool's own relevance floor once s_dup's much higher score (200) sets the phase reference.
+    s_weak = _rule("weak", "x")
+    singles = [s_dup, s_weak]
+    exposures = {
+        i1: frozenset(range(0, 80)),
+        i2: frozenset(range(100, 180)),
+        s_dup: frozenset(range(0, 72)),  # |i1 n s_dup|=72, |i1 u s_dup|=80 -> jaccard=0.9
+        s_weak: frozenset(range(500, 560)),
+    }
+    effective_score = {i1: 100.0, i2: 90.0, s_dup: 200.0, s_weak: 20.0}
+    atom_usage = {condition: 1 for condition in (*i1, *i2)}
+    config = DiscoveryConfig(top_k=2)
+
+    result, metadata = _reserve_k1_slot(
+        final_selected, singles, exposures, effective_score, atom_usage, {}, config, _noop_prepare
+    )
+    assert result == final_selected
+    assert metadata == {
+        "eligible": True,
+        "activated": False,
+        "promoted_conditions": None,
+        "displaced_conditions": None,
+    }
+
+
+def test_reserve_k1_slot_promotes_a_qualifying_single_and_drops_the_weakest_incumbent() -> None:
+    """Design test 3 / §7.1: a single that clears the floor and has zero overlap against every
+    incumbent must be promoted, displacing final_selected[-1] specifically (the weakest incumbent
+    by the existing marginal-gain order -- i1 outscores i2, yet i2 is dropped, not i1, because i2
+    is last in final_selected's own order, confirming the drop rule is positional, not a new score
+    comparison)."""
+    i1, i2 = _pair("gate", "one", "gate_x", "1"), _pair("gate", "two", "gate_x", "2")
+    final_selected = [i1, i2]
+    s_promote = _rule("solo", "z")
+    singles = [s_promote]
+    exposures = {
+        i1: frozenset(range(0, 80)),
+        i2: frozenset(range(100, 180)),
+        s_promote: frozenset(range(300, 360)),  # disjoint from both incumbents
+    }
+    effective_score = {i1: 100.0, i2: 90.0, s_promote: 95.0}
+    atom_usage = {condition: 1 for condition in (*i1, *i2)}
+    config = DiscoveryConfig(top_k=2)
+
+    result, metadata = _reserve_k1_slot(
+        final_selected, singles, exposures, effective_score, atom_usage, {}, config, _noop_prepare
+    )
+    assert result == [i1, s_promote]
+    assert metadata == {
+        "eligible": True,
+        "activated": True,
+        "promoted_conditions": str(s_promote),
+        "displaced_conditions": str(i2),
+    }
+    # Step 6: the shared atom_usage accumulator is updated too (dropped decremented, promoted
+    # incremented), though nothing downstream reads it again.
+    assert atom_usage[Condition("gate", "eq", "two")] == 0
+    assert atom_usage[Condition("gate_x", "eq", "2")] == 0
+    assert atom_usage[Condition("solo", "eq", "z")] == 1
+
+
+def test_reserve_k1_slot_max_overlap_correction_is_necessary() -> None:
+    """Design test 4 / §10.1: a single with a near-duplicate exposure overlap against an incumbent
+    (jaccard 0.9, over the default 0.85 max_candidate_jaccard ceiling) must NOT be promoted once
+    step 2 correctly seeds max_overlap against the real incumbents -- and, as the required contrast
+    fixture, a manual simulation using the design's own round-1-flagged naive convention
+    (max_overlap left at 0.0, exactly what _prepare's first-touch default would leave it at)
+    WOULD have promoted it, proving the correction's necessity by direct execution, not prose."""
+    i1, i2 = _pair("gate", "one", "gate_x", "1"), _pair("gate", "two", "gate_x", "2")
+    final_selected = [i1, i2]
+    s_near = _rule("near2", "dup")
+    singles = [s_near]
+    exposures = {
+        i1: frozenset(range(0, 80)),
+        i2: frozenset(range(100, 180)),
+        s_near: frozenset(range(0, 72)),  # |i1 n s_near|=72, |i1 u s_near|=80 -> jaccard=0.9
+    }
+    effective_score = {i1: 100.0, i2: 90.0, s_near: 300.0}  # deliberately dominant if unblocked
+    atom_usage = {condition: 1 for condition in (*i1, *i2)}
+    config = DiscoveryConfig(top_k=2)
+
+    result, metadata = _reserve_k1_slot(
+        final_selected, singles, exposures, effective_score, dict(atom_usage), {}, config,
+        _noop_prepare,
+    )
+    assert result == final_selected
+    assert metadata["activated"] is False
+
+    # Contrast: the naive, round-1-flagged convention (max_overlap seeded at 0.0 unconditionally,
+    # exactly _prepare's own first-touch default) reproduced by calling _greedy_diverse_select
+    # directly, bypassing _reserve_k1_slot's own step 2 correction entirely.
+    naive_selected = list(final_selected)
+    naive_selected_exposures = [exposures[i1], exposures[i2]]
+    naive_atom_usage = dict(atom_usage)
+    naive_max_overlap = dict.fromkeys(singles, 0.0)
+    _greedy_diverse_select(
+        singles,
+        effective_score,
+        exposures,
+        DiscoveryConfig(top_k=len(final_selected) + 1),
+        naive_selected,
+        naive_selected_exposures,
+        naive_atom_usage,
+        naive_max_overlap,
+    )
+    assert naive_selected[-1] == s_near  # the defect: wrongly admitted under naive 0.0 seeding
+
+
+def test_reserve_k1_slot_atom_usage_correction_is_necessary() -> None:
+    """Design test 10 / §7.4 / §10.6: the round-1-found atom_usage staleness defect, reproduced on
+    an invented pool. atom_usage (as Stage 1/2 would hand it over) carries a phantom count for atom
+    `a_shared`, attributable only to a candidate `_apply_feature_identity_cap` would have dropped
+    before final_selected -- `a_shared` itself is not used by any rule actually in final_selected.
+    The real _reserve_k1_slot must recompute atom_usage_for_probe fresh from final_selected (step
+    3) and correctly promote the qualifying single; a manual simulation reusing the stale,
+    unrecomputed atom_usage directly (the design's original, round-1-flagged text) must wrongly
+    decline it -- both asserted here by direct execution, not merely described."""
+    a1, ax1 = Condition("feat_a1", "eq", True), Condition("feat_ax1", "eq", True)
+    a2, ax2 = Condition("feat_a2", "eq", True), Condition("feat_ax2", "eq", True)
+    ay1, ay2 = Condition("feat_ay1", "eq", True), Condition("feat_ay2", "eq", True)
+    a_shared = Condition("feat_shared", "eq", True)
+    j1, j2, k3 = (a1, ax1), (a2, ax2), (ay1, ay2)
+    final_selected = [j1, j2, k3]
+    s1 = (a_shared,)
+    singles = [s1]
+    exposures = {
+        j1: frozenset(range(0, 50)),
+        j2: frozenset(range(60, 110)),
+        k3: frozenset(range(120, 170)),
+        s1: frozenset(range(300, 350)),  # disjoint from every incumbent
+    }
+    effective_score = {j1: 100.0, j2: 95.0, k3: 90.0, s1: 85.0}
+    # The stale accumulator Stage 1/2 would hand over: real counts for j1/j2/k3's own atoms, plus
+    # a PHANTOM a_shared:1 left behind by a since-dropped candidate `_apply_feature_identity_cap`
+    # trimmed without ever decrementing atom_usage for it (the round-1-found defect, design §10.6).
+    stale_atom_usage = {a1: 1, ax1: 1, a2: 1, ax2: 1, ay1: 1, ay2: 1, a_shared: 1}
+    config = DiscoveryConfig(top_k=3, max_candidates_per_atom=1)
+
+    result, metadata = _reserve_k1_slot(
+        final_selected,
+        singles,
+        exposures,
+        effective_score,
+        dict(stale_atom_usage),
+        {},
+        config,
+        _noop_prepare,
+    )
+    assert result == [j1, j2, s1]
+    assert metadata["activated"] is True
+    assert metadata["promoted_conditions"] == str(s1)
+    assert metadata["displaced_conditions"] == str(k3)
+
+    # Contrast: reusing the stale atom_usage directly (dict(atom_usage), the design's original,
+    # round-1-flagged text) instead of step 3's fresh recomputation wrongly declines s1: a_shared's
+    # phantom count (1) already meets max_candidates_per_atom (1), even though zero rules in
+    # final_selected actually use a_shared.
+    naive_selected = list(final_selected)
+    naive_selected_exposures = [exposures[j1], exposures[j2], exposures[k3]]
+    naive_atom_usage = dict(stale_atom_usage)  # NOT recomputed from final_selected -- the defect
+    naive_max_overlap: dict[tuple[Condition, ...], float] = {}
+    for single in singles:
+        naive_max_overlap[single] = max(
+            (
+                _jaccard(exposures[single], exposures[rule])
+                for rule in final_selected
+            ),
+            default=0.0,
+        )
+    _greedy_diverse_select(
+        singles,
+        effective_score,
+        exposures,
+        DiscoveryConfig(top_k=len(final_selected) + 1, max_candidates_per_atom=1),
+        naive_selected,
+        naive_selected_exposures,
+        naive_atom_usage,
+        naive_max_overlap,
+    )
+    assert len(naive_selected) == len(final_selected)  # s1 wrongly declined under the stale dict
+
+
+def test_reserve_k1_slot_feature_identity_recheck_declines_when_capacity_stays_full() -> None:
+    """Design test 5 / §5.5, decline branch: the promoted single's own feature is already at
+    max_per_feature capacity among the incumbents that would *survive* the drop (the about-to-be-
+    dropped incumbent does not itself hold that feature, so dropping it cannot free capacity)."""
+    i1 = _pair("shared_feat", "a", "filler1", "x")
+    i2 = _pair("shared_feat", "b", "filler2", "x")
+    i3 = _pair("other_feat", "c", "filler3", "x")  # final_selected[-1]; holds no shared_feat use
+    final_selected = [i1, i2, i3]
+    s_promote = (Condition("shared_feat", "eq", "promote"),)
+    singles = [s_promote]
+    exposures = {
+        i1: frozenset(range(0, 50)),
+        i2: frozenset(range(60, 110)),
+        i3: frozenset(range(120, 170)),
+        s_promote: frozenset(range(300, 350)),
+    }
+    effective_score = {i1: 100.0, i2: 95.0, i3: 90.0, s_promote: 85.0}
+    atom_usage = {condition: 1 for rule in final_selected for condition in rule}
+    config = DiscoveryConfig(top_k=3, max_feature_identity_fraction=0.67)  # max_per_feature = 2
+
+    result, metadata = _reserve_k1_slot(
+        final_selected, singles, exposures, effective_score, atom_usage, {}, config, _noop_prepare
+    )
+    assert result == final_selected  # declined: shared_feat stays at 2 (i1, i2) even after the drop
+    assert metadata["activated"] is False
+
+
+def test_reserve_k1_slot_feature_identity_recheck_allows_when_dropped_held_the_last_slot() -> None:
+    """Design test 5 / §5.5, allow branch: the about-to-be-dropped incumbent (final_selected[-1])
+    is itself the one holding the promoted single's feature at capacity -- dropping it frees the
+    slot, so promotion must proceed."""
+    i1 = _pair("shared_feat", "a", "filler1", "x")
+    i2 = _pair("other_feat2", "b", "filler2", "x")
+    i3 = _pair("shared_feat", "c", "filler3", "x")  # final_selected[-1]; holds shared_feat too
+    final_selected = [i1, i2, i3]
+    s_promote = (Condition("shared_feat", "eq", "promote"),)
+    singles = [s_promote]
+    exposures = {
+        i1: frozenset(range(0, 50)),
+        i2: frozenset(range(60, 110)),
+        i3: frozenset(range(120, 170)),
+        s_promote: frozenset(range(300, 350)),
+    }
+    effective_score = {i1: 100.0, i2: 95.0, i3: 90.0, s_promote: 85.0}
+    atom_usage = {condition: 1 for rule in final_selected for condition in rule}
+    config = DiscoveryConfig(top_k=3, max_feature_identity_fraction=0.67)  # max_per_feature = 2
+
+    result, metadata = _reserve_k1_slot(
+        final_selected, singles, exposures, effective_score, atom_usage, {}, config, _noop_prepare
+    )
+    assert result == [i1, i2, s_promote]
+    assert metadata["activated"] is True
+    assert metadata["displaced_conditions"] == str(i3)
+
+
+def test_reserve_k1_slot_is_deterministic_across_repeated_runs() -> None:
+    """Design test 8: rerunning the identical inputs (fresh copies of every mutable dict/list
+    argument) must produce byte-identical final_selected and k1_reservation metadata both times."""
+    i1, i2 = _pair("gate", "one", "gate_x", "1"), _pair("gate", "two", "gate_x", "2")
+    s_promote = _rule("solo", "z")
+    exposures = {
+        i1: frozenset(range(0, 80)),
+        i2: frozenset(range(100, 180)),
+        s_promote: frozenset(range(300, 360)),
+    }
+    effective_score = {i1: 100.0, i2: 90.0, s_promote: 95.0}
+    config = DiscoveryConfig(top_k=2)
+
+    results = []
+    for _ in range(2):
+        final_selected = [i1, i2]
+        atom_usage = {condition: 1 for condition in (*i1, *i2)}
+        results.append(
+            _reserve_k1_slot(
+                final_selected,
+                [s_promote],
+                exposures,
+                effective_score,
+                atom_usage,
+                {},
+                config,
+                _noop_prepare,
+            )
+        )
+    assert results[0] == results[1]
+
+
+def test_reserve_k1_slot_order_independent() -> None:
+    """Design test 9: the promoted single and dropped incumbent must be identical regardless of
+    the order singles are presented in, or the order exposures/effective_score dicts were built in
+    -- mirroring ADR-071's own adversarial standard, verified directly against the real
+    implementation rather than assumed to hold from the determinism analysis alone."""
+    i1, i2 = _pair("gate", "one", "gate_x", "1"), _pair("gate", "two", "gate_x", "2")
+    s_best = _rule("solo", "best")
+    s_mid = _rule("solo", "mid")
+    s_worst = _rule("solo", "worst")
+    exposures_forward = {
+        i1: frozenset(range(0, 80)),
+        i2: frozenset(range(100, 180)),
+        s_best: frozenset(range(300, 360)),
+        s_mid: frozenset(range(400, 460)),
+        s_worst: frozenset(range(500, 560)),
+    }
+    score_forward = {i1: 100.0, i2: 90.0, s_best: 95.0, s_mid: 80.0, s_worst: 78.0}
+    config = DiscoveryConfig(top_k=2)
+
+    permutations = [
+        [s_best, s_mid, s_worst],
+        [s_worst, s_mid, s_best],
+        [s_mid, s_best, s_worst],
+    ]
+    outcomes = []
+    for singles_order in permutations:
+        # Rebuild both dicts in the *same* order as this permutation, so dict-insertion order
+        # varies across iterations too, not just the singles list order.
+        exposures = {rule: exposures_forward[rule] for rule in (i1, i2, *singles_order)}
+        effective_score = {rule: score_forward[rule] for rule in (i1, i2, *singles_order)}
+        final_selected = [i1, i2]
+        atom_usage = {condition: 1 for condition in (*i1, *i2)}
+        result, metadata = _reserve_k1_slot(
+            final_selected,
+            list(singles_order),
+            exposures,
+            effective_score,
+            atom_usage,
+            {},
+            config,
+            _noop_prepare,
+        )
+        outcomes.append((result, metadata))
+    assert all(outcome == outcomes[0] for outcome in outcomes[1:])
+    assert outcomes[0][1]["promoted_conditions"] == str(s_best)
+
+
+# --- (b) end-to-end tests through discover_candidates, reusing the existing supplier/discount
+# fixture (also used above by TASK-058/TASK-060 tests) at top_k values chosen to exercise each of
+# the design's four worked traces against the real search/selection pipeline. ---
+
+
+def _reservation_fixture_frame() -> pl.DataFrame:
+    rows = []
+    for split in ("development", "validation", "future_holdout"):
+        for index in range(400):
+            supplier = "A" if index % 2 == 0 else "B"
+            discount = (index % 10) / 100
+            harm = 80.0 if supplier == "A" and discount >= 0.05 else 0.0
+            rows.append((supplier, discount, index % 3, 200.0 - harm, split))
+    return pl.DataFrame(
+        rows,
+        schema=[
+            "supplier",
+            "discount_rate",
+            "party_size",
+            "contribution_margin_eur",
+            "split_label",
+        ],
+        orient="row",
+    )
+
+
+_RESERVATION_FEATURES = ("supplier", "discount_rate", "party_size")
+
+
+def test_discover_candidates_common_case_promotes_a_single_end_to_end() -> None:
+    """§7.1 end to end: at top_k=10, this fixture's real search fills every slot with interactions
+    (confirmed by the reserve_k1_slot=False baseline below) -- reserve_k1_slot=True must promote
+    a genuinely qualifying single, displacing the weakest interaction, while candidate_count stays
+    exactly top_k."""
+    frame = _reservation_fixture_frame()
+    outcome = primary_outcome()
+    baseline = discover_candidates(
+        frame,
+        _RESERVATION_FEATURES,
+        outcome,
+        DiscoveryConfig(min_n=20, beam_width=30, top_k=10, reserve_k1_slot=False),
+    )
+    assert baseline["candidate_count"] == 10
+    assert all(len(c["conditions"]) >= 2 for c in baseline["candidates"])
+    assert baseline["k1_reservation"] == {
+        "eligible": False,
+        "activated": False,
+        "promoted_conditions": None,
+        "displaced_conditions": None,
+    }
+
+    reserved = discover_candidates(
+        frame,
+        _RESERVATION_FEATURES,
+        outcome,
+        DiscoveryConfig(min_n=20, beam_width=30, top_k=10, reserve_k1_slot=True),
+    )
+    assert reserved["candidate_count"] == 10  # top_k itself never changes
+    ks = [len(c["conditions"]) for c in reserved["candidates"]]
+    assert ks.count(1) == 1  # exactly the one reserved slot, never more
+    assert reserved["k1_reservation"]["eligible"] is True
+    assert reserved["k1_reservation"]["activated"] is True
+    promoted = reserved["k1_reservation"]["promoted_conditions"]
+    displaced = reserved["k1_reservation"]["displaced_conditions"]
+    assert promoted is not None and displaced is not None
+    assert promoted.count("Condition(") == 1  # the promoted candidate is k==1
+    assert displaced.count("Condition(") >= 2  # the displaced candidate was k>=2
+    # The promoted single actually appears in the reported candidates, with the disclosed warning.
+    promoted_candidates = [c for c in reserved["candidates"] if len(c["conditions"]) == 1]
+    assert len(promoted_candidates) == 1
+    assert any(
+        "Promoted via the bounded k==1 reservation quota" in warning
+        for warning in promoted_candidates[0]["warnings"]
+    )
+    # reserve_k1_slot genuinely changed the outcome on this exact fixture/top_k -- the False-case
+    # byte-identity claim tested separately below is non-vacuous.
+    assert reserved["candidates"] != baseline["candidates"]
+
+
+def test_discover_candidates_uncommon_case_does_not_fire_end_to_end() -> None:
+    """§7.2 end to end: at a top_k this fixture's real candidate pool cannot fill at all (11 total
+    eligible candidates, well under top_k=15), Stage 3 must not even be eligible -- the trigger's
+    own count check fails before its composition check is ever reached."""
+    frame = _reservation_fixture_frame()
+    result = discover_candidates(
+        frame,
+        _RESERVATION_FEATURES,
+        primary_outcome(),
+        DiscoveryConfig(min_n=20, beam_width=30, top_k=15, reserve_k1_slot=True),
+    )
+    assert result["candidate_count"] == 11
+    assert result["candidate_count"] < 15
+    assert result["k1_reservation"] == {
+        "eligible": False,
+        "activated": False,
+        "promoted_conditions": None,
+        "displaced_conditions": None,
+    }
+
+
+def test_discover_candidates_composition_edge_case_does_not_double_promote_end_to_end() -> None:
+    """§7.3 end to end: at top_k=11, this fixture's real Stage 2 fallback already promotes exactly
+    one single to reach a full top_k=11 -- Stage 3's own trigger (`all(len(rule) >= 2 ...)`) must
+    then correctly read that composition and decline to run at all, not attempt a second
+    promotion. reserve_k1_slot=True and reserve_k1_slot=False must produce byte-identical output
+    here -- the "up to 1" bound is respected by construction, not a separate counter."""
+    frame = _reservation_fixture_frame()
+    outcome = primary_outcome()
+    config_kwargs: dict[str, int] = {"min_n": 20, "beam_width": 30, "top_k": 11}
+    config_without = DiscoveryConfig(**config_kwargs, reserve_k1_slot=False)
+    config_with = DiscoveryConfig(**config_kwargs, reserve_k1_slot=True)
+    without_reservation = discover_candidates(frame, _RESERVATION_FEATURES, outcome, config_without)
+    with_reservation = discover_candidates(frame, _RESERVATION_FEATURES, outcome, config_with)
+    assert without_reservation["candidate_count"] == 11
+    ks = [len(c["conditions"]) for c in without_reservation["candidates"]]
+    assert ks.count(1) == 1  # Stage 2's own pre-existing fallback already placed one single
+    assert with_reservation["k1_reservation"] == {
+        "eligible": False,
+        "activated": False,
+        "promoted_conditions": None,
+        "displaced_conditions": None,
+    }
+    assert with_reservation["candidates"] == without_reservation["candidates"]
+
+
+def test_reserve_k1_slot_false_is_a_structural_no_op_not_output_matching() -> None:
+    """Confirms structurally, not just by output-matching, that the new Stage 3 code path is never
+    even evaluated when reserve_k1_slot=False: monkeypatch _reserve_k1_slot to raise, at the exact
+    top_k=10 fixture/config where the trigger condition would otherwise hold (per the common-case
+    test above) -- discover_candidates must still succeed, proving the call is behind a real
+    `config.reserve_k1_slot and ...` guard, not a code path that happens to produce the same
+    result."""
+    import policy_analytics.discovery.engine as engine_module
+
+    def _boom(*args: object, **kwargs: object) -> None:
+        raise AssertionError("_reserve_k1_slot must not be called when reserve_k1_slot=False")
+
+    original = engine_module._reserve_k1_slot
+    engine_module._reserve_k1_slot = _boom  # type: ignore[assignment]
+    try:
+        frame = _reservation_fixture_frame()
+        result = discover_candidates(
+            frame,
+            _RESERVATION_FEATURES,
+            primary_outcome(),
+            DiscoveryConfig(min_n=20, beam_width=30, top_k=10, reserve_k1_slot=False),
+        )
+    finally:
+        engine_module._reserve_k1_slot = original  # type: ignore[assignment]
+    assert result["candidate_count"] == 10
+    assert all(len(c["conditions"]) >= 2 for c in result["candidates"])
+
+
+def test_reserve_k1_slot_false_is_byte_identical_to_pre_task_097_selection() -> None:
+    """The required reserve_k1_slot=False regression (design §11 test 1 / TASK-097's own testing
+    bar): run the identical fixture/config through discover_candidates with reserve_k1_slot
+    omitted (defaults False) and confirm every per-candidate field, in order, matches a literal,
+    independently-verified pre-TASK-097 capture -- not merely "equivalent". Diffed against the
+    top_k=10 fixture specifically because that is the exact configuration
+    (test_discover_candidates_common_case_promotes_a_single_end_to_end) where reserve_k1_slot=True
+    changes the output, so this byte-identity claim is meaningful, not vacuous."""
+    frame = _reservation_fixture_frame()
+    implicit_default = discover_candidates(
+        frame,
+        _RESERVATION_FEATURES,
+        primary_outcome(),
+        DiscoveryConfig(min_n=20, beam_width=30, top_k=10),
+    )
+    explicit_false = discover_candidates(
+        frame,
+        _RESERVATION_FEATURES,
+        primary_outcome(),
+        DiscoveryConfig(min_n=20, beam_width=30, top_k=10, reserve_k1_slot=False),
+    )
+    assert implicit_default["candidates"] == explicit_false["candidates"]
+    assert implicit_default["methodology_version"] == "discovery-engine-v0.6.1"
+    ks = [len(c["conditions"]) for c in implicit_default["candidates"]]
+    assert ks == [2, 3, 3, 3, 3, 2, 2, 2, 2, 2]  # all ten slots filled by interactions, no k==1
+
+
+def test_discover_candidates_top_k_never_changes_regardless_of_reservation() -> None:
+    """candidate_count (the real, reported top-K size) must equal the same value whether or not
+    Stage 3 fires -- a bounded swap inside top_k, never a top_k increase."""
+    frame = _reservation_fixture_frame()
+    outcome = primary_outcome()
+    for top_k in (10, 11, 15):
+        without = discover_candidates(
+            frame,
+            _RESERVATION_FEATURES,
+            outcome,
+            DiscoveryConfig(min_n=20, beam_width=30, top_k=top_k, reserve_k1_slot=False),
+        )
+        with_reservation = discover_candidates(
+            frame,
+            _RESERVATION_FEATURES,
+            outcome,
+            DiscoveryConfig(min_n=20, beam_width=30, top_k=top_k, reserve_k1_slot=True),
+        )
+        assert without["candidate_count"] == with_reservation["candidate_count"]
+        assert without["candidate_count"] <= top_k
+        assert with_reservation["candidate_count"] <= top_k
+
+
+def test_discover_candidates_k1_reservation_metadata_always_present_and_disclosed() -> None:
+    """The k1_reservation audit-metadata block (design §4.1/§4.3) must always be present, with
+    eligible=False disclosed (not merely absent) whenever reserve_k1_slot=False, regardless of
+    whether the trigger condition would otherwise have held."""
+    frame = _reservation_fixture_frame()
+    outcome = primary_outcome()
+    for top_k in (10, 15):  # 10: trigger would hold if enabled; 15: it would not
+        result = discover_candidates(
+            frame,
+            _RESERVATION_FEATURES,
+            outcome,
+            DiscoveryConfig(min_n=20, beam_width=30, top_k=top_k, reserve_k1_slot=False),
+        )
+        assert result["k1_reservation"] == {
+            "eligible": False,
+            "activated": False,
+            "promoted_conditions": None,
+            "displaced_conditions": None,
+        }
+
+
+def test_discover_candidates_reservation_is_deterministic_end_to_end() -> None:
+    """Rerunning the identical fixture/config with reserve_k1_slot=True must produce byte-identical
+    candidates and k1_reservation metadata both times (design §6/§11 test 8, end to end)."""
+    frame = _reservation_fixture_frame()
+    outcome = primary_outcome()
+    config = DiscoveryConfig(min_n=20, beam_width=30, top_k=10, reserve_k1_slot=True)
+    first = discover_candidates(frame, _RESERVATION_FEATURES, outcome, config)
+    second = discover_candidates(frame, _RESERVATION_FEATURES, outcome, config)
+    assert first["candidates"] == second["candidates"]
+    assert first["k1_reservation"] == second["k1_reservation"]
