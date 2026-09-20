@@ -22,12 +22,36 @@ already-audited defaults, or is a structural property of the selection algorithm
 one slot") justified generically. This document would read identically with every travel-specific
 noun deleted from its illustrative asides.
 
+**2026-09-20 ROUND 2 REVISION banner, read this first.** Round 1 independent adversarial
+`CODE_REVIEWER` review (`TASKS.md` `TASK-095` entry, "Round 1 review verdict") returned **APPROVED
+WITH REVISION NEEDED** — not structural, matching `TASK-080`'s own round-2 shape, not its more
+severe rejections. Seven of nine checks held up unmodified; two required revisions and three
+recommended ones are applied in this revision, with a full accounting in new **§14 (Revision log,
+round 1 → round 2)** at the end of this document. In short: (1) `atom_usage`, unlike `max_overlap`,
+was not being recomputed relative to `final_selected` before the Stage 3 probe — fixed by adding
+that exact recomputation (new §4.3 step 3), with a new §7.4 worked trace exercising
+`identity_cap_active=True` with Stage 3 firing, which no prior trace did; (2) §4.3 step 4's
+pseudocode called a `_feature_usage` helper that does not exist in `engine.py` — resolved by
+inlining the tally instead of declaring a second new function, so §9's checklist claim ("one new
+private function") is now literally accurate rather than contradicted; (3) §4.1's "byte-identical
+output" wording is tightened to scope it to candidate selection/content, not the full serialized
+config dict; (4) §10.1's `ADR-036` citation is corrected to the real precedent (`engine.py`'s own
+v0.3.1 changelog docstring) and its severity restated correctly (a hard-ceiling bypass, not just a
+soft-discount one); (5) the disclosed, out-of-scope Stage 2 gap (§10.4) is now tracked as
+`TASK-096`, opened by this revision, matching `TASK-088`→`090`'s own precedent for a found-but-
+out-of-scope gap. **Everything round 1 confirmed sound — the three-stage architecture, the
+floor-conditioned promotion mechanism, the weakest-incumbent-drop rule, the reserved-count-of-1
+justification, the determinism argument, the `reserve_k1_slot` field/`k1_reservation` metadata — is
+unchanged by this revision.** This document still does not mark itself `APPROVED`; that
+determination belongs to the round 2 independent adversarial `CODE_REVIEWER` pass this revision now
+requests.
+
 ## 0. What this document answers, mapped to `TASK-095`'s six numbered requirements
 
 | # | Requirement | Where answered |
 |---|---|---|
 | 1 | Strict floor-conditioned promotion, never guaranteed; exact fallback when nothing qualifies | §4.3 (mechanism), §7 (worked traces), §9 checklist item 1 |
-| 2 | Reserved slot(s) from a bounded reduction in interaction slots, never `top_k` increase | §4.2, §4.3 step 3c |
+| 2 | Reserved slot(s) from a bounded reduction in interaction slots, never `top_k` increase | §4.2, §4.3 step 6 |
 | 3 | Zero change to any gate/threshold/estimator/search/eligibility stage | §9 |
 | 4 | Explicit interaction analysis against all five `TASK-060` knobs | §5 |
 | 5 | Determinism/permutation analysis and worked traces (common and uncommon case) | §6, §7 |
@@ -109,8 +133,15 @@ construction, not merely carried forward by assumption.
 ```python
 #: Whether final assembly reserves at most one top-K slot for the single best-qualifying k==1
 #: candidate, when interactions alone would otherwise fill every slot (TASK-095). `False` (default)
-#: is a byte-identical no-op: discover_candidates's control flow, output, and DISCOVERY_METHOD_VERSION
-#: are all unchanged from discovery-engine-v0.6.1 when this field is False. Must be explicitly enabled
+#: is a byte-identical no-op for candidate selection: discover_candidates's control flow and the
+#: selected candidates themselves (identity, order, count, every per-candidate field) and
+#: DISCOVERY_METHOD_VERSION are all unchanged from discovery-engine-v0.6.1 when this field is False.
+#: This does NOT mean the full returned dict is byte-identical: the "search" metadata block already
+#: includes asdict(config), which will unconditionally report reserve_k1_slot: False as one more key
+#: once this field exists -- exactly as every prior TASK-060/TASK-068 config field addition already
+#: changed that same metadata block's key set (diversity_discount_weight, stability_credit_weight,
+#: etc.), expected and not a defect, but distinct from candidate-selection byte-identity. Must be
+#: explicitly enabled
 #: to take effect — matching this project's own convention for every prior TASK-060 addition
 #: (diversity_discount_weight, min_diversity_relevance_ratio, stability_credit_weight,
 #: relevance_floor_percentile, max_feature_identity_fraction all shipped with a no-op default that
@@ -191,15 +222,16 @@ def _reserve_k1_slot(
     #    when it runs at all).
     _prepare(singles)  # existing helper, engine.py:712-726, unmodified
 
-    # 2. THE CORRECTION (see §10.1): seed each single's max_overlap against every incumbent in
-    #    final_selected, not just 0.0. _prepare's own initialization (line 721) sets max_overlap to
-    #    0.0 for any rule seen for the first time -- correct when a phase starts from an empty
-    #    selected list (Stage 1's own first call), but wrong here, because Stage 3 always starts from
-    #    a *full* top_k of incumbents. This step is new final-assembly-stage code; it calls no
-    #    primitive that does not already exist (_jaccard, exposures) and it changes no value
-    #    _greedy_diverse_select's own internals compute -- it only supplies the input the function's
-    #    own docstring already says the discount should be measured against ("current maximum
-    #    development-split exposure overlap ... with everything already selected").
+    # 2. FIRST CORRECTION -- self-found before round 1 review (see §10.1): seed each single's
+    #    max_overlap against every incumbent in final_selected, not just 0.0. _prepare's own
+    #    initialization (line 721) sets max_overlap to 0.0 for any rule seen for the first time --
+    #    correct when a phase starts from an empty selected list (Stage 1's own first call), but
+    #    wrong here, because Stage 3 always starts from a *full* top_k of incumbents. This step is
+    #    new final-assembly-stage code; it calls no primitive that does not already exist (_jaccard,
+    #    exposures) and it changes no value _greedy_diverse_select's own internals compute -- it
+    #    only supplies the input the function's own docstring already says the discount should be
+    #    measured against ("current maximum development-split exposure overlap ... with everything
+    #    already selected").
     incumbent_exposures = [exposures[rule] for rule in final_selected]
     for single in singles:
         max_overlap[single] = max(
@@ -207,7 +239,32 @@ def _reserve_k1_slot(
             default=0.0,
         )
 
-    # 3. Non-destructive probe: copy the mutable state _greedy_diverse_select mutates, run it with a
+    # 3. SECOND CORRECTION -- found by round 1 independent review, not self-found (see §10.6):
+    #    recompute atom_usage relative to final_selected too, the identical discipline step 2 just
+    #    applied to max_overlap. The atom_usage dict passed into this function is Stage 1/2's own
+    #    raw accumulator: _greedy_diverse_select increments it (line 566) for every rule *it*
+    #    selects, including every rule in the oversold, pre-identity-cap `selected` list Stage 1/2
+    #    builds when identity_cap_active widens search_config.top_k (line 738-742).
+    #    _apply_feature_identity_cap then trims that oversold list down to final_selected using its
+    #    own, separate, local feature_usage counter (engine.py:613-621) -- it never decrements the
+    #    shared atom_usage dict for whatever it drops. Left as Stage 1/2 hands it, atom_usage can
+    #    therefore carry phantom counts for atoms belonging only to candidates no longer in
+    #    final_selected; the probe's own max_candidates_per_atom check (line 549) would read those
+    #    phantom counts as real usage and could wrongly decline an otherwise-qualifying single that
+    #    happens to share that atom (fails closed only -- a phantom count can only ever read too
+    #    high relative to the truth, never too low, so this can decline a real promotion but can
+    #    never manufacture one). Recomputed fresh here instead, counting only conditions actually
+    #    present in final_selected's own rules -- exactly what max_candidates_per_atom's own name
+    #    says it should be measuring. No branch on identity_cap_active is needed: when the cap is
+    #    not active, `selected` was never trimmed, so final_selected == selected and this
+    #    recomputation is provably identical, count for count, to what atom_usage already holds --
+    #    the fix is a strict generalization, not a special case.
+    atom_usage_for_probe: dict[Condition, int] = {}
+    for rule in final_selected:
+        for condition in rule:
+            atom_usage_for_probe[condition] = atom_usage_for_probe.get(condition, 0) + 1
+
+    # 4. Non-destructive probe: copy the mutable state _greedy_diverse_select mutates, run it with a
     #    budget of exactly one more than the current final_selected size. The while loop's own guard
     #    (`len(selected) < config.top_k`) then admits at most one candidate, through the *exact*
     #    same relevance-floor/overlap-discount/hard-jaccard-ceiling/atom-usage-cap logic interactions
@@ -215,7 +272,7 @@ def _reserve_k1_slot(
     #    unmodified.
     probe_selected = list(final_selected)
     probe_selected_exposures = list(incumbent_exposures)
-    probe_atom_usage = dict(atom_usage)
+    probe_atom_usage = atom_usage_for_probe  # step 3's correction -- NOT dict(atom_usage); see above
     probe_max_overlap = dict(max_overlap)
     _greedy_diverse_select(
         singles,
@@ -234,14 +291,24 @@ def _reserve_k1_slot(
     promoted = probe_selected[-1]  # the one single _greedy_diverse_select's own marginal-gain
                                     # comparison picked
 
-    # 4. Re-validate max_feature_identity_fraction's own invariant for the promoted single alone
-    #    (see §5's dedicated analysis for why only the promoted single's own feature(s) need
-    #    checking, never a full re-walk).
+    # 5. Re-validate max_feature_identity_fraction's own invariant for the promoted single alone
+    #    (see §5.5's dedicated analysis for why only the promoted single's own feature(s) need
+    #    checking, never a full re-walk). Inlined directly, not via a separate _feature_usage
+    #    helper: round 1 independent review found this design's original pseudocode called a
+    #    _feature_usage(...) helper that does not exist anywhere in engine.py and was not declared
+    #    in §9's own new-code-surface checklist -- resolved by inlining the equivalent tally
+    #    (the same accumulation pattern _apply_feature_identity_cap itself already uses,
+    #    engine.py:613-621, restricted here to final_selected's surviving incumbents) rather than
+    #    introducing a second new function, so §9's "one new private function" claim is now
+    #    literally accurate instead of contradicted by this step.
     if config.max_feature_identity_fraction < 1.0:
         max_per_feature = max(1, int(config.max_feature_identity_fraction * config.top_k))
-        usage_without_dropped = _feature_usage(final_selected[:-1])  # counts with the
-                                                                      # about-to-be-dropped
-                                                                      # incumbent excluded
+        usage_without_dropped: dict[str, int] = {}
+        for rule in final_selected[:-1]:  # the about-to-be-dropped weakest incumbent excluded --
+            for condition in rule:        # its own feature(s) can only ever help this check, never
+                usage_without_dropped[condition.feature] = (  # hurt it (§5.5)
+                    usage_without_dropped.get(condition.feature, 0) + 1
+                )
         if any(
             usage_without_dropped.get(feature, 0) >= max_per_feature
             for feature in {condition.feature for condition in promoted}
@@ -249,9 +316,12 @@ def _reserve_k1_slot(
             return final_selected  # promotion would reopen the cap's own invariant -- decline,
                                     # exact fallback, requirement 1
 
-    # 5. Commit: drop the weakest incumbent (final_selected's own last element -- see §4.4 for why),
-    #    append the promoted single. Bookkeeping kept consistent for any future reader of
-    #    atom_usage/max_overlap, though nothing downstream reads them again this run.
+    # 6. Commit: drop the weakest incumbent (final_selected's own last element -- see §4.4 for why),
+    #    append the promoted single. The shared atom_usage/max_overlap dicts (not the fresh
+    #    atom_usage_for_probe from step 3) are updated too, though nothing in this run reads either
+    #    again after this point -- discover_candidates's own remaining code (line 769 on) treats
+    #    `selected` as an opaque ordered list of rule tuples and never looks at either dict again.
+    #    Kept consistent for any future reader, not because this run depends on it.
     dropped = final_selected[-1]
     for condition in dropped:
         atom_usage[condition] -= 1
@@ -314,16 +384,20 @@ named explicitly here rather than left implicit, per this document's own self-cr
 **Reused unchanged as a formula and as a value.** The discount formula
 (`marginal = effective_score[rule] * (1 - diversity_discount_weight * max_overlap[rule])`) executes
 inside the Stage 3 probe exactly as it executes inside Stage 1/2 — `_greedy_diverse_select` is called
-completely unmodified (§4.3 step 3). What changes is **not** the knob, but a correction to one of its
+completely unmodified (§4.3 step 4). What changes is **not** the knob, but a correction to one of its
 *inputs*: `max_overlap[single]`, seeded by the new §4.3 step 2 against the full incumbent set rather
-than left at `_prepare`'s own `0.0` default. This is necessary precisely because of `ADR-036`'s
-precedent (§2 above): the discount's entire safety property is that a weak, low-overlap candidate
-cannot win "purely by being untouched" — a Stage 3 probe that left `max_overlap[single] = 0.0`
-unconditionally (i.e., reused the existing Stage 2 fallback's own calling convention verbatim, without
-this correction) would let *any* single with genuinely zero overlap against `interactions` sail through
-regardless of how much it overlaps the `top_k - 1` incumbents that remain **after** the swap — the
-exact failure shape `ADR-036`/`ADR-037` generically fixed for the interactions phase, reopened in a new
-corner. §10.1 treats this as this design's own most important corrected defect.
+than left at `_prepare`'s own `0.0` default. This is necessary precisely because of the failure shape
+`engine.py`'s own v0.3.1 changelog docstring names (lines 502-512) and `ADR-037`'s
+`min_diversity_relevance_ratio` generically fixed for the interactions phase (corrected citation, round
+2 — see §10.1/§14; not `ADR-036`, whose own recorded root cause is a separate, validation-side `G06`
+gap, not a search-side overlap-seeding one): the discount's entire safety property is that a weak,
+low-overlap candidate cannot win "purely by being untouched" — a Stage 3 probe that left
+`max_overlap[single] = 0.0` unconditionally (i.e., reused the existing Stage 2 fallback's own calling
+convention verbatim, without this correction) would let *any* single with genuinely zero overlap
+against `interactions` sail through regardless of how much it overlaps the `top_k - 1` incumbents that
+remain **after** the swap, reopened in a new corner. §10.1 treats this as this design's own most
+important self-corrected defect; §10.6 treats the separate, round-1-found `atom_usage` defect (§4.3
+step 3) as the most important reviewer-corrected one.
 
 ### 5.2 `min_diversity_relevance_ratio` (default `0.5`) and `relevance_floor_percentile` (default `0.75`)
 
@@ -358,7 +432,15 @@ Not part of the required five, included for completeness since the mechanism dep
 (lines 546, 548-551), which Stage 3's probe calls unmodified. The `max_candidate_jaccard` ceiling now
 has real, correctly-seeded `max_overlap[single]` values to check against (§5.1's correction), so a
 single that duplicates an incumbent interaction's exposed population above the ceiling is skipped
-outright by existing code, exactly as an interaction would be skipped against another interaction today.
+outright by existing code, exactly as an interaction would be skipped against another interaction
+today. **Round 2 addition:** `max_candidates_per_atom`'s own check (line 549) now likewise reads a
+correctly-recomputed `atom_usage` (§4.3 step 3), not Stage 1/2's raw, potentially-stale accumulator.
+Round 1 independent review found this design's original text applied the max_overlap discipline
+above to `max_candidate_jaccard` but not the equivalent discipline to `max_candidates_per_atom` — a
+real, previously-undisclosed gap (§10.6), not merely an asymmetry in exposition: unlike
+`max_candidate_jaccard`, `max_candidates_per_atom` could read phantom usage counts left behind by
+`_apply_feature_identity_cap` trimming the oversold Stage 1/2 list without telling `atom_usage`.
+§4.3 step 3 closes this the same way step 2 already closes the `max_overlap` one.
 
 ### 5.5 `max_feature_identity_fraction` (default `1.0`, no-op)
 
@@ -383,10 +465,10 @@ change to the knob's own value, threshold, or the existing `_apply_feature_ident
    `feature_usage.get(feature, 0) >= max_per_feature`) can therefore only be newly violated for that
    one feature, by that one addition; every other feature's count only ever went down or stayed the
    same. A full re-walk would recompute a value that cannot have changed for any feature other than
-   the promoted single's own — the targeted check in §4.3 step 4 is exact, not an approximation of a
+   the promoted single's own — the targeted check in §4.3 step 5 is exact, not an approximation of a
    full re-walk, and costs `O(1)` instead of `O(top_k)`.
 
-`max_feature_identity_fraction = 1.0` (default, `max_per_feature = config.top_k`) makes step 4 a
+`max_feature_identity_fraction = 1.0` (default, `max_per_feature = config.top_k`) makes step 5 a
 structural no-op for the same reason the field's own docstring already gives (line 606-608): no single
 feature's count can reach `top_k` while `final_selected` itself holds only `top_k` entries. This
 reproduces the "1.0 is a no-op" invariant `TASK-068`/`ADR-057` already established, extended correctly
@@ -410,13 +492,16 @@ Every quantity Stage 3 touches is a pure function of the frozen candidate pool, 
   total, deterministic order independent of dict/set iteration order or Python's per-process string
   hash randomization (`Condition.__lt__` compares field values directly, not hashes). The probe reuses
   this unmodified comparison.
-- `probe_atom_usage`/`probe_max_overlap` are plain `dict.copy()`s consulted only by key lookup
-  (`.get(condition, 0)`, `max_overlap[rule]`) inside the reused loop, never iterated in an
-  order-sensitive way — hash-seed randomization affects dict *iteration* order, not key-lookup
-  correctness, and nothing in `_greedy_diverse_select` or `_reserve_k1_slot` iterates these dicts
-  directly (only the `remaining`/`singles`/`final_selected` **lists**, whose order is itself
-  deterministic, are ever iterated).
-- §4.3 step 4's `_feature_usage` re-check and step 5's drop/append are direct index/slice operations
+- `probe_max_overlap` is a plain `dict.copy()`; `probe_atom_usage` (`atom_usage_for_probe`, §4.3 step
+  3, round 2) is built fresh by iterating `final_selected` (a **list**, order-preserving through every
+  existing stage) and each rule's own `Condition` tuple (also order-preserving) — a deterministic
+  construction whose *content* (the only thing ever read back) depends only on which conditions
+  appear in `final_selected`, not on any iteration or dict-insertion order. Both dicts are consulted
+  only by key lookup (`.get(condition, 0)`, `max_overlap[rule]`) inside the reused loop, never
+  iterated in an order-sensitive way — hash-seed randomization affects dict *iteration* order, not
+  key-lookup correctness, and nothing in `_greedy_diverse_select` or `_reserve_k1_slot` iterates
+  either dict directly (only the `remaining`/`singles`/`final_selected` **lists** are ever iterated).
+- §4.3 step 5's inlined feature tally and step 6's drop/append are direct index/slice operations
   (`final_selected[-1]`, `final_selected[:-1]`) on an already-order-deterministic list.
 
 **Conclusion: for a fixed `frame`, `feature_columns`, `outcome`, and `config` (including
@@ -441,7 +526,12 @@ rule): `top_k=15`, `22,536` eligible interactions, `26` eligible singles.
 2. Stage 3 trigger: `len(final_selected) == 15 == config.top_k` and every member is `k>=2` — fires.
 3. `_prepare(singles)` computes `exposures`/`effective_score` for the 26 eligible singles (a small,
    bounded, already-eligible pool — not a re-run of the 33,085-hypothesis search).
-4. `max_overlap[single]` seeded against all 15 incumbents' exposures (§4.3 step 2).
+4. `max_overlap[single]` seeded against all 15 incumbents' exposures (§4.3 step 2); `atom_usage_for_probe`
+   likewise recomputed from the 15 incumbents' own conditions (§4.3 step 3, round 2) — since this
+   illustrative run does not activate `max_feature_identity_fraction`, `selected == final_selected`
+   here and the recomputation is content-identical to the raw `atom_usage` Stage 1 already built (§10.6
+   notes this is always true when `identity_cap_active` is `False`); §7.4 is the trace where this
+   step's own correction actually changes the outcome.
 5. Probe: `reference_score`/`score_floor` computed from the 26 singles' own `effective_score`
    distribution (§5.2); `remaining` = singles clearing that floor. The probe's greedy loop (budget
    `16`) considers each remaining single's `discount = diversity_discount_weight * max_overlap[single]`
@@ -450,7 +540,7 @@ rule): `top_k=15`, `22,536` eligible interactions, `26` eligible singles.
    - **If the pool's top-scoring single** (illustrative only — `development_score=12,081.5`,
      `harm_per_booking=€325.81`, `n_exposed=1,375`, per `task-094-k1-power-ceiling-raw.json`) clears
      its own phase's relevance floor and is not near-duplicate-overlapping any of the 15 incumbents:
-     `probe_selected` grows to 16. §4.3 step 4's identity-fraction re-check passes (default `1.0`, a
+     `probe_selected` grows to 16. §4.3 step 5's identity-fraction re-check passes (default `1.0`, a
      no-op per §5.5). Commit: `final_selected[-1]` (the weakest of the 15 interactions by marginal-gain
      order) is dropped; the single is appended. Result: **14 interactions + 1 single = 15 total.**
    - **If it does not clear** (e.g., below its own phase's floor, or overlapping an incumbent above
@@ -489,6 +579,63 @@ Illustrative: interactions fill only 14 of 15 slots pre-cap, Stage 2 promotes ex
 final_selected)` (false — one member has `len == 1`) — **does not fire.** No double promotion; the
 `reserve_k1_slot` bound of "up to 1" (§8) is respected by construction, not by a separate counter.
 
+### 7.4 `identity_cap_active=True` with Stage 3 firing (round 2 addition — exercises the §4.3 step 3
+correction)
+
+Round 1 independent review found none of §7.1-7.3 exercises `identity_cap_active=True` with Stage 3
+actually promoting a single — exactly the regime where the `atom_usage` staleness defect (§10.6)
+lives. This trace is added to close that gap directly, constructed to demonstrate the defect would
+have fired without §4.3 step 3, and that step 3 fixes it.
+
+Illustrative construction: `top_k=3`, `max_feature_identity_fraction=0.67` (so
+`identity_cap_active=True`, `max_per_feature = max(1, int(0.67*3)) = 2`), `max_candidates_per_atom=1`
+(illustrative, isolating the atom-level cap from the feature-level one). Interactions pool, ranked by
+marginal gain: `J1` (feature `X`, atoms `{a1, aX1}`), `J2` (feature `X`, atoms `{a2, aX2}`), `D`
+(feature `X`, atoms `{a_shared, aX3}`), `K3` (feature `Y`, atom `{aY}`).
+
+1. Stage 1 (`identity_cap_active`, so `search_config.top_k` oversold per line 738-742): all four
+   interactions clear the relevance floor and no atom is shared between any two of them, so none is
+   skipped by `max_candidates_per_atom` at selection time — `_greedy_diverse_select` selects
+   `[J1, J2, D, K3]` in that order. `atom_usage` (the shared accumulator) now holds `a1:1, a2:1,
+   a_shared:1, aY:1` (among others) — including `a_shared:1` from `D`, which was genuinely selected
+   at this point.
+2. `identity_cap_active`, so `_apply_feature_identity_cap([J1, J2, D, K3], config)` runs: `J1`
+   (feature `X`, count `0 < 2`) kept, `feature_usage={X:1}`; `J2` (feature `X`, count `1 < 2`) kept,
+   `feature_usage={X:2}`; `D` (feature `X`, count `2 >= 2`) **skipped** — `X`'s quota is already
+   full; `K3` (feature `Y`, count `0 < 2`) kept, `final` now has 3 entries (`= top_k`), loop breaks
+   (line 622). `final_selected = [J1, J2, K3]`. **`D` — and its atom `a_shared` — is not in
+   `final_selected`, but the shared `atom_usage` dict still says `a_shared: 1`, exactly the
+   staleness §10.6 describes: `_apply_feature_identity_cap` dropped `D` via its own local
+   `feature_usage` counter and never touched `atom_usage`.**
+3. Stage 3 trigger: `len(final_selected) == 3 == config.top_k` and every member is `k>=2` — fires.
+4. A qualifying single `S1 = (a_shared,)` exists — same atom `D` held, different rule — that clears
+   the singles-pool relevance floor (§5.2) and, once §4.3 step 2 correctly seeds `max_overlap[S1]`
+   against `J1`/`J2`/`K3`'s real exposures, has low enough overlap to clear both the soft discount
+   and the hard `max_candidate_jaccard` ceiling.
+5. **Without the §4.3 step 3 correction** (i.e., `probe_atom_usage = dict(atom_usage)`, the design's
+   original, round-1-flagged text): the probe's atom-usage check reads `atom_usage.get(a_shared, 0)
+   = 1 >= max_candidates_per_atom (1)` — `S1` is skipped outright by the reused
+   `_greedy_diverse_select` loop (line 548-551), **even though zero rules in `final_selected`
+   actually use `a_shared`.** `probe_selected` stays at 3; `_reserve_k1_slot` returns `final_selected`
+   unchanged — `S1` is wrongly declined. This is the live defect round 1 found, reproduced here on
+   an invented pool rather than merely asserted in prose.
+6. **With the §4.3 step 3 correction:** `atom_usage_for_probe` is rebuilt from `final_selected =
+   [J1, J2, K3]` alone; `a_shared` never appears in any of their conditions, so
+   `atom_usage_for_probe.get(a_shared, 0) == 0 < 1` — the atom-usage check passes. `S1` proceeds
+   through the marginal-gain comparison, is the only remaining candidate, and is selected:
+   `probe_selected = [J1, J2, K3, S1]`.
+7. §4.3 step 5's `max_feature_identity_fraction` re-check: `promoted = S1`, feature
+   `{a_shared.feature}` (call it `W`, distinct from `X`/`Y` in this construction).
+   `usage_without_dropped` is tallied over `final_selected[:-1] = [J1, J2]` — zero occurrences of
+   `W` — `0 < max_per_feature (2)` — check passes.
+8. §4.3 step 6 commit: drop `final_selected[-1] = K3` (the weakest incumbent by marginal-gain order),
+   append `S1`. Result: **`final_selected = [J1, J2, S1]`** — 2 interactions + 1 single, and `D`
+   (never in `final_selected` at any point after the identity cap ran) correctly plays no further
+   role. This is the outcome §4.3 step 3 is required to produce; step 5's construction above shows
+   the outcome the round-1-flagged, uncorrected version would have produced instead (a wrongly
+   declined `S1`, byte-identical fallback to `final_selected = [J1, J2, K3]`) — fails closed exactly
+   as §10.6 describes, never the reverse.
+
 ## 8. Why the reserved-slot count is 1, not more
 
 Per `TASK-095`'s own instruction, this starts from a hard cap of 1 and only considers more if
@@ -523,7 +670,7 @@ explicitly justified — the justification below is for staying at 1, not for ex
    benefit — exactly the asymmetry `TASK-095`'s own instruction flags as requiring its own explicit,
    checked argument, which this design does not have grounds to make.
 4. **Structural simplicity.** A fixed count of 1 needs no new tie-break machinery among multiple
-   candidate singles beyond `_greedy_diverse_select`'s own existing one (§4.3 step 3 already resolves
+   candidate singles beyond `_greedy_diverse_select`'s own existing one (§4.3 step 4 already resolves
    "which single" via the reused marginal-gain comparison), no new question about whether 2 reserved
    singles should be diversity-selected against *each other* (a phase-within-a-phase question `TASK-
    060`'s own history never had to answer), and no new interaction with `max_feature_identity_fraction`
@@ -543,12 +690,12 @@ why §4.1 proposes a `bool`, not an `int`.
 | `_development_score` | No | Reused as already computed by Stage 1/2 (`scored[rule][0]`, `effective_score`); not recomputed or reweighted. |
 | `_atoms`/`_metric`/`_eligible` | No | These run once, upstream, before `ranked_rules`/`interactions`/`singles` are ever formed (lines 645-702); Stage 3 never calls them. |
 | `_select_expansion_beam` / beam search | No | Search/expansion completes before scoring; Stage 3 operates only on already-scored, already-partitioned candidate tuples. |
-| `_greedy_diverse_select` (function body) | No | Called unmodified in §4.3 step 3; its own internals (lines 470-572) are not edited by this design. |
-| `_apply_feature_identity_cap` (function body) | No | Called unmodified in Stage 2 (existing); §4.3 step 4 is a new, separate, narrow check, not an edit to this function. |
+| `_greedy_diverse_select` (function body) | No | Called unmodified in §4.3 step 4; its own internals (lines 470-572) are not edited by this design. |
+| `_apply_feature_identity_cap` (function body) | No | Called unmodified in Stage 2 (existing); §4.3 step 5 is a new, separate, narrow check, not an edit to this function. |
 | `top_k`'s own semantics (report size) | No | `len(final_selected)` before and after Stage 3 is identical (`config.top_k`, or fewer in the uncommon case) — swap, never grow. |
 | Any threshold value (`min_diversity_relevance_ratio`, `relevance_floor_percentile`, `diversity_discount_weight`, `stability_credit_weight`, `max_feature_identity_fraction`, `max_candidate_jaccard`, `max_candidates_per_atom`) | No | Every default and every comparison is reused verbatim (§5). |
 | `Candidate` construction / `candidate_id` / `rank_score` / `actionability` | No | Unmodified; operates on `selected` as an opaque ordered list, oblivious to Stage 3. |
-| New code surface | `discover_candidates` (new `reserve_k1_slot` field read, new call to `_reserve_k1_slot` after line 768) and one new private function `_reserve_k1_slot` | Both are final-assembly-stage code, per `TASK-095`'s own scope. |
+| New code surface | `discover_candidates` (new `reserve_k1_slot` field read, new call to `_reserve_k1_slot` after line 768) and one new private function `_reserve_k1_slot` | Both are final-assembly-stage code, per `TASK-095`'s own scope. **Round 2 correction:** round 1 found this row's own claim ("one new private function") was contradicted by §4.3 step 4's original pseudocode, which called a second, undeclared `_feature_usage` helper. That call is now inlined (§4.3 step 5), not declared as a second function, so this row's claim is accurate as written — see §14. |
 
 ## 10. Self-critique — what a reviewer would look for first
 
@@ -560,12 +707,30 @@ Stage 2 already does. That would have been a **real, live defect**: Stage 2's ow
 runs today when interactions structurally fail to fill `top_k` (0 of 150 historical occasions), so its
 `max_overlap=0.0` seeding gap has never been exercised in practice. Stage 3, by design, runs in the
 *opposite*, common case — precisely when there are always `top_k` real incumbents whose overlap should
-count. Reusing the naive calling convention would have reproduced `ADR-036`'s own named failure mode
-(a candidate admitted "purely by being untouched by anything else") in a new, now-frequently-exercised
-corner, the first time this design's own construction was checked against `TASK-060`'s history rather
-than against the Stage 2 code alone. §4.3 step 2 / §5.1 fix this by seeding `max_overlap[single]`
-against every incumbent before the probe runs — this is disclosed here as the single most important
-correction this design made to itself, not left for a reviewer to find first.
+count. Reusing the naive calling convention would have reproduced the exact failure shape `engine.py`'s
+own v0.3.1 changelog docstring already names and generically fixed once (lines 502-512: a live
+`TASK-019`/`TASK-028` run found the undiscounted marginal-gain mechanism let a statistically thin,
+low-overlap-only candidate, `CAND-012`, into the top-K purely because nothing required a "diverse" pick
+to be any good on its own — fixed by adding `min_diversity_relevance_ratio`, `ADR-037`, not by
+re-seeding overlap) — in a new, now-frequently-exercised corner, the first time this design's own
+construction was checked against `TASK-060`'s history rather than against the Stage 2 code alone.
+
+**Round 2 citation correction.** This paragraph originally cited `ADR-036` as the precedent for that
+failure shape. Round 1 independent review found that citation imprecise: `ADR-036`'s own recorded root
+cause for the `CAND-012`/`T03` episode is a *validation*-side gap (`G06`'s fixed adjustment set, §2
+above) — a different failure, on a different side of the pipeline, unrelated to how `max_overlap` is
+seeded. The real precedent for *this* defect (a diversity mechanism admitting a candidate on a
+mis-measured novelty basis) is `engine.py`'s own v0.3.1 changelog docstring's account, corrected as
+cited above. Round 1 also found this design's own defect is, if left unfixed, **more severe** than
+either precedent's own framing states: `max_overlap[single] = 0.0` would have defeated not only the
+soft `diversity_discount_weight` discount but the **hard** `max_candidate_jaccard` ceiling too, since
+that ceiling check (`engine.py` line 546, `if max_overlap[rule] > config.max_candidate_jaccard:
+continue`) reads the exact same, wrongly-zeroed value — a hard-ceiling bypass, not merely a
+soft-discount miscalibration. §4.3 step 2 / §5.1 fix this by seeding `max_overlap[single]` against
+every incumbent before the probe runs — this is disclosed here as the single most important correction
+this design made to itself (self-found, before round 1 review), not left for a reviewer to find first.
+The separate `atom_usage` defect round 1's own review *did* find, not this design's own construction,
+is in new §10.6 below.
 
 ### 10.2 Cost, disclosed
 
@@ -601,6 +766,11 @@ have ever exercised it. A reviewer may reasonably ask whether this asymmetry sho
 by applying §4.3's fix inside `_greedy_diverse_select` itself (so both call sites benefit
 automatically) — that would touch the function's own internals, which `TASK-095`'s scope places outside
 this task (§9). This is named as an explicit, deliberate line, not a gap this document is unaware of.
+**Round 2 addition, per round 1's own recommended (non-blocking) revision:** matching this project's
+own `TASK-088`→`090` precedent for a found-but-correctly-out-of-scope gap, this disclosed boundary is
+now tracked as a real, forward-actionable task rather than left as a paragraph with no next step —
+opened as `TASK-096` (`TASKS.md`) by this revision. `TASK-096` is scoped narrowly to Stage 2's own
+`max_overlap=0.0` seeding gap alone; it does not reopen anything this design or `TASK-095` settled.
 
 ### 10.5 What this design does not solve
 
@@ -613,11 +783,55 @@ candidates (`TASK-094` §3, not reopened); and it does not attempt to determine,
 promoted candidate, whether promotion was "worth it" in recall or precision terms — per `TASK-095`'s
 own explicit exclusion, this document makes no claim about expected outcome movement on any benchmark.
 
+### 10.6 The `atom_usage` staleness defect round 1's independent review found (round 2 addition)
+
+Unlike §10.1's `max_overlap` defect (self-found before round 1 review), this one was **round 1's own
+primary addition** — not disclosed by this design's original text, found by independent adversarial
+tracing against the real code, and confirmed as real, not merely plausible.
+
+**The defect.** `_apply_feature_identity_cap` (`engine.py:584-624`) trims Stage 1/2's oversold,
+`identity_cap_active`-widened `selected` list down to `final_selected` using its own **local**
+`feature_usage: dict[str, int]` counter (line 613) — entirely separate from the shared `atom_usage:
+dict[Condition, int]` dict `_greedy_diverse_select` itself mutates at line 566 for every rule it
+selects into that same oversold list. When `_apply_feature_identity_cap` drops a rule the identity cap
+disqualifies, it never decrements `atom_usage` for that rule's conditions. So the `atom_usage` dict
+this design's original text passed straight into the Stage 3 probe (`probe_atom_usage = dict(atom_usage)`)
+could carry phantom per-atom counts attributable only to candidates no longer in `final_selected` —
+exactly the same *kind* of staleness §10.1's `max_overlap` defect has, but for a different accumulator,
+feeding a different (harder) ceiling (`max_candidates_per_atom`, line 549), and **left uncorrected in
+this design's original text** even though the discipline of "recompute relative to `final_selected`,
+don't reuse Stage 1/2's raw state" was already applied one line away, to `max_overlap`.
+
+**Severity, stated as round 1 stated it.** Fails closed only: a phantom count can only ever read too
+high relative to the truth (an atom used by a since-dropped candidate reads as "used" when it should
+read as free), never too low, so this defect could wrongly *decline* an otherwise-qualifying single —
+it could never wrongly *admit* one, and it never affects `max_overlap`/`max_candidate_jaccard` at all
+(a separate accumulator, already fixed by §4.3 step 2 / §10.1). Not a structural safety violation. But
+a real, verified gap in §5.4's own "reused entirely unchanged... fully analyzed" completeness claim,
+and — round 1's own diagnostic method for finding it — untouched by any of the three original worked
+traces (§7.1-7.3), none of which exercises `identity_cap_active=True` with Stage 3 firing.
+
+**The fix.** §4.3 step 3 (new in this revision) recomputes `atom_usage_for_probe` from scratch,
+counting only conditions present in `final_selected`'s own rules, and the probe now uses that fresh
+dict instead of `dict(atom_usage)`. This mirrors step 2's own `max_overlap` discipline exactly, and is
+provably a strict generalization, not a special case: when `identity_cap_active` is `False`,
+`final_selected == selected` (nothing was ever trimmed), so the recomputation is identical, count for
+count, to what the stale `atom_usage` already held — no branch on `identity_cap_active` is needed.
+§7.4 (new in this revision) is the fourth worked trace round 1 required: it constructs
+`identity_cap_active=True` with Stage 3 firing, shows the original (uncorrected) text would have
+wrongly declined a genuinely qualifying single, and shows the corrected text promotes it.
+
 ## 11. Test specification for a later implementation task (not performed here)
 
-1. **`reserve_k1_slot=False` regression.** `discover_candidates`'s output (including
-   `DISCOVERY_METHOD_VERSION`, if bumped) is byte-identical to the pre-`TASK-095` version, for every
-   existing regression fixture `TASK-060`/`TASK-068`/`TASK-071` already established.
+1. **`reserve_k1_slot=False` regression.** `discover_candidates`'s selected candidates (identity,
+   order, count, every per-candidate field) and `DISCOVERY_METHOD_VERSION` (if bumped) are
+   byte-identical to the pre-`TASK-095` version, for every existing regression fixture
+   `TASK-060`/`TASK-068`/`TASK-071` already established. **Scoped wording, round 2:** this assertion
+   is about candidate selection/content, not the full returned dict — the `"search"` metadata block's
+   own key set legitimately gains `reserve_k1_slot: False` once the field exists, exactly as every
+   prior `TASK-060`/`TASK-068` config field addition already changed that same block's key set; a
+   test asserting the full dict is byte-identical would fail for a reason unrelated to this design
+   and should not be written that way (§4.1).
 2. **No-qualifying-single fallback.** A synthetic pool where every single fails
    `min_diversity_relevance_ratio`'s floor (or fails `max_candidate_jaccard` against every incumbent):
    `final_selected` with `reserve_k1_slot=True` is byte-identical to `reserve_k1_slot=False` on the
@@ -650,6 +864,15 @@ own explicit exclusion, this document makes no claim about expected outcome move
    `interactions`/`singles` lists before sorting — a property already implied by `ranked_rules`'s own
    deterministic `(-score, rule)` sort key (line 699) plus §6's determinism analysis, verified directly
    against the real implementation rather than assumed to hold from the design alone.
+10. **The §4.3 step 3 `atom_usage` correction, tested directly, not just described (round 2 addition,
+    mirroring test 4's discipline for the `max_overlap` correction).** A synthetic fixture matching
+    §7.4's construction: `identity_cap_active=True`, a candidate dropped by `_apply_feature_identity_cap`
+    (not by any atom-level cap) whose own atom is shared with an otherwise-qualifying single. Assert
+    the single **is** promoted under the corrected `atom_usage_for_probe` recomputation — and, as a
+    contrast fixture mirroring test 4's own pattern, assert that reusing `atom_usage` (Stage 1/2's raw,
+    unrecomputed accumulator) directly **would** have wrongly declined it, so this correction's own
+    necessity is regression-tested, not merely asserted in prose or shown only in the design's own
+    hand-traced example.
 
 ## 12. Hard-rule compliance
 
@@ -664,16 +887,101 @@ own already-published, already-reviewed diagnostic — used only to instantiate 
 the mechanism correctly activate/decline in this real, concrete case), never to size, tune, or justify
 any threshold this design introduces. §8's reserved-slot-count-of-1 determination is argued from the
 *shape* of `TASK-094`'s evidence (what it did and did not measure) and from the algorithm's own
-structural cost (one slot removed per reservation), not from any specific pattern's identity.
+structural cost (one slot removed per reservation), not from any specific pattern's identity. §7.4's
+own concrete numbers (round 2 addition — `top_k=3`, `max_feature_identity_fraction=0.67`,
+`max_candidates_per_atom=1`, the `J1`/`J2`/`D`/`K3`/`S1` labels) are entirely invented, chosen only to
+be the smallest construction that exercises `identity_cap_active=True` with Stage 3 firing — not drawn
+from `TASK-094` or any travel-specific data at all, and not fitted to any known outcome.
 
 ## 13. Recommendation
 
 This design is complete against all six of `TASK-095`'s numbered requirements (§0's map) and against
-its own self-critique (§10). It proposes no code change; it specifies, at `TASK-080`'s own level of
-mechanism precision, what a later implementation task would need to build: one new `bool` config field
-(§4.1), one new private function (§4.3) called once at one new call site, and one narrow correction to
-how that function seeds `_greedy_diverse_select`'s existing overlap-discount input (§10.1) — with nine
+its own self-critique (§10, now including §10.6). It proposes no code change; it specifies, at
+`TASK-080`'s own level of mechanism precision, what a later implementation task would need to build:
+one new `bool` config field (§4.1), one new private function (§4.3) called once at one new call site,
+and two narrow corrections to the state that function feeds into `_greedy_diverse_select`'s existing,
+unmodified logic — `max_overlap` (§10.1, self-found) and `atom_usage` (§10.6, round-1-found) — with ten
 concrete test obligations (§11) a later implementation task must satisfy before any official run uses
-it. Per `TASK-095`'s own binding instruction, this document does not mark itself `APPROVED` or
-`CLOSED` — that determination belongs to the independent adversarial `CODE_REVIEWER` pass this task
-requires next, matching `TASK-080`→`081`'s precedent exactly.
+it. This is the round 2 revision of this document; §14 below records exactly what changed from round 1
+and why. Per `TASK-095`'s own binding instruction, this document does not mark itself `APPROVED` or
+`CLOSED` — that determination belongs to the round 2 independent adversarial `CODE_REVIEWER` pass this
+revision now requests, matching `TASK-080`→`081`'s precedent exactly.
+
+## 14. Revision log (round 1 → round 2)
+
+This section exists so a round 2 reviewer can see exactly what changed without re-diffing the whole
+document, matching `docs/analytics/task-080-candidate-composition-safety-design.md`'s own precedent
+for recording a revision between review rounds (its inline "revision banner" + dedicated section
+pattern, adapted here at this document's own, less severe, round-1→2 scale — round 1 returned
+`APPROVED WITH REVISION NEEDED`, not a rejection, so there is nothing here "REVOKED," only corrected
+and completed).
+
+**Required revision 1 — `atom_usage` staleness (round-1-found, not self-found).**
+- **What changed:** new §4.3 step 3 recomputes `atom_usage_for_probe` from `final_selected` before
+  the probe runs, mirroring step 2's pre-existing `max_overlap` recomputation; the probe (step 4) now
+  consumes that fresh dict instead of `dict(atom_usage)`. New §5.4 paragraph and new §10.6 subsection
+  disclose the defect, its severity (fails closed only), and the fix, at the same rigor §10.4 already
+  gives the separate, correctly-out-of-scope Stage 2 gap. New §7.4 worked trace constructs
+  `identity_cap_active=True` with Stage 3 firing — the exact regime none of the original three traces
+  covered — and shows both the wrong-decline the uncorrected text would have produced and the correct
+  promotion the fix produces. New §11 test 10 regression-tests the correction directly, mirroring test
+  4's existing pattern for the `max_overlap` correction.
+- **Why:** round 1 independent review traced `_apply_feature_identity_cap`'s own local
+  `feature_usage` counter against the shared `atom_usage` dict `_greedy_diverse_select` mutates and
+  found the cap never decrements the latter for whatever it drops — a real, previously-undisclosed
+  gap in §5.4's "reused entirely unchanged... fully analyzed" claim.
+- **What did NOT change:** `max_overlap`'s own seeding (§4.3 step 2, §10.1) — round 1 confirmed this
+  correct, traced independently, not on this design's own claim.
+
+**Required revision 2 — `_feature_usage` inconsistency.**
+- **What changed:** §4.3 step 5 (the `max_feature_identity_fraction` re-check, renumbered from step 4
+  in round 1's text) now inlines the feature tally directly, using the same accumulation pattern
+  `_apply_feature_identity_cap` itself already uses (`engine.py:613-621`), instead of calling a
+  `_feature_usage(...)` helper. §9's "New code surface" row now carries a note confirming its
+  "one new private function" claim is accurate as written.
+- **Why:** round 1 found `_feature_usage` referenced in the original step 4's pseudocode does not
+  exist anywhere in `engine.py` (confirmed by the reviewer via grep) and was not declared in §9's own
+  checklist, which named only `_reserve_k1_slot`. Inlining was chosen over declaring a second new
+  helper function to keep this design's new-code-surface footprint at exactly one function, matching
+  the minimal-blast-radius preference §4.4/§10.3 already state elsewhere in this document.
+
+**Recommended revision 3 — §4.1 "byte-identical output" wording.**
+- **What changed:** §4.1's field docstring and §11 test 1 now scope the "byte-identical when `False`"
+  claim to candidate selection/content and `DISCOVERY_METHOD_VERSION`, explicitly carving out the
+  returned dict's own `"search"` metadata block (which legitimately gains a `reserve_k1_slot: False`
+  key once the field exists, via the pre-existing `asdict(config)` call).
+- **Why:** as written, the claim overclaimed literal byte-identity of the full serialized output,
+  which no prior `TASK-060`/`TASK-068` field addition ever achieved (each added its own key to the
+  same metadata block) and which this design never actually needed or intended to claim.
+
+**Recommended revision 4 — `ADR-036` citation, §10.1 (and its recurrence in §5.1).**
+- **What changed:** §10.1 and §5.1 now cite `engine.py`'s own v0.3.1 changelog docstring (and
+  `ADR-037`, the actual search-side fix, `min_diversity_relevance_ratio`) as the precedent for "a
+  diversity mechanism admitting a candidate on a mis-measured novelty basis," rather than `ADR-036`.
+  Both locations now also state the severity correctly: uncorrected, the defect would have defeated
+  the **hard** `max_candidate_jaccard` ceiling, not just the soft diversity discount — more severe
+  than either precedent's own framing. §2's own `ADR-036` citation (the `CAND-012`/`T03`/`G06`
+  historical account itself) was checked and left unchanged — it is accurate as written; only the
+  *analogy drawn from it* in §10.1/§5.1 was imprecise.
+- **Why:** round 1 traced `ADR-036`'s own recorded root cause and found it is a validation-side `G06`
+  adjustment-set gap, not a search-side overlap-seeding issue — a different failure, on a different
+  side of the pipeline, than the one this design's own defect resembles.
+
+**Recommended revision 5 — Stage 2 gap follow-on task.**
+- **What changed:** §10.4 now names `TASK-096` (opened in `TASKS.md` by this revision) as the tracked
+  follow-on for the disclosed, out-of-scope Stage 2 `max_overlap=0.0` gap, instead of leaving it as a
+  paragraph with no forward action.
+- **Why:** matches this project's own `TASK-088`→`090` precedent: a found-but-correctly-out-of-scope
+  gap gets a real, precisely-scoped task entry, not a vague TODO or a dropped thread.
+
+**Confirmed unchanged, per this task's own explicit instruction not to relitigate what round 1 already
+confirmed sound:** the three-stage architecture (§4.2); the floor-conditioned promotion mechanism and
+exact-fallback guarantee — §4.3 steps 1, 2 and 6 are untouched, step 4 (the probe) is untouched in its
+own logic (still an unmodified call to `_greedy_diverse_select`) though it now consumes step 3's
+corrected `atom_usage_for_probe` instead of a raw `dict(atom_usage)`, and only new step 3 and revised
+step 5 actually changed in what they compute; the weakest-incumbent-drop rule (§4.4); the reserved-slot-count-of-1 justification
+(§8, its own numbers additionally re-confirmed illustrative-only in §12); the determinism/permutation
+analysis (§6); the `reserve_k1_slot` field and `k1_reservation` metadata (§4.1, §4.3); the
+`min_diversity_relevance_ratio`/`relevance_floor_percentile`/`stability_credit_weight` analyses (§5.2,
+§5.3); the adversarial "did Stage 3 shift its own relevance reference" construction round 1 tested and
+found not to apply (`TASKS.md` `TASK-095` entry) — none of this is touched by this revision.
