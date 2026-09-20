@@ -591,14 +591,25 @@ Illustrative construction: `top_k=3`, `max_feature_identity_fraction=0.67` (so
 `identity_cap_active=True`, `max_per_feature = max(1, int(0.67*3)) = 2`), `max_candidates_per_atom=1`
 (illustrative, isolating the atom-level cap from the feature-level one). Interactions pool, ranked by
 marginal gain: `J1` (feature `X`, atoms `{a1, aX1}`), `J2` (feature `X`, atoms `{a2, aX2}`), `D`
-(feature `X`, atoms `{a_shared, aX3}`), `K3` (feature `Y`, atom `{aY}`).
+(feature `X`, atoms `{a_shared, aX3}`), `K3` (feature `Y`, atoms `{aY1, aY2}` — two atoms, kept
+explicitly `k>=2` like every other entry in this pool, since the real `interactions` partition
+(`engine.py:701`, `len(rule)>=2`) cannot contain a `k==1` rule at all; round 2 review found the
+original single-atom `K3` was a labeling slip, not a defect in the mechanism).
 
-1. Stage 1 (`identity_cap_active`, so `search_config.top_k` oversold per line 738-742): all four
-   interactions clear the relevance floor and no atom is shared between any two of them, so none is
-   skipped by `max_candidates_per_atom` at selection time — `_greedy_diverse_select` selects
-   `[J1, J2, D, K3]` in that order. `atom_usage` (the shared accumulator) now holds `a1:1, a2:1,
-   a_shared:1, aY:1` (among others) — including `a_shared:1` from `D`, which was genuinely selected
-   at this point.
+1. Stage 1 (`identity_cap_active`, so `search_config.top_k` oversold per line 738-742 — for this
+   construction, `search_config.top_k=5`): all four interactions clear the relevance floor and no
+   atom is shared between any two of them, so none is skipped by `max_candidates_per_atom` at
+   selection time — `_greedy_diverse_select` selects `[J1, J2, D, K3]` in that order (4 members).
+   `atom_usage` (the shared accumulator) now holds `a1:1, a2:1, a_shared:1, aY1:1, aY2:1` (among
+   others) — including `a_shared:1` from `D`, which was genuinely selected at this point.
+   **`len(selected)=4 < search_config.top_k=5`, so Stage 2's own singles fallback
+   (`engine.py:755-766`) does fire here — a real code path this trace must not silently skip, per
+   round 2 review.** Say the singles pool at this point contains no candidate that clears Stage 2's
+   own relevance floor (a legitimate, disclosed choice for this construction, isolating it from
+   `TASK-096`'s separate Stage 2 `max_overlap`-seeding gap) — `selected` stays `[J1, J2, D, K3]`,
+   unchanged by Stage 2, and the trace proceeds as below. (A construction where Stage 2 *does*
+   promote a single here would additionally exercise `TASK-096`'s own defect, in different code,
+   not re-demonstrated by this trace.)
 2. `identity_cap_active`, so `_apply_feature_identity_cap([J1, J2, D, K3], config)` runs: `J1`
    (feature `X`, count `0 < 2`) kept, `feature_usage={X:1}`; `J2` (feature `X`, count `1 < 2`) kept,
    `feature_usage={X:2}`; `D` (feature `X`, count `2 >= 2`) **skipped** — `X`'s quota is already
