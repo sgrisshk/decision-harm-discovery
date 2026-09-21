@@ -2,13 +2,31 @@
 
 **Owner:** STATISTICS
 **Recorded:** 2026-09-21
-**Status:** PRE-REGISTERED. **This document produces no data, runs no discovery, runs no
-validation.** It specifies a design only. A dated freeze-point commit (this file's first commit to
-this worktree branch) is the actual pre-registration event; everything above the line marked
-"§12 Post-freeze mechanical amendments" was written and committed before a single row of the target
-dataset was loaded. Running the experiment this document specifies is a separate, later task
+**Status:** PRE-REGISTERED, ROUND 2 REVISION (2026-09-21). **This document produces no data, runs no
+discovery, runs no validation.** It specifies a design only. A dated freeze-point commit (this file's
+first commit to this worktree branch) is the actual pre-registration event; everything above the line
+marked "§12 Post-freeze mechanical amendments" was written and committed before a single row of the
+target dataset was loaded. Running the experiment this document specifies is a separate, later task
 (`TASK-099`'s own text: "opened only once this document is independently confirmed to actually
 pre-register the design"), not performed here.
+
+**2026-09-21 ROUND 2 REVISION banner, read this first.** Round 1 independent adversarial
+`CODE_REVIEWER` review (`TASKS.md` `TASK-099` entry, "Review verdict") returned **APPROVED WITH
+REVISION NEEDED** — not structural, matching this project's own `TASK-095` round-1→2 precedent, not a
+rejection. One material, previously-undisclosed gap (Finding F, §2.3's false claim about the temporal-
+split tooling's "default configuration") and one minor finding (§5.2's derived-atom classification
+ordering) required revision; two further points (Stage-1/Stage-2 execution ordering, and the
+well-known-dataset prior-knowledge risk) required an explicit response, not a rewrite. Full accounting
+in new **§14 (Revision log, round 1 → round 2)** at the end of this document. **This revision touches
+only §2.3, §5.2, §6 (a new execution-order requirement), and §7 (a strengthened blindness
+disclosure) — every other section, including all four hypotheses (`OL01`–`OL04`), the matched-scale
+dev-only downsample design, the `TASK-008` foreknowledge handling, the code-reuse citations, and §9's
+verbatim interpretation branches, is unchanged from the round-1 freeze.** This revision is itself
+performed under the same blindness discipline as the original freeze: no Olist data row was opened to
+produce it (see §14's own confirmation). This document still does not mark itself `APPROVED`; that
+determination belongs to the round 2 independent adversarial `CODE_REVIEWER` pass this revision now
+requests — matching `TASK-099`'s own explicit instruction that only a round-2 reviewer, not the
+implementer, may authorize execution.
 
 This document answers all seven items of `TASK-099`'s `TASKS.md` entry, in the numbering that
 entry uses, plus the process-discipline items the assigning message added on top of it (a
@@ -148,19 +166,82 @@ columns actually exist post-join" work `TASK-099`'s process discipline defers to
 freeze commit — not because the join *method* is undetermined (it is fully fixed above), only
 because its *numeric result* requires opening the files.
 
-### 2.3 Decision timestamp and temporal split
+### 2.3 Decision timestamp and temporal split — **revised 2026-09-21, Finding F (§14)**
 
-`order_purchase_timestamp` (the moment the order — the decision — is placed) is the decision
-timestamp for every row of `F`. `F` is sorted ascending by this column (a deterministic order, no
-randomness) and partitioned into `development` / `validation` / `future_holdout` using this
-project's own existing, unmodified split-building tooling —
-`scripts/build_domain_temporal_splits.py` plus `domain_benchmarks.analytical_bridge.
-temporal_split_config` — the exact tool `TASK-062`/`TASK-065` already used to build
-`b2b-sales-temporal-split-v1.0.0` and `ecommerce-temporal-split-v1.0.0` (`docs/benchmark/
-task-068-ecommerce-preregistration.md` R2). **Whatever proportions that tool's existing, unmodified
-default configuration produces for Olist's real date range is what is used here** — no new split
-ratio is invented or tuned for this experiment. Call the resulting full-scale development partition
-`D_F`.
+**Round-1 text corrected here.** The round-1 version of this section claimed Olist's split boundaries
+would come from "that tool's existing, unmodified default configuration." Round-1 independent review
+checked this against the actual code and found it false, and this revision confirms the same reading
+independently before writing the fix: `scripts/build_domain_temporal_splits.py` takes a `--domain`
+argument that must already be a key of `domain_benchmarks.registry.DOMAIN_REGISTRY`, and for every
+registered domain it builds the split purely from that domain's own `DomainSpec.development_end` /
+`.validation_end` / `.future_holdout_end` — three **required, non-defaulted** string fields
+(`policy_analytics/domain_benchmarks/common.py` `DomainSpec`, lines ~113-115). Reading
+`packages/analytics/src/policy_analytics/domain_benchmarks/ecommerce.py` directly (module-level
+constants, lines 28-30) confirms it hand-authors `DEVELOPMENT_END = "2024-12-31"`,
+`VALIDATION_END = "2025-06-30"`, `FUTURE_HOLDOUT_END = "2025-12-31"` — specific calendar dates chosen
+for that domain, not read from any shared default. `policy_analytics/domain_benchmarks/
+analytical_bridge.py`'s `temporal_split_config(spec)` (lines 73-88) does nothing but copy those three
+fields verbatim into a `TemporalSplitConfig`. The only place anything resembling a "default" exists is
+`policy_analytics/temporal_splits.py`'s `TemporalSplitConfig` dataclass, whose field defaults
+(`development_end="2024-12-31"`, `validation_end="2025-06-30"`, `future_holdout_end="2025-12-31"`,
+lines 24-29) are **travel's own specific historical dates**, not a generic proportion rule — and every
+domain overrides them explicitly via its own `DomainSpec` regardless. Olist has no `DomainSpec` entry
+in `DOMAIN_REGISTRY` at all, so there is no fallback of any kind for it to inherit. This confirms
+Finding F exactly as recorded in `TASKS.md`: the round-1 claim described tooling that does not exist.
+
+**The fix — a principled, data-relative split rule, pre-registered now, not deferred.** Two things are
+separated: the **proportions** this project already uses (a real, reusable convention, not invented for
+this experiment), and the **specific dates**, which round 1 correctly identifies must not be hand-picked
+for Olist. Both travel's own `TemporalSplitConfig` defaults and `ecommerce.py`'s explicit dates cover
+the identical shape — 12 months development / 6 months validation / 6 months future_holdout, i.e.
+**50% / 25% / 25%** of a 24-month covered range — confirmed identical across both by direct inspection,
+not assumed from one example. This document adopts that same 50/25/25 proportion, but applies it as
+**percentile cutoffs of Olist's own real `order_purchase_timestamp` distribution** rather than as
+fixed calendar dates — the same "define relative to the data itself" convention §5.1's
+`OUTCOME_LOW_REVIEW` threshold already uses, now applied consistently to the split boundaries too, so
+neither is a number chosen with foreknowledge of Olist's actual date range:
+
+1. Let `t_min` = the minimum and `t_max` = the maximum `order_purchase_timestamp` date (day precision,
+   time-of-day dropped) over all of `F`.
+2. `development_start = t_min`. `development_end` = the date at the **50th percentile**
+   (`polars.Series.quantile(0.50, interpolation="linear")`, the identical interpolation convention
+   `OUTCOME_LOW_REVIEW`'s `P25` already uses, for consistency) of `F`'s `order_purchase_timestamp`
+   values, truncated to a date.
+3. `validation_start` = the day immediately following `development_end`. `validation_end` = the date
+   at the **75th percentile** of the same distribution, same interpolation, truncated to a date.
+4. `future_holdout_start` = the day immediately following `validation_end`. `future_holdout_end` =
+   `t_max` (i.e., the last row's own date — not a percentile computation, so every row of `F` is
+   assigned to exactly one split with none left over past the boundary).
+5. All five boundary dates are **mechanical, pre-determined functions of whatever `F`'s real date
+   range turns out to be** — computed only in §12, after data opens, never chosen by this document.
+   Reviewer note: because `order_purchase_timestamp` is what §5.1/§5.3 already establish as this
+   dataset's own decision timestamp, a percentile of its distribution is, by construction, a
+   row-count-based split (not exactly a calendar-time split) — a **stronger**, not weaker, match to
+   "50/25/25 of the data" than the calendar-date convention it replaces, since a calendar-date cutoff
+   on real (non-uniform) order volume would not generally land at exactly 50/25/25 by row count.
+
+**Mechanics — the real, unmodified split-assignment function, called directly.** Olist cannot go
+through `scripts/build_domain_temporal_splits.py`'s own `--domain` CLI (it requires `DOMAIN_REGISTRY`
+membership, and registering Olist as a new `DomainSpec` — a synthetic-domain benchmark construct with
+patterns/traps/a row generator — is not this experiment's scope and is not proposed here). Instead,
+this document calls the same underlying, real, unmodified function every domain's manifest is actually
+built from: `policy_analytics.temporal_splits.assign_temporal_splits` (and, if a full manifest is
+wanted for parity with the other domains, `build_temporal_split_manifest`), passing a manually
+constructed `TemporalSplitConfig(version="olist-temporal-split-v1.0.0",
+timestamp_column="order_purchase_timestamp", identifier_column="order_id",
+development_start=..., development_end=..., validation_start=..., validation_end=...,
+future_holdout_start=..., future_holdout_end=..., assignment_rule="closed intervals on
+order_purchase_timestamp; no random shuffle", outcome_availability_mode="CLOSED_SYNTHETIC_BENCHMARK")`
+with the five dates computed per steps 1-4 above. **Disclosed, checked infelicity:** `_validate_config`
+(`temporal_splits.py` lines 47-52) raises `ValueError` unless `outcome_availability_mode` is literally
+the string `"CLOSED_SYNTHETIC_BENCHMARK"` — the only value it currently accepts. Despite the name, its
+actual, documented meaning (`build_temporal_split_manifest`'s own `"basis"` text, lines 186-189) is
+"the dataset is closed and every row's outcome is already final, no right-censoring" — a real property
+of a static, historical Kaggle export like Olist, not an assertion that Olist is synthetic data. This
+document reuses the tool's only supported mode literal for that reason, disclosed explicitly rather
+than silently relying on a misleading string; it changes nothing about how the boundaries themselves
+are computed. `F` is sorted ascending by `order_purchase_timestamp` (deterministic, no randomness)
+before assignment, as in the round-1 text. Call the resulting full-scale development partition `D_F`.
 
 ### 2.4 Full-scale condition
 
@@ -327,16 +408,69 @@ using any column named as a candidate feature below.
 - **Eligibility cohort:** rows of `F` with a non-null `review_score` (i.e., a review exists).
 - **Source column:** `review_score`, from `olist_order_reviews_dataset` only.
 
-### 5.2 Derived decision-time atom (one, disclosed)
+### 5.2 Derived decision-time atom (one, disclosed) — **revised 2026-09-21, minor finding (§14)**
 
 **`seller_customer_cross_state`** = `1` if `seller_state != customer_state` (both non-null), else
 `0`. Both inputs are attributes of already-existing parties (the seller and the customer), known at
 order-placement time, independent of anything that happens afterward; their inequality is computed
-from decision-time information only, using no outcome data — the same class of legitimate
-decision-time derivation `travel_month` was (a calendar decomposition of a decision-time date,
-`HANDOFF-059`/`ADR-047`), disclosed here rather than left implicit. This column is added to the
-analytical frame once, identically, at both scales, before `discover_candidates()` runs; it is never
-constructed from or conditioned on `OUTCOME_LATE`/`OUTCOME_LOW_REVIEW`.
+from decision-time information only, using no outcome data.
+
+**Round-1 gap, and why this document does not choose the "preferred" option.** Round 1 correctly found
+that the round-1 text never specified whether this atom is added before or after §3's real
+`classify_columns()` step, and offered two resolutions: (a) add it before CSV export so
+`classify_columns()` labels it like any other column (preferred, if mechanically sound), or (b) an
+explicit, disclosed exception mirroring `travel_month`. This revision traced (a) against the actual
+classifier code, as the review instructed, rather than assuming it would work, and found **it does
+not**: under §3's own fidelity requirement (`pl.read_csv(path, infer_schema_length=0)`, all columns
+read as strings), a two-valued `"0"`/`"1"` column is recognized by `schema_profiler._guess_semantic_type`
+(lines 160-161) as `semantic_type_guess == "boolean_flag"` — a **different** string than
+`"categorical"`. `feature_timing.classify_feature_timing`'s only positive DECISION_TIME rule matching
+on semantic type checks `profile.semantic_type_guess == "categorical"` literally (line 182); it does
+not match `"boolean_flag"`. None of `seller_customer_cross_state`'s name tokens (`seller`, `customer`,
+`cross`, `state`) appear in `_DECISION_TIME_COUNT_HINTS`, `_DECISION_TIME_FLAG_HINTS`, or the
+quoted-amount hint sets (lines 101-117) either. Tracing the full rule chain in `classify_feature_timing`
+(lines 135-212), this column falls through every positive rule and lands on the final catch-all —
+`FeatureTiming.UNKNOWN`, "no rule matched; requires explicit human classification" — regardless of
+whether it is added before or after CSV export (the outcome is a function of the column's *value
+content*, not of *when* it is added; export timing does not change it). Per §3's own binding rule,
+`UNKNOWN` is excluded from `discover_candidates()`'s feature set — so option (a), applied naively,
+would silently break `OL01`'s premise rather than validate it. This is disclosed here precisely
+because it is the kind of check the round-1 review asked this revision to perform directly rather than
+assert as plausible.
+
+**Resolution: option (b), an explicit, disclosed exception — the same shape `travel_month` actually
+used.** Checking the precedent directly (`memory/HANDOFFS.md` `HANDOFF-059`) rather than assuming the
+analogy holds: `travel_month` (an integer 1-12 calendar decomposition) is not organically labeled
+`DECISION_TIME` by `classify_columns()`'s generic name-matching rules either — no token in `{travel,
+month}` matches any positive rule, and an integer-typed column never reaches the `"categorical"`
+branch at all (that branch requires `inferred_type == "string"`). `travel_month`'s real `DECISION_TIME`
+status is instead delivered as an **explicit, disclosed, declared-feature-timing lineage**, propagated
+through `blind/allowlist.yaml` and `tools/blind_agent/models.py` rather than produced by the generic
+classifier — exactly the shape option (b) describes. This document adopts the identical resolution for
+`seller_customer_cross_state`: it is **declared `DECISION_TIME` by explicit statement in this
+document, not by relying on `classify_columns()`'s own output for this one column.** This is narrower
+than it may first appear — the exception covers only this one derived column's own label; it does not
+touch `§3`'s binding rule for anything else. Concretely:
+
+- `seller_state` and `customer_state` — the atom's two *inputs* — are **not** exceptions: they must
+  still independently clear the real `classify_columns()` call and be confirmed `DECISION_TIME` in
+  §12, exactly as every other candidate feature in §5.3 must be. (Expectation, not yet verified: both
+  are low-cardinality string columns — Brazilian state codes, at most ~27 distinct values against tens
+  of thousands of rows — so each is independently expected to hit the ordinary `"categorical"` rule on
+  its own terms, unlike their boolean-valued combination.)
+- `seller_customer_cross_state` itself is added to the analytical frame once, identically, at both
+  scales, immediately after the joins in §2.2 (i.e., it is present in the CSV that is exported and fed
+  to `profile_columns()`/`classify_columns()` in §3, so a reviewer can see its real, actual classifier
+  output too) — but its membership in `OL01`'s feature set is authorized by this document's explicit
+  declaration, not conditioned on what `classify_columns()` happens to return for it. If the real run's
+  `classify_columns()` output for this column is anything other than `UNKNOWN` or `DECISION_TIME` (an
+  outcome this document does not currently expect, given the trace above), that surprising result is
+  recorded in §12 as a disclosed mechanical finding, not silently reconciled either way.
+- This exception is never constructed from or conditioned on `OUTCOME_LATE`/`OUTCOME_LOW_REVIEW` — its
+  derivation (an inequality of two already-decision-time-classified party attributes) is fixed here,
+  before any data is opened, precisely so declaring it `DECISION_TIME` is a disclosed process choice
+  about classifier coverage, never a route around the leakage/timing discipline §3-§4 establish for
+  everything else.
 
 ### 5.3 The four pre-registered patterns
 
@@ -389,6 +523,32 @@ at the full-scale condition (`D_F`) and the matched-scale condition (`D_M`), in 
 **Stage 1's multiplicity sub-step depends on a scalar from Stage 2, as disclosed in §6.1, so Stage 2
 runs first; nothing about Stage 1 bypassing search for *candidate identification* is affected by
 that ordering, only the multiplicity denominator borrows a number from it.**
+
+### 6.0 Execution-order requirement, binding — **added 2026-09-21, response to review point 3 (§14)**
+
+Round 1 confirmed Stage 1 borrowing its multiplicity family size from Stage 2's own
+`evaluated_hypotheses` count (§6.1 step 6 below) is mechanistically sound, mirroring
+`task-069-validation-power-autopsy.md`'s own precedent exactly. It flagged a real execution-discipline
+risk distinct from that mechanism: `task-069`'s own oracle bound reused an **already-frozen, historical**
+`evaluated_hypotheses` count from a run that had already completed and been committed before that
+autopsy was written. Here, by contrast, §4.2's leakage audit, Stage 1, and Stage 2 are all intended to
+run in **one uninterrupted session**, with no prior frozen run to borrow from — creating a real,
+previously-unstated path by which a session could (even unintentionally) look at Stage 1's own
+detectability outcome for a pattern before finishing §4.2's leakage checks for that pattern's
+features, and let that knowledge shape how a borderline leakage statistic gets read.
+
+**Binding rule, closing that path:** for every pattern, at every scale, **§4.2's empirical determinism
+audit must be run to completion and its result (pass, or which check flagged and the exact statistic)
+recorded in §12 before that pattern's own Stage 1 oracle-detectability pass/fail verdict is computed or
+inspected, by anyone, in that session.** Concretely: the executing session runs §4.2 for all four
+patterns at a given scale first, records every flag/exclusion, and only then proceeds to §6.1 for the
+patterns that survive it, at that same scale — never interleaved pattern-by-pattern in a way that lets
+one pattern's Stage 1 result be visible while another pattern's §4.2 audit is still in progress. This
+does not change §4.2's own consequence rule (a flagged feature is still excluded regardless of any
+Stage 1 outcome, per §4.2's existing text) — it exists solely so that rule is never exercised, even
+inadvertently, with knowledge of which patterns "need" a feature excluded to reach a particular
+detectability verdict. A session that violates this ordering must disclose the violation in §12 rather
+than silently proceed, per this document's existing append-only correction discipline (§10).
 
 ### 6.1 Stage 1 — Oracle detectability (the pre-registered rule, handed directly to the gates' own
 formulas, search bypassed for candidate identification)
@@ -512,6 +672,45 @@ being plausible marketplace harms — an extremely generic e-commerce intuition,
 dataset's actual numbers — is the most such a prior could have contributed; no rule threshold or
 outcome cutoff is fixed to a specific already-known value.
 
+### 7.1 Hypothesis-*selection* risk, addressed squarely — **added 2026-09-21, response to review
+point 5 (§14)**
+
+Round 1 judged the residual well-known-dataset risk **more serious than the round-1 text above
+credited**, and this revision responds to that directly rather than repeating the paragraph above with
+softer wording. The round-1 text (and §1's process log) argues, and this revision does not withdraw,
+that every **threshold** in §5 is data-relative and mechanically computed only after the freeze — that
+argument is sound and unchanged. What it did not squarely address is a different question: not "is each
+threshold blind," but **"was the choice of which two outcomes and which four feature/outcome pairings
+were worth writing down in the first place, itself blind."**
+
+Stated plainly, as the review asked: it cannot be fully ruled out. Olist is one of the most widely
+published Kaggle datasets in existence, with numerous public notebooks and tutorials whose analyses
+center on exactly `review_score`, delivery lateness, `payment_installments`, and cross-state shipping
+as the dataset's own most-discussed relationships. A drafting session's generic, pretrained familiarity
+with "these are the interesting columns in Olist" — even without recalling any specific number, and
+even while genuinely never opening a row of this instance's data — could have shaped *which* four
+candidate relationships felt worth pre-registering out of the much larger space `F`'s schema (§2.1)
+actually offers (e.g., product dimensions, geolocation, seller/customer zip-prefix proximity, order
+item count, freight-to-price ratio, and every other combination §5.3's own "explicitly not
+pre-registered" paragraph does not individually rule out). This document does not, and after this
+revision still does not, claim to be able to distinguish "these four patterns were chosen because they
+are the most domain-plausible marketplace harms a naive analyst would write down from the schema alone"
+from "these four patterns were chosen because this session has generic prior exposure to this specific,
+famous dataset's own well-known public findings" — both produce the identical four hypotheses, and no
+internal check available to this document can tell them apart after the fact.
+
+**What this does and does not change.** The four hypotheses are not discarded: round 1 independently
+confirmed they remain genuinely falsifiable (§5.3's explicit sign-flip/falsification criterion) and
+that their thresholds are cleanly data-relative, and nothing about the selection-risk discussion above
+weakens either property. What changes is only the document's own framing: it no longer implies that
+hypothesis *selection* enjoys the same clean blindness argument §1/§7 make for threshold *mechanics*.
+A round-2 reviewer, or the founder, weighing how much evidentiary weight to place on this experiment's
+outcome should read `OL01`–`OL04` as patterns whose **thresholds** are rigorously blind and whose
+**existence as the chosen four** carries a real, disclosed, un-removable residual prior-knowledge risk
+— exactly the caveat `TASK-099` item 6 asks this document to address honestly rather than assert away,
+now stated at the strength the round-1 review found warranted rather than the softer strength the
+round-1 text originally gave it.
+
 ---
 
 ## 8. Decision-gate binding — retained unmodified
@@ -559,8 +758,17 @@ the actual experiment would come out"):
 - §4 (the leakage-check method and its consequence rule);
 - §5 (all four hypotheses' feature choices, rules, outcomes, and directions — including the tie-break
   rule and the explicit non-use of `price`/`freight_value`/`product_weight_g`);
-- §6 (the three-stage protocol, the matching threshold, the multiplicity family-size method);
+- §6 (the three-stage protocol, the matching threshold, the multiplicity family-size method,
+  including new §6.0's execution-order requirement as of this revision);
 - §9 (the interpretation branches, verbatim).
+
+**This hard rule governs edits made *after* independent review approves this document and execution
+begins — it does not forbid the kind of disclosed, reviewer-mandated revision pass this document has
+just undergone (§14), which happened before any round-2 approval and before any data was opened,
+matching `TASK-095`'s own round-1→2 precedent exactly: a real reviewer finding requires the original
+author to revise, visibly and dated, not to leave the finding unaddressed on the theory that the
+document is already "frozen." Once a round-2 reviewer approves this document, the rule above applies
+in full and a further revision would require its own round 3.**
 
 **Explicitly permitted after the freeze commit, append-only, dated:** §12 below, for exactly the
 three classes of content `TASK-099`'s process discipline names — the mechanical join/row-count
@@ -607,3 +815,107 @@ should verify the freeze claim directly: `git log --follow -- docs/benchmark/
 task-099-sample-size-detectability-preregistration.md` should show exactly one commit before any
 `§12` amendment exists, and that commit's diff should be this file's initial version, added, nothing
 else.
+
+---
+
+## 14. Revision log (round 1 → round 2)
+
+This section exists so a round 2 reviewer can see exactly what changed without re-diffing the whole
+document, matching `docs/analytics/task-095-k1-reservation-design.md` §14's own precedent for
+recording a revision between review rounds — round 1 returned `APPROVED WITH REVISION NEEDED`, not a
+rejection, so there is nothing here "REVOKED," only corrected and completed.
+
+**Blindness confirmation for this revision itself, stated so it is checkable, not just asserted:** this
+revision pass opened no Olist data — no CSV, no row, no summary statistic, no distribution. Everything
+it changed was produced by reading this project's own already-public source code
+(`scripts/build_domain_temporal_splits.py`, `policy_analytics/domain_benchmarks/common.py`,
+`policy_analytics/domain_benchmarks/ecommerce.py`, `policy_analytics/domain_benchmarks/
+analytical_bridge.py`, `policy_analytics/temporal_splits.py`, `policy_analytics/profiling/
+schema_profiler.py`, `policy_analytics/profiling/feature_timing.py`) and this project's own prior
+records (`TASKS.md`'s `TASK-099`/`TASK-095` entries, `memory/HANDOFFS.md`'s `HANDOFF-059`) — the same
+"this project's own already-public code is not a data-blindness violation" boundary §1 already
+established for the original freeze.
+
+**Required revision 1 — Finding F, §2.3's false split-tooling claim.**
+- **What changed:** §2.3 is rewritten. The false claim ("that tool's existing, unmodified default
+  configuration") is corrected in place with a citation-backed account of how `DomainSpec`-based split
+  boundaries actually work (hand-authored, required, non-defaulted per domain; no fallback; Olist has
+  no `DomainSpec`). A new, principled, data-relative split rule is pre-registered: the project's own
+  existing 50/25/25 development/validation/future_holdout proportion (confirmed identical across
+  travel's `TemporalSplitConfig` defaults and `ecommerce.py`'s explicit dates), applied as percentile
+  cutoffs (`P50`, `P75`, max) of Olist's own real `order_purchase_timestamp` distribution rather than
+  as invented calendar dates — mirroring §5.1's own `OUTCOME_LOW_REVIEW` `P25` convention. Mechanics
+  are specified down to which real function is called (`policy_analytics.temporal_splits.
+  assign_temporal_splits`/`build_temporal_split_manifest`, called directly with a manually constructed
+  `TemporalSplitConfig`, not via the domain-registry-gated CLI) and a disclosed note on the
+  `outcome_availability_mode="CLOSED_SYNTHETIC_BENCHMARK"` literal's real meaning versus its name.
+- **Why:** round 1 independently checked `scripts/build_domain_temporal_splits.py` and
+  `ecommerce.py` directly and found the round-1 claim false — every domain's split boundaries are
+  hand-authored, per-domain constants, with no generic fallback a new domain could inherit. Left
+  uncorrected, this was an open, undisclosed discretionary knob directly determining every stage's
+  statistical power — exactly the class of post-freeze wiggle room the rest of the document goes to
+  unusual lengths to close, per the review's own framing.
+- **What did NOT change:** the decision that a temporal split (rather than a non-temporal one) is used
+  at all; the join specification (§2.2); the downsample method, seed, and row target (§2.5); the
+  `validation`/`future_holdout` partitions being held fixed and un-downsampled across both scale
+  conditions (§2.5) — none of this was implicated by Finding F and none of it is touched here.
+
+**Required revision 2 — minor finding, §5.2's derived-atom classification ordering.**
+- **What changed:** §5.2 is rewritten. Rather than assuming the "preferred" option (add the atom
+  before CSV export, let `classify_columns()` label it) would work, this revision traced
+  `schema_profiler._guess_semantic_type` and `feature_timing.classify_feature_timing`'s actual rule
+  chain for a `"0"`/`"1"`-valued derived column and found it would be classified `semantic_type_guess
+  == "boolean_flag"` (not `"categorical"`) and would match no other positive `DECISION_TIME` rule,
+  landing on `UNKNOWN` regardless of export timing — silently breaking `OL01`'s premise rather than
+  validating it. §5.2 now instead adopts option (b): `seller_customer_cross_state` is declared
+  `DECISION_TIME` by explicit statement in this document, checked against the real `travel_month`
+  precedent (`HANDOFF-059`), which turns out to use the identical shape (an explicit declared-lineage
+  exception, not an organic classifier match) rather than assumed to be analogous. The atom's two
+  *inputs* (`seller_state`, `customer_state`) remain fully subject to the real `classify_columns()`
+  call, not exempted.
+- **Why:** round 1 found the round-1 text silent on before/after CSV-export ordering, which could let
+  the derived atom bypass the "every feature must be classifier-labeled" rule the document states as
+  binding for everything else. This revision resolves the ambiguity by checking which resolution is
+  actually mechanically accurate, per the review's own instruction, rather than picking the
+  superficially "preferred" option without verification.
+- **What did NOT change:** the atom's own definition (`seller_state != customer_state`), its
+  construction from decision-time-only inputs, or its use in `OL01` — only the account of how it
+  enters the classified feature set.
+
+**Addressed, not required as a rewrite — point 3, Stage-1/Stage-2 execution ordering.**
+- **What changed:** new §6.0 adds a binding execution-order requirement: §4.2's leakage audit must be
+  run to completion and recorded in §12, per pattern per scale, before that pattern's own Stage 1
+  oracle-detectability verdict is computed or inspected by anyone in the (single, uninterrupted)
+  executing session.
+- **Why:** round 1 confirmed the multiplicity-borrowing mechanism itself (§6.1 step 6) is
+  mechanistically sound, matching `task-069`'s own precedent, but flagged that `task-069`'s precedent
+  reused an already-frozen historical run, whereas this experiment's leakage audit, Stage 1, and Stage
+  2 all run together in one session here — a real, previously-unstated path by which a Stage-1 result
+  could retroactively influence which features "pass" the leakage audit. §6.0 closes that path
+  explicitly rather than leaving it to session discipline alone.
+- **What did NOT change:** §6.1's oracle-detectability method itself, step-for-step; §6.1 step 6's
+  multiplicity-borrowing mechanism; §6.2/§6.3's discovery and validation protocols.
+
+**Addressed, not required as a rewrite — point 5, well-known-dataset prior-knowledge risk.**
+- **What changed:** new §7.1 states squarely that this document cannot rule out that the *choice* of
+  which two outcomes and which four feature/outcome pairings were worth pre-registering — not just
+  their thresholds — was shaped by generic prior familiarity with this specific, famous dataset's own
+  well-known public findings, and that the document should not be read as implying hypothesis
+  *selection* is as cleanly blind as threshold *mechanics* are.
+- **Why:** round 1 judged this risk more serious than the round-1 §7 text credited, given the
+  reviewer's own generic familiarity with widely-published Olist EDA notebooks. The round-1 text
+  disclosed the risk but framed it primarily around threshold values; the review asked for a squarer
+  acknowledgment that selection itself is not immune.
+- **What did NOT change:** `OL01`–`OL04` are not discarded, reworded, or replaced — round 1
+  independently confirmed they remain genuinely falsifiable and that their thresholds are cleanly
+  data-relative, and this revision does not revisit either finding.
+
+**Confirmed unchanged, per this task's own explicit instruction not to relitigate what round 1 already
+confirmed sound:** all four hypotheses' own feature choices, rules, outcomes, hypothesized directions,
+tie-break rule, and the explicit non-use of `price`/`freight_value`/`product_weight_g` (§5.3); the
+matched-scale, development-only downsample design and its seed/row-count (§2.5); the direct-call
+classification-path decision and the CSV-export fidelity requirement (§3, apart from §5.2's own
+resolution above); the `TASK-008` foreknowledge handling (§1); every cited code-reuse
+(`minimum_detectable_effect`, `benjamini_hochberg_adjusted`, `ValidationThresholds`,
+`MATCH_RECALL_THRESHOLD`, `evaluated_hypotheses`); §9's interpretation branches, verbatim; §11's
+scope exclusions. None of this is touched by this revision.
