@@ -64,6 +64,25 @@ output-equivalent, and `DISCOVERY_METHOD_VERSION` does not change either way —
 not bump it, matching the design's own explicit "unchanged... when this field is False" scoping of
 that claim. See `_reserve_k1_slot`'s own docstring for the mechanism and
 `docs/analytics/task-095-k1-reservation-design.md` §4 for the full, twice-reviewed specification.
+
+`v0.6.2` (`TASK-101`, `ADR-096`) changes `_eligible()`'s handling of `DiscoveryConfig.max_support`
+only. `TASK-100` found `OL01` (`seller_customer_cross_state -> OUTCOME_LATE`, real Olist data)
+oracle-detectable at both tested scales but never found by search: its raw rule has ~66% support,
+above `max_support=0.40`, so `_eligible()` excluded it at depth 1 regardless of the effect's real
+strength or safety. Tracing why `max_support` exists at all
+(`docs/analytics/discovery-design.md` §3, `TASK-015`'s own pre-code design) found the ceiling
+protects against a comparison group too small/unstable to make the exposed-vs-comparison contrast
+meaningful — and that same design text already specified a second, independent condition
+(`comparison_n satisfies the same absolute minimum count`) that `_eligible()` never actually
+implemented in any version through `v0.6.1`. `v0.6.2` implements exactly that: a rule over
+`max_support` is now also eligible when its comparison group's absolute size clears the same
+`min_n` floor already required of the exposed side. `max_support=0.40` itself is untouched — every
+rule at or below it keeps exactly the prior verdict (a strict widening, not a raised ceiling); no
+new tunable is introduced. This is a genuine, unconditional behavior change (no opt-in flag, unlike
+`v0.6.0`'s `max_feature_identity_fraction` or `TASK-097`'s `reserve_k1_slot`), hence the version
+bump. See `_eligible()`'s own docstring, `DiscoveryConfig.max_support`'s field docstring, and
+`ADR-096`/`docs/analytics/task-101-max-support-search-eligibility-fix.md` for the full citation
+trail, both-direction regression evidence, and cross-domain check.
 """
 
 from __future__ import annotations
@@ -95,7 +114,7 @@ class OutcomeDefinition(Protocol):
 
 
 Operator = Literal["eq", "ge", "lt"]
-DISCOVERY_METHOD_VERSION = "discovery-engine-v0.6.1"
+DISCOVERY_METHOD_VERSION = "discovery-engine-v0.6.2"
 
 
 @dataclass(frozen=True, slots=True, order=True)
@@ -109,6 +128,25 @@ class Condition:
 class DiscoveryConfig:
     seed: int = 1729
     min_support: float = 0.01
+    #: Support ceiling `_eligible()` enforces below (`TASK-015`, commit `317bde0`). The design
+    #: authority (`docs/analytics/discovery-design.md` §3, TASK-015's own pre-code design) states
+    #: the reason directly: "The maximum support rejects broad near-baselines masquerading as
+    #: subgroups" — a high-support rule leaves too small/unstable a *comparison* group for its
+    #: descriptive contrast to mean anything, not "high support is itself suspicious." That same
+    #: §3 pseudocode already specified the actual protected quantity as a **second, independent**
+    #: condition — `comparison_n satisfies the same absolute minimum count` [as the exposed side]
+    #: — alongside the fractional ceiling below. `engine.py`'s shipped `_eligible()` (every version
+    #: through `discovery-engine-v0.6.1`) implemented only the fractional ceiling; the comparison-
+    #: count floor the design already called for was never wired in. `TASK-100` found this ceiling
+    #: structurally excludes `OL01` (`seller_customer_cross_state -> OUTCOME_LATE`, real Olist
+    #: data, ~66% support) from ever being scored, independent of the effect's real strength/safety
+    #: (`ADR-096`, `TASK-101`). `TASK-101` recovers the design's own dropped comparison-count floor
+    #: (`_eligible()` now also accepts `support > max_support` specifically when
+    #: `n_population - n_exposed >= min_n` — the same absolute reliability bar already required of
+    #: the exposed side, reused rather than inventing a new tunable) instead of raising this number:
+    #: `0.40` is unchanged and still gates the common case exactly as before (every rule at or below
+    #: it is unaffected, byte-for-byte); only rules above it get a second, principled chance keyed
+    #: to the quantity §3 actually named. See `_eligible()`'s own docstring and `ADR-096`.
     max_support: float = 0.40
     min_n: int = 40
     max_conditions: int = 3
@@ -368,12 +406,28 @@ def _atoms(
 
 
 def _eligible(metric: SplitMetric | None, config: DiscoveryConfig) -> bool:
-    return bool(
-        metric
-        and metric.n_exposed >= config.min_n
-        and config.min_support <= metric.support <= config.max_support
-        and metric.harm_per_booking > 0
-    )
+    """`TASK-101`/`ADR-096`: `max_support` bounds a real risk (`DiscoveryConfig.max_support`'s own
+    docstring, `docs/analytics/discovery-design.md` §3) — a comparison group too small/unstable to
+    give the exposed-vs-comparison contrast any meaning, not "support above X is inherently bad."
+    A rule over `max_support` is still eligible when its *comparison* group's absolute size
+    (`n_population - n_exposed`) clears the same `min_n` reliability floor already required of the
+    exposed side — the literal quantity §3's own eligibility pseudocode named
+    ("comparison_n satisfies the same absolute minimum count") but `_eligible()` never implemented
+    before this change. Below/at `max_support`, this reduces to the original comparison
+    unconditionally (every rule this project has ever scored at <= max_support keeps exactly the
+    same eligibility verdict — this is a strict widening, never a narrowing). No new tunable is
+    introduced: `min_n` is reused, not a fresh knob invented to fit any one rule's number.
+    """
+    if not (
+        metric and metric.n_exposed >= config.min_n and metric.harm_per_booking > 0
+    ):
+        return False
+    if metric.support < config.min_support:
+        return False
+    if metric.support <= config.max_support:
+        return True
+    n_comparison = metric.n_population - metric.n_exposed
+    return n_comparison >= config.min_n
 
 
 def _development_score(metric: SplitMetric, condition_count: int, config: DiscoveryConfig) -> float:

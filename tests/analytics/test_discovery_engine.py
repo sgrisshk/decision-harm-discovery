@@ -156,7 +156,7 @@ def test_discover_candidates_with_exponent_one_matches_manual_pure_exposure_repr
         )
         assert result["candidate_count"] > 0
         assert all(candidate["fit_split"] == "development" for candidate in result["candidates"])
-        assert result["methodology_version"] == "discovery-engine-v0.6.1"
+        assert result["methodology_version"] == "discovery-engine-v0.6.2"
 
 
 # --- TASK-071: exposure-identical redundancy pruning compares row sets, not counts ---
@@ -960,7 +960,7 @@ def test_identity_cap_disabled_reproduces_v050_selection_exactly() -> None:
         ),
     )
     assert implicit_default["candidates"] == explicit_disabled["candidates"]
-    assert implicit_default["methodology_version"] == "discovery-engine-v0.6.1"
+    assert implicit_default["methodology_version"] == "discovery-engine-v0.6.2"
 
     # `_apply_feature_identity_cap` on the actual selected output must be a true no-op at the
     # default -- confirms the guarantee structurally, not just behaviorally.
@@ -1415,19 +1415,30 @@ _RESERVATION_FEATURES = ("supplier", "discount_rate", "party_size")
 
 
 def test_discover_candidates_common_case_promotes_a_single_end_to_end() -> None:
-    """§7.1 end to end: at top_k=10, this fixture's real search fills every slot with interactions
+    """§7.1 end to end: at top_k=9, this fixture's real search fills every slot with interactions
     (confirmed by the reserve_k1_slot=False baseline below) -- reserve_k1_slot=True must promote
     a genuinely qualifying single, displacing the weakest interaction, while candidate_count stays
-    exactly top_k."""
+    exactly top_k.
+
+    **TASK-101/ADR-096 note:** this scenario moved from `top_k=10` to `top_k=9` when `_eligible()`
+    stopped excluding `supplier == "A"` purely for exceeding `max_support` (its comparison group,
+    200 rows, clears `min_n=20`). That single is a genuine, correctly-signed pattern on this
+    fixture (not noise) -- it now legitimately competes at depth 1 and seeds new depth-2
+    expansions, which changed how many *diverse* interactions this exact fixture naturally
+    produces before any single is needed. `top_k=9` is the new value at which the baseline
+    (`reserve_k1_slot=False`) naturally fills every slot with interactions again, restoring this
+    test's original scenario; `top_k=10` now naturally includes exactly one single already (see
+    `test_discover_candidates_composition_edge_case_does_not_double_promote_end_to_end`, moved
+    from `top_k=11` to `top_k=10` for the identical reason)."""
     frame = _reservation_fixture_frame()
     outcome = primary_outcome()
     baseline = discover_candidates(
         frame,
         _RESERVATION_FEATURES,
         outcome,
-        DiscoveryConfig(min_n=20, beam_width=30, top_k=10, reserve_k1_slot=False),
+        DiscoveryConfig(min_n=20, beam_width=30, top_k=9, reserve_k1_slot=False),
     )
-    assert baseline["candidate_count"] == 10
+    assert baseline["candidate_count"] == 9
     assert all(len(c["conditions"]) >= 2 for c in baseline["candidates"])
     assert baseline["k1_reservation"] == {
         "eligible": False,
@@ -1440,9 +1451,9 @@ def test_discover_candidates_common_case_promotes_a_single_end_to_end() -> None:
         frame,
         _RESERVATION_FEATURES,
         outcome,
-        DiscoveryConfig(min_n=20, beam_width=30, top_k=10, reserve_k1_slot=True),
+        DiscoveryConfig(min_n=20, beam_width=30, top_k=9, reserve_k1_slot=True),
     )
-    assert reserved["candidate_count"] == 10  # top_k itself never changes
+    assert reserved["candidate_count"] == 9  # top_k itself never changes
     ks = [len(c["conditions"]) for c in reserved["candidates"]]
     assert ks.count(1) == 1  # exactly the one reserved slot, never more
     assert reserved["k1_reservation"]["eligible"] is True
@@ -1486,19 +1497,25 @@ def test_discover_candidates_uncommon_case_does_not_fire_end_to_end() -> None:
 
 
 def test_discover_candidates_composition_edge_case_does_not_double_promote_end_to_end() -> None:
-    """§7.3 end to end: at top_k=11, this fixture's real Stage 2 fallback already promotes exactly
-    one single to reach a full top_k=11 -- Stage 3's own trigger (`all(len(rule) >= 2 ...)`) must
+    """§7.3 end to end: at top_k=10, this fixture's real Stage 2 fallback already promotes exactly
+    one single to reach a full top_k=10 -- Stage 3's own trigger (`all(len(rule) >= 2 ...)`) must
     then correctly read that composition and decline to run at all, not attempt a second
     promotion. reserve_k1_slot=True and reserve_k1_slot=False must produce byte-identical output
-    here -- the "up to 1" bound is respected by construction, not a separate counter."""
+    here -- the "up to 1" bound is respected by construction, not a separate counter.
+
+    **TASK-101/ADR-096 note:** moved from `top_k=11` to `top_k=10` for the same reason recorded on
+    `test_discover_candidates_common_case_promotes_a_single_end_to_end` -- `_eligible()`'s
+    comparison-group escape hatch admits one more genuine single-condition pattern on this
+    fixture, which shifted the top_k at which Stage 2's own pre-existing singles-fallback first
+    places exactly one single from 11 to 10."""
     frame = _reservation_fixture_frame()
     outcome = primary_outcome()
-    config_kwargs: dict[str, int] = {"min_n": 20, "beam_width": 30, "top_k": 11}
+    config_kwargs: dict[str, int] = {"min_n": 20, "beam_width": 30, "top_k": 10}
     config_without = DiscoveryConfig(**config_kwargs, reserve_k1_slot=False)
     config_with = DiscoveryConfig(**config_kwargs, reserve_k1_slot=True)
     without_reservation = discover_candidates(frame, _RESERVATION_FEATURES, outcome, config_without)
     with_reservation = discover_candidates(frame, _RESERVATION_FEATURES, outcome, config_with)
-    assert without_reservation["candidate_count"] == 11
+    assert without_reservation["candidate_count"] == 10
     ks = [len(c["conditions"]) for c in without_reservation["candidates"]]
     assert ks.count(1) == 1  # Stage 2's own pre-existing fallback already placed one single
     assert with_reservation["k1_reservation"] == {
@@ -1513,8 +1530,9 @@ def test_discover_candidates_composition_edge_case_does_not_double_promote_end_t
 def test_reserve_k1_slot_false_is_a_structural_no_op_not_output_matching() -> None:
     """Confirms structurally, not just by output-matching, that the new Stage 3 code path is never
     even evaluated when reserve_k1_slot=False: monkeypatch _reserve_k1_slot to raise, at the exact
-    top_k=10 fixture/config where the trigger condition would otherwise hold (per the common-case
-    test above) -- discover_candidates must still succeed, proving the call is behind a real
+    top_k=9 fixture/config where the trigger condition would otherwise hold (per the common-case
+    test above; TASK-101/ADR-096 moved this from top_k=10, see that test's own note) --
+    discover_candidates must still succeed, proving the call is behind a real
     `config.reserve_k1_slot and ...` guard, not a code path that happens to produce the same
     result."""
     import policy_analytics.discovery.engine as engine_module
@@ -1530,11 +1548,11 @@ def test_reserve_k1_slot_false_is_a_structural_no_op_not_output_matching() -> No
             frame,
             _RESERVATION_FEATURES,
             primary_outcome(),
-            DiscoveryConfig(min_n=20, beam_width=30, top_k=10, reserve_k1_slot=False),
+            DiscoveryConfig(min_n=20, beam_width=30, top_k=9, reserve_k1_slot=False),
         )
     finally:
         engine_module._reserve_k1_slot = original  # type: ignore[assignment]
-    assert result["candidate_count"] == 10
+    assert result["candidate_count"] == 9
     assert all(len(c["conditions"]) >= 2 for c in result["candidates"])
 
 
@@ -1542,27 +1560,31 @@ def test_reserve_k1_slot_false_is_byte_identical_to_pre_task_097_selection() -> 
     """The required reserve_k1_slot=False regression (design §11 test 1 / TASK-097's own testing
     bar): run the identical fixture/config through discover_candidates with reserve_k1_slot
     omitted (defaults False) and confirm every per-candidate field, in order, matches a literal,
-    independently-verified pre-TASK-097 capture -- not merely "equivalent". Diffed against the
-    top_k=10 fixture specifically because that is the exact configuration
+    independently-verified capture -- not merely "equivalent". Diffed against the top_k=9 fixture
+    specifically because that is the exact configuration
     (test_discover_candidates_common_case_promotes_a_single_end_to_end) where reserve_k1_slot=True
-    changes the output, so this byte-identity claim is meaningful, not vacuous."""
+    changes the output, so this byte-identity claim is meaningful, not vacuous.
+
+    **TASK-101/ADR-096 note:** moved from `top_k=10` to `top_k=9` and the literal `ks` capture
+    below re-verified against the real post-fix engine output (not hand-edited) -- see
+    `test_discover_candidates_common_case_promotes_a_single_end_to_end`'s own note for why."""
     frame = _reservation_fixture_frame()
     implicit_default = discover_candidates(
         frame,
         _RESERVATION_FEATURES,
         primary_outcome(),
-        DiscoveryConfig(min_n=20, beam_width=30, top_k=10),
+        DiscoveryConfig(min_n=20, beam_width=30, top_k=9),
     )
     explicit_false = discover_candidates(
         frame,
         _RESERVATION_FEATURES,
         primary_outcome(),
-        DiscoveryConfig(min_n=20, beam_width=30, top_k=10, reserve_k1_slot=False),
+        DiscoveryConfig(min_n=20, beam_width=30, top_k=9, reserve_k1_slot=False),
     )
     assert implicit_default["candidates"] == explicit_false["candidates"]
-    assert implicit_default["methodology_version"] == "discovery-engine-v0.6.1"
+    assert implicit_default["methodology_version"] == "discovery-engine-v0.6.2"
     ks = [len(c["conditions"]) for c in implicit_default["candidates"]]
-    assert ks == [2, 3, 3, 3, 3, 2, 2, 2, 2, 2]  # all ten slots filled by interactions, no k==1
+    assert ks == [2, 2, 2, 3, 3, 2, 2, 2, 2]  # all nine slots filled by interactions, no k==1
 
 
 def test_discover_candidates_top_k_never_changes_regardless_of_reservation() -> None:
@@ -1594,7 +1616,9 @@ def test_discover_candidates_k1_reservation_metadata_always_present_and_disclose
     whether the trigger condition would otherwise have held."""
     frame = _reservation_fixture_frame()
     outcome = primary_outcome()
-    for top_k in (10, 15):  # 10: trigger would hold if enabled; 15: it would not
+    # TASK-101/ADR-096: 9 (not 10) is now the top_k where the trigger would hold if enabled -- see
+    # test_discover_candidates_common_case_promotes_a_single_end_to_end's own note.
+    for top_k in (9, 15):  # 9: trigger would hold if enabled; 15: it would not
         result = discover_candidates(
             frame,
             _RESERVATION_FEATURES,

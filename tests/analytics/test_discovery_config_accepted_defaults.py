@@ -48,6 +48,10 @@ ACCEPTED_DEFAULTS: dict[str, object] = {
     "seed": 1729,  # TASK-015 (commit 317bde0, 2026-08-13) -- original engine v0 default; unrevised.
     "min_support": 0.01,  # TASK-015 (commit 317bde0, 2026-08-13) -- original engine v0 default.
     "max_support": 0.40,  # TASK-015 (commit 317bde0, 2026-08-13) -- original engine v0 default.
+    # Numeric default unchanged by TASK-101/ADR-096 (2026-09-21): that task changed only how
+    # _eligible() *uses* this value (a rule over it can still be eligible when its comparison
+    # group clears min_n), not the ceiling itself -- see max_support's own field docstring in
+    # engine.py and _eligible()'s docstring for the mechanism, ADR-096 for the full rationale.
     "min_n": 40,  # TASK-015 (commit 317bde0, 2026-08-13) -- original engine v0 default.
     "max_conditions": 3,  # TASK-015 (commit 317bde0, 2026-08-13) -- original engine v0 default.
     "beam_width": 80,  # TASK-015 (commit 317bde0, 2026-08-13) -- original engine v0 default.
