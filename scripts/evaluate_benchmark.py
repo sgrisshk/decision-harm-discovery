@@ -71,6 +71,14 @@ of a candidate's exposed-population error is attributable to population dilution
 (`task-029-benchmark-report-v1.md` §3.6) versus genuine per-booking effect misestimation, and, per
 `HANDOFF-043`'s own warning, is not by itself sufficient grounds for a re-grade without `TASK-058`
 (tighter candidates at search time) as well.
+
+**`TASK-108` (`ADR-106` Decision 1), trap-vs-pattern classification:** a trap's apparent-feature
+literal appearing among a candidate's conditions no longer suffices for `matched_traps` when the
+candidate is a larger rule that recovers a pattern whose own `rule` contains that literal
+(`_genuine_trap_matches`; `P03`/`T03`, `P04`/`T02`, `P06`/`T04`). The bare apparent-feature rule and
+a literal plus non-pattern features remain traps. The lenient 0.5 recall match is unchanged. Spec:
+`docs/benchmark/task-108-scorer-trap-classification-spec.md`. Archived outputs are not rewritten;
+see `docs/benchmark/task-108-rescore-comparison.md`.
 """
 
 from __future__ import annotations
@@ -283,6 +291,67 @@ def _matches_trap(
     ]
 
 
+_PATTERN_CLAUSE = re.compile(
+    r"^\s*(?P<feature>\w+)\s*(?P<op>>=|<=|!=|>|<|=|\bIN\b)\s*(?P<value>.*?)\s*$"
+)
+
+
+def _parse_pattern_rule(rule: object) -> tuple[frozenset[str], frozenset[tuple[str, str, object]]]:
+    """A ground-truth pattern's `rule` string (`"a=x AND b>=3 AND m IN [1,2]"`) ->
+    `(features constrained, equality literals)`. The equality literals use the same
+    `(feature, "eq", value)` shape and `true`/`false` coercion as `_parse_apparent_feature`, so a
+    trap's apparent feature can be compared to them directly (`TASK-108`). Fails closed: a missing
+    or unparsable rule yields empty sets, which can never exempt a trap match.
+    """
+    if not isinstance(rule, str):
+        return frozenset(), frozenset()
+    features: set[str] = set()
+    literals: set[tuple[str, str, object]] = set()
+    for clause in rule.split(" AND "):
+        parsed = _PATTERN_CLAUSE.match(clause)
+        if parsed is None:
+            return frozenset(), frozenset()
+        features.add(parsed["feature"])
+        if parsed["op"] == "=":
+            literals.add(_parse_apparent_feature(f"{parsed['feature']}={parsed['value']}"))
+    return frozenset(features), frozenset(literals)
+
+
+def _genuine_trap_matches(
+    conditions: list[dict[str, object]],
+    matched_patterns: list[str],
+    trap_apparent_conditions: dict[str, tuple[str, str, object]],
+    patterns_by_id: dict[str, dict[str, object]],
+) -> list[str]:
+    """`TASK-108` (`ADR-106` Decision 1): the trap matches that are *genuine*. A literal trap match
+    (`_matches_trap`) is not a genuine trap match when the candidate carries the trap's apparent
+    feature as one condition of a larger rule that recovers a ground-truth pattern whose own
+    `rule` contains that same literal. Exemption for trap `T` requires all of: (1) `T`'s apparent
+    literal is among the candidate's conditions (already true for a `_matches_trap` hit); (2) some
+    pattern `P` in `matched_patterns` (the unchanged lenient-recall match) has that literal among
+    its own rule's equality literals; (3) the candidate also constrains at least one *other*
+    feature of `P`'s rule, i.e. it is not the bare apparent-feature rule. Everything else stays a
+    trap, including a bare apparent-feature rule that recall-matches `P`, and a rule that adds only
+    non-`P` features. See `docs/benchmark/task-108-scorer-trap-classification-spec.md`.
+    """
+    literal_hits = _matches_trap(conditions, trap_apparent_conditions)
+    if not literal_hits or not matched_patterns:
+        return literal_hits
+    candidate_features = {str(c["feature"]) for c in conditions}
+    genuine: list[str] = []
+    for trap_id in literal_hits:
+        apparent = trap_apparent_conditions[trap_id]
+        exempt = False
+        for pid in matched_patterns:
+            features, literals = _parse_pattern_rule(patterns_by_id[pid].get("rule"))
+            if apparent in literals and (candidate_features & (features - {apparent[0]})):
+                exempt = True
+                break
+        if not exempt:
+            genuine.append(trap_id)
+    return genuine
+
+
 def _trap_rejection_note(
     scores: list[CandidateScore], trap_appeared: dict[str, bool], historical_travel: bool
 ) -> str:
@@ -483,7 +552,9 @@ def main(argv: list[str] | None = None) -> None:
         matched = sorted(pid for pid, r in recalls.items() if r >= MATCH_RECALL_THRESHOLD)
         best_recall = max(recalls.values()) if recalls else 0.0
 
-        matched_traps = _matches_trap(raw["conditions"], trap_apparent_conditions)
+        matched_traps = _genuine_trap_matches(
+            raw["conditions"], matched, trap_apparent_conditions, patterns_by_id
+        )
         report = report_by_id[candidate_id]["validation_report"]
 
         scores.append(
