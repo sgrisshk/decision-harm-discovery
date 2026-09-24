@@ -1,0 +1,292 @@
+{
+ "family_size": 36791,
+ "rules": {
+  "P01": "booking_lead_days lt 23.0 AND discount_rate ge 0.12 AND supplier eq BlueWing",
+  "P02": "destination eq Zanzibar AND party_size ge 4.0 AND travel_month ge 8.0",
+  "P03": "acquisition_channel eq paid_search AND customer_type eq new AND installments ge 3.0",
+  "P04": "destination eq Lisbon AND travel_month lt 5.0 AND trip_duration_days ge 10.0",
+  "P06": "booking_lead_days lt 23.0 AND destination eq Tokyo AND payment_method eq bank_transfer",
+  "P08": "booking_lead_days ge 65.0 AND party_size lt 2.0 AND product_category eq luxury",
+  "P09": "party_size ge 4.0 AND supplier eq DeltaSun AND travel_month ge 10.0"
+ },
+ "validation": {
+  "P01": {
+   "evidence_level": "predictive_association",
+   "exposed_records_development": 79,
+   "failed_gates": [
+    "G11_SEASONALITY",
+    "G13_IDENTIFICATION_DESIGN",
+    "G14_RANDOMIZATION_INTEGRITY",
+    "G16_CANDIDATE_COMPOSITION_SAFETY"
+   ],
+   "g06": null,
+   "gate_outcomes": {
+    "G00_LINEAGE_PREREGISTRATION": "pass",
+    "G01_TARGET_LEAKAGE": "pass",
+    "G02_POST_TREATMENT_CONTROLS": "pass",
+    "G03_SAMPLE_ADEQUACY": "pass",
+    "G04_UNCERTAINTY": "pass",
+    "G05_MULTIPLE_COMPARISONS": "pass",
+    "G06_CONFOUNDING": "pass",
+    "G07_SELECTION_AND_COLLIDER": "pass",
+    "G08_SURVIVORSHIP_COHORT": "pass",
+    "G09_SIMPSON_AND_HETEROGENEITY": "pass",
+    "G10_TEMPORAL_STABILITY": "pass",
+    "G11_SEASONALITY": "fail",
+    "G12_ROBUSTNESS": "pass",
+    "G13_IDENTIFICATION_DESIGN": "fail",
+    "G14_RANDOMIZATION_INTEGRITY": "fail",
+    "G15_ECONOMIC_MATERIALITY": "pass",
+    "G16_CANDIDATE_COMPOSITION_SAFETY": "fail"
+   },
+   "level2_failed_gates": [],
+   "policy_readiness": "experiment_only",
+   "verdict": "DOWNGRADE"
+  },
+  "P02": {
+   "evidence_level": "descriptive_observation",
+   "exposed_records_development": 122,
+   "failed_gates": [
+    "G05_MULTIPLE_COMPARISONS",
+    "G11_SEASONALITY",
+    "G12_ROBUSTNESS",
+    "G13_IDENTIFICATION_DESIGN",
+    "G14_RANDOMIZATION_INTEGRITY",
+    "G16_CANDIDATE_COMPOSITION_SAFETY"
+   ],
+   "g06": null,
+   "gate_outcomes": {
+    "G00_LINEAGE_PREREGISTRATION": "pass",
+    "G01_TARGET_LEAKAGE": "pass",
+    "G02_POST_TREATMENT_CONTROLS": "pass",
+    "G03_SAMPLE_ADEQUACY": "pass",
+    "G04_UNCERTAINTY": "pass",
+    "G05_MULTIPLE_COMPARISONS": "fail",
+    "G06_CONFOUNDING": "pass",
+    "G07_SELECTION_AND_COLLIDER": "pass",
+    "G08_SURVIVORSHIP_COHORT": "pass",
+    "G09_SIMPSON_AND_HETEROGENEITY": "pass",
+    "G10_TEMPORAL_STABILITY": "pass",
+    "G11_SEASONALITY": "fail",
+    "G12_ROBUSTNESS": "fail",
+    "G13_IDENTIFICATION_DESIGN": "fail",
+    "G14_RANDOMIZATION_INTEGRITY": "fail",
+    "G15_ECONOMIC_MATERIALITY": "pass",
+    "G16_CANDIDATE_COMPOSITION_SAFETY": "fail"
+   },
+   "level2_failed_gates": [
+    "G05_MULTIPLE_COMPARISONS",
+    "G12_ROBUSTNESS"
+   ],
+   "policy_readiness": "experiment_only",
+   "verdict": "DOWNGRADE"
+  },
+  "P03": {
+   "evidence_level": "predictive_association",
+   "exposed_records_development": 152,
+   "failed_gates": [
+    "G13_IDENTIFICATION_DESIGN",
+    "G14_RANDOMIZATION_INTEGRITY",
+    "G16_CANDIDATE_COMPOSITION_SAFETY"
+   ],
+   "g06": null,
+   "gate_outcomes": {
+    "G00_LINEAGE_PREREGISTRATION": "pass",
+    "G01_TARGET_LEAKAGE": "pass",
+    "G02_POST_TREATMENT_CONTROLS": "pass",
+    "G03_SAMPLE_ADEQUACY": "pass",
+    "G04_UNCERTAINTY": "pass",
+    "G05_MULTIPLE_COMPARISONS": "pass",
+    "G06_CONFOUNDING": "pass",
+    "G07_SELECTION_AND_COLLIDER": "pass",
+    "G08_SURVIVORSHIP_COHORT": "pass",
+    "G09_SIMPSON_AND_HETEROGENEITY": "pass",
+    "G10_TEMPORAL_STABILITY": "pass",
+    "G11_SEASONALITY": "pass",
+    "G12_ROBUSTNESS": "pass",
+    "G13_IDENTIFICATION_DESIGN": "fail",
+    "G14_RANDOMIZATION_INTEGRITY": "fail",
+    "G15_ECONOMIC_MATERIALITY": "pass",
+    "G16_CANDIDATE_COMPOSITION_SAFETY": "fail"
+   },
+   "level2_failed_gates": [],
+   "policy_readiness": "experiment_only",
+   "verdict": "DOWNGRADE"
+  },
+  "P04": {
+   "evidence_level": "descriptive_observation",
+   "exposed_records_development": 103,
+   "failed_gates": [
+    "G03_SAMPLE_ADEQUACY",
+    "G04_UNCERTAINTY",
+    "G05_MULTIPLE_COMPARISONS",
+    "G06_CONFOUNDING",
+    "G09_SIMPSON_AND_HETEROGENEITY",
+    "G10_TEMPORAL_STABILITY",
+    "G11_SEASONALITY",
+    "G12_ROBUSTNESS",
+    "G13_IDENTIFICATION_DESIGN",
+    "G14_RANDOMIZATION_INTEGRITY",
+    "G15_ECONOMIC_MATERIALITY",
+    "G16_CANDIDATE_COMPOSITION_SAFETY"
+   ],
+   "g06": null,
+   "gate_outcomes": {
+    "G00_LINEAGE_PREREGISTRATION": "pass",
+    "G01_TARGET_LEAKAGE": "pass",
+    "G02_POST_TREATMENT_CONTROLS": "pass",
+    "G03_SAMPLE_ADEQUACY": "fail",
+    "G04_UNCERTAINTY": "fail",
+    "G05_MULTIPLE_COMPARISONS": "fail",
+    "G06_CONFOUNDING": "fail",
+    "G07_SELECTION_AND_COLLIDER": "pass",
+    "G08_SURVIVORSHIP_COHORT": "pass",
+    "G09_SIMPSON_AND_HETEROGENEITY": "fail",
+    "G10_TEMPORAL_STABILITY": "fail",
+    "G11_SEASONALITY": "fail",
+    "G12_ROBUSTNESS": "fail",
+    "G13_IDENTIFICATION_DESIGN": "fail",
+    "G14_RANDOMIZATION_INTEGRITY": "fail",
+    "G15_ECONOMIC_MATERIALITY": "fail",
+    "G16_CANDIDATE_COMPOSITION_SAFETY": "fail"
+   },
+   "level2_failed_gates": [
+    "G03_SAMPLE_ADEQUACY",
+    "G04_UNCERTAINTY",
+    "G05_MULTIPLE_COMPARISONS",
+    "G10_TEMPORAL_STABILITY",
+    "G12_ROBUSTNESS"
+   ],
+   "policy_readiness": "not_ready",
+   "verdict": "DOWNGRADE"
+  },
+  "P06": {
+   "evidence_level": "descriptive_observation",
+   "exposed_records_development": 90,
+   "failed_gates": [
+    "G05_MULTIPLE_COMPARISONS",
+    "G11_SEASONALITY",
+    "G13_IDENTIFICATION_DESIGN",
+    "G14_RANDOMIZATION_INTEGRITY",
+    "G16_CANDIDATE_COMPOSITION_SAFETY"
+   ],
+   "g06": null,
+   "gate_outcomes": {
+    "G00_LINEAGE_PREREGISTRATION": "pass",
+    "G01_TARGET_LEAKAGE": "pass",
+    "G02_POST_TREATMENT_CONTROLS": "pass",
+    "G03_SAMPLE_ADEQUACY": "pass",
+    "G04_UNCERTAINTY": "pass",
+    "G05_MULTIPLE_COMPARISONS": "fail",
+    "G06_CONFOUNDING": "pass",
+    "G07_SELECTION_AND_COLLIDER": "pass",
+    "G08_SURVIVORSHIP_COHORT": "pass",
+    "G09_SIMPSON_AND_HETEROGENEITY": "pass",
+    "G10_TEMPORAL_STABILITY": "pass",
+    "G11_SEASONALITY": "fail",
+    "G12_ROBUSTNESS": "pass",
+    "G13_IDENTIFICATION_DESIGN": "fail",
+    "G14_RANDOMIZATION_INTEGRITY": "fail",
+    "G15_ECONOMIC_MATERIALITY": "pass",
+    "G16_CANDIDATE_COMPOSITION_SAFETY": "fail"
+   },
+   "level2_failed_gates": [
+    "G05_MULTIPLE_COMPARISONS"
+   ],
+   "policy_readiness": "experiment_only",
+   "verdict": "DOWNGRADE"
+  },
+  "P08": {
+   "evidence_level": "descriptive_observation",
+   "exposed_records_development": 63,
+   "failed_gates": [
+    "G03_SAMPLE_ADEQUACY",
+    "G04_UNCERTAINTY",
+    "G05_MULTIPLE_COMPARISONS",
+    "G06_CONFOUNDING",
+    "G10_TEMPORAL_STABILITY",
+    "G11_SEASONALITY",
+    "G12_ROBUSTNESS",
+    "G13_IDENTIFICATION_DESIGN",
+    "G14_RANDOMIZATION_INTEGRITY",
+    "G15_ECONOMIC_MATERIALITY",
+    "G16_CANDIDATE_COMPOSITION_SAFETY"
+   ],
+   "g06": null,
+   "gate_outcomes": {
+    "G00_LINEAGE_PREREGISTRATION": "pass",
+    "G01_TARGET_LEAKAGE": "pass",
+    "G02_POST_TREATMENT_CONTROLS": "pass",
+    "G03_SAMPLE_ADEQUACY": "fail",
+    "G04_UNCERTAINTY": "fail",
+    "G05_MULTIPLE_COMPARISONS": "fail",
+    "G06_CONFOUNDING": "fail",
+    "G07_SELECTION_AND_COLLIDER": "pass",
+    "G08_SURVIVORSHIP_COHORT": "pass",
+    "G09_SIMPSON_AND_HETEROGENEITY": "pass",
+    "G10_TEMPORAL_STABILITY": "fail",
+    "G11_SEASONALITY": "fail",
+    "G12_ROBUSTNESS": "fail",
+    "G13_IDENTIFICATION_DESIGN": "fail",
+    "G14_RANDOMIZATION_INTEGRITY": "fail",
+    "G15_ECONOMIC_MATERIALITY": "fail",
+    "G16_CANDIDATE_COMPOSITION_SAFETY": "fail"
+   },
+   "level2_failed_gates": [
+    "G03_SAMPLE_ADEQUACY",
+    "G04_UNCERTAINTY",
+    "G05_MULTIPLE_COMPARISONS",
+    "G10_TEMPORAL_STABILITY",
+    "G12_ROBUSTNESS"
+   ],
+   "policy_readiness": "not_ready",
+   "verdict": "DOWNGRADE"
+  },
+  "P09": {
+   "evidence_level": "descriptive_observation",
+   "exposed_records_development": 64,
+   "failed_gates": [
+    "G03_SAMPLE_ADEQUACY",
+    "G04_UNCERTAINTY",
+    "G05_MULTIPLE_COMPARISONS",
+    "G06_CONFOUNDING",
+    "G10_TEMPORAL_STABILITY",
+    "G11_SEASONALITY",
+    "G12_ROBUSTNESS",
+    "G13_IDENTIFICATION_DESIGN",
+    "G14_RANDOMIZATION_INTEGRITY",
+    "G15_ECONOMIC_MATERIALITY",
+    "G16_CANDIDATE_COMPOSITION_SAFETY"
+   ],
+   "g06": null,
+   "gate_outcomes": {
+    "G00_LINEAGE_PREREGISTRATION": "pass",
+    "G01_TARGET_LEAKAGE": "pass",
+    "G02_POST_TREATMENT_CONTROLS": "pass",
+    "G03_SAMPLE_ADEQUACY": "fail",
+    "G04_UNCERTAINTY": "fail",
+    "G05_MULTIPLE_COMPARISONS": "fail",
+    "G06_CONFOUNDING": "fail",
+    "G07_SELECTION_AND_COLLIDER": "pass",
+    "G08_SURVIVORSHIP_COHORT": "pass",
+    "G09_SIMPSON_AND_HETEROGENEITY": "pass",
+    "G10_TEMPORAL_STABILITY": "fail",
+    "G11_SEASONALITY": "fail",
+    "G12_ROBUSTNESS": "fail",
+    "G13_IDENTIFICATION_DESIGN": "fail",
+    "G14_RANDOMIZATION_INTEGRITY": "fail",
+    "G15_ECONOMIC_MATERIALITY": "fail",
+    "G16_CANDIDATE_COMPOSITION_SAFETY": "fail"
+   },
+   "level2_failed_gates": [
+    "G03_SAMPLE_ADEQUACY",
+    "G04_UNCERTAINTY",
+    "G05_MULTIPLE_COMPARISONS",
+    "G10_TEMPORAL_STABILITY",
+    "G12_ROBUSTNESS"
+   ],
+   "policy_readiness": "not_ready",
+   "verdict": "DOWNGRADE"
+  }
+ }
+}

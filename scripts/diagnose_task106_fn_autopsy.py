@@ -33,6 +33,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import math
 import sys
 import tempfile
 from pathlib import Path
@@ -562,6 +563,171 @@ def _trace(
     return out
 
 
+def _augment_with_exact_columns(
+    root: Path, work: Path, frame: pl.DataFrame, pattern_masks: dict[str, int], pids: list[str]
+) -> Path:
+    """Copy of the analytical dataset with one extra Boolean DECISION_TIME feature per pattern,
+    `oracle_exact_<Pxx>` = membership in the pattern's ground-truth affected set. Diagnostic only:
+    it lets the real validation contract grade the EXACT true rule (including calendar conjuncts
+    the engine vocabulary cannot express) as a single idealised boolean atom. The partition hash
+    and column lists are updated so the real loader accepts the copy; the copy is never persisted.
+    """
+    dest = work / "exact_copy"
+    dest.mkdir(parents=True, exist_ok=True)
+    for path in root.iterdir():
+        if path.is_file():
+            (dest / path.name).write_bytes(path.read_bytes())
+    features = pl.read_csv(root / "features.csv")
+    for pid in pids:
+        mask = pattern_masks[pid]
+        bits = [bool((mask >> i) & 1) for i in range(frame.height)]
+        features = features.with_columns(pl.Series(f"oracle_exact_{pid}", bits))
+    features.write_csv(dest / "features.csv")
+    manifest = json.loads((root / "manifest.json").read_text(encoding="utf-8"))
+    part = manifest["partitions"]["features"]
+    for pid in pids:
+        name = f"oracle_exact_{pid}"
+        part["columns"].append(name)
+        part["schema"].append({"dtype": "Boolean", "name": name})
+        manifest["feature_timing"][name] = {
+            "classification": "DECISION_TIME",
+            "discovery_feature_allowed": True,
+            "leakage_risk": "LOW",
+        }
+    part["sha256"] = hashlib.sha256((dest / "features.csv").read_bytes()).hexdigest()
+    (dest / "manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+    return dest
+
+
+def run_exact(seed: int, out: Path) -> None:
+    """Exact-true-rule oracle under the real contract (idealised single Boolean atom)."""
+    frozen_version_record()
+    with tempfile.TemporaryDirectory(prefix=f"task106-exact{seed}-") as tmp:
+        root, gt_path = _prepare_dataset(seed, Path(tmp))
+        gt = json.loads(gt_path.read_text(encoding="utf-8"))
+        frame = load_analytical_frame(root)
+        dev_ids = frozenset(
+            cast("list[str]", frame.filter(pl.col("split_label") == "development")["booking_id"].to_list())  # pyright: ignore[reportUnknownMemberType]
+        )
+        scoreable = list(_scoreable_pattern_ids(gt, dev_ids))
+        index_of = {b: i for i, b in enumerate(cast("list[str]", frame["booking_id"].to_list()))}
+        masks: dict[str, int] = {}
+        for pattern in gt["patterns"]:
+            packed = 0
+            for b in pattern["affected_booking_ids"]:
+                packed |= 1 << index_of[b]
+            masks[str(pattern["id"])] = packed
+        copy_root = _augment_with_exact_columns(root, Path(tmp), frame, masks, scoreable)
+        rules = [
+            (pid, (Condition(f"oracle_exact_{pid}", "eq", True),)) for pid in scoreable
+        ]
+        val = _validate_rules(copy_root, rules, ORACLE_FAMILY_SIZE, f"exact-{seed}")
+    payload = {
+        "seed": seed,
+        "scoreable_pattern_ids": scoreable,
+        "family_size": ORACLE_FAMILY_SIZE,
+        "note": "exact true rule as one idealised Boolean atom (k=1); not engine-representable",
+        "exact_oracle_validation": val,
+    }
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(json.dumps(payload, indent=1, sort_keys=True) + "\n", encoding="utf-8")
+    print(f"wrote {out}")
+
+
+
+def _wilson(k: int, n: int, z: float = 1.96) -> list[float]:
+    if n == 0:
+        return [0.0, 1.0]
+    p = k / n
+    denom = 1 + z * z / n
+    centre = (p + z * z / (2 * n)) / denom
+    half = z * math.sqrt(p * (1 - p) / n + z * z / (4 * n * n)) / denom
+    return [round(max(0.0, centre - half), 4), round(min(1.0, centre + half), 4)]
+
+
+def rates(dirs: list[Path], out: Path) -> None:
+    """Detectability rates over generator seeds, per pattern, with Wilson 95% intervals.
+
+    Each dir holds per-seed files of one kind: `seed` files (engine-representable projection
+    oracle) or `exact` files (idealised exact-rule oracle). The denominator for a pattern is the
+    seeds in which that pattern is scoreable (TASK-028's own rule) in that seed's realisation.
+    """
+    result: dict[str, Any] = {}
+    for d in dirs:
+        files = sorted(d.glob("seed-*.json"))
+        payloads = [json.loads(f.read_text(encoding="utf-8")) for f in files]
+        block: dict[str, Any] = {"n_seeds": len(payloads)}
+        for pid in ("P01", "P02", "P03", "P04", "P06", "P08", "P09"):
+            rows: list[dict[str, Any]] = []
+            for pl_ in payloads:
+                if pid not in pl_["scoreable_pattern_ids"]:
+                    continue
+                if "exact_oracle_validation" in pl_:
+                    rows.append(pl_["exact_oracle_validation"][pid])
+                elif pl_["patterns"][pid]["projection"] is not None:
+                    rows.append(pl_["patterns"][pid]["projection"]["oracle_validation"])
+            n = len(rows)
+            pred = sum(1 for r in rows if r["evidence_level"] in PREDICTIVE_OR_ABOVE)
+            adj = sum(1 for r in rows if r["evidence_level"] in PREDICTIVE_OR_ABOVE[1:])
+            fails: dict[str, int] = {}
+            for r in rows:
+                for g in r["level2_failed_gates"]:
+                    fails[g] = fails.get(g, 0) + 1
+            block[pid] = {
+                "seeds_where_scoreable": n,
+                "reaches_predictive": {"k": pred, "n": n, "rate": pred / n if n else None, "wilson95": _wilson(pred, n)},
+                "reaches_adjusted_or_above": {"k": adj, "n": n},
+                "level2_gate_failures": dict(sorted(fails.items())),
+            }
+        result[str(d)] = block
+    out.write_text(json.dumps(result, indent=1, sort_keys=True) + "\n", encoding="utf-8")
+    for name, block in result.items():
+        print(name, block["n_seeds"])
+        for pid, v in block.items():
+            if pid != "n_seeds":
+                r = v["reaches_predictive"]
+                print(f"  {pid}: scoreable {v['seeds_where_scoreable']}, predictive {r['k']}/{r['n']} {r['wilson95']} adj {v['reaches_adjusted_or_above']['k']} {v['level2_gate_failures']}")
+
+
+
+def _parse_rendered_rule(text: str) -> tuple[Condition, ...]:
+    conditions: list[Condition] = []
+    for part in text.split(" AND "):
+        feature, operator, raw = part.split(" ", 2)
+        value: Any
+        if raw in ("True", "False"):
+            value = raw == "True"
+        elif operator == "eq":
+            value = raw
+        else:
+            value = float(raw)
+        conditions.append(Condition(feature, cast(Any, operator), value))
+    return tuple(conditions)
+
+
+def run_poolrules(committed_json: Path, out: Path) -> None:
+    """Counterfactual validation (real contract, family 36,791) of, per pattern, the pool rule
+    with the highest Jaccard to the pattern (from the committed-seed trace). Answers: is the
+    closest rule the v0.6.2 search ever scored itself one the contract would validate?"""
+    frozen_version_record()
+    data = json.loads(committed_json.read_text(encoding="utf-8"))
+    rules = [
+        (pid, _parse_rendered_rule(entry["best_jaccard_rule"]["rule"]))
+        for pid, entry in data["trace"]["per_pattern"].items()
+        if "best_jaccard_rule" in entry
+    ]
+    val = _validate_rules(COMMITTED_ROOT, rules, ORACLE_FAMILY_SIZE, "poolbest")
+    payload = {
+        "family_size": ORACLE_FAMILY_SIZE,
+        "rules": {pid: _render_rule(rule) for pid, rule in rules},
+        "validation": val,
+    }
+    out.write_text(json.dumps(payload, indent=1, sort_keys=True) + "\n", encoding="utf-8")
+    for pid, v in val.items():
+        print(pid, payload["rules"][pid], v["evidence_level"], v["level2_failed_gates"])
+
+
+
 def aggregate(in_dir: Path, out: Path) -> None:
     files = sorted(in_dir.glob("seed-*.json"))
     seeds = [json.loads(f.read_text(encoding="utf-8")) for f in files]
@@ -621,14 +787,33 @@ def main(argv: list[str] | None = None) -> None:
     s.add_argument("--out", type=Path, required=True)
     s.add_argument("--engine", action="store_true")
     s.add_argument("--trace", action="store_true")
+    s.add_argument("--family-size", type=int, default=None)
+    x = sub.add_parser("exact")
+    x.add_argument("--seed", type=int, required=True)
+    x.add_argument("--out", type=Path, required=True)
+    x.add_argument("--family-size", type=int, default=None)
+    r = sub.add_parser("rates")
+    r.add_argument("--dirs", type=Path, nargs="+", required=True)
+    r.add_argument("--out", type=Path, required=True)
+    q = sub.add_parser("poolrules")
+    q.add_argument("--committed-json", type=Path, required=True)
+    q.add_argument("--out", type=Path, required=True)
     a = sub.add_parser("aggregate")
     a.add_argument("--in", dest="in_dir", type=Path, required=True)
     a.add_argument("--out", type=Path, required=True)
     args = parser.parse_args(argv if argv is not None else sys.argv[1:])
+    if getattr(args, "family_size", None):
+        globals()["ORACLE_FAMILY_SIZE"] = int(args.family_size)
     if args.cmd == "seed":
         if args.trace and (args.seed != COMMITTED_SEED or not args.engine):
             raise SystemExit("--trace requires --engine and the committed seed")
         run_seed(args.seed, args.out, args.engine, args.trace)
+    elif args.cmd == "poolrules":
+        run_poolrules(args.committed_json, args.out)
+    elif args.cmd == "rates":
+        rates(args.dirs, args.out)
+    elif args.cmd == "exact":
+        run_exact(args.seed, args.out)
     else:
         aggregate(args.in_dir, args.out)
 
