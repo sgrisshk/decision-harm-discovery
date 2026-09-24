@@ -1,0 +1,3251 @@
+{
+  "catalogue": {
+    "T01": {
+      "apparent_feature": "manager=Manager 2",
+      "confounded_by": [
+        "destination",
+        "booking_lead_days",
+        "party_size",
+        "trip_duration_days"
+      ],
+      "direct_effect": 0,
+      "id": "T01"
+    },
+    "T02": {
+      "apparent_feature": "supplier=Atlas",
+      "confounded_by": [
+        "trip_duration_days",
+        "booking_month"
+      ],
+      "direct_effect": 0,
+      "id": "T02"
+    },
+    "T03": {
+      "apparent_feature": "acquisition_channel=paid_search",
+      "confounded_by": [
+        "customer_type",
+        "discount_rate",
+        "installments"
+      ],
+      "direct_effect": 0,
+      "id": "T03"
+    },
+    "T04": {
+      "apparent_feature": "payment_method=bank_transfer",
+      "confounded_by": [
+        "booking_lead_days",
+        "destination"
+      ],
+      "direct_effect": 0,
+      "id": "T04"
+    },
+    "T05": {
+      "apparent_feature": "manual_exception=true",
+      "confounded_by": [
+        "destination",
+        "party_size",
+        "trip_duration_days",
+        "booking_lead_days"
+      ],
+      "direct_effect": 0,
+      "id": "T05",
+      "note": "P05 is a genuine interaction; the main effect is a trap."
+    }
+  },
+  "generator_reproduces_delivered_csv_first_rows": {
+    "mismatching_rows_by_column": {
+      "acquisition_channel": 0,
+      "booking_id": 0,
+      "booking_lead_days": 0,
+      "contribution_margin_eur": 0,
+      "destination": 0,
+      "manager": 0,
+      "manual_exception": 0,
+      "party_size": 0,
+      "payment_method": 0,
+      "supplier": 0,
+      "trip_duration_days": 0
+    },
+    "rows": 10000
+  },
+  "large_sample": {
+    "n": 400000,
+    "seed": 20260924
+  },
+  "note": "Measured from the real _generate_row; see script docstring.",
+  "task": "TASK-105 Phase 1",
+  "traps": {
+    "T01": {
+      "delivered_10k": {
+        "blocks": {
+          "acquisition_channel": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 16.266,
+              "df": 3.0,
+              "partial_r2": 8.413225221089113e-05,
+              "significant_p001": 0.0,
+              "wald_chi2": 0.8380277371814199
+            },
+            "y_side": {
+              "chi2_crit_p001": 16.266,
+              "df": 3.0,
+              "partial_r2": 0.0018673034659562884,
+              "significant_p001": 1.0,
+              "wald_chi2": 18.631265443997403
+            }
+          },
+          "booking_lead_days": {
+            "both_sides_significant_p001": true,
+            "x_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 0.010879181929041424,
+              "significant_p001": 1.0,
+              "wald_chi2": 109.54844952568695
+            },
+            "y_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 0.0069672615199906545,
+              "significant_p001": 1.0,
+              "wald_chi2": 69.87378642097383
+            }
+          },
+          "booking_month": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 31.264,
+              "df": 11.0,
+              "partial_r2": 0.00211670856876343,
+              "significant_p001": 0.0,
+              "wald_chi2": 21.127137337519535
+            },
+            "y_side": {
+              "chi2_crit_p001": 31.264,
+              "df": 11.0,
+              "partial_r2": 0.0007836051494835287,
+              "significant_p001": 0.0,
+              "wald_chi2": 7.810043674147216
+            }
+          },
+          "customer_price_eur": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 3.387787878807526e-06,
+              "significant_p001": 0.0,
+              "wald_chi2": 0.033742481585293076
+            },
+            "y_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 0.04376898066410428,
+              "significant_p001": 1.0,
+              "wald_chi2": 455.8472478089496
+            }
+          },
+          "customer_segment": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 0.00033946414562765776,
+              "significant_p001": 0.0,
+              "wald_chi2": 3.382211029829045
+            },
+            "y_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 0.00021669432793088505,
+              "significant_p001": 0.0,
+              "wald_chi2": 2.158526552324261
+            }
+          },
+          "customer_type": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 4.182172352574089e-05,
+              "significant_p001": 0.0,
+              "wald_chi2": 0.41656178764829366
+            },
+            "y_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 1.2623261016879329e-05,
+              "significant_p001": 0.0,
+              "wald_chi2": 0.1257166434211053
+            }
+          },
+          "destination": {
+            "both_sides_significant_p001": true,
+            "x_side": {
+              "chi2_crit_p001": 18.467,
+              "df": 4.0,
+              "partial_r2": 0.047596445607297665,
+              "significant_p001": 1.0,
+              "wald_chi2": 497.75181545911835
+            },
+            "y_side": {
+              "chi2_crit_p001": 18.467,
+              "df": 4.0,
+              "partial_r2": 0.0027514973179714568,
+              "significant_p001": 1.0,
+              "wald_chi2": 27.477766791307864
+            }
+          },
+          "discount_rate": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 0.00014592867640953543,
+              "significant_p001": 0.0,
+              "wald_chi2": 1.4536617479738019
+            },
+            "y_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 0.05166589405512367,
+              "significant_p001": 1.0,
+              "wald_chi2": 542.5731666397384
+            }
+          },
+          "installments": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 0.00028422842838309324,
+              "significant_p001": 0.0,
+              "wald_chi2": 2.831720002021404
+            },
+            "y_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 0.0047940790566795306,
+              "significant_p001": 1.0,
+              "wald_chi2": 47.97422555546733
+            }
+          },
+          "manual_exception": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 4.961147340328562e-05,
+              "significant_p001": 0.0,
+              "wald_chi2": 0.49415479084398783
+            },
+            "y_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 0.0002050736404782886,
+              "significant_p001": 0.0,
+              "wald_chi2": 2.04274729914849
+            }
+          },
+          "party_size": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 0.0001453521205908587,
+              "significant_p001": 0.0,
+              "wald_chi2": 1.4479175789754974
+            },
+            "y_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 0.0022869896693907105,
+              "significant_p001": 1.0,
+              "wald_chi2": 22.828338291303652
+            }
+          },
+          "payment_method": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 4.523782621317182e-06,
+              "significant_p001": 0.0,
+              "wald_chi2": 0.045057078736748885
+            },
+            "y_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 0.0003624910001898696,
+              "significant_p001": 0.0,
+              "wald_chi2": 3.6113569552856752
+            }
+          },
+          "product_category": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 0.0008755873862196015,
+              "significant_p001": 0.0,
+              "wald_chi2": 8.728492925053114
+            },
+            "y_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 0.0004318596987763576,
+              "significant_p001": 0.0,
+              "wald_chi2": 4.302748923967961
+            }
+          },
+          "quoted_cost_eur": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 1.161635310928489e-05,
+              "significant_p001": 0.0,
+              "wald_chi2": 0.11570022098309928
+            },
+            "y_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 0.03622027482288996,
+              "significant_p001": 1.0,
+              "wald_chi2": 374.27402500594565
+            }
+          },
+          "supplier": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 16.266,
+              "df": 3.0,
+              "partial_r2": 0.0003112838591188959,
+              "significant_p001": 0.0,
+              "wald_chi2": 3.101352637841799
+            },
+            "y_side": {
+              "chi2_crit_p001": 16.266,
+              "df": 3.0,
+              "partial_r2": 0.001232390450178165,
+              "significant_p001": 0.0,
+              "wald_chi2": 12.288520748942158
+            }
+          },
+          "trip_duration_days": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 0.0006788519902891166,
+              "significant_p001": 0.0,
+              "wald_chi2": 6.765958907950478
+            },
+            "y_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 0.0010902747685551074,
+              "significant_p001": 0.0,
+              "wald_chi2": 10.869897595125057
+            }
+          }
+        },
+        "catalogued_blocks_adjusted_outcome_diff_eur": 19.877160096464426,
+        "n": 10000,
+        "pool_adjusted_outcome_diff_eur": 27.245699792582254,
+        "raw_outcome_diff_eur": -13.87983361331095,
+        "trap_id": "T01",
+        "x_rate": 0.2592
+      },
+      "generator_score_rates_large": {
+        "either(dest_TZ or lead<14)": {
+          "n": 203031.0,
+          "rate": 0.390827016563973
+        },
+        "neither(dest_not_TZ,lead>=14)": {
+          "n": 196969.0,
+          "rate": 0.12564921383567973
+        },
+        "party_ge5_given_neither": {
+          "n": 33866.0,
+          "rate": 0.12552412449063957
+        },
+        "party_lt5_given_neither": {
+          "n": 163103.0,
+          "rate": 0.1256751868451224
+        },
+        "trip_ge14_given_neither": {
+          "n": 12088.0,
+          "rate": 0.12466909331568497
+        },
+        "trip_lt14_given_neither": {
+          "n": 184881.0,
+          "rate": 0.1257132966610955
+        }
+      },
+      "indicator_rates_large": {
+        "booking_month_in_summer_6_7_8": {
+          "outcome_mean_diff_eur": -39.473465635157595,
+          "rate_diff": 0.03755350984551187,
+          "rate_if_false": 0.2507821378434387,
+          "rate_if_true": 0.2883356476889506
+        },
+        "booking_month_in_winter_1_2_12": {
+          "outcome_mean_diff_eur": 7.4503127970858145,
+          "rate_diff": -0.013341339925820539,
+          "rate_if_false": 0.26355084911898297,
+          "rate_if_true": 0.2502095091931624
+        },
+        "dest_in_Tokyo_Zanzibar": {
+          "outcome_mean_diff_eur": -58.35128077227034,
+          "rate_diff": 0.22726431474081016,
+          "rate_if_false": 0.16239259951968882,
+          "rate_if_true": 0.389656914260499
+        },
+        "destination=Tokyo": {
+          "outcome_mean_diff_eur": -28.312582636452134,
+          "rate_diff": 0.16569565564431737,
+          "rate_if_false": 0.22383215151990926,
+          "rate_if_true": 0.38952780716422664
+        },
+        "lead_lt_14": {
+          "outcome_mean_diff_eur": -230.01582943263202,
+          "rate_diff": 0.15667478760590137,
+          "rate_if_false": 0.238982031078251,
+          "rate_if_true": 0.39565681868415237
+        },
+        "party_ge_5": {
+          "outcome_mean_diff_eur": -127.49846064311751,
+          "rate_diff": -0.013344171695375301,
+          "rate_if_false": 0.2624046854358451,
+          "rate_if_true": 0.2490605137404698
+        },
+        "trip_ge_14": {
+          "outcome_mean_diff_eur": -107.39525558658744,
+          "rate_diff": -0.007714321177317962,
+          "rate_if_false": 0.2606968977801847,
+          "rate_if_true": 0.2529825766028667
+        }
+      },
+      "large_sample": {
+        "blocks": {
+          "acquisition_channel": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 16.266,
+              "df": 3.0,
+              "partial_r2": 2.4359148640878906e-06,
+              "significant_p001": 0.0,
+              "wald_chi2": 0.9742708822815165
+            },
+            "y_side": {
+              "chi2_crit_p001": 16.266,
+              "df": 3.0,
+              "partial_r2": 0.0008608629750821293,
+              "significant_p001": 1.0,
+              "wald_chi2": 344.6065536739019
+            }
+          },
+          "booking_lead_days": {
+            "both_sides_significant_p001": true,
+            "x_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 0.01347695800638518,
+              "significant_p001": 1.0,
+              "wald_chi2": 5463.880613818145
+            },
+            "y_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 0.006384370435116333,
+              "significant_p001": 1.0,
+              "wald_chi2": 2569.8935673716164
+            }
+          },
+          "booking_month": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 31.264,
+              "df": 11.0,
+              "partial_r2": 1.8173903222398072e-05,
+              "significant_p001": 0.0,
+              "wald_chi2": 7.268966438322909
+            },
+            "y_side": {
+              "chi2_crit_p001": 31.264,
+              "df": 11.0,
+              "partial_r2": 0.0003540053786777562,
+              "significant_p001": 1.0,
+              "wald_chi2": 141.6377777857368
+            }
+          },
+          "customer_price_eur": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 8.306490521518853e-07,
+              "significant_p001": 0.0,
+              "wald_chi2": 0.3322266708624373
+            },
+            "y_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 0.034269915890578116,
+              "significant_p001": 1.0,
+              "wald_chi2": 14192.952580864938
+            }
+          },
+          "customer_segment": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 4.5292407689960416e-06,
+              "significant_p001": 0.0,
+              "wald_chi2": 1.8115233427930348
+            },
+            "y_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 7.413186741421876e-06,
+              "significant_p001": 0.0,
+              "wald_chi2": 2.964992735957191
+            }
+          },
+          "customer_type": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 5.1129968078894566e-06,
+              "significant_p001": 0.0,
+              "wald_chi2": 2.0450046593857625
+            },
+            "y_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 3.229097503825099e-05,
+              "significant_p001": 1.0,
+              "wald_chi2": 12.915483138867472
+            }
+          },
+          "destination": {
+            "both_sides_significant_p001": true,
+            "x_side": {
+              "chi2_crit_p001": 18.467,
+              "df": 4.0,
+              "partial_r2": 0.04479213374449812,
+              "significant_p001": 1.0,
+              "wald_chi2": 18755.144765168312
+            },
+            "y_side": {
+              "chi2_crit_p001": 18.467,
+              "df": 4.0,
+              "partial_r2": 0.0027031490551881715,
+              "significant_p001": 1.0,
+              "wald_chi2": 1084.0792206851502
+            }
+          },
+          "discount_rate": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 1.1345791586075043e-07,
+              "significant_p001": 0.0,
+              "wald_chi2": 0.045378633176230886
+            },
+            "y_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 0.050506481028773156,
+              "significant_p001": 1.0,
+              "wald_chi2": 21275.049531327273
+            }
+          },
+          "installments": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 4.81462569736594e-07,
+              "significant_p001": 0.0,
+              "wald_chi2": 0.19256586210510293
+            },
+            "y_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 0.0036917625149288677,
+              "significant_p001": 1.0,
+              "wald_chi2": 1482.0249277830144
+            }
+          },
+          "manual_exception": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 1.9751687262855462e-06,
+              "significant_p001": 0.0,
+              "wald_chi2": 0.7899900441287964
+            },
+            "y_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 3.512508974257898e-05,
+              "significant_p001": 1.0,
+              "wald_chi2": 14.04908924387264
+            }
+          },
+          "party_size": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 2.5464073827787105e-07,
+              "significant_p001": 0.0,
+              "wald_chi2": 0.10184613561579248
+            },
+            "y_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 0.00239619885135706,
+              "significant_p001": 1.0,
+              "wald_chi2": 960.6832845729299
+            }
+          },
+          "payment_method": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 7.798025795352766e-07,
+              "significant_p001": 0.0,
+              "wald_chi2": 0.3118900829236204
+            },
+            "y_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 0.00020031430253473538,
+              "significant_p001": 1.0,
+              "wald_chi2": 80.13356002567639
+            }
+          },
+          "product_category": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 2.712392352416038e-06,
+              "significant_p001": 0.0,
+              "wald_chi2": 1.0848513878149264
+            },
+            "y_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 3.024247978346072e-05,
+              "significant_p001": 0.0,
+              "wald_chi2": 12.096117788310837
+            }
+          },
+          "quoted_cost_eur": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 2.329262302776386e-06,
+              "significant_p001": 0.0,
+              "wald_chi2": 0.9316139205916293
+            },
+            "y_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 0.028717370927460878,
+              "significant_p001": 1.0,
+              "wald_chi2": 11825.364332669975
+            }
+          },
+          "supplier": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 16.266,
+              "df": 3.0,
+              "partial_r2": 1.385166089824122e-06,
+              "significant_p001": 0.0,
+              "wald_chi2": 0.5540117966844099
+            },
+            "y_side": {
+              "chi2_crit_p001": 16.266,
+              "df": 3.0,
+              "partial_r2": 0.0002656446857207232,
+              "significant_p001": 1.0,
+              "wald_chi2": 106.27521430207791
+            }
+          },
+          "trip_duration_days": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 5.628003588516949e-07,
+              "significant_p001": 0.0,
+              "wald_chi2": 0.225097758211423
+            },
+            "y_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 0.0012466004239060275,
+              "significant_p001": 1.0,
+              "wald_chi2": 499.2113760580435
+            }
+          }
+        },
+        "catalogued_blocks_adjusted_outcome_diff_eur": 9.84184361888756,
+        "n": 400000,
+        "pool_adjusted_outcome_diff_eur": 9.642633391206193,
+        "raw_outcome_diff_eur": -29.49320218129489,
+        "trap_id": "T01",
+        "x_rate": 0.2602475
+      }
+    },
+    "T02": {
+      "delivered_10k": {
+        "blocks": {
+          "acquisition_channel": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 16.266,
+              "df": 3.0,
+              "partial_r2": 8.541374343815666e-05,
+              "significant_p001": 0.0,
+              "wald_chi2": 0.850451869948114
+            },
+            "y_side": {
+              "chi2_crit_p001": 16.266,
+              "df": 3.0,
+              "partial_r2": 0.00190452705569352,
+              "significant_p001": 1.0,
+              "wald_chi2": 18.99574474924698
+            }
+          },
+          "booking_lead_days": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 0.00045217053744590934,
+              "significant_p001": 0.0,
+              "wald_chi2": 4.503846377448538
+            },
+            "y_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 0.006974232511575092,
+              "significant_p001": 1.0,
+              "wald_chi2": 69.91609576086788
+            }
+          },
+          "booking_month": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 31.264,
+              "df": 11.0,
+              "partial_r2": 0.001440561158423112,
+              "significant_p001": 0.0,
+              "wald_chi2": 14.36291755441102
+            },
+            "y_side": {
+              "chi2_crit_p001": 31.264,
+              "df": 11.0,
+              "partial_r2": 0.0007992809994262384,
+              "significant_p001": 0.0,
+              "wald_chi2": 7.963207189489255
+            }
+          },
+          "customer_price_eur": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 9.448927702579887e-06,
+              "significant_p001": 0.0,
+              "wald_chi2": 0.09407441310921348
+            },
+            "y_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 0.04376158323399731,
+              "significant_p001": 1.0,
+              "wald_chi2": 455.5836216743931
+            }
+          },
+          "customer_segment": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 0.00022971963798376667,
+              "significant_p001": 0.0,
+              "wald_chi2": 2.28761422567815
+            },
+            "y_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 0.0002275515762556559,
+              "significant_p001": 0.0,
+              "wald_chi2": 2.2657915260582757
+            }
+          },
+          "customer_type": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 0.00024016867921996347,
+              "significant_p001": 0.0,
+              "wald_chi2": 2.3916937802502574
+            },
+            "y_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 1.638606824296358e-05,
+              "significant_p001": 0.0,
+              "wald_chi2": 0.16312598235218145
+            }
+          },
+          "destination": {
+            "both_sides_significant_p001": true,
+            "x_side": {
+              "chi2_crit_p001": 18.467,
+              "df": 4.0,
+              "partial_r2": 0.00662567566096196,
+              "significant_p001": 1.0,
+              "wald_chi2": 66.40520623927802
+            },
+            "y_side": {
+              "chi2_crit_p001": 18.467,
+              "df": 4.0,
+              "partial_r2": 0.003048040193850782,
+              "significant_p001": 1.0,
+              "wald_chi2": 30.436010312557666
+            }
+          },
+          "discount_rate": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 2.7831827005805833e-06,
+              "significant_p001": 0.0,
+              "wald_chi2": 0.027709444087425716
+            },
+            "y_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 0.05151650679782593,
+              "significant_p001": 1.0,
+              "wald_chi2": 540.7018981858456
+            }
+          },
+          "installments": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 2.977203224981083e-07,
+              "significant_p001": 0.0,
+              "wald_chi2": 0.002964104413265288
+            },
+            "y_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 0.004767383588569835,
+              "significant_p001": 1.0,
+              "wald_chi2": 47.68664414892225
+            }
+          },
+          "manager": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 24.322,
+              "df": 7.0,
+              "partial_r2": 0.00034004363635059114,
+              "significant_p001": 0.0,
+              "wald_chi2": 3.3866260441414946
+            },
+            "y_side": {
+              "chi2_crit_p001": 24.322,
+              "df": 7.0,
+              "partial_r2": 0.00039467923392711427,
+              "significant_p001": 0.0,
+              "wald_chi2": 3.9305830932685604
+            }
+          },
+          "manual_exception": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 0.00020251908127881773,
+              "significant_p001": 0.0,
+              "wald_chi2": 2.016688391092099
+            },
+            "y_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 0.0001946659589662827,
+              "significant_p001": 0.0,
+              "wald_chi2": 1.9382769380482316
+            }
+          },
+          "party_size": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 8.497788894696828e-05,
+              "significant_p001": 0.0,
+              "wald_chi2": 0.8461117631474616
+            },
+            "y_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 0.002264684128136507,
+              "significant_p001": 1.0,
+              "wald_chi2": 22.596103532626998
+            }
+          },
+          "payment_method": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 0.0001935434665396134,
+              "significant_p001": 0.0,
+              "wald_chi2": 1.9272917675981254
+            },
+            "y_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 0.0003587840522369471,
+              "significant_p001": 0.0,
+              "wald_chi2": 3.5729771672454227
+            }
+          },
+          "product_category": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 0.000475041366411166,
+              "significant_p001": 0.0,
+              "wald_chi2": 4.7317596255476175
+            },
+            "y_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 0.00043551625623615257,
+              "significant_p001": 0.0,
+              "wald_chi2": 4.337453362280838
+            }
+          },
+          "quoted_cost_eur": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 4.991352542553335e-05,
+              "significant_p001": 0.0,
+              "wald_chi2": 0.49696386435508905
+            },
+            "y_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 0.03622370271520589,
+              "significant_p001": 1.0,
+              "wald_chi2": 374.16043696633466
+            }
+          },
+          "trip_duration_days": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 0.05070387341487044,
+              "significant_p001": 1.0,
+              "wald_chi2": 531.7705925277265
+            },
+            "y_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 0.0010976589494812745,
+              "significant_p001": 0.0,
+              "wald_chi2": 10.939202355451735
+            }
+          }
+        },
+        "catalogued_blocks_adjusted_outcome_diff_eur": 42.641863758147345,
+        "n": 10000,
+        "pool_adjusted_outcome_diff_eur": 39.62819625566265,
+        "raw_outcome_diff_eur": 32.81293053637478,
+        "trap_id": "T02",
+        "x_rate": 0.253
+      },
+      "generator_score_rates_large": {
+        "month_other_given_trip<14,not_Tokyo": {
+          "n": 147001.0,
+          "rate": 0.24974660036326282
+        },
+        "month_summer_given_trip<14,not_Tokyo": {
+          "n": 74107.0,
+          "rate": 0.24977397546790453
+        },
+        "month_winter_given_trip<14,not_Tokyo": {
+          "n": 72779.0,
+          "rate": 0.25117135437420135
+        },
+        "trip<14,Tokyo": {
+          "n": 82811.0,
+          "rate": 0.16645131685404113
+        },
+        "trip<14,not_Tokyo": {
+          "n": 293887.0,
+          "rate": 0.2501063333866418
+        },
+        "trip>=14,Tokyo": {
+          "n": 5098.0,
+          "rate": 0.5003923107100824
+        },
+        "trip>=14,not_Tokyo": {
+          "n": 18204.0,
+          "rate": 0.6139859371566688
+        }
+      },
+      "indicator_rates_large": {
+        "booking_month_in_summer_6_7_8": {
+          "outcome_mean_diff_eur": -39.473465635157595,
+          "rate_diff": -7.732237075858128e-05,
+          "rate_if_false": 0.2525569891035497,
+          "rate_if_true": 0.2524796667327911
+        },
+        "booking_month_in_winter_1_2_12": {
+          "outcome_mean_diff_eur": 7.4503127970858145,
+          "rate_diff": -0.0010274877369633173,
+          "rate_if_false": 0.2527919085323915,
+          "rate_if_true": 0.25176442079542816
+        },
+        "dest_in_Tokyo_Zanzibar": {
+          "outcome_mean_diff_eur": -58.35128077227034,
+          "rate_diff": -0.044322304078868446,
+          "rate_if_false": 0.271621686884519,
+          "rate_if_true": 0.22729938280565054
+        },
+        "destination=Tokyo": {
+          "outcome_mean_diff_eur": -28.312582636452134,
+          "rate_diff": -0.08551396633999964,
+          "rate_if_false": 0.2713311181674576,
+          "rate_if_true": 0.18581715182745795
+        },
+        "lead_lt_14": {
+          "outcome_mean_diff_eur": -230.01582943263202,
+          "rate_diff": -0.006793391537981225,
+          "rate_if_false": 0.2534595670334502,
+          "rate_if_true": 0.24666617549546896
+        },
+        "party_ge_5": {
+          "outcome_mean_diff_eur": -127.49846064311751,
+          "rate_diff": 0.002733229020374317,
+          "rate_if_false": 0.2520956530296388,
+          "rate_if_true": 0.25482888205001314
+        },
+        "trip_ge_14": {
+          "outcome_mean_diff_eur": -107.39525558658744,
+          "rate_diff": 0.3574178571862734,
+          "rate_if_false": 0.23171612272961364,
+          "rate_if_true": 0.589133979915887
+        }
+      },
+      "large_sample": {
+        "blocks": {
+          "acquisition_channel": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 16.266,
+              "df": 3.0,
+              "partial_r2": 6.365915408153591e-06,
+              "significant_p001": 0.0,
+              "wald_chi2": 2.546102271255157
+            },
+            "y_side": {
+              "chi2_crit_p001": 16.266,
+              "df": 3.0,
+              "partial_r2": 0.0008594030664836846,
+              "significant_p001": 1.0,
+              "wald_chi2": 344.0182037547151
+            }
+          },
+          "booking_lead_days": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 1.2269456678535898e-05,
+              "significant_p001": 0.0,
+              "wald_chi2": 4.90730302526238
+            },
+            "y_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 0.006384841427708365,
+              "significant_p001": 1.0,
+              "wald_chi2": 2570.0586702888004
+            }
+          },
+          "booking_month": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 31.264,
+              "df": 11.0,
+              "partial_r2": 2.5264260986903825e-05,
+              "significant_p001": 0.0,
+              "wald_chi2": 10.104848058796696
+            },
+            "y_side": {
+              "chi2_crit_p001": 31.264,
+              "df": 11.0,
+              "partial_r2": 0.0003546659619964824,
+              "significant_p001": 1.0,
+              "wald_chi2": 141.90075219708913
+            }
+          },
+          "customer_price_eur": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 1.6444740614149503e-07,
+              "significant_p001": 0.0,
+              "wald_chi2": 0.06577173758671943
+            },
+            "y_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 0.034257663348827995,
+              "significant_p001": 1.0,
+              "wald_chi2": 14187.556271160469
+            }
+          },
+          "customer_segment": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 1.2667350640551966e-05,
+              "significant_p001": 0.0,
+              "wald_chi2": 5.066447071254156
+            },
+            "y_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 7.3911791024484305e-06,
+              "significant_p001": 0.0,
+              "wald_chi2": 2.956160887434337
+            }
+          },
+          "customer_type": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 1.7863015474571671e-06,
+              "significant_p001": 0.0,
+              "wald_chi2": 0.7144432979259474
+            },
+            "y_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 3.2210538167304806e-05,
+              "significant_p001": 1.0,
+              "wald_chi2": 12.8831807668902
+            }
+          },
+          "destination": {
+            "both_sides_significant_p001": true,
+            "x_side": {
+              "chi2_crit_p001": 18.467,
+              "df": 4.0,
+              "partial_r2": 0.005321605427827807,
+              "significant_p001": 1.0,
+              "wald_chi2": 2139.7951660624562
+            },
+            "y_side": {
+              "chi2_crit_p001": 18.467,
+              "df": 4.0,
+              "partial_r2": 0.0028450481500764757,
+              "significant_p001": 1.0,
+              "wald_chi2": 1141.1378249216125
+            }
+          },
+          "discount_rate": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 1.3742815955782175e-07,
+              "significant_p001": 0.0,
+              "wald_chi2": 0.0549652245378778
+            },
+            "y_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 0.05051188332794659,
+              "significant_p001": 1.0,
+              "wald_chi2": 21277.233428932606
+            }
+          },
+          "installments": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 9.059974636595225e-07,
+              "significant_p001": 0.0,
+              "wald_chi2": 0.36235944987215046
+            },
+            "y_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 0.003688409888587888,
+              "significant_p001": 1.0,
+              "wald_chi2": 1480.6592552287836
+            }
+          },
+          "manager": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 24.322,
+              "df": 7.0,
+              "partial_r2": 1.1962286310467017e-05,
+              "significant_p001": 0.0,
+              "wald_chi2": 4.784445416495055
+            },
+            "y_side": {
+              "chi2_crit_p001": 24.322,
+              "df": 7.0,
+              "partial_r2": 8.839961425766194e-05,
+              "significant_p001": 1.0,
+              "wald_chi2": 35.358993441803975
+            }
+          },
+          "manual_exception": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 2.9261112829819127e-06,
+              "significant_p001": 0.0,
+              "wald_chi2": 1.170319188780497
+            },
+            "y_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 3.4915791502965146e-05,
+              "significant_p001": 1.0,
+              "wald_chi2": 13.965232997732063
+            }
+          },
+          "party_size": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 1.762219366745665e-06,
+              "significant_p001": 0.0,
+              "wald_chi2": 0.7048114510785182
+            },
+            "y_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 0.0023953851660474244,
+              "significant_p001": 1.0,
+              "wald_chi2": 960.3466742642933
+            }
+          },
+          "payment_method": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 2.361400001425321e-06,
+              "significant_p001": 0.0,
+              "wald_chi2": 0.9444583292139657
+            },
+            "y_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 0.0001996838276024868,
+              "significant_p001": 1.0,
+              "wald_chi2": 79.88049611196703
+            }
+          },
+          "product_category": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 1.0876802203681511e-05,
+              "significant_p001": 0.0,
+              "wald_chi2": 4.350289619415362
+            },
+            "y_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 3.035100850821189e-05,
+              "significant_p001": 0.0,
+              "wald_chi2": 12.139406051118229
+            }
+          },
+          "quoted_cost_eur": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 3.9173566947665634e-08,
+              "significant_p001": 0.0,
+              "wald_chi2": 0.015667703755880398
+            },
+            "y_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 0.02870688933204238,
+              "significant_p001": 1.0,
+              "wald_chi2": 11820.802388787886
+            }
+          },
+          "trip_duration_days": {
+            "both_sides_significant_p001": true,
+            "x_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 0.035767248572532426,
+              "significant_p001": 1.0,
+              "wald_chi2": 14835.967404029696
+            },
+            "y_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 0.0012451983272663042,
+              "significant_p001": 1.0,
+              "wald_chi2": 498.64420791539203
+            }
+          }
+        },
+        "catalogued_blocks_adjusted_outcome_diff_eur": 21.31693631417291,
+        "n": 400000,
+        "pool_adjusted_outcome_diff_eur": 19.02868730863617,
+        "raw_outcome_diff_eur": 9.432541613837543,
+        "trap_id": "T02",
+        "x_rate": 0.2525375
+      }
+    },
+    "T03": {
+      "delivered_10k": {
+        "blocks": {
+          "booking_lead_days": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 3.4704316582150935e-05,
+              "significant_p001": 0.0,
+              "wald_chi2": 0.34552816721079765
+            },
+            "y_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 0.006948514041483353,
+              "significant_p001": 1.0,
+              "wald_chi2": 69.6564662165526
+            }
+          },
+          "booking_month": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 31.264,
+              "df": 11.0,
+              "partial_r2": 0.0009372616690815908,
+              "significant_p001": 0.0,
+              "wald_chi2": 9.340131324450914
+            },
+            "y_side": {
+              "chi2_crit_p001": 31.264,
+              "df": 11.0,
+              "partial_r2": 0.0007812951168990389,
+              "significant_p001": 0.0,
+              "wald_chi2": 7.783874391782788
+            }
+          },
+          "customer_price_eur": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 3.143296392764656e-05,
+              "significant_p001": 0.0,
+              "wald_chi2": 0.31295642601169893
+            },
+            "y_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 0.043768759679904796,
+              "significant_p001": 1.0,
+              "wald_chi2": 455.6617523472639
+            }
+          },
+          "customer_segment": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 0.00021252562253411963,
+              "significant_p001": 0.0,
+              "wald_chi2": 2.1163548775875576
+            },
+            "y_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 0.00021423008627897993,
+              "significant_p001": 0.0,
+              "wald_chi2": 2.1331174868504963
+            }
+          },
+          "customer_type": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 1.21252003223931e-05,
+              "significant_p001": 0.0,
+              "wald_chi2": 0.12071995816342135
+            },
+            "y_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 1.2873900291408223e-05,
+              "significant_p001": 0.0,
+              "wald_chi2": 0.1281613273371182
+            }
+          },
+          "destination": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 18.467,
+              "df": 4.0,
+              "partial_r2": 0.0014997221982005107,
+              "significant_p001": 0.0,
+              "wald_chi2": 14.953660541943393
+            },
+            "y_side": {
+              "chi2_crit_p001": 18.467,
+              "df": 4.0,
+              "partial_r2": 0.00272987605019016,
+              "significant_p001": 1.0,
+              "wald_chi2": 27.250306037455044
+            }
+          },
+          "discount_rate": {
+            "both_sides_significant_p001": true,
+            "x_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 0.001314014866028559,
+              "significant_p001": 1.0,
+              "wald_chi2": 13.099545003052556
+            },
+            "y_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 0.05171041977556647,
+              "significant_p001": 1.0,
+              "wald_chi2": 542.8481337356158
+            }
+          },
+          "installments": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 2.702262875193466e-06,
+              "significant_p001": 0.0,
+              "wald_chi2": 0.02690380188657119
+            },
+            "y_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 0.004794696705288932,
+              "significant_p001": 1.0,
+              "wald_chi2": 47.96116494067419
+            }
+          },
+          "manager": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 24.322,
+              "df": 7.0,
+              "partial_r2": 0.0003547779025919477,
+              "significant_p001": 0.0,
+              "wald_chi2": 3.533422378385807
+            },
+            "y_side": {
+              "chi2_crit_p001": 24.322,
+              "df": 7.0,
+              "partial_r2": 0.00040035393402775064,
+              "significant_p001": 0.0,
+              "wald_chi2": 3.9871196722924993
+            }
+          },
+          "manual_exception": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 0.0002909078151654238,
+              "significant_p001": 0.0,
+              "wald_chi2": 2.897121002928191
+            },
+            "y_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 0.00019655513646373962,
+              "significant_p001": 0.0,
+              "wald_chi2": 1.9570910597968585
+            }
+          },
+          "party_size": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 4.0658947050320926e-05,
+              "significant_p001": 0.0,
+              "wald_chi2": 0.40481693626337173
+            },
+            "y_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 0.0022888239692991875,
+              "significant_p001": 1.0,
+              "wald_chi2": 22.837513663044582
+            }
+          },
+          "payment_method": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 0.000558848585916838,
+              "significant_p001": 0.0,
+              "wald_chi2": 5.567007635733057
+            },
+            "y_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 0.0003616460501367954,
+              "significant_p001": 0.0,
+              "wald_chi2": 3.601488893344688
+            }
+          },
+          "product_category": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 0.00020386198797571912,
+              "significant_p001": 0.0,
+              "wald_chi2": 2.0300638051292905
+            },
+            "y_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 0.0004316440608039031,
+              "significant_p001": 0.0,
+              "wald_chi2": 4.298872207959576
+            }
+          },
+          "quoted_cost_eur": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 6.477730391011122e-07,
+              "significant_p001": 0.0,
+              "wald_chi2": 0.006449232554929645
+            },
+            "y_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 0.03623000159781957,
+              "significant_p001": 1.0,
+              "wald_chi2": 374.2279449497728
+            }
+          },
+          "supplier": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 16.266,
+              "df": 3.0,
+              "partial_r2": 0.00024048017312227756,
+              "significant_p001": 0.0,
+              "wald_chi2": 2.394796504683434
+            },
+            "y_side": {
+              "chi2_crit_p001": 16.266,
+              "df": 3.0,
+              "partial_r2": 0.0012318085658178377,
+              "significant_p001": 0.0,
+              "wald_chi2": 12.277778145004802
+            }
+          },
+          "trip_duration_days": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 0.00017052922712080344,
+              "significant_p001": 0.0,
+              "wald_chi2": 1.6980785572386756
+            },
+            "y_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 0.0010883390372032455,
+              "significant_p001": 0.0,
+              "wald_chi2": 10.84621947942384
+            }
+          }
+        },
+        "catalogued_blocks_adjusted_outcome_diff_eur": -68.34184851822071,
+        "n": 10000,
+        "pool_adjusted_outcome_diff_eur": -69.59792650101396,
+        "raw_outcome_diff_eur": -81.64106594487927,
+        "trap_id": "T03",
+        "x_rate": 0.2726
+      },
+      "generator_score_rates_large": {
+        "customer_type=new": {
+          "n": 247798.0,
+          "rate": 0.27159621950136803
+        },
+        "customer_type=returning": {
+          "n": 152202.0,
+          "rate": 0.2690174899147186
+        },
+        "discount>=0.12_given_not_paid_search": {
+          "n": 291754.0,
+          "rate": 0.26551821054724184
+        },
+        "discount>=0.12_given_paid_search": {
+          "n": 108246.0,
+          "rate": 0.31784084400347357
+        },
+        "installments<3": {
+          "n": 315770.0,
+          "rate": 0.2703170028818444
+        },
+        "installments>=3": {
+          "n": 84230.0,
+          "rate": 0.27173216193755195
+        }
+      },
+      "indicator_rates_large": {
+        "booking_month_in_summer_6_7_8": {
+          "outcome_mean_diff_eur": -39.473465635157595,
+          "rate_diff": -0.0017293092026093304,
+          "rate_if_false": 0.2710508723845177,
+          "rate_if_true": 0.26932156318190836
+        },
+        "booking_month_in_winter_1_2_12": {
+          "outcome_mean_diff_eur": 7.4503127970858145,
+          "rate_diff": 0.0005370471183107628,
+          "rate_if_false": 0.2704820257908885,
+          "rate_if_true": 0.27101907290919924
+        },
+        "dest_in_Tokyo_Zanzibar": {
+          "outcome_mean_diff_eur": -58.35128077227034,
+          "rate_diff": 0.0022096773644483814,
+          "rate_if_false": 0.2696635626446092,
+          "rate_if_true": 0.2718732400090576
+        },
+        "destination=Tokyo": {
+          "outcome_mean_diff_eur": -28.312582636452134,
+          "rate_diff": 0.0014361768984148537,
+          "rate_if_false": 0.2702993678125931,
+          "rate_if_true": 0.27173554471100797
+        },
+        "lead_lt_14": {
+          "outcome_mean_diff_eur": -230.01582943263202,
+          "rate_diff": 0.0005918302636594985,
+          "rate_if_false": 0.2705346708783135,
+          "rate_if_true": 0.271126501141973
+        },
+        "party_ge_5": {
+          "outcome_mean_diff_eur": -127.49846064311751,
+          "rate_diff": 0.0003545904226422425,
+          "rate_if_false": 0.27055767779875173,
+          "rate_if_true": 0.27091226822139397
+        },
+        "trip_ge_14": {
+          "outcome_mean_diff_eur": -107.39525558658744,
+          "rate_diff": -0.0072852160720808246,
+          "rate_if_false": 0.2710394002622791,
+          "rate_if_true": 0.26375418419019825
+        }
+      },
+      "large_sample": {
+        "blocks": {
+          "booking_lead_days": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 5.12576618270538e-07,
+              "significant_p001": 0.0,
+              "wald_chi2": 0.2050081990194207
+            },
+            "y_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 0.006383730375415495,
+              "significant_p001": 1.0,
+              "wald_chi2": 2569.608570584271
+            }
+          },
+          "booking_month": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 31.264,
+              "df": 11.0,
+              "partial_r2": 2.6726297028298277e-05,
+              "significant_p001": 0.0,
+              "wald_chi2": 10.689628548437774
+            },
+            "y_side": {
+              "chi2_crit_p001": 31.264,
+              "df": 11.0,
+              "partial_r2": 0.00035405548266466945,
+              "significant_p001": 1.0,
+              "wald_chi2": 141.65641479946223
+            }
+          },
+          "customer_price_eur": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 9.148701566371154e-06,
+              "significant_p001": 0.0,
+              "wald_chi2": 3.6591115597992
+            },
+            "y_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 0.034263372693678816,
+              "significant_p001": 1.0,
+              "wald_chi2": 14190.004643319397
+            }
+          },
+          "customer_segment": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 1.9910033590176285e-06,
+              "significant_p001": 0.0,
+              "wald_chi2": 0.7963153249257414
+            },
+            "y_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 7.306988286116622e-06,
+              "significant_p001": 0.0,
+              "wald_chi2": 2.922487854558293
+            }
+          },
+          "customer_type": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 2.154874222781396e-06,
+              "significant_p001": 0.0,
+              "wald_chi2": 0.8618567318396112
+            },
+            "y_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 3.229073848336745e-05,
+              "significant_p001": 1.0,
+              "wald_chi2": 12.915259353377454
+            }
+          },
+          "destination": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 18.467,
+              "df": 4.0,
+              "partial_r2": 1.9087409164463486e-05,
+              "significant_p001": 0.0,
+              "wald_chi2": 7.634269538208506
+            },
+            "y_side": {
+              "chi2_crit_p001": 18.467,
+              "df": 4.0,
+              "partial_r2": 0.0027050094661564936,
+              "significant_p001": 1.0,
+              "wald_chi2": 1084.8164999379956
+            }
+          },
+          "discount_rate": {
+            "both_sides_significant_p001": true,
+            "x_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 0.002051375083556325,
+              "significant_p001": 1.0,
+              "wald_chi2": 822.1463033606053
+            },
+            "y_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 0.05051279840834181,
+              "significant_p001": 1.0,
+              "wald_chi2": 21277.63939686772
+            }
+          },
+          "installments": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 1.1274551034236258e-06,
+              "significant_p001": 0.0,
+              "wald_chi2": 0.45093294175154613
+            },
+            "y_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 0.003689020204735746,
+              "significant_p001": 1.0,
+              "wald_chi2": 1480.9051650602903
+            }
+          },
+          "manager": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 24.322,
+              "df": 7.0,
+              "partial_r2": 2.1679203358604465e-05,
+              "significant_p001": 0.0,
+              "wald_chi2": 8.670915437033072
+            },
+            "y_side": {
+              "chi2_crit_p001": 24.322,
+              "df": 7.0,
+              "partial_r2": 8.848878670894919e-05,
+              "significant_p001": 1.0,
+              "wald_chi2": 35.394664719114736
+            }
+          },
+          "manual_exception": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 1.1692688994115508e-08,
+              "significant_p001": 0.0,
+              "wald_chi2": 0.0046765611740120375
+            },
+            "y_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 3.4940386697449744e-05,
+              "significant_p001": 1.0,
+              "wald_chi2": 13.975070655951356
+            }
+          },
+          "party_size": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 4.677090087363218e-06,
+              "significant_p001": 0.0,
+              "wald_chi2": 1.87063899212853
+            },
+            "y_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 0.0023952724328685556,
+              "significant_p001": 1.0,
+              "wald_chi2": 960.3013692850376
+            }
+          },
+          "payment_method": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 1.0938938355593346e-05,
+              "significant_p001": 0.0,
+              "wald_chi2": 4.375141888357105
+            },
+            "y_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 0.0002006107048346041,
+              "significant_p001": 1.0,
+              "wald_chi2": 80.25135373276035
+            }
+          },
+          "product_category": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 3.2906542541798704e-06,
+              "significant_p001": 0.0,
+              "wald_chi2": 1.3161212437847343
+            },
+            "y_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 3.0261530190986577e-05,
+              "significant_p001": 0.0,
+              "wald_chi2": 12.103616581494636
+            }
+          },
+          "quoted_cost_eur": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 1.2655092057067925e-05,
+              "significant_p001": 0.0,
+              "wald_chi2": 5.061544053082602
+            },
+            "y_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 0.02871407867502142,
+              "significant_p001": 1.0,
+              "wald_chi2": 11823.850304348944
+            }
+          },
+          "supplier": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 16.266,
+              "df": 3.0,
+              "partial_r2": 2.0183792992402215e-05,
+              "significant_p001": 0.0,
+              "wald_chi2": 8.07279204963282
+            },
+            "y_side": {
+              "chi2_crit_p001": 16.266,
+              "df": 3.0,
+              "partial_r2": 0.0002651336743627506,
+              "significant_p001": 1.0,
+              "wald_chi2": 106.06966136881104
+            }
+          },
+          "trip_duration_days": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 1.0878498996159842e-05,
+              "significant_p001": 0.0,
+              "wald_chi2": 4.350968276512134
+            },
+            "y_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 0.0012474699615037368,
+              "significant_p001": 1.0,
+              "wald_chi2": 499.55502834520587
+            }
+          }
+        },
+        "catalogued_blocks_adjusted_outcome_diff_eur": -44.796145906562,
+        "n": 400000,
+        "pool_adjusted_outcome_diff_eur": -45.11349144883926,
+        "raw_outcome_diff_eur": -62.17105106754133,
+        "trap_id": "T03",
+        "x_rate": 0.270615
+      }
+    },
+    "T04": {
+      "delivered_10k": {
+        "blocks": {
+          "acquisition_channel": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 16.266,
+              "df": 3.0,
+              "partial_r2": 0.00021686036105266862,
+              "significant_p001": 0.0,
+              "wald_chi2": 2.1593131637116243
+            },
+            "y_side": {
+              "chi2_crit_p001": 16.266,
+              "df": 3.0,
+              "partial_r2": 0.0018743682387022647,
+              "significant_p001": 1.0,
+              "wald_chi2": 18.692498072731876
+            }
+          },
+          "booking_lead_days": {
+            "both_sides_significant_p001": true,
+            "x_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 0.026036468877754706,
+              "significant_p001": 1.0,
+              "wald_chi2": 266.12192283975355
+            },
+            "y_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 0.006941999586136555,
+              "significant_p001": 1.0,
+              "wald_chi2": 69.58371399415252
+            }
+          },
+          "booking_month": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 31.264,
+              "df": 11.0,
+              "partial_r2": 0.000987151838348162,
+              "significant_p001": 0.0,
+              "wald_chi2": 9.836806972842671
+            },
+            "y_side": {
+              "chi2_crit_p001": 31.264,
+              "df": 11.0,
+              "partial_r2": 0.0007807339989903774,
+              "significant_p001": 0.0,
+              "wald_chi2": 7.777498383365204
+            }
+          },
+          "customer_price_eur": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 1.7991975439426763e-05,
+              "significant_p001": 0.0,
+              "wald_chi2": 0.17911333810227345
+            },
+            "y_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 0.043762264341478924,
+              "significant_p001": 1.0,
+              "wald_chi2": 455.5452718618086
+            }
+          },
+          "customer_segment": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 0.0007112896580718631,
+              "significant_p001": 0.0,
+              "wald_chi2": 7.085928693903205
+            },
+            "y_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 0.000216908708153566,
+              "significant_p001": 0.0,
+              "wald_chi2": 2.1595777121723008
+            }
+          },
+          "customer_type": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 0.0002801184461967785,
+              "significant_p001": 0.0,
+              "wald_chi2": 2.7893604832133705
+            },
+            "y_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 1.2803855270855034e-05,
+              "significant_p001": 0.0,
+              "wald_chi2": 0.1274512072329025
+            }
+          },
+          "destination": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 18.467,
+              "df": 4.0,
+              "partial_r2": 0.000646463310194181,
+              "significant_p001": 0.0,
+              "wald_chi2": 6.43970528617905
+            },
+            "y_side": {
+              "chi2_crit_p001": 18.467,
+              "df": 4.0,
+              "partial_r2": 0.002729533320986865,
+              "significant_p001": 1.0,
+              "wald_chi2": 27.24413846083368
+            }
+          },
+          "discount_rate": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 1.3678324606588308e-05,
+              "significant_p001": 0.0,
+              "wald_chi2": 0.1361695840303585
+            },
+            "y_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 0.051698683486968926,
+              "significant_p001": 1.0,
+              "wald_chi2": 542.6636939844607
+            }
+          },
+          "installments": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 9.139983531660841e-05,
+              "significant_p001": 0.0,
+              "wald_chi2": 0.9099685315507637
+            },
+            "y_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 0.004791994793448336,
+              "significant_p001": 1.0,
+              "wald_chi2": 47.929192615452166
+            }
+          },
+          "manager": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 24.322,
+              "df": 7.0,
+              "partial_r2": 0.00018572341167603584,
+              "significant_p001": 0.0,
+              "wald_chi2": 1.8492200066835176
+            },
+            "y_side": {
+              "chi2_crit_p001": 24.322,
+              "df": 7.0,
+              "partial_r2": 0.00040093824415885003,
+              "significant_p001": 0.0,
+              "wald_chi2": 3.9925400443523094
+            }
+          },
+          "manual_exception": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 3.4927822305876867e-05,
+              "significant_p001": 0.0,
+              "wald_chi2": 0.3477186161090401
+            },
+            "y_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 0.00019823357314661792,
+              "significant_p001": 0.0,
+              "wald_chi2": 1.9736082225113747
+            }
+          },
+          "party_size": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 0.00035823486002304505,
+              "significant_p001": 0.0,
+              "wald_chi2": 3.5675060365550504
+            },
+            "y_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 0.0022806098137079386,
+              "significant_p001": 1.0,
+              "wald_chi2": 22.7530809854363
+            }
+          },
+          "product_category": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 6.453324585435218e-05,
+              "significant_p001": 0.0,
+              "wald_chi2": 0.6424699231495806
+            },
+            "y_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 0.0004324735820088311,
+              "significant_p001": 0.0,
+              "wald_chi2": 4.3067045712684955
+            }
+          },
+          "quoted_cost_eur": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 4.260206350753287e-05,
+              "significant_p001": 0.0,
+              "wald_chi2": 0.4241216106732825
+            },
+            "y_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 0.03622377887659581,
+              "significant_p001": 1.0,
+              "wald_chi2": 374.1236679582555
+            }
+          },
+          "supplier": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 16.266,
+              "df": 3.0,
+              "partial_r2": 0.00020041733414142196,
+              "significant_p001": 0.0,
+              "wald_chi2": 1.9955545050919001
+            },
+            "y_side": {
+              "chi2_crit_p001": 16.266,
+              "df": 3.0,
+              "partial_r2": 0.0012375753436923655,
+              "significant_p001": 0.0,
+              "wald_chi2": 12.334089335962894
+            }
+          },
+          "trip_duration_days": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 9.234326738725881e-05,
+              "significant_p001": 0.0,
+              "wald_chi2": 0.91936212374258
+            },
+            "y_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 0.001090557948499267,
+              "significant_p001": 0.0,
+              "wald_chi2": 10.867265201805983
+            }
+          }
+        },
+        "catalogued_blocks_adjusted_outcome_diff_eur": -27.91881459156732,
+        "n": 10000,
+        "pool_adjusted_outcome_diff_eur": -29.91615074043768,
+        "raw_outcome_diff_eur": -57.11850458342758,
+        "trap_id": "T04",
+        "x_rate": 0.3077
+      },
+      "generator_score_rates_large": {
+        "dest_TZ_given_lead>=14": {
+          "n": 148739.0,
+          "rate": 0.27807098340045316
+        },
+        "dest_not_TZ_given_lead>=14": {
+          "n": 196969.0,
+          "rate": 0.2801963760794846
+        },
+        "lead<14": {
+          "n": 54292.0,
+          "rate": 0.5027628379871805
+        },
+        "lead>=14": {
+          "n": 345708.0,
+          "rate": 0.27928193735753876
+        }
+      },
+      "indicator_rates_large": {
+        "booking_month_in_summer_6_7_8": {
+          "outcome_mean_diff_eur": -39.473465635157595,
+          "rate_diff": -0.0007875032992049613,
+          "rate_if_false": 0.3098134902065646,
+          "rate_if_true": 0.30902598690735966
+        },
+        "booking_month_in_winter_1_2_12": {
+          "outcome_mean_diff_eur": 7.4503127970858145,
+          "rate_diff": 0.00019352030571950785,
+          "rate_if_false": 0.30956708388850307,
+          "rate_if_true": 0.3097606041942226
+        },
+        "dest_in_Tokyo_Zanzibar": {
+          "outcome_mean_diff_eur": -58.35128077227034,
+          "rate_diff": -0.0010533164143431417,
+          "rate_if_false": 0.3100685343483968,
+          "rate_if_true": 0.3090152179340537
+        },
+        "destination=Tokyo": {
+          "outcome_mean_diff_eur": -28.312582636452134,
+          "rate_diff": -0.000888553818442217,
+          "rate_if_false": 0.3098102796940636,
+          "rate_if_true": 0.3089217258756214
+        },
+        "lead_lt_14": {
+          "outcome_mean_diff_eur": -230.01582943263202,
+          "rate_diff": 0.2234809006296417,
+          "rate_if_false": 0.27928193735753876,
+          "rate_if_true": 0.5027628379871805
+        },
+        "party_ge_5": {
+          "outcome_mean_diff_eur": -127.49846064311751,
+          "rate_diff": -0.015396397924254568,
+          "rate_if_false": 0.31210394319744017,
+          "rate_if_true": 0.2967075452731856
+        },
+        "trip_ge_14": {
+          "outcome_mean_diff_eur": -107.39525558658744,
+          "rate_diff": -0.01174090259516053,
+          "rate_if_false": 0.3102989662806811,
+          "rate_if_true": 0.29855806368552057
+        }
+      },
+      "large_sample": {
+        "blocks": {
+          "acquisition_channel": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 16.266,
+              "df": 3.0,
+              "partial_r2": 1.0628677173376862e-05,
+              "significant_p001": 0.0,
+              "wald_chi2": 4.251037761785965
+            },
+            "y_side": {
+              "chi2_crit_p001": 16.266,
+              "df": 3.0,
+              "partial_r2": 0.0008595343687702287,
+              "significant_p001": 1.0,
+              "wald_chi2": 344.06994887344575
+            }
+          },
+          "booking_lead_days": {
+            "both_sides_significant_p001": true,
+            "x_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 0.0234311523644699,
+              "significant_p001": 1.0,
+              "wald_chi2": 9596.257925513006
+            },
+            "y_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 0.006377032134278354,
+              "significant_p001": 1.0,
+              "wald_chi2": 2566.888641585671
+            }
+          },
+          "booking_month": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 31.264,
+              "df": 11.0,
+              "partial_r2": 1.795452378909075e-05,
+              "significant_p001": 0.0,
+              "wald_chi2": 7.181130495844111
+            },
+            "y_side": {
+              "chi2_crit_p001": 31.264,
+              "df": 11.0,
+              "partial_r2": 0.0003547250579911711,
+              "significant_p001": 1.0,
+              "wald_chi2": 141.924049860618
+            }
+          },
+          "customer_price_eur": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 6.576069026693786e-06,
+              "significant_p001": 0.0,
+              "wald_chi2": 2.63014898361258
+            },
+            "y_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 0.034265973717642256,
+              "significant_p001": 1.0,
+              "wald_chi2": 14191.084583633516
+            }
+          },
+          "customer_segment": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 5.129226233518813e-07,
+              "significant_p001": 0.0,
+              "wald_chi2": 0.20514607304676366
+            },
+            "y_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 7.322151826858092e-06,
+              "significant_p001": 0.0,
+              "wald_chi2": 2.928545355012923
+            }
+          },
+          "customer_type": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 1.0089927508604105e-06,
+              "significant_p001": 0.0,
+              "wald_chi2": 0.4035521028515219
+            },
+            "y_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 3.243047988903174e-05,
+              "significant_p001": 1.0,
+              "wald_chi2": 12.97112081321047
+            }
+          },
+          "destination": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 18.467,
+              "df": 4.0,
+              "partial_r2": 9.378302589893482e-06,
+              "significant_p001": 0.0,
+              "wald_chi2": 3.7509341897366735
+            },
+            "y_side": {
+              "chi2_crit_p001": 18.467,
+              "df": 4.0,
+              "partial_r2": 0.0027020367977787433,
+              "significant_p001": 1.0,
+              "wald_chi2": 1083.6184022163384
+            }
+          },
+          "discount_rate": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 1.1564456914816902e-05,
+              "significant_p001": 0.0,
+              "wald_chi2": 4.625315854631512
+            },
+            "y_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 0.05051723006728554,
+              "significant_p001": 1.0,
+              "wald_chi2": 21279.552272194396
+            }
+          },
+          "installments": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 1.2484493577230944e-06,
+              "significant_p001": 0.0,
+              "wald_chi2": 0.49932418624909986
+            },
+            "y_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 0.003690614697682061,
+              "significant_p001": 1.0,
+              "wald_chi2": 1481.543918557822
+            }
+          },
+          "manager": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 24.322,
+              "df": 7.0,
+              "partial_r2": 2.3548462617403422e-05,
+              "significant_p001": 0.0,
+              "wald_chi2": 9.418547158449256
+            },
+            "y_side": {
+              "chi2_crit_p001": 24.322,
+              "df": 7.0,
+              "partial_r2": 8.795934614829456e-05,
+              "significant_p001": 1.0,
+              "wald_chi2": 35.182786984333816
+            }
+          },
+          "manual_exception": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 1.1017358623437372e-06,
+              "significant_p001": 0.0,
+              "wald_chi2": 0.44064525229836643
+            },
+            "y_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 3.496185954789329e-05,
+              "significant_p001": 1.0,
+              "wald_chi2": 13.983624467132705
+            }
+          },
+          "party_size": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 1.671065206734288e-06,
+              "significant_p001": 0.0,
+              "wald_chi2": 0.668352001619188
+            },
+            "y_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 0.002396213814368462,
+              "significant_p001": 1.0,
+              "wald_chi2": 960.677288100821
+            }
+          },
+          "product_category": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 1.7172749352882086e-06,
+              "significant_p001": 0.0,
+              "wald_chi2": 0.6868338762257958
+            },
+            "y_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 3.0369736552789368e-05,
+              "significant_p001": 0.0,
+              "wald_chi2": 12.146866510370181
+            }
+          },
+          "quoted_cost_eur": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 6.493363514514611e-06,
+              "significant_p001": 0.0,
+              "wald_chi2": 2.5970700681677164
+            },
+            "y_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 0.028714786069333715,
+              "significant_p001": 1.0,
+              "wald_chi2": 11824.120642275222
+            }
+          },
+          "supplier": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 16.266,
+              "df": 3.0,
+              "partial_r2": 5.0432979523859944e-06,
+              "significant_p001": 0.0,
+              "wald_chi2": 2.0171024053949713
+            },
+            "y_side": {
+              "chi2_crit_p001": 16.266,
+              "df": 3.0,
+              "partial_r2": 0.0002656862074137151,
+              "significant_p001": 1.0,
+              "wald_chi2": 106.29050132012486
+            }
+          },
+          "trip_duration_days": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 7.644154201845994e-08,
+              "significant_p001": 0.0,
+              "wald_chi2": 0.030573179275054114
+            },
+            "y_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 0.0012463701000825559,
+              "significant_p001": 1.0,
+              "wald_chi2": 499.1127862617841
+            }
+          }
+        },
+        "catalogued_blocks_adjusted_outcome_diff_eur": -19.900375724687958,
+        "n": 400000,
+        "pool_adjusted_outcome_diff_eur": -22.25012691530152,
+        "raw_outcome_diff_eur": -47.62012906926182,
+        "trap_id": "T04",
+        "x_rate": 0.309615
+      }
+    },
+    "T05": {
+      "delivered_10k": {
+        "blocks": {
+          "acquisition_channel": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 16.266,
+              "df": 3.0,
+              "partial_r2": 0.0005313017854441776,
+              "significant_p001": 0.0,
+              "wald_chi2": 5.2913892968922625
+            },
+            "y_side": {
+              "chi2_crit_p001": 16.266,
+              "df": 3.0,
+              "partial_r2": 0.0018760655543545747,
+              "significant_p001": 1.0,
+              "wald_chi2": 18.70757710350039
+            }
+          },
+          "booking_lead_days": {
+            "both_sides_significant_p001": true,
+            "x_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 0.004806140148376498,
+              "significant_p001": 1.0,
+              "wald_chi2": 48.07135671443182
+            },
+            "y_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 0.006943795057765661,
+              "significant_p001": 1.0,
+              "wald_chi2": 69.59484454755692
+            }
+          },
+          "booking_month": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 31.264,
+              "df": 11.0,
+              "partial_r2": 0.0009650788656800443,
+              "significant_p001": 0.0,
+              "wald_chi2": 9.615674913617543
+            },
+            "y_side": {
+              "chi2_crit_p001": 31.264,
+              "df": 11.0,
+              "partial_r2": 0.0007811395258970917,
+              "significant_p001": 0.0,
+              "wald_chi2": 7.780759560087641
+            }
+          },
+          "customer_price_eur": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 0.00010099031611036291,
+              "significant_p001": 0.0,
+              "wald_chi2": 1.0053591380997136
+            },
+            "y_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 0.04376301225485223,
+              "significant_p001": 1.0,
+              "wald_chi2": 455.5076477428955
+            }
+          },
+          "customer_segment": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 4.293406076864969e-05,
+              "significant_p001": 0.0,
+              "wald_chi2": 0.4273839902213467
+            },
+            "y_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 0.0002164469245544365,
+              "significant_p001": 0.0,
+              "wald_chi2": 2.154762631835112
+            }
+          },
+          "customer_type": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 6.133462157424586e-06,
+              "significant_p001": 0.0,
+              "wald_chi2": 0.06105285678039099
+            },
+            "y_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 1.2803417689608305e-05,
+              "significant_p001": 0.0,
+              "wald_chi2": 0.12743404785601403
+            }
+          },
+          "destination": {
+            "both_sides_significant_p001": true,
+            "x_side": {
+              "chi2_crit_p001": 18.467,
+              "df": 4.0,
+              "partial_r2": 0.008977303727482872,
+              "significant_p001": 1.0,
+              "wald_chi2": 90.16956083798081
+            },
+            "y_side": {
+              "chi2_crit_p001": 18.467,
+              "df": 4.0,
+              "partial_r2": 0.0027288947360116877,
+              "significant_p001": 1.0,
+              "wald_chi2": 27.235010785090985
+            }
+          },
+          "discount_rate": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 4.390223468917532e-05,
+              "significant_p001": 0.0,
+              "wald_chi2": 0.4370220303397914
+            },
+            "y_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 0.051689098038637,
+              "significant_p001": 1.0,
+              "wald_chi2": 542.5030880848343
+            }
+          },
+          "installments": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 3.5080535577406666e-07,
+              "significant_p001": 0.0,
+              "wald_chi2": 0.003491917736358503
+            },
+            "y_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 0.004793877518548261,
+              "significant_p001": 1.0,
+              "wald_chi2": 47.943297236899895
+            }
+          },
+          "manager": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 24.322,
+              "df": 7.0,
+              "partial_r2": 0.000677287041960725,
+              "significant_p001": 0.0,
+              "wald_chi2": 6.7462843866735325
+            },
+            "y_side": {
+              "chi2_crit_p001": 24.322,
+              "df": 7.0,
+              "partial_r2": 0.00040136486196905253,
+              "significant_p001": 0.0,
+              "wald_chi2": 3.9963884810890673
+            }
+          },
+          "party_size": {
+            "both_sides_significant_p001": true,
+            "x_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 0.0033993764384360916,
+              "significant_p001": 1.0,
+              "wald_chi2": 33.95281145547326
+            },
+            "y_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 0.0022806687946390026,
+              "significant_p001": 1.0,
+              "wald_chi2": 22.751384886587655
+            }
+          },
+          "payment_method": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 4.6763934215037346e-05,
+              "significant_p001": 0.0,
+              "wald_chi2": 0.4655099702541071
+            },
+            "y_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 0.00036144888531581377,
+              "significant_p001": 0.0,
+              "wald_chi2": 3.5988015383528054
+            }
+          },
+          "product_category": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 0.00016524306434955526,
+              "significant_p001": 0.0,
+              "wald_chi2": 1.6451013041161309
+            },
+            "y_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 0.0004317342364117493,
+              "significant_p001": 0.0,
+              "wald_chi2": 4.298906840268229
+            }
+          },
+          "quoted_cost_eur": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 0.00013899317824939172,
+              "significant_p001": 0.0,
+              "wald_chi2": 1.3837304253841098
+            },
+            "y_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 0.03622368200568115,
+              "significant_p001": 1.0,
+              "wald_chi2": 374.08504470502015
+            }
+          },
+          "supplier": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 16.266,
+              "df": 3.0,
+              "partial_r2": 0.0002470913593404411,
+              "significant_p001": 0.0,
+              "wald_chi2": 2.4601552739855883
+            },
+            "y_side": {
+              "chi2_crit_p001": 16.266,
+              "df": 3.0,
+              "partial_r2": 0.0012366580663321254,
+              "significant_p001": 0.0,
+              "wald_chi2": 12.323697934661585
+            }
+          },
+          "trip_duration_days": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 0.0025389014106938987,
+              "significant_p001": 1.0,
+              "wald_chi2": 25.33655164877025
+            },
+            "y_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 0.001089954753025075,
+              "significant_p001": 0.0,
+              "wald_chi2": 10.860156736311911
+            }
+          }
+        },
+        "catalogued_blocks_adjusted_outcome_diff_eur": 45.831067556453185,
+        "n": 10000,
+        "pool_adjusted_outcome_diff_eur": 40.42896498297622,
+        "raw_outcome_diff_eur": -5.893340800567387,
+        "trap_id": "T05",
+        "x_rate": 0.0688
+      },
+      "generator_score_rates_large": {
+        "complexity=0": {
+          "n": 153261.0,
+          "rate": 0.02513359563098244
+        },
+        "complexity=1": {
+          "n": 184186.0,
+          "rate": 0.08000065151531605
+        },
+        "complexity=2": {
+          "n": 57535.0,
+          "rate": 0.1327713565655688
+        },
+        "complexity=3": {
+          "n": 4840.0,
+          "rate": 0.18946280991735537
+        },
+        "complexity=4": {
+          "n": 178.0,
+          "rate": 0.2640449438202247
+        }
+      },
+      "indicator_rates_large": {
+        "booking_month_in_summer_6_7_8": {
+          "outcome_mean_diff_eur": -39.473465635157595,
+          "rate_diff": 0.009080702355929712,
+          "rate_if_false": 0.06568620897118792,
+          "rate_if_true": 0.07476691132711763
+        },
+        "booking_month_in_winter_1_2_12": {
+          "outcome_mean_diff_eur": 7.4503127970858145,
+          "rate_diff": -0.004244761301464645,
+          "rate_if_false": 0.0690260135101459,
+          "rate_if_true": 0.06478125220868125
+        },
+        "dest_in_Tokyo_Zanzibar": {
+          "outcome_mean_diff_eur": -58.35128077227034,
+          "rate_diff": 0.05505737009834592,
+          "rate_if_false": 0.04426853522647946,
+          "rate_if_true": 0.09932590532482538
+        },
+        "destination=Tokyo": {
+          "outcome_mean_diff_eur": -28.312582636452134,
+          "rate_diff": 0.04014324381950097,
+          "rate_if_false": 0.059152618947678724,
+          "rate_if_true": 0.0992958627671797
+        },
+        "lead_lt_14": {
+          "outcome_mean_diff_eur": -230.01582943263202,
+          "rate_diff": 0.04732229004225942,
+          "rate_if_false": 0.06155194557256413,
+          "rate_if_true": 0.10887423561482355
+        },
+        "party_ge_5": {
+          "outcome_mean_diff_eur": -127.49846064311751,
+          "rate_diff": 0.05108920500174658,
+          "rate_if_false": 0.059716046842430155,
+          "rate_if_true": 0.11080525184417674
+        },
+        "trip_ge_14": {
+          "outcome_mean_diff_eur": -107.39525558658744,
+          "rate_diff": 0.05400188122130864,
+          "rate_if_false": 0.06482912040945267,
+          "rate_if_true": 0.11883100163076131
+        }
+      },
+      "large_sample": {
+        "blocks": {
+          "acquisition_channel": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 16.266,
+              "df": 3.0,
+              "partial_r2": 1.1803609092392271e-05,
+              "significant_p001": 0.0,
+              "wald_chi2": 4.7209563952624904
+            },
+            "y_side": {
+              "chi2_crit_p001": 16.266,
+              "df": 3.0,
+              "partial_r2": 0.0008598427508552496,
+              "significant_p001": 1.0,
+              "wald_chi2": 344.19263927859106
+            }
+          },
+          "booking_lead_days": {
+            "both_sides_significant_p001": true,
+            "x_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 0.004210665802056664,
+              "significant_p001": 1.0,
+              "wald_chi2": 1691.1936815955194
+            },
+            "y_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 0.006383088613155044,
+              "significant_p001": 1.0,
+              "wald_chi2": 2569.3357377884495
+            }
+          },
+          "booking_month": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 31.264,
+              "df": 11.0,
+              "partial_r2": 3.7432006137007396e-05,
+              "significant_p001": 0.0,
+              "wald_chi2": 14.971641001078488
+            },
+            "y_side": {
+              "chi2_crit_p001": 31.264,
+              "df": 11.0,
+              "partial_r2": 0.0003544991645050069,
+              "significant_p001": 1.0,
+              "wald_chi2": 141.83328412199126
+            }
+          },
+          "customer_price_eur": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 1.0082246941800436e-05,
+              "significant_p001": 0.0,
+              "wald_chi2": 4.032475649776139
+            },
+            "y_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 0.03426799263781258,
+              "significant_p001": 1.0,
+              "wald_chi2": 14191.914894595517
+            }
+          },
+          "customer_segment": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 1.1810415133879965e-07,
+              "significant_p001": 0.0,
+              "wald_chi2": 0.04723623332335353
+            },
+            "y_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 7.3244876324419114e-06,
+              "significant_p001": 0.0,
+              "wald_chi2": 2.92947225894137
+            }
+          },
+          "customer_type": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 2.385195889806055e-06,
+              "significant_p001": 0.0,
+              "wald_chi2": 0.95397091231899
+            },
+            "y_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 3.234966453316108e-05,
+              "significant_p001": 1.0,
+              "wald_chi2": 12.938763943704425
+            }
+          },
+          "destination": {
+            "both_sides_significant_p001": true,
+            "x_side": {
+              "chi2_crit_p001": 18.467,
+              "df": 4.0,
+              "partial_r2": 0.007563230849389461,
+              "significant_p001": 1.0,
+              "wald_chi2": 3047.997137112976
+            },
+            "y_side": {
+              "chi2_crit_p001": 18.467,
+              "df": 4.0,
+              "partial_r2": 0.0027022981201262363,
+              "significant_p001": 1.0,
+              "wald_chi2": 1083.7207766563488
+            }
+          },
+          "discount_rate": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 3.802561866938347e-07,
+              "significant_p001": 0.0,
+              "wald_chi2": 0.15208504072422357
+            },
+            "y_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 0.05051628282488941,
+              "significant_p001": 1.0,
+              "wald_chi2": 21279.078829044105
+            }
+          },
+          "installments": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 1.8592891267273765e-06,
+              "significant_p001": 0.0,
+              "wald_chi2": 0.7436315060170945
+            },
+            "y_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 0.0036905484628803995,
+              "significant_p001": 1.0,
+              "wald_chi2": 1481.5135268436336
+            }
+          },
+          "manager": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 24.322,
+              "df": 7.0,
+              "partial_r2": 1.0312395218844788e-05,
+              "significant_p001": 0.0,
+              "wald_chi2": 4.12452625110264
+            },
+            "y_side": {
+              "chi2_crit_p001": 24.322,
+              "df": 7.0,
+              "partial_r2": 8.805920582536414e-05,
+              "significant_p001": 1.0,
+              "wald_chi2": 35.2226452256375
+            }
+          },
+          "party_size": {
+            "both_sides_significant_p001": true,
+            "x_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 0.002955349394107509,
+              "significant_p001": 1.0,
+              "wald_chi2": 1185.507400147611
+            },
+            "y_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 0.002396153303045832,
+              "significant_p001": 1.0,
+              "wald_chi2": 960.6505680447832
+            }
+          },
+          "payment_method": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 2.934428014718493e-06,
+              "significant_p001": 0.0,
+              "wald_chi2": 1.1736396661598358
+            },
+            "y_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 0.00020025094212605113,
+              "significant_p001": 1.0,
+              "wald_chi2": 80.107006559675
+            }
+          },
+          "product_category": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 5.450747811744967e-06,
+              "significant_p001": 0.0,
+              "wald_chi2": 2.1800602732574106
+            },
+            "y_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 3.032982162800678e-05,
+              "significant_p001": 0.0,
+              "wald_chi2": 12.130871076742146
+            }
+          },
+          "quoted_cost_eur": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 7.692785978606113e-06,
+              "significant_p001": 0.0,
+              "wald_chi2": 3.0767841923297237
+            },
+            "y_side": {
+              "chi2_crit_p001": 10.828,
+              "df": 1.0,
+              "partial_r2": 0.028716275276473493,
+              "significant_p001": 1.0,
+              "wald_chi2": 11824.722430019741
+            }
+          },
+          "supplier": {
+            "both_sides_significant_p001": false,
+            "x_side": {
+              "chi2_crit_p001": 16.266,
+              "df": 3.0,
+              "partial_r2": 3.4286147530550365e-06,
+              "significant_p001": 0.0,
+              "wald_chi2": 1.3712928865783958
+            },
+            "y_side": {
+              "chi2_crit_p001": 16.266,
+              "df": 3.0,
+              "partial_r2": 0.0002656980526647271,
+              "significant_p001": 1.0,
+              "wald_chi2": 106.29497562544732
+            }
+          },
+          "trip_duration_days": {
+            "both_sides_significant_p001": true,
+            "x_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 0.0024711823310398203,
+              "significant_p001": 1.0,
+              "wald_chi2": 990.8077245711182
+            },
+            "y_side": {
+              "chi2_crit_p001": 13.816,
+              "df": 2.0,
+              "partial_r2": 0.0012462410720601629,
+              "significant_p001": 1.0,
+              "wald_chi2": 499.05980431923524
+            }
+          }
+        },
+        "catalogued_blocks_adjusted_outcome_diff_eur": -19.36049744612118,
+        "n": 400000,
+        "pool_adjusted_outcome_diff_eur": -17.313870053393977,
+        "raw_outcome_diff_eur": -73.70206789582758,
+        "trap_id": "T05",
+        "x_rate": 0.067975
+      }
+    }
+  }
+}
