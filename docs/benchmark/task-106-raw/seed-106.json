@@ -1,0 +1,612 @@
+{
+ "committed_benchmark": false,
+ "dataset_identity_sha256": "444a2a11674d27bfedb44facbee15b8da97c1d26aec4c5df00fe65669d162bf1",
+ "development_rows": 4989,
+ "frozen_version": {
+  "discovery_config_defaults": null,
+  "discovery_method_version": "discovery-engine-v0.6.2",
+  "engine_py_sha256": "fefceeaac20e8ff7b57f4e7a9cc9a1e9c649dd05269e10884d358d326d2e4549",
+  "g17_present": false,
+  "gate_ids": [
+   "G00_LINEAGE_PREREGISTRATION",
+   "G01_TARGET_LEAKAGE",
+   "G02_POST_TREATMENT_CONTROLS",
+   "G03_SAMPLE_ADEQUACY",
+   "G04_UNCERTAINTY",
+   "G05_MULTIPLE_COMPARISONS",
+   "G06_CONFOUNDING",
+   "G07_SELECTION_AND_COLLIDER",
+   "G08_SURVIVORSHIP_COHORT",
+   "G09_SIMPSON_AND_HETEROGENEITY",
+   "G10_TEMPORAL_STABILITY",
+   "G11_SEASONALITY",
+   "G12_ROBUSTNESS",
+   "G13_IDENTIFICATION_DESIGN",
+   "G14_RANDOMIZATION_INTEGRITY",
+   "G15_ECONOMIC_MATERIALITY",
+   "G16_CANDIDATE_COMPOSITION_SAFETY"
+  ],
+  "validation_contract_version": "1.3.0"
+ },
+ "oracle_family_size": 36791,
+ "patterns": {
+  "P01": {
+   "exact_rule_dev_n_matches_ground_truth_ids": true,
+   "exact_rule_power_bound": {
+    "bh_most_lenient_raw_p_required": 2.718056046315675e-06,
+    "conclusively_below_bh_at_any_rank": false,
+    "development_harm_per_booking": 1103.1258,
+    "development_n_exposed": 80,
+    "development_outcome_sd": 790.2382,
+    "g03_would_pass_on_floors": true,
+    "g03_would_pass_on_power": true,
+    "minimum_detectable_effect_eur": 249.5325,
+    "note": "OPTIMISTIC BOUND on the exact true rule, unclustered SE; clustering can only widen it. Conclusive only when it fails.",
+    "optimistic_unclustered_p": 3.144378400674582e-35
+   },
+   "exact_rule_power_bound_passes": true,
+   "exact_rule_reference": {
+    "available": true,
+    "development_harm_per_booking": 1103.1258,
+    "development_n_exposed": 80,
+    "development_support": 0.016035,
+    "diagnostic_derived_columns": [],
+    "eligible_ancestor_chain_exists": true,
+    "eligible_under_engine_floors": true,
+    "ineligibility_reason": null
+   },
+   "n_affected": 147,
+   "n_affected_development": 80,
+   "oracle_reaches_predictive": true,
+   "projection": {
+    "broadening": 1.1020408163265305,
+    "jaccard": 0.9074074074074074,
+    "notes": [],
+    "oracle_validation": {
+     "evidence_level": "predictive_association",
+     "exposed_records_development": 91,
+     "failed_gates": [
+      "G11_SEASONALITY",
+      "G13_IDENTIFICATION_DESIGN",
+      "G14_RANDOMIZATION_INTEGRITY",
+      "G16_CANDIDATE_COMPOSITION_SAFETY"
+     ],
+     "g06": null,
+     "gate_outcomes": {
+      "G00_LINEAGE_PREREGISTRATION": "pass",
+      "G01_TARGET_LEAKAGE": "pass",
+      "G02_POST_TREATMENT_CONTROLS": "pass",
+      "G03_SAMPLE_ADEQUACY": "pass",
+      "G04_UNCERTAINTY": "pass",
+      "G05_MULTIPLE_COMPARISONS": "pass",
+      "G06_CONFOUNDING": "pass",
+      "G07_SELECTION_AND_COLLIDER": "pass",
+      "G08_SURVIVORSHIP_COHORT": "pass",
+      "G09_SIMPSON_AND_HETEROGENEITY": "pass",
+      "G10_TEMPORAL_STABILITY": "pass",
+      "G11_SEASONALITY": "fail",
+      "G12_ROBUSTNESS": "pass",
+      "G13_IDENTIFICATION_DESIGN": "fail",
+      "G14_RANDOMIZATION_INTEGRITY": "fail",
+      "G15_ECONOMIC_MATERIALITY": "pass",
+      "G16_CANDIDATE_COMPOSITION_SAFETY": "fail"
+     },
+     "level2_failed_gates": [],
+     "policy_readiness": "experiment_only",
+     "verdict": "DOWNGRADE"
+    },
+    "recall": 1.0,
+    "rule": "booking_lead_days lt 24.0 AND discount_rate ge 0.12 AND supplier eq BlueWing"
+   },
+   "realized_effect_eur": -999.055646,
+   "scoreable": true,
+   "true_rule": "supplier=BlueWing AND discount_rate>=0.12 AND booking_lead_days<21"
+  },
+  "P02": {
+   "exact_rule_dev_n_matches_ground_truth_ids": true,
+   "exact_rule_power_bound": {
+    "bh_most_lenient_raw_p_required": 2.718056046315675e-06,
+    "conclusively_below_bh_at_any_rank": false,
+    "development_harm_per_booking": 774.2296,
+    "development_n_exposed": 70,
+    "development_outcome_sd": 790.2382,
+    "g03_would_pass_on_floors": true,
+    "g03_would_pass_on_power": true,
+    "minimum_detectable_effect_eur": 266.4901,
+    "note": "OPTIMISTIC BOUND on the exact true rule, unclustered SE; clustering can only widen it. Conclusive only when it fails.",
+    "optimistic_unclustered_p": 3.972382865149602e-16
+   },
+   "exact_rule_power_bound_passes": true,
+   "exact_rule_reference": {
+    "available": true,
+    "development_harm_per_booking": 774.2296,
+    "development_n_exposed": 70,
+    "development_support": 0.014031,
+    "diagnostic_derived_columns": [
+     "booking_month := month(booking_date)"
+    ],
+    "eligible_ancestor_chain_exists": true,
+    "eligible_under_engine_floors": true,
+    "ineligibility_reason": null
+   },
+   "n_affected": 133,
+   "n_affected_development": 70,
+   "oracle_reaches_predictive": false,
+   "projection": {
+    "broadening": 4.18796992481203,
+    "jaccard": 0.23877917414721722,
+    "notes": [],
+    "oracle_validation": {
+     "evidence_level": "descriptive_observation",
+     "exposed_records_development": 282,
+     "failed_gates": [
+      "G05_MULTIPLE_COMPARISONS",
+      "G11_SEASONALITY",
+      "G13_IDENTIFICATION_DESIGN",
+      "G14_RANDOMIZATION_INTEGRITY",
+      "G16_CANDIDATE_COMPOSITION_SAFETY"
+     ],
+     "g06": null,
+     "gate_outcomes": {
+      "G00_LINEAGE_PREREGISTRATION": "pass",
+      "G01_TARGET_LEAKAGE": "pass",
+      "G02_POST_TREATMENT_CONTROLS": "pass",
+      "G03_SAMPLE_ADEQUACY": "pass",
+      "G04_UNCERTAINTY": "pass",
+      "G05_MULTIPLE_COMPARISONS": "fail",
+      "G06_CONFOUNDING": "pass",
+      "G07_SELECTION_AND_COLLIDER": "pass",
+      "G08_SURVIVORSHIP_COHORT": "pass",
+      "G09_SIMPSON_AND_HETEROGENEITY": "pass",
+      "G10_TEMPORAL_STABILITY": "pass",
+      "G11_SEASONALITY": "fail",
+      "G12_ROBUSTNESS": "pass",
+      "G13_IDENTIFICATION_DESIGN": "fail",
+      "G14_RANDOMIZATION_INTEGRITY": "fail",
+      "G15_ECONOMIC_MATERIALITY": "pass",
+      "G16_CANDIDATE_COMPOSITION_SAFETY": "fail"
+     },
+     "level2_failed_gates": [
+      "G05_MULTIPLE_COMPARISONS"
+     ],
+     "policy_readiness": "experiment_only",
+     "verdict": "DOWNGRADE"
+    },
+    "recall": 1.0,
+    "rule": "customer_segment eq family AND destination eq Zanzibar AND party_size ge 3.0"
+   },
+   "realized_effect_eur": -854.616917,
+   "scoreable": true,
+   "true_rule": "destination=Zanzibar AND customer_segment=family AND party_size>=5 AND booking_month IN [6,7,8]"
+  },
+  "P03": {
+   "exact_rule_dev_n_matches_ground_truth_ids": true,
+   "exact_rule_power_bound": {
+    "bh_most_lenient_raw_p_required": 2.718056046315675e-06,
+    "conclusively_below_bh_at_any_rank": false,
+    "development_harm_per_booking": 415.4667,
+    "development_n_exposed": 167,
+    "development_outcome_sd": 790.2382,
+    "g03_would_pass_on_floors": true,
+    "g03_would_pass_on_power": true,
+    "minimum_detectable_effect_eur": 174.2596,
+    "note": "OPTIMISTIC BOUND on the exact true rule, unclustered SE; clustering can only widen it. Conclusive only when it fails.",
+    "optimistic_unclustered_p": 2.3977526342572496e-11
+   },
+   "exact_rule_power_bound_passes": true,
+   "exact_rule_reference": {
+    "available": true,
+    "development_harm_per_booking": 415.4667,
+    "development_n_exposed": 167,
+    "development_support": 0.033474,
+    "diagnostic_derived_columns": [],
+    "eligible_ancestor_chain_exists": true,
+    "eligible_under_engine_floors": true,
+    "ineligibility_reason": null
+   },
+   "n_affected": 346,
+   "n_affected_development": 167,
+   "oracle_reaches_predictive": true,
+   "projection": {
+    "broadening": 1.0,
+    "jaccard": 1.0,
+    "notes": [],
+    "oracle_validation": {
+     "evidence_level": "predictive_association",
+     "exposed_records_development": 167,
+     "failed_gates": [
+      "G13_IDENTIFICATION_DESIGN",
+      "G14_RANDOMIZATION_INTEGRITY",
+      "G16_CANDIDATE_COMPOSITION_SAFETY"
+     ],
+     "g06": null,
+     "gate_outcomes": {
+      "G00_LINEAGE_PREREGISTRATION": "pass",
+      "G01_TARGET_LEAKAGE": "pass",
+      "G02_POST_TREATMENT_CONTROLS": "pass",
+      "G03_SAMPLE_ADEQUACY": "pass",
+      "G04_UNCERTAINTY": "pass",
+      "G05_MULTIPLE_COMPARISONS": "pass",
+      "G06_CONFOUNDING": "pass",
+      "G07_SELECTION_AND_COLLIDER": "pass",
+      "G08_SURVIVORSHIP_COHORT": "pass",
+      "G09_SIMPSON_AND_HETEROGENEITY": "pass",
+      "G10_TEMPORAL_STABILITY": "pass",
+      "G11_SEASONALITY": "pass",
+      "G12_ROBUSTNESS": "pass",
+      "G13_IDENTIFICATION_DESIGN": "fail",
+      "G14_RANDOMIZATION_INTEGRITY": "fail",
+      "G15_ECONOMIC_MATERIALITY": "pass",
+      "G16_CANDIDATE_COMPOSITION_SAFETY": "fail"
+     },
+     "level2_failed_gates": [],
+     "policy_readiness": "experiment_only",
+     "verdict": "DOWNGRADE"
+    },
+    "recall": 1.0,
+    "rule": "acquisition_channel eq paid_search AND customer_type eq new AND installments ge 3.0"
+   },
+   "realized_effect_eur": -426.741503,
+   "scoreable": true,
+   "true_rule": "installments>=3 AND customer_type=new AND acquisition_channel=paid_search"
+  },
+  "P04": {
+   "exact_rule_dev_n_matches_ground_truth_ids": true,
+   "exact_rule_power_bound": {
+    "bh_most_lenient_raw_p_required": 2.718056046315675e-06,
+    "conclusively_below_bh_at_any_rank": true,
+    "development_harm_per_booking": 358.8257,
+    "development_n_exposed": 59,
+    "development_outcome_sd": 790.2382,
+    "g03_would_pass_on_floors": true,
+    "g03_would_pass_on_power": true,
+    "minimum_detectable_effect_eur": 289.9473,
+    "note": "OPTIMISTIC BOUND on the exact true rule, unclustered SE; clustering can only widen it. Conclusive only when it fails.",
+    "optimistic_unclustered_p": 0.0005260767387065175
+   },
+   "exact_rule_power_bound_passes": false,
+   "exact_rule_reference": {
+    "available": true,
+    "development_harm_per_booking": 358.8257,
+    "development_n_exposed": 59,
+    "development_support": 0.011826,
+    "diagnostic_derived_columns": [
+     "booking_month := month(booking_date)"
+    ],
+    "eligible_ancestor_chain_exists": true,
+    "eligible_under_engine_floors": true,
+    "ineligibility_reason": null
+   },
+   "n_affected": 104,
+   "n_affected_development": 59,
+   "oracle_reaches_predictive": false,
+   "projection": {
+    "broadening": 6.509615384615385,
+    "jaccard": 0.1536189069423929,
+    "notes": [],
+    "oracle_validation": {
+     "evidence_level": "descriptive_observation",
+     "exposed_records_development": 319,
+     "failed_gates": [
+      "G03_SAMPLE_ADEQUACY",
+      "G04_UNCERTAINTY",
+      "G05_MULTIPLE_COMPARISONS",
+      "G06_CONFOUNDING",
+      "G09_SIMPSON_AND_HETEROGENEITY",
+      "G10_TEMPORAL_STABILITY",
+      "G12_ROBUSTNESS",
+      "G13_IDENTIFICATION_DESIGN",
+      "G14_RANDOMIZATION_INTEGRITY",
+      "G15_ECONOMIC_MATERIALITY",
+      "G16_CANDIDATE_COMPOSITION_SAFETY"
+     ],
+     "g06": null,
+     "gate_outcomes": {
+      "G00_LINEAGE_PREREGISTRATION": "pass",
+      "G01_TARGET_LEAKAGE": "pass",
+      "G02_POST_TREATMENT_CONTROLS": "pass",
+      "G03_SAMPLE_ADEQUACY": "fail",
+      "G04_UNCERTAINTY": "fail",
+      "G05_MULTIPLE_COMPARISONS": "fail",
+      "G06_CONFOUNDING": "fail",
+      "G07_SELECTION_AND_COLLIDER": "pass",
+      "G08_SURVIVORSHIP_COHORT": "pass",
+      "G09_SIMPSON_AND_HETEROGENEITY": "fail",
+      "G10_TEMPORAL_STABILITY": "fail",
+      "G11_SEASONALITY": "pass",
+      "G12_ROBUSTNESS": "fail",
+      "G13_IDENTIFICATION_DESIGN": "fail",
+      "G14_RANDOMIZATION_INTEGRITY": "fail",
+      "G15_ECONOMIC_MATERIALITY": "fail",
+      "G16_CANDIDATE_COMPOSITION_SAFETY": "fail"
+     },
+     "level2_failed_gates": [
+      "G03_SAMPLE_ADEQUACY",
+      "G04_UNCERTAINTY",
+      "G05_MULTIPLE_COMPARISONS",
+      "G10_TEMPORAL_STABILITY",
+      "G12_ROBUSTNESS"
+     ],
+     "policy_readiness": "not_ready",
+     "verdict": "DOWNGRADE"
+    },
+    "recall": 1.0,
+    "rule": "supplier eq Atlas AND trip_duration_days ge 11.0"
+   },
+   "realized_effect_eur": -391.935673,
+   "scoreable": true,
+   "true_rule": "supplier=Atlas AND trip_duration_days>=14 AND booking_month IN [1,2,12]"
+  },
+  "P05": {
+   "exact_rule_dev_n_matches_ground_truth_ids": true,
+   "exact_rule_power_bound": {
+    "bh_most_lenient_raw_p_required": 2.718056046315675e-06,
+    "conclusively_below_bh_at_any_rank": true,
+    "development_harm_per_booking": 402.1566,
+    "development_n_exposed": 16,
+    "development_outcome_sd": 790.2382,
+    "g03_would_pass_on_floors": false,
+    "g03_would_pass_on_power": false,
+    "minimum_detectable_effect_eur": 554.3695,
+    "note": "OPTIMISTIC BOUND on the exact true rule, unclustered SE; clustering can only widen it. Conclusive only when it fails.",
+    "optimistic_unclustered_p": 0.042117685892282174
+   },
+   "exact_rule_power_bound_passes": false,
+   "exact_rule_reference": {
+    "available": true,
+    "development_harm_per_booking": 402.1566,
+    "development_n_exposed": 16,
+    "development_support": 0.003207,
+    "diagnostic_derived_columns": [],
+    "eligible_ancestor_chain_exists": false,
+    "eligible_under_engine_floors": false,
+    "ineligibility_reason": "n_exposed=16 < min_n=40; support=0.0032 < min_support=0.01"
+   },
+   "n_affected": 29,
+   "n_affected_development": 16,
+   "projection": {
+    "broadening": 1.206896551724138,
+    "jaccard": 0.8285714285714286,
+    "notes": [],
+    "recall": 1.0,
+    "rule": "customer_price_eur ge 3126.23 AND manager eq Manager 4 AND manual_exception eq True"
+   },
+   "realized_effect_eur": -467.762759,
+   "scoreable": false,
+   "true_rule": "manager=Manager 4 AND manual_exception=true AND customer_price_eur>=3500"
+  },
+  "P06": {
+   "exact_rule_dev_n_matches_ground_truth_ids": true,
+   "exact_rule_power_bound": {
+    "bh_most_lenient_raw_p_required": 2.718056046315675e-06,
+    "conclusively_below_bh_at_any_rank": false,
+    "development_harm_per_booking": 1074.0908,
+    "development_n_exposed": 64,
+    "development_outcome_sd": 790.2382,
+    "g03_would_pass_on_floors": true,
+    "g03_would_pass_on_power": true,
+    "minimum_detectable_effect_eur": 278.5322,
+    "note": "OPTIMISTIC BOUND on the exact true rule, unclustered SE; clustering can only widen it. Conclusive only when it fails.",
+    "optimistic_unclustered_p": 3.308911024399227e-27
+   },
+   "exact_rule_power_bound_passes": true,
+   "exact_rule_reference": {
+    "available": true,
+    "development_harm_per_booking": 1074.0908,
+    "development_n_exposed": 64,
+    "development_support": 0.012828,
+    "diagnostic_derived_columns": [],
+    "eligible_ancestor_chain_exists": true,
+    "eligible_under_engine_floors": true,
+    "ineligibility_reason": null
+   },
+   "n_affected": 138,
+   "n_affected_development": 64,
+   "oracle_reaches_predictive": true,
+   "projection": {
+    "broadening": 1.4565217391304348,
+    "jaccard": 0.6865671641791045,
+    "notes": [],
+    "oracle_validation": {
+     "evidence_level": "predictive_association",
+     "exposed_records_development": 95,
+     "failed_gates": [
+      "G11_SEASONALITY",
+      "G13_IDENTIFICATION_DESIGN",
+      "G14_RANDOMIZATION_INTEGRITY",
+      "G16_CANDIDATE_COMPOSITION_SAFETY"
+     ],
+     "g06": null,
+     "gate_outcomes": {
+      "G00_LINEAGE_PREREGISTRATION": "pass",
+      "G01_TARGET_LEAKAGE": "pass",
+      "G02_POST_TREATMENT_CONTROLS": "pass",
+      "G03_SAMPLE_ADEQUACY": "pass",
+      "G04_UNCERTAINTY": "pass",
+      "G05_MULTIPLE_COMPARISONS": "pass",
+      "G06_CONFOUNDING": "pass",
+      "G07_SELECTION_AND_COLLIDER": "pass",
+      "G08_SURVIVORSHIP_COHORT": "pass",
+      "G09_SIMPSON_AND_HETEROGENEITY": "pass",
+      "G10_TEMPORAL_STABILITY": "pass",
+      "G11_SEASONALITY": "fail",
+      "G12_ROBUSTNESS": "pass",
+      "G13_IDENTIFICATION_DESIGN": "fail",
+      "G14_RANDOMIZATION_INTEGRITY": "fail",
+      "G15_ECONOMIC_MATERIALITY": "pass",
+      "G16_CANDIDATE_COMPOSITION_SAFETY": "fail"
+     },
+     "level2_failed_gates": [],
+     "policy_readiness": "experiment_only",
+     "verdict": "DOWNGRADE"
+    },
+    "recall": 1.0,
+    "rule": "booking_lead_days lt 24.0 AND destination eq Tokyo AND payment_method eq bank_transfer"
+   },
+   "realized_effect_eur": -809.548188,
+   "scoreable": true,
+   "true_rule": "destination=Tokyo AND booking_lead_days<10 AND payment_method=bank_transfer"
+  },
+  "P07": {
+   "exact_rule_dev_n_matches_ground_truth_ids": true,
+   "exact_rule_power_bound": null,
+   "exact_rule_power_bound_passes": null,
+   "exact_rule_reference": {
+    "available": true,
+    "development_harm_per_booking": null,
+    "development_n_exposed": 0,
+    "development_support": null,
+    "diagnostic_derived_columns": [],
+    "eligible_ancestor_chain_exists": false,
+    "eligible_under_engine_floors": false,
+    "ineligibility_reason": "no exposed or no comparison rows on the development split"
+   },
+   "n_affected": 101,
+   "n_affected_development": 0,
+   "projection": {
+    "broadening": 1.9504950495049505,
+    "jaccard": 0.5126903553299492,
+    "notes": [],
+    "recall": 1.0,
+    "rule": "acquisition_channel eq partner AND customer_type eq returning AND supplier eq Cedar"
+   },
+   "realized_effect_eur": -400.126238,
+   "scoreable": false,
+   "true_rule": "supplier=Cedar AND acquisition_channel=partner AND customer_type=returning AND booking_date>=2025-01-01"
+  },
+  "P08": {
+   "exact_rule_dev_n_matches_ground_truth_ids": true,
+   "exact_rule_power_bound": {
+    "bh_most_lenient_raw_p_required": 2.718056046315675e-06,
+    "conclusively_below_bh_at_any_rank": true,
+    "development_harm_per_booking": 260.8977,
+    "development_n_exposed": 24,
+    "development_outcome_sd": 790.2382,
+    "g03_would_pass_on_floors": false,
+    "g03_would_pass_on_power": false,
+    "minimum_detectable_effect_eur": 453.0053,
+    "note": "OPTIMISTIC BOUND on the exact true rule, unclustered SE; clustering can only widen it. Conclusive only when it fails.",
+    "optimistic_unclustered_p": 0.10663449536587274
+   },
+   "exact_rule_power_bound_passes": false,
+   "exact_rule_reference": {
+    "available": true,
+    "development_harm_per_booking": 260.8977,
+    "development_n_exposed": 24,
+    "development_support": 0.004811,
+    "diagnostic_derived_columns": [],
+    "eligible_ancestor_chain_exists": false,
+    "eligible_under_engine_floors": false,
+    "ineligibility_reason": "n_exposed=24 < min_n=40; support=0.0048 < min_support=0.01"
+   },
+   "n_affected": 38,
+   "n_affected_development": 24,
+   "projection": {
+    "broadening": 1.1842105263157894,
+    "jaccard": 0.8444444444444444,
+    "notes": [
+     "dropped universally-true covering atom(s) party_size ge 1.0 \u2014 support 1.0 exceeds max_support and carries no information"
+    ],
+    "recall": 1.0,
+    "rule": "booking_lead_days ge 87.0 AND party_size lt 2.0 AND product_category eq luxury"
+   },
+   "realized_effect_eur": -476.999737,
+   "scoreable": false,
+   "true_rule": "product_category=luxury AND party_size=1 AND booking_lead_days>=90"
+  },
+  "P09": {
+   "exact_rule_dev_n_matches_ground_truth_ids": true,
+   "exact_rule_power_bound": {
+    "bh_most_lenient_raw_p_required": 2.718056046315675e-06,
+    "conclusively_below_bh_at_any_rank": true,
+    "development_harm_per_booking": -32.9598,
+    "development_n_exposed": 44,
+    "development_outcome_sd": 790.2382,
+    "g03_would_pass_on_floors": false,
+    "g03_would_pass_on_power": false,
+    "minimum_detectable_effect_eur": 335.2425,
+    "note": "OPTIMISTIC BOUND on the exact true rule, unclustered SE; clustering can only widen it. Conclusive only when it fails.",
+    "optimistic_unclustered_p": 0.7829771024443255
+   },
+   "exact_rule_power_bound_passes": false,
+   "exact_rule_reference": {
+    "available": true,
+    "development_harm_per_booking": -32.9598,
+    "development_n_exposed": 44,
+    "development_support": 0.008819,
+    "diagnostic_derived_columns": [
+     "booking_month := month(booking_date)"
+    ],
+    "eligible_ancestor_chain_exists": false,
+    "eligible_under_engine_floors": false,
+    "ineligibility_reason": "support=0.0088 < min_support=0.01; harm_per_booking=-32.96 is not > 0"
+   },
+   "n_affected": 108,
+   "n_affected_development": 44,
+   "oracle_reaches_predictive": false,
+   "projection": {
+    "broadening": 10.25925925925926,
+    "jaccard": 0.09747292418772563,
+    "notes": [],
+    "oracle_validation": {
+     "evidence_level": "descriptive_observation",
+     "exposed_records_development": 537,
+     "failed_gates": [
+      "G03_SAMPLE_ADEQUACY",
+      "G04_UNCERTAINTY",
+      "G05_MULTIPLE_COMPARISONS",
+      "G06_CONFOUNDING",
+      "G09_SIMPSON_AND_HETEROGENEITY",
+      "G12_ROBUSTNESS",
+      "G13_IDENTIFICATION_DESIGN",
+      "G14_RANDOMIZATION_INTEGRITY",
+      "G15_ECONOMIC_MATERIALITY",
+      "G16_CANDIDATE_COMPOSITION_SAFETY"
+     ],
+     "g06": null,
+     "gate_outcomes": {
+      "G00_LINEAGE_PREREGISTRATION": "pass",
+      "G01_TARGET_LEAKAGE": "pass",
+      "G02_POST_TREATMENT_CONTROLS": "pass",
+      "G03_SAMPLE_ADEQUACY": "fail",
+      "G04_UNCERTAINTY": "fail",
+      "G05_MULTIPLE_COMPARISONS": "fail",
+      "G06_CONFOUNDING": "fail",
+      "G07_SELECTION_AND_COLLIDER": "pass",
+      "G08_SURVIVORSHIP_COHORT": "pass",
+      "G09_SIMPSON_AND_HETEROGENEITY": "fail",
+      "G10_TEMPORAL_STABILITY": "pass",
+      "G11_SEASONALITY": "pass",
+      "G12_ROBUSTNESS": "fail",
+      "G13_IDENTIFICATION_DESIGN": "fail",
+      "G14_RANDOMIZATION_INTEGRITY": "fail",
+      "G15_ECONOMIC_MATERIALITY": "fail",
+      "G16_CANDIDATE_COMPOSITION_SAFETY": "fail"
+     },
+     "level2_failed_gates": [
+      "G03_SAMPLE_ADEQUACY",
+      "G04_UNCERTAINTY",
+      "G05_MULTIPLE_COMPARISONS",
+      "G12_ROBUSTNESS"
+     ],
+     "policy_readiness": "not_ready",
+     "verdict": "DOWNGRADE"
+    },
+    "recall": 1.0,
+    "rule": "party_size ge 3.0 AND supplier eq DeltaSun"
+   },
+   "realized_effect_eur": -253.413981,
+   "scoreable": true,
+   "true_rule": "supplier=DeltaSun AND booking_month IN [9,10,11] AND party_size>=4"
+  }
+ },
+ "scoreable_pattern_ids": [
+  "P01",
+  "P02",
+  "P03",
+  "P04",
+  "P06",
+  "P09"
+ ],
+ "seed": 106
+}
