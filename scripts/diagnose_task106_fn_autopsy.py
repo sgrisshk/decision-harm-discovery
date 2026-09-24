@@ -213,6 +213,9 @@ def _validate_rules(
             "level2_failed_gates": [g for g in failed if g in LEVEL2_GATES],
             "g06": gates.get("G06_CONFOUNDING_ADJUSTMENT", gates.get("G06", {})).get("outcome"),
             "gate_outcomes": {g: info["outcome"] for g, info in sorted(gates.items())},
+            "g05_detail": next(
+                (info["detail"] for g, info in gates.items() if g.startswith("G05")), None
+            ),
             "exposed_records_development": report.exposed_records,
         }
     return out
