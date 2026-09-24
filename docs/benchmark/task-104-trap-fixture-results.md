@@ -77,13 +77,13 @@ confounding; the catalogue-weight results were not tuned.
   would cap a genuine manager effect.
 - With the G12 group column moved off `manager` in the fixture manifest (`acquisition_channel`), G12 is
   neutral and G06 alone decides: catalogue weights are **not capped** (attenuation 0.31-0.38, 6/6 seeds).
-- Only `party_size` of T01's four confounders survives G06's coverage floor here; `destination`,
+- Of T01's four catalogued confounders only `party_size` survives G06's coverage floor here (the retained set also includes proxy columns such as `customer_segment`, `customer_type`, `product_category`, `payment_method`, and varies by seed — on one review seed `booking_lead_days` was also retained); `destination`,
   `booking_lead_days`, `trip_duration_days` are dropped (matches `task-075`).
 
 ### 4b. T05
 - No G12 artifact. Catalogue weights: **not capped**, `SHADOW_POLICY` at `adjusted_observational_association`,
-  attenuation 0.31-0.37 (6/6 seeds). This is the outcome `decision-gate.md` treats as a hard disqualifier
-  (a confounding trap reaching `SHADOW_POLICY`), here on a fixture, not an official run.
+  attenuation 0.31-0.37 (6/6 seeds). This has the same shape as the outcome `decision-gate.md` treats as a hard disqualifier
+  (a confounding trap reaching `SHADOW_POLICY`); it is an analogy only — a synthetic fixture, not an official run, and not itself a hard-disqualifier event.
 
 ### 4c. Sensitivity of T01/T05 to how much confounding is on the adjustable column (seed 104)
 Share of confounding on `party_size` (rest even): 0 -> attenuation 0.11, 0.25 -> 0.33 (both `SHADOW_POLICY`);
@@ -124,6 +124,24 @@ and asserts they are called with the report's own `adjustment_columns_used` set 
 4. **Trap weights are undefined.** The catalogue lists `confounded_by` without effect sizes, so "capped"
    is not a property of the trap alone but of how much of its confounding lies in G06's retained set.
 5. No fix is proposed here (out of scope).
+
+## 6a. Post-review notes (2026-09-24, applied after independent review `APPROVED`; documentation only, no result changed)
+
+1. **Catalogued is not generated.** The independent reviewer found that the benchmark generator
+   (`synthetic_benchmark.py`, ~lines 274-318) does not implement several catalogued confounders:
+   `T01` (`manager`) is driven only by `destination in {Tokyo, Zanzibar}` or `booking_lead_days<14` (`party_size` and
+   `trip_duration_days` never enter); `T02` (`supplier`) is driven only by `trip_duration_days>=14` (`booking_month` is
+   not in the supplier logic); `T05` uses equal weights on four binary indicators
+   (`dest in {Tokyo,Zanzibar}`, `lead<14`, `party>=5`, `dur>=14`). Against the real generator `T02` is the duration-only
+   case (tested here as not capped) and `T01` has no `party_size` share.
+2. **Fixture vs generator, and a generator-faithful cross-check.** This fixture uses `destination in {Tokyo, Reykjavik}`
+   and median splits instead of the generator's indicators, exposure probability `0.03+0.62s`, and Gaussian outcome
+   noise. The reviewer re-ran with the generator's own indicators: `T05` (equal weights) reached `SHADOW_POLICY` in 7/7
+   runs across raw harm 150/400/1000; `T01` with the generator's true confounders (`destination`+`booking_lead_days`,
+   `party_size` weight 0) and `G12`'s group column moved off `manager` reached `SHADOW_POLICY` 3/3; `T01` as shipped
+   stayed below `SHADOW_POLICY` via `G12`. The negative result is therefore independent of the median-alignment choice.
+3. **The one post-hoc fixture adjustment** (aligning the 0/1 confounder cut to G06's quartile edge) makes a retained
+   confounder more adjustable, favouring capping — it works against the negative finding.
 
 ## 7. Reproduce
 
