@@ -21,8 +21,9 @@ Nothing re-implements the generator. No gate/engine/threshold is touched.
 
 Strict `xfail` reasons name the manifest field (`traps.<id>.intended_not_implemented` or
 `traps.<id>.implemented_not_catalogued`). Correcting the catalogue flips the whole-trap and
-`implemented_not_catalogued` xfails; the per-confounder `intended_not_implemented` xfails assert against generator
-measurements, so only a generator change flips them. Either way the manifest must be updated in the same commit.
+`implemented_not_catalogued` xfails; the per-confounder `intended_not_implemented` xfails assert
+against generator measurements, so only a generator change flips them. Either way the manifest must
+be updated in the same commit.
 """
 
 from __future__ import annotations
