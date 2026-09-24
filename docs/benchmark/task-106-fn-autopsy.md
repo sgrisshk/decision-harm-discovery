@@ -47,11 +47,11 @@ Committed draw unless stated. "Rate" = fraction of the 61 generator realisations
 |---|---|---|---|---|---|---|---|---|---|
 | **P01** (TP) | projection 61/61 [94-100%]; exact 61/61 | yes; pool rank 162/25,338, clears floor | lenient yes (13 predictive candidates); **specific no** (best J 0.26) | lenient candidates yes; precise rule yes (oracle) | G06 pass; G16 fails (k=3) | no | lenient: none before the universal G16/G13/G14 cap; **specific: selection loss** | TP (lenient); would be A under the specific standard | 5.1, 5.2 |
 | **P06** (TP) | projection 34/61 [43-67%] (39/61 at family 26,213); exact 53/61 [76-93%]; **committed draw: projection fails G05 at family 36,791 (adj. p 0.108 vs 0.10, knife-edge)** | yes; rank 489/25,338, clears floor | lenient yes (3 predictive); **specific no** (best J 0.06) | lenient candidates yes; precise rule no on the committed draw (G05) | G06 pass; G16 fails | no | lenient: none; **specific: selection loss, and oracle G05 marginal** | TP (lenient) | 5.1, 5.2 |
-| **P02** | projection 21/61 [24-47%]; exact 60/61 [91-100%] | precise projection generated but **discarded as exposure-identical to its depth-2 parent** | lenient yes (1 predictive, broad CAND-012); specific no (best J 0.014) | best pool rule (J 0.45, rank 2352) fails G05+G12 | n/a | no | **representability** (no `booking_month` atom; `party_size>=5` off-grid): representable rule 3.34x broader, fails G05 | **A** (representability subtype) | 5.3 |
+| **P02** (A versus B/D, unresolved) | projection 21/61 [24-47%]; exact 60/61 [91-100%] | precise projection generated but **discarded as exposure-identical to its depth-2 parent** | lenient yes (1 predictive, broad CAND-012); specific no (best J 0.014) | best pool rule (J 0.45, rank 2352) fails G05+G12 | n/a | no | **representability** (no `booking_month` atom; `party_size>=5` off-grid): representable rule 3.34x broader, fails G05 | **Unresolved: A versus B/D** (A only if the representability loss counts as engine-side; by the hard rule unclassifiable = D) | 5.3 |
 | **P03** | projection 25/61 [30-54%] (G12 fails 35/61); exact 57/61 [84-97%] | yes; rank 1,773, clears floor | lenient yes (4 predictive); specific no (best J 0.04) | oracle yes on the committed draw | G06 pass; G16 fails | no | selection (S5); and TP status itself is contradictory under the scorer (its exact rule contains T03's `apparent_feature`) | **D** | 5.4 |
-| **P04** | projection 0/61 [0-6%]; exact 0/61 (G05 fails 59, G03 53) | not generated (no eligible ancestor chain, missing `trip_duration_days>=14` atom) | lenient yes (2 predictive, broad); specific no | no | n/a | no | **oracle detectability** (p=2.0e-3 vs BH 3.8e-6, 514x short at n_dev=58) | **B** | 5.5 |
+| **P04** | projection 0/61 [0-6%]; exact 0/61 (G05 fails 59, G03 53) | not generated (no eligible ancestor chain, missing `trip_duration_days>=14` atom) | lenient yes (2 predictive, broad); specific no | no | n/a | no | **oracle detectability** (p=2.0e-3 vs BH bound 2.72e-6 at family 36,791, about 722x short at n_dev=58; 3.8e-6 / about 514x is the 26,213-family figure; p is unclustered, so the true shortfall is larger) | **B** | 5.5 |
 | **P08** | scoreable in 27/61 draws only; projection 0/27; exact 0/27 | exact rule n_dev=33 < min_n=40; projection not generated | lenient yes (1 predictive, broad); specific no | no | n/a | no | **oracle detectability / support floor** (MDE 368 EUR vs effect 80 EUR) | **B** | 5.5 |
-| **P09** | projection 0/61; exact 0/61 (G03 43, G05 61, G10 61) | yes but rank 9,270 (2-condition projection); above floor | lenient yes (2 predictive, broad); specific no | no | n/a | no | **oracle detectability** (p=0.013 vs 3.8e-6, 3,450x short) | **B** | 5.5 |
+| **P09** | projection 0/61; exact 0/61 (G03 43, G05 61, G10 61) | yes but rank 9,270 (2-condition projection); above floor | lenient yes (2 predictive, broad); specific no | no | n/a | no | **oracle detectability** (p=0.013 vs BH bound 2.72e-6 at family 36,791, about 4,850x short; 3.8e-6 / about 3,450x at 26,213; unclustered p, true shortfall larger) | **B** | 5.5 |
 
 Universal facts at the frozen version (committed draw): all 15 candidates are `experiment_only` (0 promoted); `G13`/`G14` fail for
 all 15 (observational design ceiling); `G16` fails for all 15 (every candidate has k>=2). "Promoted" therefore fails at the same
@@ -61,16 +61,21 @@ frozen contract point for every pattern and cannot be the first failure of any F
 
 | Class | Count | Patterns |
 |---|---:|---|
-| A engine-actionable | **1** | P02 (representability subtype; lowest-confidence assignment, see 5.3) |
+| A engine-actionable | **A <= 1** | P02 only, unresolved A versus B/D (representability subtype; see 5.3 and the R3 correction); may be 0 |
 | B benchmark-actionable | **3** | P04, P08, P09 |
 | C correctly rejected | **0** | none (see 5.4 for why P03 is not C) |
 | D specification ambiguity | **1** | P03 |
 
-Reading rule of `ADR-105` Decision 5: 3 of 5 FNs are oracle-undetectable at the standard N (60%); 1 is detectable but not
-expressible by the engine's vocabulary; 1 cannot be decided until the scorer's trap-literal rule is specified. This is neither the
+Reading rule of `ADR-105` Decision 5 (as corrected, R3/R5): 3 of 5 FNs are oracle-undetectable at the standard N (60%); 1 (P02) is detectable only as an idealised exact atom and not
+expressible by the engine's vocabulary (unresolved A versus B/D; A <= 1); 1 cannot be decided until the scorer's trap-literal rule is specified. This is neither the
 "2 TP + 4 undetectable + 1 safety-rejected" case nor the "4 detectable-and-safe patterns lost by search" case. No FN is
 "detectable, safe, and simply lost by search/selection" (the engine-loss story) except, on a stricter standard, the TPs themselves
 (section 4).
+
+**R5, what "TP" means here.** Under validation contract 1.3.0, `G16` returns `satisfied=False` unconditionally for k>=2 and no benchmark
+pattern is k=1, so no k>=2 rule can be promoted. "TP" in this document (and in `2/7`) can only mean "reaches `predictive_association`"; it is a
+discovery-and-validation level, not a promotable finding. Oracle asymmetry (reviewer's note): the exact-rule oracle is optimistic for P02/P03
+(`G12`/`G16` do not bite on an idealised single atom) and generous for P04/P08/P09 (which still fail it), so the B calls are robust to the idealisation.
 
 ### The two TPs' robustness (P01, P06)
 
@@ -87,7 +92,7 @@ expressible by the engine's vocabulary; 1 cannot be decided until the scorer's t
 | # | Old statement | Re-verified at the frozen version | Reading |
 |---|---|---|---|
 | D1 | `ADR-103`/`ADR-105`: raw recall `2/7` | True for `v0.2.0`-`v0.5.0` (`TASK-028` files) and `v0.6.0` (45.2%). At **`v0.6.2` (`TASK-103` run)** the same `TASK-028` statistic scores **7/7 recovered**, economic-weighted 100%; `TASK-103`'s "P01 and P06" is the frozen-bar's chosen pair, not the metric's output. | Not a contradiction of `2/7` as history; it means `2/7` is not the frozen engine's score under its own metric. Raw `2/7` is kept as instructed. |
-| D2 | `TASK-103`: "P01 and P06 reached predictive_association" | Reproduced exactly - but only via broad rules. No candidate has J>=0.5 for either. Earlier engines did have one (`v0.2.0`-`v0.5.0`: J 0.50 / 0.70, `task-106-version-comparison-raw.json`). | The precise P01/P06 discoveries present through `v0.5.0` are absent in the committed `v0.6.2` run (candidate median exposure 3,921 vs 1,397 in `v0.5.0`; 5/15 candidates lenient-match >=3 patterns vs 0). |
+| D2 | `TASK-103`: "P01 and P06 reached predictive_association" | Reproduced exactly - but only via broad rules. No candidate has J>=0.5 for either. Earlier engines did have one (`v0.2.0`-`v0.5.0`: J 0.50 / 0.70, `task-106-version-comparison-raw.json`). | The precise P01/P06 discoveries present through `v0.5.0` are absent in the committed `v0.6.2` run (candidate median exposure 3,921 vs 1,397 in `v0.5.0`; 5/15 candidates lenient-match >=3 patterns vs 0). **Correction (R2, post-review): "precise rules were lost" must not be read as "old P06 credit was specific".** In `artifacts/evaluation/task-028-*.json` the old precise P06 candidate (`booking_lead_days lt 23 AND destination eq Tokyo AND payment_method eq bank_transfer`, J 0.705) is flagged `matched_traps=['T04']`, `is_true_pattern=False` in the `v0.2.0` (task-058), `v0.3.1` (task-060-002), `v0.5.0` (task-064-beam) files (also `v0.4.1`), so `evaluate_benchmark.py` excluded it from recovery. Old P06 "recovery" came via the broad lenient candidate `booking_lead_days lt 23 AND discount_rate ge 0.05` (`matched_patterns=['P01','P06']`). Old P01's precise candidate (J 0.504) sits knife-edge at the 0.5 threshold. Limits: the `v0.1.0` evaluation glob returns no file (the blank `task028_recovered` in `task-106-version-comparison-raw.json` is not a result); `v0.6.0`/`v0.6.1` candidate sets are not in `artifacts/`, so the loss "after `v0.5.0`" spans three versions (`v0.6.0`, `v0.6.1`, `v0.6.2`) that were not examined and is not attributed to any one. The T04 literal-containment ambiguity was already disclosed in `TASKS.md` (`TASK-083`-era entry, "ambiguous, also matches `P06`", near line 4273); it is not new here. |
 | D3 | `TASK-070`/`ADR-065`: evidence-achievable set `{P01,P03,P06}` under contract 1.3.0 | Reproduced exactly on the same frozen run (`task-106-rerun-task070-validation-power-raw.json`, family 26,213). Re-measured on the `v0.6.2` family (36,791) with the same committed data: **P06's precise branch fails G05**; over 61 draws the achievable rates are P01 100%, P06 56%, P03 41%, P02 34%. | The "3/7 achievable" is a single-draw statement; expected engine-representable achievable count over draws is about 2.3, not 3. |
 | D4 | `TASK-069` oracle decomposition (dev n, harm, MDE, optimistic p, broadening, projection rules) | Reproduced exactly for all seven (e.g. P04 p=1.96e-3, P08 n=33, P09 p=0.0132; broadening 1.06/3.34/1.00/8.90/1.42/1.05/3.58). The script itself cannot run its own fidelity gate at `v0.6.2` (it asserts the `v0.5.0` run's 26,213 hypotheses; log in `task-106-rerun-logs.txt`), so my script re-derives the quantities with the same functions. | Consistent. |
 | D5 | `TASK-069` pool ranks P01 69, P03 835, P06 204, P09 5,894 of 17,381 | Now 162, 1,773, 489, 9,270 of 25,338 | Not like-for-like (dataset `v1.0.0` -> `v1.1.0` adds `travel_month`; `TASK-101` widened eligibility). Direction: precise branches sit lower in a larger pool. |
@@ -103,6 +108,8 @@ Two standards produce different pictures at the frozen version:
 * **Specific rule:** P01 (100% oracle-detectable) and P06 (56%) are lost at greedy-diverse selection (both above the relevance floor);
   P03 likewise (41%). These are the only detectable-and-lost cases and are engine-side. Under this standard the `v0.6.2` engine has
   0 specific discoveries in the committed run, where `v0.5.0` had 2.
+
+**Correction (R2).** The "precise rule lost" statement above describes exposure specificity only. The earlier engines' precise P06 candidate was T04-flagged and excluded from `TASK-028` recovery (see D2), so the old P06 credit was via a broad lenient rule; P01's old precise rule (J 0.504) was knife-edge at 0.5. The interval between `v0.5.0` and `v0.6.2` covers `v0.6.0`, `v0.6.1` and `v0.6.2`, of which only `v0.6.2` was examined.
 
 This document does not decide which standard the benchmark *should* use (that is a specification decision, see class D and `TASK-107`).
 
@@ -132,7 +139,12 @@ no `booking_month` atom (dataset has `travel_month`, derived from `travel_date`,
 and the rule has 4 conditions (max 3). The tightest representable rule is 3.34x broader (J 0.30); on the committed draw it is discarded as
 exposure-identical to its depth-2 parent (correct behaviour of the redundancy skip) and is detectable in only 21/61 draws (G05 39, G12 20).
 The closest pool rule (`destination=Zanzibar AND party_size>=4 AND travel_month>=8`, J 0.45, rank 2,352, above floor) fails G05 and G12.
-**Why A and how confident:** exact-rule detectability (60/61) means the target is reachable under the contract; the loss is vocabulary
+**Correction (R3, post-review): P02 is an unresolved "A versus B/D" case; report A <= 1, not A = 1.** Evidence: the engine-expressible P02 rule is
+detectable in only 21/61 draws; the exact rule has 4 conditions against an engine maximum of 3, and `G16` would cap any k>=2 rule regardless;
+`booking_date` exists in the dataset but no `booking_month` is derived (`travel_month` is a different field). The task's hard rule says a
+pattern that cannot be classified is `D`, not guessed. The paragraph below records the original A rationale and is left as written.
+
+**Why A and how confident (original, superseded by the correction above):** exact-rule detectability (60/61) means the target is reachable under the contract; the loss is vocabulary
 representability, not search or selection. Lowest-confidence assignment: if a reviewer holds that a missing booking-date calendar
 feature in the analytical dataset is a benchmark-construction property rather than an engine property, this becomes B-adjacent; the
 exact-rule evidence (not B by the definition, since an oracle passes) is why it is A here. Evidence that would flip it: a
@@ -156,15 +168,21 @@ The same literal-containment issue applies to P04 (`supplier=Atlas` = `T02`) and
 
 ### 5.5 P04, P08, P09 (class B)
 * **P04** `supplier=Atlas AND trip_duration_days>=14 AND booking_month IN [1,2,12]`: 101 records (58 dev), +307 EUR; exact rule p=2.0e-3
-  vs BH rank-1 bound 3.8e-6 (514x short); exact-rule oracle 0/61 (G05 fails 59/61). Cannot pass with an oracle handed the exact rule.
+  vs BH rank-1 bound 2.72e-6 at family 36,791 (about 722x short; 3.8e-6 and about 514x at family 26,213; the p is unclustered, so the true shortfall is larger); exact-rule oracle 0/61 (G05 fails 59/61). Cannot pass with an oracle handed the exact rule.
   Engine-side it is also unreachable (chain needs an absent `trip_duration_days>=14` atom; `supplier=Atlas` alone is -50 EUR).
 * **P08** `product_category=luxury AND party_size=1 AND booking_lead_days>=90`: 60 records (33 dev), +80 EUR against MDE 368 EUR; exact rule
   n_dev=33 < `min_n` 40 (engine-ineligible) and fails G03/G04/G05; scoreable at all in only 27/61 draws; 0/27 detectable.
 * **P09** `supplier=DeltaSun AND booking_month IN [9,10,11] AND party_size>=4`: 124 records (60 dev), +242 EUR vs MDE 274; exact p=0.0132
-  (3,450x short); 0/61 detectable (G03 43/61, G05 61/61, G10 61/61).
+  (about 4,850x short of 2.72e-6 at family 36,791; about 3,450x of 3.8e-6 at 26,213; unclustered p, true shortfall larger); 0/61 detectable (G03 43/61, G05 61/61, G10 61/61).
 All three are undetectable by the frozen contract at the standard N with the true rule; the family-size sensitivity (26,213 vs 36,791)
 changes nothing for them. Effect sizes and prevalence (n_dev 33-60 of 4,999) are set by the generator, hence class B. Uncertainty: the
 binding G05 depends on the multiplicity family set by search breadth, and P08 fails G03 (sample adequacy) independently of the family; P09 fails G03 in 43/61 draws and G10 in 61/61.
+
+**Correction (R1, post-review).** The first version of this section and of the section-2 table stated the P04/P09 BH bound and shortfall
+factors as 3.8e-6 / 514x / 3,450x while labelling them family 36,791. Those are the 26,213-family figures
+(`bh_most_lenient_raw_p_required` = 3.815e-6 in `task-106-raw-f26213/seed-20260813.json`; 2.718e-6 = 0.1/36,791 in
+`task-106-raw/seed-20260813.json`). Recomputed from the committed raw: P04 p=1.964e-3 gives 722x (36,791) vs 514x (26,213); P09 p=0.013169
+gives 4,856x (36,791; about 4,850x) vs 3,460x (26,213). The corrected 36,791 figures are used above. The class-B calls are unchanged.
 
 ## 6. Neutral implications by class (no recommendation)
 
@@ -188,6 +206,12 @@ uv run python scripts/diagnose_task106_version_comparison.py --blind-root <check
 uv run python scripts/diagnose_validation_power.py --blind-root ... --validation-report ... --robustness-semantics one_bin_relative_v2 --raw-output docs/benchmark/task-106-rerun-task070-validation-power-raw.json
 uv run python scripts/diagnose_task078_oracle_adjustment_sufficiency.py --raw-output docs/benchmark/task-106-rerun-task078-raw.json
 ```
+
+**Caveats added post-review (R4).** (a) The committed exact-mode raw files (`task-106-raw-exact*`) and the committed-seed raw
+(`task-106-raw/seed-20260813.json`) predate script edits: `g05_detail` is absent from the committed exact files, and `discovery_config_defaults` is
+`null` even in the committed-seed raw, although section 0 says the field is recorded in every raw file (it is not; `frozen_version` is). On re-run
+the substantive values were identical. (b) The section-3 D2/D4 outputs need the gitignored `artifacts/` (blind and evaluation roots) and cannot be reproduced from a clean checkout alone.
+(c) Engine-side specific-rule rates (P01 3/7, P06 1/7) rest on 7 draws only and are correspondingly wide (Wilson intervals given). 
 
 Seeds 101-160 are the generator-seed sample (chosen before any result; no seed excluded). Seeds 101-106 also carry engine runs. Caveats:
 (1) engine runs on other seeds evaluate 34.8k-37.7k hypotheses, but every oracle validation uses one fixed family (36,791);
