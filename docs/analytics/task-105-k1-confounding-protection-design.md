@@ -1063,3 +1063,170 @@ No repository code, test, threshold or generated artifact is changed by any of t
 The pool rule and tiers; single-`Z` only; the `validation` split and development-fixed bin edges; Bonferroni `alpha_k1 = 0.10`
 per candidate and the two contract sub-criteria; the two-sidedness and attribution designs; the `1.4.0` bump and `NONE_V0`
 concept; the frozen `TASK-102`/`ADR-100`/`ADR-101` texts; and no code, generator, catalogue or threshold.
+
+---
+
+## 10. Revision 1 measurements (2026-09-24; appended AFTER the Section 9 predictions were committed, commit `5d8baa4`)
+
+Read-only. Scratch scripts outside the repo tree (`<scratch>`; not committed); the real
+`_stratified_adjustment` was used wherever a point estimate is reported; **no mechanism exists, so the block decisions in
+10.3-10.5 come from a replica of the designed statistic on `Z*` only, not from the real gate** (the real-gate confirmation is 2b).
+The replica's point estimates were validated: the pure-python stratification matched the real `_stratified_adjustment` to
+1e-6 on all 34 delivered-data (trap, `Z`) pairs (assert in the script), and the numpy version matched the pure-python one on
+random datasets. Caveats that apply to everything below: row-level bootstrap (customers are about as numerous as rows in the
+later splits; the customer-clustered bootstrap is 2b); Gaussian noise in the simulations (delivered margin has heavy tails);
+bootstrap `B` = 500 (10.1) / 200 (10.3-10.5), normal approximation as designed.
+
+### 10.1 P14 / P15 / power floors, delivered validation split (2,462 rows; 34 pairs: T01, T02 x 7 `Z`; T04, T05 x 10 `Z`)
+
+| Trap | `H_raw` (validation, EUR) | `SE_raw` formula / bootstrap | `SE(D)` min / median / max | `rho = SE(D)/SE_raw` min / median / max | **measured 80%-power floor `c80` (m=10) median (max)** | `0.5 H_raw - c80` (median) | raw `E >= 1.5`? (`h_E`) |
+|---|---:|---:|---:|---:|---:|---:|---|
+| T01 | 116.3 | 35.1 / 39.9 | 19.5 / 20.5 / 25.5 | 0.501 / 0.505 / 0.622 | 70 (87) | **-11.9** | yes (h_E 100.2) |
+| T02 | -46.8 (wrong sign) | 35.7 / 33.7 | 15.9 / 17.0 / 19.0 | 0.499 / 0.506 / 0.565 | 58 (65) | **-81.5** | no |
+| T04 | 91.8 | 33.4 / 35.4 | 17.1 / 18.0 / 22.1 | 0.501 / 0.509 / 0.582 | 62 (76) | **-15.6** | no (91.8 < 100.3) |
+| T05 | 34.2 | 58.4 / 63.6 | 30.8 / 32.6 / 34.7 | 0.502 / 0.509 / 0.542 | 111 (119) | **-94.1** | no |
+
+- **P14 (`rho` in [0.55, 0.70] for >= 80% of pairs): NOT MET.** 4 of 34 pairs (11.8%) are in range; median 0.508, range
+  0.499-0.622. Pairing is *more* effective than assumed: `rho` sits at its lower bound 0.5 when `Z` is unrelated to `X` and `Y`
+  and rises only for informative `Z` (T01 destination 0.62, T04 lead 0.58). The bootstrap `SE_raw` differs from the closed-form
+  formula by -6% (T02) to +14% (T01) (heavy tails), which partly offsets it: the measured `c80` (58-111 EUR) is close to the 9.2 `rho = 0.55` column (64-68 / 111).
+  **Second part (`SE(H_Z)/SE_raw` in [0.95, 1.30]): MET** (34/34; median 1.004, range 0.986-1.083).
+- **Consequence for 9.2 (no correction needed to the conclusion):** on the delivered validation split `0.5 H_raw - c80 < 0` for
+  all four exposures: **even complete removal of the observed effect would be detected less than 80% of the time**, and the
+  E-value branch is applicable only for T01 (raw `E >= 1.5`). The 9.5 reporting state `not_powered_for_single_z_violation`
+  would therefore fire for every one of the four.
+- **P15 (contamination): MET.** Coverage < 1 in **1** of 34 pairs (T05 x `party_size`, coverage 0.979; `H_raw` 34.2 vs
+  `H_raw,U` 44.3, exclusion term -5.0 EUR; `SE(D)` 33.4 vs 34.3 on all rows); `|exclusion term| <= 10` EUR in 34/34 pairs;
+  maximum 5.0 (the registered "could reach 25" was not reached). The 9.3 restriction matters little on the delivered data
+  but is not zero (the unusable strata were not inspected further).
+
+### 10.2 P16: resolution factor `r` of the design's binning (noise-free population; `Y = 400 - 400 I`, `X ~ Bernoulli(0.03 + 0.62 I)`; real `_stratified_adjustment`; edges from development; 200,000 resampled delivered rows)
+
+| Indicator (`Z` binned as in 2.3) | prevalence | measured `r` | registered | verdict |
+|---|---:|---:|---|---|
+| `party_size >= 5` (raw levels) | 0.163 | 1.000 | >= 0.99 | met |
+| `destination in {Tokyo, Zanzibar}` (raw levels) | 0.426 | 1.000 | >= 0.99 | met |
+| `booking_lead_days >= median (55)` (TASK-104 fixture form) | 0.511 | 1.000 | >= 0.95 | met |
+| `trip_duration_days >= median (7)` (fixture form) | 0.550 | 1.000 | >= 0.95 | met |
+| **`booking_lead_days < 14` (generator cut)** | 0.138 | **0.728** | [0.70, 0.90] | met |
+| **`trip_duration_days >= 14` (generator cut)** | 0.062 | **0.207** | **[0.55, 0.90]** | **NOT MET (far below)** |
+
+Diagnosis. Development-decile edges for `trip_duration_days` collapse (22 distinct values, ties) to `[2, 4, 5, 6, 7, 8, 9, 10,
+12]`; the top bin `[12, inf)` holds 1,389 of 10,000 rows and only **44.8%** of them are `>= 14`, so the indicator is mostly *within*
+a bin and stratification removes about a fifth of a full confounder. For `booking_lead_days` the bin `[4, 23)` holds 1,033 rows,
+43.9% of them `< 14`. (The design's own caveat "top decile contains 14+" understated this: the design guessed 0.6-0.9.)
+
+### 10.3 P3r / P4r / P5r on the replica (`Z*` only, m = 10 Bonferroni, validation split, seeds 101-106, fixture noise `sd = 250`, `H_raw` = 400)
+
+Weight share `s` on `destination` (TASK-104 fixture recipe copied into scratch; `Z*` = the fixture's `HIGH_DESTINATIONS`):
+
+| `s` | model `a(s)` (registered) | measured `a` mean (min-max) | mean `SE(D)` (EUR) | replica blocks on `Z*` (of 6) | registered | verdict |
+|---|---:|---|---:|---:|---|---|
+| 1.0 | 1.00 | 0.973 (0.942-1.032) | 13.9 | **6** | 6/6 | met |
+| 0.8 | 0.98 | 0.953 (0.933-1.004) | 12.0 | **6** | 6/6 | met |
+| 0.6 | 0.87 | 0.811 (0.767-0.865) | 13.1 | **6** | 6/6 | met |
+| 0.5 | 0.75 | 0.686 (0.639-0.730) | 14.0 | **6** | 6/6 | met |
+| 0.4 | 0.57 | 0.503 (0.432-0.543) | 14.4 | **0** | boundary probe, point 5, range 2-6 | **NOT MET** |
+| 0.25 (equal weights, P4r) | 0.25 | 0.205 (0.169-0.231) | 13.7 | **0** | 0/6 | met |
+
+- The squared-weight bias-share model is right in shape and overstates `a` by 0.03-0.07 (inside the registered +-0.08), but the
+  `s = 0.4` probe sits at the ceiling (`a` = 0.503) and lands outside the registered range; the *original* P3's `s = 0.4 -> 0/6` was,
+  by luck, the observed value. Registered `SE(D)` of "6-8 EUR" for the fixture was **too small by about 2x** (measured 12-14: the
+  fixture outcome variance includes `A x score`), so the 50%-power margin is about 0.08 of `H_raw`, not 0.04-0.05.
+- **P5r-a (fixture-form median indicator, duration-only): MET** (`a` = 0.986, replica 6/6; lead 0.978, 6/6).
+- **P5r-b (generator-cut indicators as sole driver, decile bins): lead MET** (`a` = 0.711, 6/6); **duration NOT MET** (`a` = 0.163,
+  **0/6** replica blocks vs registered `>= 4/6`). `party >= 5` `a` = 0.988, 6/6.
+- **S4b is TRIGGERED** (duration cell `< 5/6`). Registered consequence (9.4) applies: the numeric-`Z` claim is withdrawn
+  from the bounded claim; see 10.6.
+
+### 10.4 P8r boundary-size cells (numpy replica of the designed statistic; `n` = 2,462; noise `sd` = 776; `B` = 200; **2,000 datasets per cell**; calibrated population attenuation exactly 0.500000 for `B-att`)
+
+| Cell | block rate (blocks / 2,000) | `Z1`: `P(p_att <= 0.05)` / `<= 0.01` | E branch applicable; `P(p_E <= 0.05 given applicable)` |
+|---|---:|---|---|
+| B-att `m=3`, `H_raw`=100 | 0.0195 (39) | 0.048 / 0.012 | 0.49; 0.036 |
+| B-att `m=3`, 200 (**`H_Z` = 100 = h_E: both boundaries coincide**) | **0.0305 (61)** | 0.055 / 0.011 | 1.00; 0.055 |
+| B-att `m=3`, 400 | 0.0175 (35) | 0.048 / 0.013 | 1.00; 0.000 |
+| B-att `m=7`, 100 / 200 / 400 | 0.0055 / 0.0080 / 0.0070 | 0.049 / 0.051 / 0.049 | ... |
+| B-att `m=10`, 100 / 200 / 400 | 0.0070 / 0.0075 / 0.0020 | 0.054 / 0.046 / 0.043 | ... |
+| B-E `m=3`, raw 150, `H_Z` = h_E | 0.0070 (14) | 0.011 / 0.002 | 0.93; 0.035 |
+| B-E `m=10` | 0.0000 (0) | 0.008 / 0.001 | 0.93; 0.029 |
+| B-E2 `m=3`, `m=10` (no confounding, `H_raw = H_Z = h_E`) | 0 / 0 | 0 / 0 | 0.50; 0 |
+| interior null (genuine 200 EUR effect, no confounding) `m=3`, `m=10` | 0 / 0 | 0 / 0 | 1.00; 0 |
+
+- **Unconditional block rate <= alpha_k1 = 0.10 in every cell: MET** (maximum 0.0305). **Per-`Z` calibration: MET** (`P(p_att <=
+  0.05)` 0.043-0.055 across the nine B-att cells, inside [0.035, 0.065]; `P(p_att <= 0.01)` 0.0075-0.0135, inside [0.005, 0.02]).
+  **B-E2 rate <= B-E rate: MET.** No S1 boundary falsifier fired.
+- **Registered "realized about `0.05 x (number of boundary Zs)/m`": MET in 8 of the 9 B-att cells** (`m=3`: 0.0195/0.0175 vs
+  0.0167; `m=7`: 0.0055-0.0080 vs 0.0071; `m=10`: 0.0020-0.0075 vs 0.0050) **and NOT MET in `m=3`, `H_raw`=200 (0.0305 vs <= 0.02)**:
+  I chose `H_raw`=200 without noticing that the attenuation boundary (`H_Z = 0.5 H_raw`) then coincides with the E-value boundary
+  (`H_Z = h_E ~ 100`); both sub-tests are at their null edge and, because Bonferroni over the two sub-criteria is tight for
+  disjoint events, the rate is about `2 x 0.05/m = 0.10/m`, i.e. the bound `alpha_k1/m` is **attained** in that cell. That is the
+  contract-boundary worst case the FWER bound describes; it stays below 0.10.
+- The E branch is conservative when applicable is conditioned on the same data (B-E `P(p_E <= 0.05 | applicable)` 0.029-0.035 <
+  0.05), so the size at the contract boundary is not inflated by the applicability conditioning in these cells.
+- Size at the contract boundary is now **verified for the replica under Gaussian noise and row-level bootstrap**, not for the real
+  gate under heavy-tailed outcomes and customer-clustered bootstrap (2b).
+
+### 10.5 P17: outcome-side single-`Z` attenuation in the real generator (400,000 rows from the real `_generate_row`, seed 105101; real `_stratified_adjustment`; design binning with edges from every second row; `a = 1 - H_Z/H_raw`; `H_raw` includes any genuine pattern effect)
+
+| `Z` | T01 (`H_raw` 28.8, 104,265 exposed) | T02 (-10.9) | T04 (50.3) | **T05 (81.0, 27,367 exposed)** |
+|---|---:|---:|---:|---:|
+| `booking_lead_days` | **0.666** | 0.084 | **0.316** | **0.218** |
+| `destination` | **0.706** | 0.239 | 0.006 | **0.148** |
+| `party_size` | -0.031 | 0.016 | -0.020 | **0.171** |
+| `trip_duration_days` | 0.011 | 0.137 | 0.006 | **0.010** |
+| `customer_segment` | 0.051 | 0.097 | 0.023 | 0.092 |
+| others (channel, customer_type, manager, supplier, product_category) | -0.004 to 0.011 | 0.003-0.011 | 0.000-0.008 | 0.001-0.022 |
+
+Pre-registered comparison for **T05**: `booking_lead_days` largest **(yes, 0.218) but registered [0.30, 0.65]: NOT MET**;
+`destination` [0.10, 0.30]: MET (0.148); `party_size` [0.08, 0.30]: MET (0.171); `trip_duration_days` [0.03, 0.20]: NOT MET
+(0.010, consistent with the resolution factor 0.21 in 10.2); **max `a` < 0.5: MET (0.218)**, so the "diffuse, not blocked" claim
+holds for T05 as generated and is now measured, not assumed; sum of four singles in [0.7, 1.1]: NOT MET (0.547; resolution
+loss and non-additivity). **Outcome shares for T05 are unequal** (0.22 / 0.17 / 0.15 / 0.01), so "four equal weights on the outcome
+side" is refuted; only the exposure weights are equal.
+
+Unregistered observations (reported, not predictions): **T01 as generated is not diffuse**: `destination` (0.706) and
+`booking_lead_days` (0.666) each exceed 0.5 (sum 1.37 because `X` is an OR of the two), so at infinite power a single-`Z` check would
+flag T01 as generated; at the delivered size the floor (10.1) makes it unreachable. **T04 as generated has a single realized
+confounder yet its best single-`Z` attenuation is only 0.316** (`lead < 14` resolution 0.73, plus genuine pattern effect in `H_raw`), so
+even at infinite power the 0.50 ceiling would not fire on T04. T02 has the wrong sign (`H_raw` -10.9): no harm to attribute.
+
+### 10.6 Scorecard, forced findings, and what was not changed
+
+| Registered item | Result |
+|---|---|
+| P3r (`s` = 1.0, 0.8, 0.6, 0.5 -> 6/6; 0.25 -> 0/6) | met on the replica (5 of 6 rows) |
+| P3r `s` = 0.4 probe (2-6 of 6) | **not met** (0/6; `a` = 0.503) |
+| P4r (equal weights 0/6; real-generator T05 max `a` < 0.5) | met (0/6; 0.218); outcome shares unequal |
+| P5r-a (fixture median indicator 6/6) | met |
+| P5r-b lead (`r` in [0.70,0.90]; 6/6) | met (0.728; 6/6) |
+| P5r-b duration (`r` in [0.55,0.90]; `>= 4/6`) | **not met** (0.207; 0/6) |
+| P8r (<= 0.10 everywhere; per-`Z` calibration; B-E2 <= B-E) | met; one sub-bracket (m=3, `H_raw`=200) exceeded because both boundaries coincide |
+| P14 `rho` in [0.55, 0.70] for >= 80% | **not met** (11.8%; median 0.508); `SE(H_Z)` part met |
+| P15 | met |
+| P16 | 3 of 4 registered categories met; duration **not met** |
+| P17 (T05 shares) | 3 of 6 sub-predictions met (destination, party, max < 0.5); lead, duration, sum not met |
+| P18 | not run (2b, needs the real gate) |
+| S1 boundary falsifiers | not triggered |
+| **S4b** | **triggered** |
+
+**Forced findings (a mechanism-level consequence, stated and not acted on):**
+
+1. **S4b triggered: the design's numeric stratification (raw levels `<= 12` distinct else development deciles) does not resolve
+   a threshold-shaped confounder whose cut falls inside a wide top/bottom bin.** For `trip_duration_days >= 14` the measured
+   resolution is 0.21 (real generator T02's dominant confounder and one of T05's four). Per the registered consequence: the
+   bounded claim in 9.5 must label numeric `Z` as "checked at decile resolution; a threshold-shaped confounder inside a bin may
+   be largely unresolved (measured factor as low as 0.21)", and the numeric-`Z` protection is **not claimed**. **Fixing the
+   stratification (finer bins, declared cut points, ...) is a mechanism change and is not made in this revision**; it is a new
+   registered hypothesis for the founder/next design version: **Q15**.
+2. On the delivered data every checked exposure fails the "detect complete removal at 80% power" test (10.1); the mechanism's
+   reportable state for real-scale candidates is `WARN not_powered_for_single_z_violation`, not `PASS`.
+3. Fixture-scale power (10.3, `SE(D)` 12-14 EUR at `sd` 250) and real-scale power (10.1, 16-35 EUR at `sd` 776) differ by
+   about a factor 1.5-2.5; P18 (2b) remains the only real-scale cell.
+
+**Q15 (new, from S4b).** Accept the numeric-`Z` limitation as a disclosed bound (the claim states it; threshold-shaped numeric
+confounders are not protected), or open a new registered stratification hypothesis for numeric `Z` (e.g. pre-declared cut
+points in the declaration, or a finer development-fixed grid) with its own multiplicity/coverage consequences. Not decided
+here.
+
+No repository code, test, generator, catalogue, threshold or generated artifact was changed by any measurement in this section.
