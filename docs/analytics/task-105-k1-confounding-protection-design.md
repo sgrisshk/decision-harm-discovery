@@ -16,6 +16,17 @@ seen (a change after seeing a result is a new, dated design version, never an ed
 > (pool, single-`Z`, validation split, Bonferroni family, thresholds, two-sidedness, attribution, 1.4.0 semantics). One
 > estimand clarification (Section 9.3, raw baseline restricted to usable strata) and one reporting addition (Section 9.5,
 > detection floor in the claim) are flagged there for the round-2 reviewer to confirm they are not mechanism changes.
+> **[Rev 2 (2026-09-24): "the mechanism is unchanged" is SUPERSEDED as a description of Revision 1. The Section 9.3
+> usable-strata baseline `H_raw,U` is a mechanism-adjacent estimand change (Section 11.2), and the Section 9.5 `WARN` is
+> reporting-only in the verdict sense but not semantics-neutral for the serialized contract (Section 11.3). Section 10
+> produced a forced finding (S4b triggered) and a real-scale power finding that Revision 1's top-level text had not
+> absorbed; see Sections 0 items 11-13, 2.3, 4.6, 5, 6 (Rev 2 markers) and Section 11.]**
+
+> **REVISION 2 (2026-09-24), documentation only, in response to the round-2 independent review (APPROVED WITH REVISION
+> NEEDED; no mechanism redesign).** Nothing in Sections 1-10 was deleted or rewritten: stale passages carry a `[Rev 2 ...]`
+> marker; the pre-registered predictions (4.1, 9.4) and the measurement text (Section 10) are **unaltered**. The change log,
+> the new questions Q15-Q17, the corrected claim template and the reproducibility manifest are in **Section 11**. No code,
+> generator, catalogue, threshold, ADR or frozen text was changed.
 
 **Binding text:** `ADR-101` (A1-A9, catalogue/generator policy, Phase 2 contract) and `ADR-100` (decisions 1-5), both read
 in full. Context: `docs/benchmark/task-105-single-condition-confounding-threat-model.md` (Phase 1: spec, manifests, C3/C4),
@@ -70,12 +81,23 @@ in full. Context: `docs/benchmark/task-105-single-condition-confounding-threat-m
     real-generator confounding-induced shifts (roughly 28-54 EUR for T01/T04/T05). The design's honest claim is bounded accordingly.
     `[Rev 1: the figures in Section 2.4 were 50%-power critical values, not detection floors; the 80%-power floors are
     about 1.3x larger and the comparison must be made against the required shift 0.5*H_raw + floor, Section 9.2.]`
+    `[Rev 2: measured on the delivered validation split (Section 10.1): 80%-power floors c80 = 58-111 EUR (m=10), and
+    0.5*H_raw - c80 < 0 for all four exposures (T01 -11.9, T02 -81.5, T04 -15.6, T05 -94.1 EUR), i.e. even complete
+    removal of the observed effect is detected less than 80% of the time. On real-scale candidates the reportable state is
+    the Section 9.5 WARN, not PASS. Also: numeric-Z threshold-shaped confounding is not effectively assessed (S4b
+    triggered, resolution 0.21 for `trip_duration_days >= 14`); T04 as generated is not caught even at infinite power (best
+    single-Z attenuation 0.32 < 0.50); T01 as generated is not diffuse (two singles above 0.5). Section 11.]`
 13. **`[Rev 1]` Two more limits stated up front.** (a) The declared pool/tiering for the benchmark is **oracle-informed**
     (the author had read the generator): fixtures passing under it show the mechanism works *when the declarer knows the
     true structure*, not that it works under a customer-signed declaration (Section 9.5). (b) Whether ADR-101 A4
     ("no fixed percentage (no 50%)") permits reusing the contract's own 0.50 attenuation ceiling is genuinely ambiguous
     and is a founder question with both readings and consequences (Q12, Section 9.1/9.8); the design as written adopts the
     "contract's existing 0.50 is acceptable" reading and says so.
+    `[Rev 2: item 11's "T05 ... equal exposure weights" stands; the outcome-side shares were then measured (10.5): T05 0.22 /
+    0.17 / 0.15 / 0.01, unequal, max < 0.5, so "diffuse, not blocked" holds for T05 as generated. Two further limits from
+    Section 10 belong beside items 12-13: (c) the numeric-Z resolution limit (S4b, Q15); (d) at the delivered size the
+    mechanism cannot reach 80% power even against complete removal (0.5*H_raw - c80 < 0 for all four exposures), so the
+    go/no-go for 2b is put to the founder as Q16.]`
 
 ---
 
@@ -242,6 +264,13 @@ generator's `lead < 14` cut inside bin `[4, 23)` (I estimate the between-bin exp
 leave `>= 14` inside the top bin. **Predicted effect: attenuation from a fully-confounding numeric `Z` is understated by
 its resolution factor (~0.6-0.9), which lowers power, not specificity.** A quartile (`G06`-binning) variant is reported as
 a **non-binding sensitivity**.
+
+> **[Rev 2: the "~0.6-0.9" estimate above carried no Rev 1 marker and is SUPERSEDED by measurement (10.2): the resolution
+> factor is 0.73 for `booking_lead_days < 14` and 0.21 for `trip_duration_days >= 14` (development-decile top bin
+> `[12, inf)` is only 44.8% `>= 14`). "Lowers power, not specificity" remains true, but the power loss is large enough that
+> S4b is TRIGGERED: numeric `Z` are not effectively assessed for threshold-shaped confounding at this stratification and
+> carry a distinct status and no numeric floor in the claim (11.1). Fixing the stratification is a mechanism change and is
+> Q15, not made here.]**
 
 Coverage per `Z` uses the existing `MIN_STRATUM_CELL = 5` and the existing threshold `min_confounder_stratum_coverage`
 (0.50): a `Z` whose usable-stratum coverage is below it is `not_assessable(coverage)`; this is a *limitation*, never a
@@ -656,6 +685,10 @@ missing, not that the mutant is acceptable.
 
 - **Null** (no candidate changes; the expected outcome on real candidates): reported as "`G17` changed 0 of N", with the
   detection-floor table (2.4) beside it and the sentence that a 0 is not evidence of safety. Not framed as success.
+  **[Rev 2: "the detection-floor table (2.4)" is superseded: use the corrected 80%-power floors and the comparison
+  `0.5 H_raw - c80` (9.2, measured in 10.1: c80 58-111 EUR, negative for all four exposures), and label numeric `Z` as
+  "not effectively assessed" per 11.1. A "0 of N" on a real-scale candidate is reported together with the
+  `not_powered_for_single_z_violation` WARN.]**
 - **Diffuse-confounding miss** (P4): reported as an *objective not met* against the `TASK-105` regression target, not as a
   pass of the design on its own terms.
 - **Harmful** (a false block in nulls above bound; a `T02` suppression block; a true-pattern `k=1` blocked): reported verbatim
@@ -679,6 +712,19 @@ of these may be tuned away.
 | **S5** | `G00`-`G16` differ between `NONE_V0` and `SINGLE_Z_VALIDATION_V1` for any candidate | any | isolation broken -> defect, block release |
 | **S6** | On the `k=1` census, `G17` blocks more than `2` benchmark-true-positive `k=1` components of at most `10` (`> 2 x` the expected `alpha` rate), or the census has too few promotable candidates to say anything | see text | report as "insufficient/harmful"; do not claim precision |
 | **S7** | The declaration soundness test (U13) fails for the proposed tiers | any | declaration wrong -> fix the declaration *before* any fixture result is looked at; if discovered after, the run is void and re-registered |
+
+> **[Rev 2 additions to Section 5 (not edits of the registered table).]**
+> - **S4b** (9.4): numeric-`Z` resolution cell, credited-cap `< 5/6` -> numeric `Z` withdrawn from the bounded claim.
+>   **Status: TRIGGERED** (10.3: duration cell 0/6; resolution 0.21). Consequence as registered: numeric `Z` labelled
+>   "not effectively assessed"; re-specification is Q15.
+> - **S4 as registered does not speak to real-scale power.** S4 is evaluated on the fixture (outcome noise `sd = 250`,
+>   `SE(D)` 12-14 EUR, `H_raw = 400`), not on the delivered margin (`sd` about 776, `SE(D)` 16-35 EUR, `H_raw` 34-116 EUR).
+>   "S4 not triggered" (it was not, 10.3) must **not** be read as "power is fine": P18 (the real-scale cell) was not run,
+>   and 10.1 shows the real-scale power problem (`0.5 H_raw - c80 < 0` for all four exposures, c80 = 58-111 EUR).
+> - **T04 is not caught even at infinite power** (best single-`Z` attenuation 0.316 < 0.50, 10.5), independent of the
+>   power floor; T01 as generated has two single `Z` above 0.5 but is under-powered at the delivered size.
+> - The "detection floor of 2.4 (tens to ~90 EUR)" in the next bullet block is superseded by 9.2/10.1 (58-111 EUR
+>   measured, compared against `0.5 H_raw + c80`, not against `c80`).
 
 **Expected costs (registered):**
 
@@ -718,7 +764,13 @@ and a new grading cycle is required (`ADR-100`/`ADR-101`).
 
 - **Q1 Evaluation split. [PARTLY DECIDED: ADR-101 A8 says "preferably the existing held-out validation split".]** Open
   residual: `validation` only vs pooled `validation ∪ future_holdout` (2x power; consumes the final split). Power table
-  in 2.4 / 9.2.
+  in 2.4 / 9.2. **[Rev 2: "2x power" means 2x the sample: pooling cuts `SE` by about `1/sqrt(2)` = 0.71 and every 80%-power
+  floor by about 30% (c80 58-111 EUR -> about 41-79 EUR). It does not make complete removal of the effect reliably
+  detectable at the delivered real-scale effects: at the real-generator population effects (10.5: T01 28.8, T04 50.3, T05 81.0
+  EUR) `0.5 H_raw` (14 / 25 / 40 EUR) stays below the pooled c80 (about 49 / 44 / 79 EUR). Stated precisely, because the
+  delivered validation `H_raw` values differ: on those (T01 116, T04 92 EUR) the pooled `0.5 H_raw - c80` would be about
+  +9 and +2 EUR, i.e. marginally positive, and about -61 (T05) and wrong-sign (T02); this is arithmetic on the measured
+  validation `SE`, not a measurement, and the `future_holdout` raw effects were not inspected. Section 11.]**
 - **Q2 Partial independence. [OPEN]** Accept the disclosed partial independence (`stability_credit_weight = 0.5` uses
   later-split raw sign; `G10`), or require an engine setting (`stability_credit_weight = 0`) for the graded version so the
   evaluation split is untouched by selection. The latter is an engine/accepted-default change (`ADR-070` binding), out of
@@ -756,15 +808,34 @@ and a new grading cycle is required (`ADR-100`/`ADR-101`).
 - **Q9 `G06` contract-text vs code gap. [OPEN, out of scope here.]** Text: adjusted interval excludes zero; E-value exceeds
   strongest measured confounder-outcome association. Code: neither. The design binds to the *executed* criteria. Decide
   whether to open a `TASK-070`-style reconciliation.
-- **Q10 Stratification resolution. [IMPLEMENTATION DETAIL.]** Raw levels `<= 12` else deciles (single-`Z`), vs `G06`'s
-  quartiles; pre-registered and disclosed; quartile variant reported as a sensitivity; the numeric-`Z` resolution cell
-  (S4b, Section 9.4) tests it.
+- **Q10 Stratification resolution. [OPEN (Rev 2; was IMPLEMENTATION DETAIL); merged into Q15.]** Raw levels `<= 12` else
+  deciles (single-`Z`), vs `G06`'s quartiles; pre-registered and disclosed; quartile variant reported as a sensitivity; the
+  numeric-`Z` resolution cell (S4b, Section 9.4) tests it. **[Rev 2: S4b was triggered (resolution 0.21 for
+  `trip_duration_days >= 14`), so the stratification is claim-bearing (it determines which `Z` are effectively assessed),
+  not an implementation detail. Original tag preserved here; decision is asked as Q15.]**
 - **Q11 Suppression and unlocking. [PARTLY DECIDED: ADR-101 A9 says strengthening alone is not grounds for blocking and the
   Phase 2 contract is "block only if...".]** Residual: confirm that strengthened adjusted evidence never *unlocks* a
   candidate another gate blocked (block-only action).
 - **Q12 (new) The A4 reading. [OPEN]** See Section 9.1 (M1) for both readings and their consequences.
 - **Q13 (new) What an undeclared dataset does. [OPEN]** See Section 9.8.
 - **Q14 (new) Oracle-informed benchmark declaration. [OPEN]** See Section 9.5/9.8.
+- **Q15 (new, Rev 2 into Section 6; text originally in 10.6) Numeric-`Z` stratification (S4b). [OPEN; absorbs Q10.]**
+  Section 10.6 (forced finding 1) states: accept the numeric-`Z` limitation as a disclosed bound (the claim labels numeric
+  `Z` "not effectively assessed for threshold-shaped confounding at the stratification used", 11.1; threshold-shaped numeric
+  confounders are not protected), or open a new registered stratification hypothesis for numeric `Z` (e.g. pre-declared cut
+  points in the declaration, or a finer development-fixed grid) with its own multiplicity/coverage consequences. Measured
+  factors: 0.73 (`booking_lead_days < 14`), 0.21 (`trip_duration_days >= 14`), 1.0 for raw-level and median-edge cases.
+  Not decided here.
+- **Q16 (new, Rev 2) Go / no-go for 2b. [OPEN]** Given (i) the measured 80%-power floors c80 = 58-111 EUR on the delivered
+  validation split and `0.5 H_raw - c80 < 0` for all four exposures (10.1), (ii) S4b (numeric `Z` not effectively assessed,
+  10.2/10.3), and (iii) zero `k=1` candidates in the frozen candidate sets (P1b), which option does the founder choose:
+  **(a)** proceed to 2b as designed; **(b)** proceed with reduced scope (categorical / low-cardinality `Z` only, and/or
+  pilot-first sequencing so that 2b is run against real pilot data); **(c)** park until pilot data exists. No
+  recommendation is made in this document.
+- **Q17 (new, Rev 2) Estimand change in 9.3. [OPEN]** Do you accept, as part of the mechanism, replacing the full-sample
+  `H_raw` by the usable-strata baseline `H_raw,U` (9.3), which changes `D_att`, the attenuation denominator and E-branch
+  applicability whenever coverage is in [0.5, 1) and can change a block verdict, or revert to the original full-sample baseline
+  with the paired-attribution claim restricted to coverage 1?
 
 ---
 
@@ -920,6 +991,10 @@ every declared `Z` on the delivered data in Section 10, P15); restricting keeps 
 the price of one more computed quantity. **Flagged for round 2:** this redefines the raw baseline inside the same mechanism
 (same gate, pool, split, family, thresholds); it does not change what is blocked at coverage 1. It is not the contract's
 `G06` baseline (`G06` has the same mixture but is coverage-gated at 0.50 and is unchanged).
+**[Rev 2: the framing above ("estimand clarification", "not a mechanism change") is SUPERSEDED. It is a mechanism-adjacent
+estimand change: it changes `D_att`, the attenuation denominator and E-branch applicability whenever coverage is in [0.5,
+1), and can change a block verdict there. It is put to the founder as Q17 and Section 11.2; the mechanism is no longer
+described as unchanged.]**
 
 ### 9.4 Superseding pre-registered predictions (frozen by this commit; originals preserved in 4.1)
 
@@ -927,7 +1002,10 @@ Common model (used for the fixture rows). In the `TASK-104` fixtures `score = su
 Bernoulli(0.03 + 0.62 score)`, `Y = base - A score + noise`. `X` and `Y` both load on the *same* weights, so the bias
 contributed by indicator `j` is proportional to `w_j x (imbalance of I_j) ~ w_j^2 Var(I_j)`. With `Var(I_j)` about equal
 (median splits, `HIGH_DESTINATIONS` 0.4) the **bias share** of `Z_j` is `b_j = w_j^2 / sum_k w_k^2`, not `w_j`. For weight
-share `s` on `Z*` and `(1-s)/3` on each of the other three: `b(s) = s^2 / (s^2 + (1-s)^2/3)`. This model reproduces
+share `s` on `Z*` and `(1-s)/3` on each of the other three: `b(s) = s^2 / (s^2 + (1-s)^2/3)`. This model reproduces **[Rev 2: too strong; the model `s^2/(s^2+(1-s)^2/3)` is a same-variance shape approximation. Against
+the measured values below it is within about 0.02-0.11 and systematically low on the `party_size` curve (model 0.00 / 0.25 /
+0.75 / 0.87 / 0.94 vs measured 0.11 / 0.33 / 0.78 / 0.89 / 0.98), and high on the destination replica (10.3: overstates `a`
+by 0.03-0.07). Read "reproduces" as "approximates the shape of".]**
 `TASK-104`'s measured curve for `party_size` (`G06`, 4 confounders): `s`=0 -> 0.11, 0.25 -> 0.33, 0.5 -> 0.78, 0.6 -> 0.89, 0.7
 -> 0.98 (model: 0.00, 0.25, 0.75, 0.87, 0.94; `G06`'s set also removes small shares of the others). The original P3 used `s`
 as the bias share ("attenuation ~ `s` x resolution"), which is the defect.
@@ -975,6 +1053,14 @@ field, produced whenever `G17` is `PASS`/`WARN` on a declared `k=1` candidate:
 > diffuse confounding spread over several variables, would likely pass unnoticed. [If `0.5 H_raw,U - c80 <= 0` for a
 > variable: 'For variable V the check could not have detected even complete removal of this effect at 80% power.'] Not
 > assessed: (list, reason). Declared but unobservable: (list). Unknown latent confounding is outside this check."
+
+> **[Rev 2 (F1, F2): the template above is superseded for numeric `Z` by Section 11.1.** The sentence "for each checked
+> variable the check would detect (80% power) only a reduction of at least X EUR" is true only for a `Z` whose stratification
+> resolves the confounding. X is computed on the stratified statistic; for a threshold-shaped numeric `Z` with resolution `r`
+> (measured 0.21, 10.2; S4b triggered) the true confounding needed is about `X / r`, and `detectable_at_80_percent_power`
+> and the `not_powered_for_single_z_violation` WARN below are resolution-blind. Numeric `Z` therefore get the distinct status
+> "not effectively assessed for threshold-shaped confounding at the stratification used", with **no numeric floor**, and are
+> not listed under "N checked variables" as if fully assessed.]
 
 Per `Z` the required fields are `c80_D_eur`, `min_detectable_shift_eur_80 = 0.5 H_raw,U + c80`, its percentage of
 `H_raw,U`, and `detectable_at_80_percent_power` (boolean; false iff `0.5 H_raw,U - c80 <= 0`). `SE(D)` used is the paired
@@ -1060,6 +1146,8 @@ No repository code, test, threshold or generated artifact is changed by any of t
 
 ### 9.10 What Revision 1 did not change
 
+**[Rev 2: this section's title and the sentence "no mechanism change" are superseded for 9.3 (`H_raw,U`, a mechanism-adjacent
+estimand change, Section 11.2, Q17) and qualified for 9.5 (WARN reporting-only in the verdict sense only, Section 11.3).]**
 The pool rule and tiers; single-`Z` only; the `validation` split and development-fixed bin edges; Bonferroni `alpha_k1 = 0.10`
 per candidate and the two contract sub-criteria; the two-sidedness and attribution designs; the `1.4.0` bump and `NONE_V0`
 concept; the frozen `TASK-102`/`ADR-100`/`ADR-101` texts; and no code, generator, catalogue or threshold.
@@ -1162,6 +1250,11 @@ Weight share `s` on `destination` (TASK-104 fixture recipe copied into scratch; 
   (`H_Z = h_E ~ 100`); both sub-tests are at their null edge and, because Bonferroni over the two sub-criteria is tight for
   disjoint events, the rate is about `2 x 0.05/m = 0.10/m`, i.e. the bound `alpha_k1/m` is **attained** in that cell. That is the
   contract-boundary worst case the FWER bound describes; it stays below 0.10.
+  **[Rev 2 wording correction: read "attained" as "approached" (0.0305 vs the bound 0.0333). The doc's own numbers imply the
+  two events overlap: a single sub-test rejects at about 0.019-0.020 (interpolating `P(p_att <= 0.01)` 0.011 and
+  `P(p_att <= 0.05)` 0.055 to the per-sub-test level 0.0167 gives about 0.02), so the union 0.0305 is about 1.5-1.6x a single
+  sub-test, not 2x, i.e. roughly 40% overlap of the attenuation and E events. Only ONE boundary `Z` per cell was simulated
+  (`Z1` plus `m-1` null columns), so additivity across several simultaneously boundary `Z` was not exercised. Section 11.4.]**
 - The E branch is conservative when applicable is conditioned on the same data (B-E `P(p_E <= 0.05 | applicable)` 0.029-0.035 <
   0.05), so the size at the contract boundary is not inflated by the applicability conditioning in these cells.
 - Size at the contract boundary is now **verified for the replica under Gaussian noise and row-level bootstrap**, not for the real
@@ -1230,3 +1323,119 @@ points in the declaration, or a finer development-fixed grid) with its own multi
 here.
 
 No repository code, test, generator, catalogue, threshold or generated artifact was changed by any measurement in this section.
+
+---
+
+## 11. Revision 2 (2026-09-24): documentation-only response to the round-2 independent review (APPROVED WITH REVISION NEEDED; no mechanism redesign)
+
+Nothing in Sections 1-10 was deleted; stale passages carry `[Rev 2]` markers at the place they occur. The pre-registered
+predictions (4.1, 9.4) and the measurement text (Section 10) are unaltered (the only edits touching Section 10 are marked
+`[Rev 2]` wording corrections). No code, generator, catalogue, threshold, ADR or frozen text changed. Every review item was
+checked against the document text before editing; one item was qualified (F7, below).
+
+### 11.0 Change log (item -> disposition -> where)
+
+| Item | Verified against the document? | Disposition | Where |
+|---|---|---|---|
+| **F1** claim template resolution-blind for numeric `Z` | yes: the 9.5 template and the WARN rule use `c80` / `0.5 H_raw,U - c80` on the stratified statistic; S4b (10.2, 10.3, 10.6) was not carried into 9.5 | **Fixed**: distinct status, no numeric floor for numeric `Z`, not listed as fully checked | 9.5 Rev 2 note, 11.1 |
+| **F2** S4 does not speak to real-scale power | yes: S4 is on the `sd = 250` fixture; P18 not run; 10.1 | **Fixed**: stated | Section 5 Rev 2 note, 11.1 |
+| **F3** stale top-level statements | yes: Rev 1 banner, 0 items 11-13, 2.3 ("~0.6-0.9", no Rev 1 marker), 4.6, Section 5 | **Fixed** by Rev 2 markers (originals kept) | banner, 0, 2.3, 4.6, 5 |
+| **F4** Q15 missing from Section 6 | yes: it existed only in 10.6 | **Fixed**: Q15 added to Section 6 | 6 |
+| **F5** Q10 tag | yes: S4b shows the stratification is claim-bearing | **Fixed**: retagged OPEN and absorbed into Q15 (original tag preserved in the text) | 6 |
+| **F6** go/no-go question | yes: absent | **Fixed**: Q16, neutral, no recommendation | 6 |
+| **F7** pooling in Q1 | yes: Q1 said only "2x power" | **Fixed, with a qualification**: pooling gives SE x 0.71 and floors about -30%; complete removal stays undetectable at the real-generator population effects (28.8 / 50.3 / 81.0 EUR), but on the delivered validation `H_raw` of T01 (116) and T04 (92) the pooled `0.5 H_raw - c80` would be marginally positive (about +9 and +2 EUR; arithmetic on measured validation SE, `future_holdout` raw effects not inspected). I disagree only with the unqualified form of the review sentence for those two delivered-validation values | Q1 Rev 2 note |
+| **Relabel** 9.3 baseline; 9.5 WARN | yes | **Fixed**: 9.3 relabelled mechanism-adjacent and put to the founder (Q17); WARN migration text extended | banner, 9.3, 9.10, 11.2, 11.3 |
+| **Wording** "attained", overlap, one boundary `Z`, "reproduces" | yes | **Fixed** by markers | 9.4, 10.4, 11.4 |
+| **Reproducibility** scratch scripts | yes: still present | **Fixed**: copied unchanged, sha256 listed | 11.5 |
+
+### 11.1 Corrected claim template for numeric `Z` (supersedes the 9.5 "N checked variables" wording for numeric `Z`)
+
+`Z` classes, per declared variable, reported in the claim and in the per-`Z` record:
+
+- **Effectively assessed:** categorical / boolean `Z`, and numeric `Z` with `<= 12` distinct development values (raw levels).
+  Fields as in 9.5: `c80_D_eur`, `min_detectable_shift_eur_80`, its percentage, `detectable_at_80_percent_power`.
+- **Not effectively assessed for threshold-shaped confounding at the stratification used:** every numeric `Z` stratified by
+  development deciles. Status string (exact): *"not effectively assessed for threshold-shaped confounding at the
+  stratification used"*. **No numeric floor** (`min_detectable_shift_eur_80`, its percentage and
+  `detectable_at_80_percent_power` are not reported for these `Z`, because they are resolution-blind: the true confounding
+  needed is about `X / r`, with `r` measured as low as 0.21). These `Z` are **not** counted or listed under "N checked
+  variables"; they are listed on a separate line: *"Numeric variables checked only at decile resolution, threshold-shaped
+  confounding not effectively assessed: (list)."* The point-estimate check itself still runs and can still block on
+  established violation (block-only action, unchanged); only the power/claim text changes.
+- The `not_powered_for_single_z_violation` WARN is evaluated over the effectively assessed `Z` only. If there are none, the
+  outcome is `WARN` with that reason (no effectively assessed variable), never `PASS`. (Reporting rule; see 11.3.)
+- Claim sentence, revised: "For each checked variable **in the effectively-assessed class** the check would detect (80%
+  power) only ...". The remainder of the 9.5 template stands.
+
+**S4 caveat (F2).** Stop condition S4 as registered uses fixture noise `sd = 250` and does not speak to real-scale power. "S4
+not triggered" must not be read as "power is fine": P18 was not run and 10.1 shows `0.5 H_raw - c80 < 0` for all four exposures.
+
+### 11.2 The 9.3 usable-strata baseline is a mechanism-adjacent estimand change
+
+`H_raw,U` (raw harm on the usable strata of `Z`) replaces the full-sample `H_raw` in `D_att = H_Z - 0.5 H_raw,U`, in the
+attenuation denominator and in the E-branch applicability test. Whenever usable-stratum coverage is in [0.5, 1) these differ
+from the original definition and **can change a block verdict**; at coverage 1 they coincide. Revision 1 called this an
+estimand clarification and described the mechanism as unchanged; that description is withdrawn. **One line for the founder
+(Q17):** *accept `H_raw,U` as part of the mechanism (paired attribution true at every coverage), or revert to the full-sample
+baseline and restrict the attribution claim to coverage 1.* Measured on the delivered data the effect is small (1 of 34 pairs
+below coverage 1; exclusion term at most 5.0 EUR, 10.1); that is a statement about magnitude, not about semantics.
+
+### 11.3 Addition to the 1.4.0 migration text (the 9.5 WARN is not semantics-neutral for the serialized contract)
+
+To be carried into the `validation-contract.md` section 4d migration text in 2b: the 9.5 `not_powered_for_single_z_violation`
+`WARN` is reporting-only in the verdict sense (it never produces `FAIL`, never changes evidence level, readiness or which
+candidates are blocked), **but** it changes the serialized contract: `report.warnings` gains a line on essentially every
+declared real-scale `k=1` candidate (10.1: it would fire for all four of T01/T02/T04/T05 at the delivered size), so the `G17`
+`PASS` state becomes practically unreachable for declared real-scale candidates; consumers that treat "no warnings" as a clean
+state, or key on the count or content of `report.warnings`, see a systematic change. This is in addition to the 3.3 statement
+(17th gate row; `no_declared_causal_order` line on undeclared `k=1` candidates; version string and thresholds field).
+
+### 11.4 Wording notes on Section 10 and 9.4
+
+- **"attained" -> "approached".** In the `m=3`, `H_raw=200` boundary cell the block rate is 0.0305 against the bound
+  `alpha_k1/m = 0.0333`: approached, not attained.
+- **Overlap of the two events.** From the document's own numbers: the single sub-test rate at the per-sub-test level 0.0167 is
+  about 0.019-0.020 (interpolated from `P(p <= 0.01) = 0.011` and `P(p <= 0.05) = 0.055`); the union 0.0305 is about 1.5-1.6x a
+  single sub-test, not 2x, i.e. an overlap of the attenuation and E events of about 40% of a single sub-test's rate.
+  (Interpolation, not a direct measurement; raw counts are in `rev1_p8r.json`.)
+- **One boundary `Z` per cell.** Each P8r cell simulated one boundary `Z` (`Z1`) plus `m-1` null columns; additivity of the
+  block rate across several simultaneously-boundary `Z` (the `0.05 x (number of boundary Zs)/m` rule) was not exercised.
+- **Bias-share model.** `s^2/(s^2 + (1-s)^2/3)` is a same-variance shape approximation, not a reproduction: within about
+  0.02-0.11 of the measured `party_size` curve (systematically low there) and high (by 0.03-0.07) on the destination replica.
+
+### 11.5 Reproducibility: the Section 10 scratch scripts
+
+The scratch scripts and their raw outputs were still present and are committed **unchanged** (copied with `cp -p`, not edited)
+under `docs/analytics/task-105-evidence/`. They are provenance, not maintained code: they contain absolute paths into the
+original session scratchpad (`sys.path.insert`, JSON input paths), and `rev1_p17.py` inserts the path of the worktree that held
+the Revision 1 code state (`worktrees/agent-a06af37328e75b709`); a rerun needs those paths adjusted in a copy.
+`rev1_p14_p15.py` produced 10.1; `rev1_p16.py` the 10.2 factors and the 10.3 replica rows (its `fixture` and
+`single_ind_fixture` functions are the scratch copies of the fixture recipe); `rev1_p8r.py` 10.4; `rev1_p17.py` 10.5;
+`rev1_arith.py` the 9.2 critical values; `rev1_common.py` shared helpers; `rev1_dur.py`, `rev1_sum14.py`, `rev1_sum8.py`
+summaries. Section 10's numbers were not re-run in Revision 2.
+
+| File | sha256 |
+|---|---|
+| `rev1_arith.py` | `1f5322edeca370b8a213dc4c84842f566b61e8add858155650091f588bb4643d` |
+| `rev1_common.py` | `cf267e5cf9af7f73a0f0e68558cdac4357b3bf446242efaeb45e42b090c82b4a` |
+| `rev1_dur.py` | `b775bcb3c5d10178318deb834cb34df6f1b0ee26565b09249e5544a1739e87dc` |
+| `rev1_p14_p15.py` | `f0bba59d56c3d2df2d17d5304077c8d40d989dd641a6ffffaad80ba110f87df6` |
+| `rev1_p14_p15.json` | `3fab91b83fe0256231d7376ebc35edc7eaf5c8cdfc78d7deb4c99700fc28c16a` |
+| `rev1_p14_p15.out` | `0749cb0bb5b35fe3e92f5c3a07722050bfd66c3dc4217fe5639f72c410922caf` |
+| `rev1_p16.py` | `23a7fdd0aba2f9e410950f823a54789d66b87cc06488a1e0a47e04f6b80b7107` |
+| `rev1_p16.json` | `67cc4a08360e24358b802679cb60bdeee0ef938fc8597767dabe2c3fa8cc5bb9` |
+| `rev1_p16.out` | `b674f437829846085be316fdedf7651b069402f910b2d364062ab2028f41eeee` |
+| `rev1_p17.py` | `82064bbdadcd4c3c45804eacee1da89e52e1f239da3861493f461b4444178b16` |
+| `rev1_p17.json` | `01acb2f7f30c75b6b1ad62fa27bbb554603f505c842c9ae4c673eb5f36c4d4fd` |
+| `rev1_p17.out` | `3ff592bba624e5188be643cb3a1a57050b0c735076b66241072d118f209fe8b8` |
+| `rev1_p8r.py` | `58a00f29f912343ae9cf4802e38358f32f43f3cad81dd968174e6a1173c17c18` |
+| `rev1_p8r.json` | `5e27cda936c80020440fd5a2e638da6d0a4908ee76e56e088768309e900b1ae8` |
+| `rev1_p8r.out` | `f32f63648d289bbd92ad05a9a8b4c81e69c5c63c3310168d2729f6d139fbcfef` |
+| `rev1_sum14.py` | `317c18e847f08a02b33b4a98359ec5f76a0a539225fd2f2c7e87ce28e5b355ea` |
+| `rev1_sum8.py` | `d0bffb0e21eddf250f0dc146c246a9d8c6934b4f8661d068b8acd97407f29a77` |
+
+### 11.6 What Revision 2 did not change
+
+No code; generator; catalogue; threshold; ADR; frozen text; pre-registered predictions (4.1, 9.4); measurement text (Section
+10, apart from marked wording corrections); the mechanism. The 9.3 `H_raw,U` change made in Revision 1 stands as written and
+is now flagged as mechanism-adjacent (11.2, Q17). New open founder questions: Q15 (absorbing Q10), Q16, Q17.
