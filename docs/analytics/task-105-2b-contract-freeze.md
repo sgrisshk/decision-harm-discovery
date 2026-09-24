@@ -850,3 +850,51 @@ choose any value of an open item; run any fixture, simulation or measurement; to
 `D2` Part B (stays 2/5); create any `k = 1` candidate on a frozen real dataset; open Phase 2c; change `TASK-057`/outreach
 (`ADR-094`); or claim any recall, evidence or safety improvement. It fixes what 2b must build and how it will be judged,
 before any result exists.
+
+---
+
+## 14. Revision 1 — pre-registered predictions for the read-only block-rule simulation (registered 2026-09-24, BEFORE any run of the block-rule simulation)
+
+This section is committed in its own commit, together with the unrun scratch scripts `docs/analytics/task-105-evidence/
+rev3_g17_block_sim.py` and `rev3_validate_estimator.py`, **before** the simulation was executed. The only thing run before
+this commit was the estimator-arithmetic check (`rev3_validate_estimator.py`: the replica's adjusted point estimate and
+coverage against the real `_stratified_adjustment`, six invented datasets, agreement to `1e-6`; it prints no rule outcome).
+The rest of Revision 1 (Section 15 and edits to Sections 3-4, 8-11) is committed afterwards and cites these predictions
+unchanged. A prediction below is never edited after a result; a wrong one is scored as wrong.
+
+**Simulation design (fixed here).** Replica of the Section 3.3 rule on invented `validation`-sized data: `N = 2,462` rows,
+`P(exposed) = 0.27`, noise sd 250, `B = 2,000` paired cluster-bootstrap replicates, percentile intervals as
+`apply.py:253-260`, criteria C1-C3 evaluated as in Section 3.1 (pooled-within-arm `pooled_sd` on the usable rows; this
+`pooled_sd` and the bootstrap/criteria layer are a replica, **not** validated against real code), one-sided `p_Z`, BH with
+`family_size = m` at `fdr_alpha = 0.10`. 2,000 datasets per cell. Cells: (a) **exact null** (`Z` independent of `X` and
+`Y`; true `theta = 0`): clusters `K in {5, 10, 50}` (random assignment, no cluster effect), prognostic strength
+`gamma in {0, 300}` (each `Z` shifts `Y` by `gamma * (level - 1)`, 3 levels), `m in {1, 3}` independent `Z`, and true effect
+`beta` at four locations computed analytically from `n` and `sd` only: `b_c2 = 1.96 * SE0` (crude at the C2 boundary),
+`b_c3 = (1.96 + 0.8416) * SE0` (crude at the C3/`MDE` boundary), `b_mid` (their midpoint: crude usually passes C2 but fails
+C3), `b_far = 6 * SE0`, with `SE0 = sd_total * sqrt(1/n_e + 1/n_c)`; (b) a **confounded positive control** (`Z` drives `X`,
+`K = 50`, `gamma = 300`, `beta = 0`); (c) **M-bias** (`Z = 1[U1 + U2 > 0]`, `X` depends on `U1`, `Y` on `U2`, so `Z` is a
+pre-exposure collider of two independent causes; `K = 50`, `beta in {80, 120}`). Two attribution variants are computed on
+the same draws (Section 15.1): **S** = block iff rejected and `F_adj \ F_c != {}` (the Section 3.3 text as written);
+**A** = block iff rejected and `F_c = {}` and `F_adj != {}` (the matched crude satisfies all core criteria). Reported per
+cell: `reject_any` (BH rejects some assessed `Z`, whatever the criteria), `block_S`, `block_A`, deterministic-flip rates
+`flip_S`, `flip_A` (no `p`-value; the F4a-(ii) alternative), the share of S-blocks with `F_c != {}`, mean `SE_theta`.
+
+| ID | Prediction (approximate; hand arithmetic) | Falsifier |
+|---|---|---|
+| **R1-P1 (structure)** | In every dataset of every cell: `block_A => block_S`; `block_S => flip_S`; `block_S => reject_any` (deterministic implications) | any violation = defect in the replica |
+| **R1-P2 (rejection event, large `K`)** | `K = 50`, `gamma = 0`: `reject_any` in `[0.07, 0.13]` for `m = 1` (one-sided uniform `p`, point 0.10) and for `m = 3` (independent `Z`, point 0.09-0.10) | outside the range: SE calibration of `theta` is off |
+| **R1-P3 (few clusters are anti-conservative)** | `reject_any` **exceeds 0.10** at `K = 5` (`gamma in {0, 300}`, `m = 1`): predicted range `[0.13, 0.35]`; at `K = 10` predicted `[0.10, 0.20]`; at `K = 50` within `[0.07, 0.13]`. The bound `P(reject) <= alpha` is therefore **not** valid for the normal approximation on a bootstrap SE at `K` 5-10 | `reject_any <= 0.11` at `K = 5` |
+| **R1-P4 (boundary block rate, prognostic-neutral `Z`)** | `gamma = 0`, `K = 50`, crude at `b_c2` and `b_c3`: `SE_theta` about 0.4 EUR (hand: `sd * sqrt(3 * 0.222 * (1/n_e+1/n_c) / n_c)`); `block_S <= 0.02` (point 0.003), `flip_S <= 0.06`. Rejection is near `alpha` but the attributable-loss conjunct is rarely met because `theta_hat` is tiny against the criterion's own SE | `block_S > 0.02` |
+| **R1-P5 (boundary block rate, prognostic `Z`)** | `gamma = 300`, `K = 50`, `m = 1`, crude at `b_c2` and `b_c3`: `SE_theta` about 10-12 EUR (comparable to the criterion SE); `block_S` in `[0.005, 0.06]` (point 0.02) and **strictly greater than the `gamma = 0` cell at the same location**; `flip_S` in `[0.02, 0.15]`. So the false-block rate at a boundary is set by `SE_theta / SE_crude`, not by BH alone | `block_S` not greater than the `gamma = 0` cell, or `> 0.10` |
+| **R1-P6 (cap)** | Across all exact-null cells with `K = 50`: `max block_S <= 0.06`; at `K in {5, 10}` no point claim, but the ordering `block_S <= reject_any` holds and `max block_S` at `K = 5` is reported; **if any null cell exceeds `block_S = 0.10` that is scored as an S-A stop-condition hit** (Section 10), not explained away | any null cell `> 0.10` |
+| **R1-P7 (`b_far`)** | Crude 6 SE from every boundary: `block_S <= 0.005` at `K = 50` (all cells) | `> 0.01` |
+| **R1-P8 (attribution variant, crude fails a different criterion)** | Cell `gamma = 300`, `K = 50`, `m = 1`, `beta = b_mid`: `block_S > block_A` with `block_S - block_A >= 0.003`, and **at least 50%** of the S-blocks have `F_c != {}` (the matched crude already fails C3 there); `block_A <= block_S` everywhere by R1-P1 | `block_S == block_A` in that cell |
+| **R1-P9 (positive control)** | Confounded cell: `block_S >= 0.95` and `block_A >= 0.95` (crude about 170 EUR, adjusted about 0) | `< 0.90` = defect in the replica |
+| **R1-P10 (M-bias, a wrongful-block route)** | `Z` a pre-exposure collider, crude unbiased: adjusted harm `<` crude harm in `>= 95%` of datasets; `beta = 80`: `block_S` in `[0.30, 0.95]` (point 0.70); `beta = 120`: `block_S <= 0.50` (point 0.15). The rule blocks a candidate whose crude estimate is correct, because it assumes adjusted is better | `block_S(beta = 80) < 0.20` (then the collider bias is smaller than the hand estimate of about -55 to -70 EUR) |
+
+**Supersession statement (fixed now).** `P2b-10` (Section 9.3) treated the adjusted estimate as deterministic and ignored the
+`p_Z` conjunct; `P2b-11` predicted the false-block probability "expected well below" 0.10 by virtue of the attributable-loss
+conjunct. Both are superseded: `P2b-10R` := R1-P4/R1-P5 (knife-edge with the `p_Z` conjunct and a stochastic adjusted estimate) and
+`P2b-11R` := R1-P2/P3/P6/P7 (null calibration with the crude exactly at the C2 and C3 boundaries and few-cluster cells). No
+further prediction is added after the run; Section 15.4 only records the mapping and the scoring. The original rows stay as
+written and are scored against the same simulation where they overlap.
