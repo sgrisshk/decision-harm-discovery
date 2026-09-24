@@ -7,6 +7,17 @@ mechanism code exists and no run of any kind was made for this document** (no fi
 Every prediction in Section 9 is registered before any 2b run exists and is frozen by the commit of this file; a change
 after a result is seen is a new dated version, never an edit.
 
+> **REVISION 1 (2026-09-24) — response to an independent adversarial review (APPROVED WITH REVISION NEEDED).** Still
+> **specification only**: no engine, gate, `apply.py`, `contract.py`, generator, catalogue, threshold, `ADR-100`/`101`/`102` or
+> frozen `TASK-102`/`ADR-097` text changed. The first commit of this file (`617e166`) stays in git history; every
+> revised passage below carries a `[Rev 1]` marker and the full change log, per-finding dispositions and the founder-item
+> restatement are in **Section 15**. The sentence above "no run of any kind was made for this document" was true of
+> `617e166`; Revision 1 ran one read-only scratch simulation of the block rule (Section 14 predictions committed in
+> `9ca8ec5` before the run; outputs in `8a3e1af`; sha256s in Section 15.3), and nothing else. **Two contract-level ambiguities
+> the review found are now OPEN founder items and BLOCK 2b code: `F10` (what attribution requires of the matched crude) and
+> `F11` (the criteria are development-split rules; `G17` applies them to `validation`).** Predictions in Section 9.3 are not
+> edited: `P2b-10` and `P2b-11` are marked superseded and scored in Section 15.4.
+
 **Binding text (read in full):** `ADR-102` (overrides the attenuation/E-value/`D` parts of the design), `ADR-101`
 (A1-A9), `ADR-100`; the design `docs/analytics/task-105-k1-confounding-protection-design.md` (Revisions 1-2, Sections
 9-11, Q1-Q17); the real code under `packages/analytics/src/policy_analytics/validation/` (`contract.py`, `apply.py`,
@@ -32,11 +43,16 @@ Every item is in exactly one of two states:
   by looking at any fixture or run.
 - **[O] OPEN FOUNDER DECISION.** Options and consequences are stated neutrally; **no option is chosen**; each is
   numbered `F1..F7` and `F9` (`F8` is unused: it was merged into `F4a` before commit) and collected in Section 11.
+  **[Rev 1]** Revision 1 adds `F4a-K` (knife-edge acceptance), `F10` (attribution rule), `F11` (criteria-split disclosure
+  ratification) and `F12` (ratification of the inherited fail-open 0.50 assessability floor); see Sections 11.2 and 15.6.
 
 **Rule for undecided items.** Until the founder decides an [O] item, the implementation may not choose. The
 **fail-closed default in force** for each [O] item is stated where it arises; it is the no-op / narrowest setting, it is
 not a recommendation, and the founder's decision can only replace it. **`F1`, `F2`, `F3a`, `F3b`, `F4`, `F5`, `F9` are
 BLOCKING for the start of 2b code** (they change what the gate computes or reports); `F3c`, `F6`, `F7` are not.
+**[Rev 1]** Also BLOCKING: `F4a-K`, `F10`, `F11`, `F12` (Section 11.2). For `F10` and `F11` **no default is applied**:
+the frozen Section 3.3 text is internally inconsistent on `F10` (Section 15.1) and a default on `F11` would silently
+choose which split's thresholds `G17` enforces.
 
 **No new numeric constant.** `G17` as specified introduces **zero** new numeric constants; every number it uses is an
 existing contract/code constant (register in Section 12). A static test (U12, Section 9.1) asserts this. That is the
@@ -65,7 +81,8 @@ What the code shows (all cited findings are from design 2.5 and re-verified agai
    (`discovery/engine.py:510-527`), which takes the **sign** of the raw harm on `validation` and `future_holdout`
    (`consistency` = share of later splits with harm `> 0`), and feeds `effective_score = raw * (1 + stability_credit_weight
    * consistency)` into top-K selection (`engine.py:530-541`, `stability_credit_weight = 0.5` at `engine.py:238`,
-   used at `engine.py:957-959`). So one bit per later split (raw-harm sign) leaked into selection through a multiplier
+   used at `engine.py:957-961`, the multiplier call being `engine.py:958-961`; **[Rev 1]** the first commit cited
+   957-959, which cuts the call off). So one bit per later split (raw-harm sign) leaked into selection through a multiplier
    `<= 1.5`.
 2. `G10` conditions promotion on the raw effect in **all** splits: same sign in `development`, `validation`,
    `future_holdout` and `future_holdout` retention `>= min_holdout_effect_retention` (0.50) of the development
@@ -120,7 +137,7 @@ preference, not a founder ratification; the founder may replace it.
 | 2.g | Missing declaration | [C] | Empty pool; `G17 = WARN`; provenance string exactly `confounding_assessment: unavailable — no admissible-Z declaration`; never `PASS`, never a veto | `ADR-102` Q13 |
 | 2.h | Level of stratification | [C] | Raw levels of `Z` on the evaluation rows; `null` is its own level | `apply.py:355-361` (`group_by` on the raw columns keeps `null` as a key) |
 | 2.i | Usable stratum | [C] | A level with `>= 5` exposed **and** `>= 5` comparison rows (`MIN_STRATUM_CELL = 5`) | `apply.py:124, 369-371` |
-| 2.j | Assessability floor | [C] | `coverage = exposed rows in usable strata / all exposed rows >= min_confounder_stratum_coverage = 0.50`, else that `Z` is `not_assessable(coverage_below_floor)` (**WARN limitation, not a veto**, `ADR-101` A3) | `contract.py:248`; `apply.py:380, 626`; `contract.py:585-586` (`G16` uses the same floor for "clears coverage") |
+| 2.j | Assessability floor | [C] | `coverage = exposed rows in usable strata / all exposed rows >= min_confounder_stratum_coverage = 0.50`, else that `Z` is `not_assessable(coverage_below_floor)` (**WARN limitation, not a veto**, `ADR-101` A3). **[Rev 1] This is a FAIL-OPEN constant**: raising it makes more candidates unassessable (never blocked); lowering it assesses on a smaller matched share. It is inherited, not derived, and is in the ratification bundle as `F12` | `contract.py:248`; `apply.py:380, 626`; `contract.py:585-586` (`G16` uses the same floor for "clears coverage") |
 
 ### 2.2 Categorical determination from the existing feature typing
 
@@ -169,14 +186,38 @@ are enumerated below with the exact executed criteria (the contract *text* and t
 
 | Criterion | Executed rule (cited) | Re-evaluated on the adjusted estimate? |
 |---|---|---|
-| **C1 sign** | `(adjusted_harm > 0) == (raw_harm > 0)` (`G06`, `apply.py:627`); same sign across splits (`G10`, `apply.py:741-743`) | **Yes — core.** Adjusted harm `> 0` (candidates on the path have positive raw harm; Section 1.2) |
-| **C2 interval / significance** | 95% cluster-bootstrap percentile interval excludes zero (`G04`: `apply.py:583-602`; `confidence_level` `contract.py:238`; `percentile_ci` `apply.py:253`; interval widened to contain the point estimate `apply.py:587-591`) | **Yes — core.** On the evaluation rows; with C1, this is "lower bound `> 0`" |
-| **C3 sample adequacy** | `n_exposed >= min_exposed_records (50)`, `clusters >= min_clusters (5)`, `MDE < |harm|` where `MDE = (Z_95 + Z_POWER_80) * pooled_sd * sqrt(1/n_e + 1/n_c)` (`G03`: `apply.py:567-581`; `minimum_detectable_effect` `apply.py:263-267`; `contract.py:232, 234`). **Text/code gap:** `contract.py:366-372` also states a binary-event floor (`min_outcome_events_binary = 25`, `contract.py:233`) and an MDE-vs-*materiality* comparison; the executed gate does neither (the field is not referenced in `apply.py`; the comparison is against the observed harm) | **Yes — core**, as executed (n, clusters, `MDE < |harm|`), computed on the matched strata rows of the evaluation split |
+| **C1 sign** | **[Rev 1: split named]** `(adjusted_harm > 0) == (raw_harm > 0)` evaluated on the **`development` split** (`G06`: `binned_dev_frame`, `dev.harm_per_booking`, `apply.py:606-627`); same sign across splits (`G10`, `apply.py:741-743`) — the only gate that looks at `validation`, and only for sign | **Yes — core**, but see the split correction below: `G17` applies the rule to `validation`. Adjusted harm `> 0` (candidates on the path have positive raw harm; Section 1.2) |
+| **C2 interval / significance** | 95% cluster-bootstrap percentile interval excludes zero, **executed on `development`** (`G04`: `dev_clusters`, `dev_harm_reps`, `apply.py:583-602`; `confidence_level` `contract.py:238`; `percentile_ci` `apply.py:253`; interval widened to contain the point estimate `apply.py:587-591`) | **Yes — core.** On the evaluation rows; with C1, this is "lower bound `> 0`" |
+| **C3 sample adequacy** | **[Rev 1: split named] executed on `development`** (`dev.n_exposed`, `dev_clusters`, `dev.pooled_sd`, `apply.py:566-581`): `n_exposed >= min_exposed_records (50)`, `clusters >= min_clusters (5)`, `MDE < |harm|` where `MDE = (Z_95 + Z_POWER_80) * pooled_sd * sqrt(1/n_e + 1/n_c)` (`G03`: `apply.py:567-581`; `minimum_detectable_effect` `apply.py:263-267`; `contract.py:232, 234`). **Text/code gap:** `contract.py:366-372` also states a binary-event floor (`min_outcome_events_binary = 25`, `contract.py:233`) and an MDE-vs-*materiality* comparison; the executed gate does neither (the field is not referenced in `apply.py`; the comparison is against the observed harm) | **Yes — core**, as executed (n, clusters, `MDE < |harm|`), computed on the matched strata rows of the evaluation split |
 | C4 materiality | combined-window exposure CI lower bound `> 0` and (`>= min_material_annual_impact` 25,000 or outcome share `>= min_material_outcome_share` 0.005) (`G15`: `apply.py:903-913`; `contract.py:264-265`). **Not annualised in code** (`min_annualization_months`, `contract.py:263`, is unused in `apply.py`); computed on the **combined** three-split cohort | **OPEN — F3a** |
 | C5 temporal stability | `G10` (`apply.py:741-757`); `required_same_sign_splits` (`contract.py:255`) is declared but **not referenced** by the gate — the code requires every split present with identical sign; the text's "overlapping intervals" (`contract.py:476-480`) is not executed | **OPEN — F3b** (Section 6) |
 | C6 multiplicity over the search | `G05`: BH over `family_size` = hypotheses evaluated in the search, on the **development** raw `p` (`apply.py:609-610, 1504-1510`) | **No.** Its input is a development-split raw statistic that does not depend on `Z`, and its family is the search that produced the candidate; the evaluation split is confirmatory data for a single pre-specified candidate, on which the search-size penalty has no referent. `G05` stays as executed. (Founder may widen the contract scope: F3c) |
 | C7 robustness | `G12` (`apply.py:802-858`) | **No.** Not re-run on an adjusted estimate (`ADR-101` A5: `G12`-type blocks are not credited as confounding protection; an adjusted robustness battery is a separate statistical design). Stays as executed (F3c) |
 | C8 `G07`, `G09`, `G11` | selection, Simpson, seasonality | **No.** Not functions of the `Z`-adjusted effect; unchanged |
+
+**[Rev 1] Split correction — stated plainly (finding 2 of the review; verified against `apply.py` before editing).** The
+first commit described C1-C3 as "the executed contract rules" that `G17` "re-evaluates". That is misleading about **where**
+they execute. In the code: `G03` (`apply.py:566-581`), `G04` (`apply.py:583-602`) and the `G06` sign/attenuation rule
+(`apply.py:606-627`) all read the **`development` split** (`dev`, `dev_frame`, `dev_clusters`, `binned_dev_frame`,
+`apply.py:525-529, 551`). The **only** gate that touches `validation` is `G10`, and only for the **sign** of the raw
+effect and the `future_holdout` retention (`apply.py:741-757`). Consequences:
+
+1. **C1-C3 are development-split rules.** `G17` applying them to `validation` (Section 1.b, 3.2) is a **new criterion
+   set on a new split**, not a re-evaluation of the final promotion contract. Section 3.1's phrase "re-evaluated on the
+   adjusted estimate" holds for the *form* of the rule, not for its split.
+2. **C2 and C3 on the `validation` crude are conditions no promoted candidate has ever been required to meet.** A candidate
+   reaches `SHADOW_POLICY` with a `validation` crude interval that includes zero or a `validation` `MDE` above its effect,
+   provided `G10`'s sign and retention conditions hold. So the matched crude can already fail C2/C3 on `validation` for a
+   candidate the contract legitimately promoted. Under the Section 3.3 text as written a candidate **can be blocked for
+   failing a criterion the contract never demanded on that split** (crude passes C1 and C2, fails C3; adjusted fails C2:
+   `F_adj \ F_c = {C2}`, Section 15.1), and a **genuinely confounded candidate whose `validation` crude is underpowered is
+   never blocked**, because both estimates fail and nothing is attributable (this is the real-scale behaviour behind
+   `P2b-12`: the mechanism is silent exactly where the evaluation split is weakest).
+3. This ties to **F1** (which split `G17` reads: `validation`-only means the criteria are judged at `n = 2,462` on a split
+   the promotion contract did not judge them on) and **F3** (whether `G17` re-uses development-split rules on a different
+   split, or the adjusted test is instead computed on `development`, which is where the contract executes the criteria but
+   which is not independent of selection, Section 1.2). The founder decision that ratifies the disclosure is **F11**
+   (Section 15.2). Every citation of C1-C3 in this document now names its split.
 
 **Consequence stated plainly.** The post-adjustment promotion test is the **core sub-contract {C1, C2, C3}** (plus
 whatever the founder adds through F3a-F3c). It is not the entire final contract; the un-re-evaluated gates keep
@@ -236,6 +277,14 @@ Rejected             := Benjamini-Hochberg(Family, family_size = m) adjusted p  
 BLOCK (G17 FAIL)     := exists Z :  Assessed(Z)  and  Z in Rejected  and  AttributableLoss(Z)
 ```
 
+> **[Rev 1] OPEN — `AttributableLoss` is not fully specified (`F10`, Section 15.1).** The line above reads `F_adj \ F_c`
+> as "the adjusted estimate fails *any* criterion that the matched crude satisfies". That contradicts `S-G` (Section 10,
+> "a block where the matched crude already failed the contract is a defect") and Sections 3.5 / 6.b, which speak only of
+> C1. The two readings differ whenever the matched crude fails one criterion and the adjusted estimate fails a different
+> one. Until `F10` is decided the rule text above is **frozen as written but not implementable unambiguously**; 2b code is
+> blocked on `F10`. Also note that C1-C3 here are evaluated on the **`validation`** split although the contract executes
+> them on **`development`** (Section 3.1, Rev 1 split correction; `F11`).
+
 A block caps evidence at `PREDICTIVE` (Section 7). No other `G17` state can change evidence level or readiness.
 
 **The test in one paragraph (the falsifiable statement).** For a `k = 1` candidate with a declaration, take each
@@ -244,9 +293,10 @@ split restrict to the strata of `Z` that have at least 5 exposed and 5 compariso
 at least 50% of the exposed rows); compute, from one paired cluster bootstrap (2,000 replicates), the crude harm on
 those same rows, the `Z`-adjusted harm, and the reduction `theta = crude - adjusted` with its bootstrap standard
 error; evaluate the core promotion criteria — adjusted harm positive, its 95% percentile interval excluding zero, and
-`n_exposed >= 50`, `clusters >= 5`, `MDE < |harm|` (the executed `G03`/`G04`/`G06`-sign rules with their existing
-thresholds) — on the crude and on the adjusted estimate of those same rows; the candidate is stopped by `G17` iff for
-some assessed `Z` the adjusted estimate fails a criterion that the matched crude satisfies **and** the reduction
+`n_exposed >= 50`, `clusters >= 5`, `MDE < |harm|` (the `G03`/`G04`/`G06`-sign rules, **which the contract executes on
+`development`** and `G17` here applies to `validation`, with their existing thresholds; `F11`) — on the crude and on the adjusted estimate of those same rows; the candidate is stopped by `G17` iff for
+some assessed `Z` the adjusted estimate fails a criterion that the matched crude satisfies (**[Rev 1] whether the crude
+must satisfy *all* core criteria or only the flipping one is `F10`**) **and** the reduction
 `theta` is statistically established after Benjamini-Hochberg correction at `fdr_alpha = 0.10` across the `m` checks
 (one-sided normal-approximation `p` from the bootstrap standard error, the contract's own `p` function). There is no
 attenuation percentage, no E-value and no "size of the change" criterion: a large reduction that leaves adjusted
@@ -272,6 +322,21 @@ strengthening adjustment never blocks, and anything not assessable or not attrib
   blocks; a large reduction that stays across no criterion does not (`ADR-102` Q12's own +100 -> +40 example). The
   margin by which each criterion is met/failed is a required reported field (Section 8.1), so a knife-edge block is
   visible as one.
+  **[Rev 1] The knife-edge is not limited to small reductions, and the rule is not the one `ADR-102`'s example describes
+  at either end of `n`.** (a) `ADR-102` Q12 states no significance-of-reduction conjunct: "after admissible adjustment the
+  candidate either still satisfies the promotion criteria or it does not." The `p_Z` conjunct is **this document's**
+  addition, taken from `ADR-101` A7's need for a multiplicity family (see the F4a derivation above). (b) **At large `n`**
+  `SE_theta` shrinks, so *any* tiny true reduction is "established"; the rule then collapses to the deterministic
+  contract-flip (`F4a`-(ii)) and the complete-null false-block bound of 4.2 does not apply to it (there is no null in
+  which a real, tiny reduction is a false rejection). (c) **At small `n`** `SE_theta` is large, a reduction is not
+  established, and a case that `ADR-102` Q12's literal example kills ("a 20% drop that leaves adjusted evidence
+  unpromotable") is **not blocked**: the rule departs from the ADR's literal example toward not blocking. (d) Under the
+  exact null (`theta = 0`) with the crude estimate exactly at a criterion boundary, a block needs only a rejection
+  (probability about `alpha` where `p_Z` is calibrated) **and** a criterion flip, which at a boundary follows the
+  rejection with high probability when `SE_theta` is comparable to the criterion's own standard error: the
+  attributable-loss conjunct is **not** a reliable further reduction (Section 15.3: with a prognostic `Z`, 50-75% of
+  rejections at a C2/C3 boundary were blocks). Acceptance of these properties is the explicit founder line item `F4a-K`
+  (Section 15.6).
 - **`G05`/`G12` excluded (C6/C7)** — reasons in the table; alternative is F3c.
 
 ### 3.5 Edge handling (all are reporting; none is a veto — `ADR-101` A3)
@@ -337,7 +402,12 @@ Section 6.1, no C6/C7).
   `alpha` (under BH's own independence/positive-dependence assumption). That is the only situation in which "the
   candidate is not confounded by any declared `Z`" is true, i.e. the only situation in which a block is a false block.
   So for the **complete-null false-block probability**, BH at 0.10 is an inherited fit, and it is further reduced by
-  the attributable-loss conjunct of 3.3.
+  the attributable-loss conjunct of 3.3. **[Rev 1: correction]** "Further reduced" is a logical upper bound only
+  (`block => reject`), not a size claim; and the `alpha` bound itself holds only where `p_Z` is calibrated. The
+  Section 15.3 simulation found `p_Z` **over-conservative** for a prognostic-neutral `Z` (rejection 0.5-4% against 10%)
+  and **anti-conservative** at 5-10 clusters with a prognostic `Z` (rejection 12-26%), so the bound is not a property of
+  the inherited method but of a calibration that has to be measured (the normal approximation on a bootstrap SE at 5-10
+  clusters, which `G03` permits, is anti-conservative).
 - **Where it is an analogy only:** (i) when some `Z` is truly confounding and others are null, BH controls FDR, not the
   chance of extra rejections — irrelevant to the block decision (a real confounder already justifies the outcome
   provided the contract-loss condition holds), but the guarantee then is not "FWER 0.10"; (ii) BH's validity needs
@@ -351,6 +421,11 @@ Section 6.1, no C6/C7).
   `1 - confidence_level = 0.05` (`contract.py:238`), is an interval error rate, not a multiplicity level.
 - Effective per-check level: BH's first step rejects the smallest `p` iff `p <= alpha/m` (`m = 3: 0.033`, `m = 7:
   0.014`, `m = 10: 0.010`), so `alpha = 0.10` is the contract-boundary bound, not the realised rate.
+  **[Rev 1: imprecise as written.]** BH is a step-up procedure: the smallest `p` can be rejected through a **larger
+  rank** (if the `k`-th smallest `p <= k * alpha / m`, ranks `1..k` are all rejected). `alpha / m` is only a **lower
+  bound** on the effective per-check level (the level at which a single lone `p` is rejected); under the complete null
+  with independent uniform `p`-values the probability of any rejection is `alpha`, not `alpha / m`, and the per-check
+  rate is therefore not `alpha / m`.
 - **No value here was selected by any fixture or run.** The earlier design's Bonferroni `alpha_k1 = 0.10` (design
   2.4) is superseded; the `0.10 vs 0.05` selection `ADR-102` prohibits is not performed: only the contract's own
   0.10 exists.
@@ -359,7 +434,8 @@ Section 6.1, no C6/C7).
 
 | Sub-item | Options (neutral) | Consequence |
 |---|---|---|
-| **F4a** — is the paired-reduction test (Section 3.3 `Rejected`) part of the freeze? | (i) yes, as specified; (ii) no: the decision is the deterministic contract-flip `AttributableLoss(Z)` only, with no `p`-value and hence no family to correct | (i) gives multiplicity a hypothesis and bounds false blocks under the complete null; adds one statistical component; (ii) removes the false-block bound (a flip driven by noise on a threshold criterion is unbounded) and makes `m`/BH moot |
+| **F4a** — is the paired-reduction test (Section 3.3 `Rejected`) part of the freeze? | (i) yes, as specified; (ii) no: the decision is the deterministic contract-flip `AttributableLoss(Z)` only, with no `p`-value and hence no family to correct | (i) gives multiplicity a hypothesis; adds one statistical component; **[Rev 1: the earlier wording "bounds false blocks under the complete null" is withdrawn as stated]** the bound `P(reject) <= alpha` holds only where `p_Z` is calibrated (over-conservative for a prognostic-neutral `Z`, anti-conservative at 5-10 clusters, Section 15.3), it bounds rejection and not the block, and **at large `n` any tiny true reduction is "established", so (i) collapses to the deterministic flip and no false-block bound applies**; **at small `n` (i) does not block a 20% drop that `ADR-102` Q12's literal example kills** (departure from the ADR's example toward not blocking); (ii) removes the significance conjunct that `ADR-102` itself never stated (the `p_Z` conjunct is this document's addition from `ADR-101` A7), removes any false-block bound, blocks on a flip driven by noise at a threshold criterion (measured `flip` rates 0.5-30% in exact-null cells, Section 15.3), and makes `m`/BH moot |
+| **F4a-K** (new, Rev 1) — knife-edge acceptance | (i) accept that the rule blocks whenever an adjusted estimate crosses a criterion the crude clears, however small the crossing, and that the block rate at a criterion boundary is set by `SE_theta` relative to the criterion's SE (not by BH); (ii) do not accept: the founder names what must change (a minimum crossing margin would be a new constant and is **not** offered here; a decision-time-only option is to leave it disclosed) | (i) inherited from the contract-tied rule of `ADR-102` Q12; the disclosure sentence and the per-criterion margins of 8.1 are mandatory; (ii) reopens Q12's rule and blocks 2b code |
 | **F4b** — method | (i) BH as inherited; (ii) a FWER-valid method (Holm/Bonferroni) not present in the contract; (iii) BH under arbitrary dependence (`alpha / sum(1/i)`) not present in the contract | (i) inherited, exact fit only under the complete null and BH's dependence assumption; (ii)/(iii) a new statistical method in a versioned contract, more conservative (fewer blocks), justified under arbitrary dependence |
 | **F4c** — alpha | (i) `0.10` as inherited by the argument in 4.2; (ii) declare that no inheritable value exists and set a separate alpha now, **before any 2b result** | (i) no new constant; the numeric value's meaning differs from `G05`'s (4.2); (ii) introduces a new named threshold and a contract-versioned field, and its value must be fixed before any run and never by fixture outcome |
 
@@ -414,7 +490,7 @@ when a declared-unavailable confounder exists). Not blocking for 2b; **default i
 | 6.a | Existing `G10` | [C] | Unchanged, on the raw effect: requires all splits present, identical sign, `future_holdout` retention `>= 0.50` of the development magnitude. It remains a prerequisite of the promotion path; `G17` does not recompute it. Executed-vs-text gaps recorded: `required_same_sign_splits` is not referenced by the gate; "overlapping intervals" is not executed | `apply.py:741-757`; `contract.py:255-256, 469-483` |
 | 6.b | Temporal consistency required of the evaluation split | [C-derived] | Because `G10` requires same sign on `validation`, a candidate on the promotion path has raw `validation` harm `> 0`. `G17` requires as a **precondition of attribution** that the matched crude `H_c` satisfies C1 (sign) — this is `F_c` in 3.3, not a new rule: if `H_c <= 0`, C1 is failed by both estimates and nothing is attributable | 3.3; `apply.py:741-743` |
 | 6.c | Reported, not gated | [C] | For each assessed `Z`: the ratio `H_full(E) / H_dev` (evaluation vs development raw harm) and the sign, so a reader sees how far the evaluation split sits from the search split | `apply.py:749` (`holdout_retention` analogue) |
-| 6.d | Disclosed selection dependence of the evaluation split | [C] | Section 1.2 items 1-2 | `engine.py:510-541, 957-959` |
+| 6.d | Disclosed selection dependence of the evaluation split | [C] | Section 1.2 items 1-2 | `engine.py:510-541, 957-961` **[Rev 1: citation corrected from 957-959]** |
 
 ### 6.2 OPEN — F3b (adjusted stability)
 
@@ -495,7 +571,7 @@ from "checked" without the manifest field. Blocking (it fixes what every report 
 | `N_assessed` | number of categorical `Z` with status `assessed`; **numeric `Z` are not counted** (`ADR-102` Q15) |
 | `m`, `multiplicity` | `m`; `{method: "benjamini_hochberg", alpha: fdr_alpha, family: "per_candidate_single_z_checks", family_size: m}` |
 | per-`Z` row | `z`, `tier`, `status`, `n_levels`, `n_usable_levels`, `coverage`, `excluded_levels`+`excluded_exposed_share`; the **three estimates side by side** `H_full` (full-sample crude), `H_c` (strata-eligible crude), `H_Z` (adjusted), each with 95% interval (`H_c`, `H_Z`); `theta_hat`, `SE_theta`, `p_Z`, `bh_adjusted_p`, `rejected`; `F_c`, `F_adj`, `attributable_loss`; **criterion margins** for C1-C3 (each: value, threshold, met/failed, margin) on `H_c` and `H_Z`; `evaluation_vs_development` (6.c) |
-| `detectability` | per assessed `Z` (categorical only; numeric `Z` get none): `min_detectable_reduction_eur_80`, its share of `H_c`, and `complete_removal_detectable_80` (8.3) |
+| `detectability` | **[Rev 1: read as "statistically distinguishable", not block sensitivity — 8.3]** per assessed `Z` (categorical only; numeric `Z` get none): `min_detectable_reduction_eur_80`, its share of `H_c`, and `complete_removal_detectable_80` (8.3) |
 | `decision` | `no_evidence_of_attributable_contract_loss` / `contract_loss_established` / a reason code (Section 8.5) |
 | `established_z` | list of blocking `Z` with `H_c`, `H_Z`, `theta_hat`, adjusted `p`, failed criteria |
 | `attribution` | `{credited: bool, reason: str, counterfactual_evidence_level, counterfactual_readiness, actual_evidence_level, actual_readiness, other_failed_gates_in_actual: [...], other_failed_gates_in_counterfactual: [...]}` (8.6) |
@@ -533,7 +609,14 @@ for uninformative `Z`), which would claim sensitivity that would not exist if `Z
 complete removal `H_Z` is close to independent of `H_c`, so `SE_theta` approaches `sqrt(SE_c^2 + SE_Z^2)`; positive
 covariance only lowers it). The formula is therefore an **upper bound on the reduction that would be detected at 80%
 power** and is never optimistic. It covers stage-B detectability only; the contract-loss conjunct is reported through
-the criterion margins (8.1).
+the criterion margins (8.1). **[Rev 1: wording of the field.]** The field is **not** a block-sensitivity figure: it
+says which reduction is "statistically distinguishable" from zero (80% power), computed from the **unpaired** standard
+errors `SE_c`, `SE_Z` (not the paired `SE_theta` used by the actual `p_Z`, so it differs from the power of the actual
+test). A block additionally requires that an adjusted criterion fails (a criterion flip, `F10`), so the reduction that
+would actually be **blocked** can be larger or smaller than the field. In the record the field is to be named
+`min_distinguishable_reduction_eur_80` (the identifier `min_detectable_reduction_eur_80` in 8.1, 9.3 `P2b-12` and 9.5 is
+kept in those passages for traceability and is the same quantity), and `complete_removal_detectable_80` means "complete
+removal would be statistically distinguishable", not "would be blocked".
 
 Whether an additional `WARN` is raised when no assessed `Z` could detect complete removal is **F5b** (not a `PASS`-able
 state at real scale: design 10.1 found this for all four real-scale exposures). **Fail-closed default in force:** field
@@ -545,10 +628,13 @@ reported and the sentence in 8.4 mandatory; no extra `WARN`.
 
 > "No attributable loss of promotion evidence was established by the N checked pre-declared, pre-exposure
 > **categorical** variables (list) on the validation split, evaluated on the matched usable strata of each variable.
-> **This is not evidence that confounding is absent.** For each checked variable the check would detect (80% power)
-> only a reduction of the estimated effect of at least X per record (Y% of the matched crude effect); smaller reductions,
-> reductions that leave the adjusted evidence still meeting the promotion criteria, and confounding spread over several
-> variables would pass unnoticed. [If `complete_removal_detectable_80` is false for a variable: 'For variable V the check
+> **This is not evidence that confounding is absent.** For each checked variable a reduction of the estimated effect of at
+> least X per record (Y% of the matched crude effect) would be statistically distinguishable from no reduction (80%
+> power, unpaired standard errors); **blocking additionally requires an adjusted-criterion failure**, so a
+> distinguishable reduction that leaves the adjusted evidence meeting the promotion criteria is not a block, and a
+> smaller reduction, a reduction that leaves the adjusted evidence still meeting the promotion criteria, and confounding
+> spread over several variables would pass unnoticed. **[Rev 1: the first commit's "would detect (80% power) only a
+> reduction of at least X" read as block sensitivity; it is a statement about the reduction estimate alone.]** [If `complete_removal_detectable_80` is false for a variable: 'For variable V the check
 > could not have detected complete removal of this effect at 80% power.'] Not assessed: (list, reason). Numeric
 > variables are not assessed (numeric-variable confounding protection is not supported): (list). Declared but
 > unobservable: (list). Unknown latent confounding is outside this check. Independence of the evaluation split from
@@ -642,6 +728,8 @@ created on any frozen real dataset** (`ADR-102`).
 | U12 | **No new numeric constant:** static check that the `G17` module's numeric literals/thresholds are only names imported from `contract.py`/`apply.py` (Section 12); `ValidationThresholds` field set unchanged |
 | U13 | Versioning: mapping test (every historical `CONTRACT_VERSION` maps to a semantics), `GATE_SPECS`/`LEVEL_REQUIREMENTS` shape (`G17` in the level-3 tuple, `CAP_EVIDENCE`, `PREDICTIVE`), loader accepts `validation_roles` `1.0.0`/`1.1.0` and rejects both-sources |
 | U14 | **ADR-102 worked examples:** (a) neutral synthetic, large `n`: crude `+100` -> adjusted `+40`, both meeting C1-C3 -> **not blocked** despite the 60% drop; (b) a case where the crude sits just above the `MDE` bar and a small **established** reduction lowers the adjusted estimate below it -> **blocked** despite a small percentage change. Together they show the rule is contract-tied, not percentage-tied |
+| U16 **[Rev 1]** | Attribution matrix under `F10`: a fixture in which the matched crude passes C1, C2 and fails C3 while the adjusted estimate fails C2 (`F_adj \ F_c = {C2}`) must be blocked under the `F10` option "flipping criterion only" and not blocked under "crude satisfies all core criteria", and the test asserts whichever option the founder chooses (a mutant that swaps them must fail). A fixture with `F_c = {}` and `F_adj != {}` blocks under both |
+| U17 **[Rev 1]** | Criteria split (`F11`): the `G17` criteria use the `validation` split's `n_exposed`, clusters, `pooled_sd` and interval (or whatever split `F11`/`F1` fix), asserted by permuting `development` and `future_holdout` rows and by a fixture where the two splits' criteria disagree (crude C3 met on `development`, failed on `validation`); it fails if any criterion input is read from the wrong split |
 | U15 | Static: the `G17` module references neither `max_adjusted_attenuation` nor `min_e_value` nor `e_value` (`ADR-102` Q12) |
 
 ### 9.2 Fixture tests through the real `run_validation` (test-side builders; no gate re-implemented)
@@ -664,6 +752,17 @@ identical to the `NONE_V0` run.
 (2) disabled: `SHADOW_POLICY` **reached again** (this is what proves `G17` was the stopper and not an incidental
 gate); (3) restored: stopped again with the attribution record. A cell that cannot pass the kill-test (e.g. the equal-
 weight forms) is reported as expected-miss, not forced.
+
+**[Rev 1] M-bias fixture (FX-M, a named wrongful-block route).** A pre-exposure collider: `Z = f(U1, U2)` with `U1 -> X`,
+`U2 -> Y`, `Z` declared pre-exposure (so it passes strict precedence, `5.c` says this stays a stated limitation), crude
+unbiased, adjusted **worse** than crude (adjusting opens a path). The rule assumes adjusted is better; here it blocks a
+candidate whose crude estimate is correct. Expected outcome **blocked (wrongful)**, registered as a known limitation of
+the mechanism, **not a pass criterion**; the row and the numbers below were informed by the Section 15.3 simulation
+(scratch, `beta = 80`: crude 80, adjusted about 23, `block` 0.83; `beta = 120`: adjusted about 62, `block` 0.02) and are
+therefore **not** a blind prediction. The kill-test protocol of this section does not apply (a wrongful block is not
+credited as a capture). **Few-cluster cells (Rev 1):** `P2b-11R` cells must include 5, 10 and 50 clusters (`G03` allows 5,
+`min_clusters`), a prognostic and a prognostic-neutral `Z`, and crude at the C2 and C3 boundaries, run through the real
+estimator, because Section 15.3 found the calibration of `p_Z` depends on both.
 
 **Suppression fixture (FX-C, `ADR-101` A9):** `X` positively associated with a categorical `Z` that is **beneficial**
 to `Y`, plus a direct harm from `X`, calibrated so the crude harm is positive and promotable and the adjusted harm is
@@ -696,8 +795,8 @@ fixture `sd(Y | noise) = 250`, raw crude harm 400, evaluation `n_exposed` about 
 | **P2b-7** | FX-E numeric `Z` only | **not assessed, not counted, 0/6 blocked, `SHADOW_POLICY` reached; limitation text present** (an expected miss, reported) | `ADR-102` Q15 |
 | **P2b-8** | Compatibility (CT) | **0 of 15 frozen candidates change** at `G00`-`G16`/level/readiness (all `k = 2`, `G17` `PASS not_applicable_k_ge_2`); no `report.warnings` change for `k >= 2`; every fixture identical outside `G17` | structure (design P1/P11). A deviation is an implementation defect (S-D) |
 | **P2b-9** | U14(a) `+100 -> +40` both promotable | **not blocked in 100% of simulated draws at the chosen large `n`** | criteria met by both estimates; `F_adj \ F_c = {}` |
-| **P2b-10** | U14(b) knife-edge cell: crude at mean 100, bar 90, established reduction 20, `SE_c ~ 32` | **blocked rate about `Phi((bar + theta - mu)/sigma) - Phi((bar - mu)/sigma) = Phi(0.31) - Phi(-0.31) ~ 0.24` (range 0.15-0.35)** | shows a small reduction blocks only when the crude estimate sits within `theta` of the bar (Section 3.4 knife-edge) |
-| **P2b-11** | Null calibration (scratch replica validated against the real estimator to `1e-6`, `>= 2,000` datasets per cell; `m` in `{1, 3, 7, 10}`; complete null `theta = 0` for every check; effect from 3 SE to 10 SE; Gaussian and heavy-tailed noise) | **False-block probability `<= fdr_alpha = 0.10` in every cell** (BH complete-null bound); expected well below (attributable-loss conjunct) with **no point claim**; the interval `P(p_Z <= 0.05)` for a single null `Z` in `[0.03, 0.07]` (calibration of the bootstrap SE at small `theta`, where `SE_theta` is small) | Falsifier (S-A): any cell `> 0.10`, or the `p_Z` calibration outside `[0.03, 0.07]` |
+| **P2b-10** **[SUPERSEDED, Rev 1: it treats the adjusted estimate as deterministic and ignores the `p_Z` conjunct; replaced by `P2b-10R` = R1-P4/R1-P5, Section 14; scored in 15.4; row text unedited]** | U14(b) knife-edge cell: crude at mean 100, bar 90, established reduction 20, `SE_c ~ 32` | **blocked rate about `Phi((bar + theta - mu)/sigma) - Phi((bar - mu)/sigma) = Phi(0.31) - Phi(-0.31) ~ 0.24` (range 0.15-0.35)** | shows a small reduction blocks only when the crude estimate sits within `theta` of the bar (Section 3.4 knife-edge) |
+| **P2b-11** **[SUPERSEDED, Rev 1: "expected well below (attributable-loss conjunct)" is wrong at a criterion boundary; replaced by `P2b-11R` = R1-P2/P3/P6/P7 with the crude exactly at the C2 and C3 boundaries and 5-10-cluster cells, Section 14; scored in 15.4; row text unedited]** | Null calibration (scratch replica validated against the real estimator to `1e-6`, `>= 2,000` datasets per cell; `m` in `{1, 3, 7, 10}`; complete null `theta = 0` for every check; effect from 3 SE to 10 SE; Gaussian and heavy-tailed noise) | **False-block probability `<= fdr_alpha = 0.10` in every cell** (BH complete-null bound); expected well below (attributable-loss conjunct) with **no point claim**; the interval `P(p_Z <= 0.05)` for a single null `Z` in `[0.03, 0.07]` (calibration of the bootstrap SE at small `theta`, where `SE_theta` is small) | Falsifier (S-A): any cell `> 0.10`, or the `p_Z` calibration outside `[0.03, 0.07]` |
 | **P2b-12** | Real-scale characterisation P18 (non-binding; `sd = 776`, `Z*` categorical, `s = 1.0`, `H_raw` in `{100, 200, 400}`, `>= 30` seeds; the actual `n`, `MDE_U`, `min_detectable_reduction_eur_80` recorded) | Block rate **non-decreasing in `H_raw`**; **`>= 0.90` at 200 and 400**; **`<= 0.60` at 100** (the crude effect there sits at the `MDE_U ~ 100` bar, so it is often non-attributable) | hand arithmetic `MDE ~ 2.8 x 35 ~ 99`. Reported as a limitation of what the mechanism can do at the delivered scale; **not** a pass criterion (`ADR-102`: capability only) |
 | **P2b-13** | `T01` as shipped (`G12` group column intact) | `G17` may `FAIL` with `credited = false` (counterfactual still below `SHADOW_POLICY` via `G12`); no credit | `ADR-101` A5 |
 
@@ -713,6 +812,14 @@ empty pool and no block (U1); M12 pool chosen after seeing effects (U1); M13 fit
 confirming on it (U3); M14 the paired-reduction test replaced by a deterministic flip (P2b-11, P2b-10 detects the
 false-block bound); M15 adjusted interval taken as the raw interval shifted (`apply.py:677-685` style) (a case where
 the paired interval and the shifted interval disagree).
+**[Rev 1] Added mutants:** M16 the attribution rule swapped against the founder's `F10` choice (the "all core criteria"
+variant where "flipping criterion only" is frozen, and the reverse) — caught by U16 and by the `b_mid`-type cell where the
+two differ (Section 15.3 measured a 0.05-2.3 percentage-point difference in block rate, so a random fixture set can miss
+it: the fixture must be constructed, not sampled); M17 criteria evaluated on the wrong split (`development` inputs
+`n_exposed`/`pooled_sd`/interval used with `validation` estimates, or the reverse, or the combined cohort) — caught by U17
+(and by U3 for the estimates themselves); M18 the rule without any adjusted-better check, i.e. the M-bias route is
+silently treated as a confounding block (FX-M documents it as a known wrongful block; the mutant is "M-bias fixture
+reported as a capture").
 
 ### 9.5 How a null or harmful result is reported
 
@@ -738,17 +845,18 @@ Evaluated on the specification as frozen. None may be tuned away.
 
 | ID | Condition | Consequence |
 |---|---|---|
-| **S-A** | Complete-null false-block probability `> fdr_alpha = 0.10` in any P2b-11 cell, or single-`Z` `p_Z` calibration outside `[0.03, 0.07]`; or any unexplained block of P2b-4 | SE method or family definition is wrong -> stop and redesign; do not raise or change alpha |
+| **S-A** | Complete-null false-block probability `> fdr_alpha = 0.10` in any P2b-11 cell, or single-`Z` `p_Z` calibration outside `[0.03, 0.07]`; or any unexplained block of P2b-4 | SE method or family definition is wrong -> stop and redesign; do not raise or change alpha. **[Rev 1]** The Section 15.3 scratch simulation already exceeds 0.10 in some **exact-null** cells (under the `F10` "flipping criterion" reading, `block` up to 0.13 at 5 clusters and 0.11 at 10 clusters with a prognostic `Z`, `m = 3`; up to 0.086 at 50 clusters) and the `[0.03, 0.07]` `p_Z` calibration interval was not met (rejection 0.5% with a prognostic-neutral `Z`). This is scratch-replica evidence, not a run of the real estimator, so it does **not** trigger the stop condition, but it is the reason 2b's `P2b-11R` cells must include few-cluster cells and both `Z` kinds, and it makes the calibration a **precondition** to be shown, not assumed |
 | **S-B** | Any block of the suppression fixture (P2b-5) | the two-sided/directional design is wrong -> stop |
 | **S-C** | Kill-test failure: with the mechanism disabled a registered-blocked cell does **not** reach `SHADOW_POLICY` | `G17` was not the stopper (incidental gate) -> the cell is invalid and its credit void; it is never reported as mechanism success |
 | **S-D** | Any `G00`-`G16` outcome, diagnostic, evidence level or readiness differs between `NONE_V0` and `SINGLE_Z_VALIDATION_V1` for any of the 15 frozen candidates or any fixture, other than a `k = 1` + declaration `G17 FAIL` | isolation broken -> defect; block release |
 | **S-E** | P2b-1 (`s = 1.0`) blocked in `< 6/6` seeds with preconditions holding, or P2b-2 `< 4/6` | the mechanism cannot deliver even its bounded capability -> **recommend abandoning as specified**; any change of split (F1-c) or criteria is a new registered hypothesis, not an in-place fix |
 | **S-F** | Any mutant of 9.4 survives | an unguarded degree of freedom -> add the test or redesign |
-| **S-G** | A block is issued where the adjusted estimate still met C1-C3, or where the matched crude already failed the contract, or from a percentage-of-change rule | the rule departs from `ADR-102` Q12/Q17 -> defect |
+| **S-G** | A block is issued where the adjusted estimate still met C1-C3, or where the matched crude already failed the contract, or from a percentage-of-change rule | the rule departs from `ADR-102` Q12/Q17 -> defect. **[Rev 1]** "where the matched crude already failed the contract" is ambiguous until `F10` is decided: under the "flipping criterion only" reading a block with `F_c != {}` is **not** a defect, under "all core criteria" it is. `S-G` is read per the `F10` decision; **the first commit's `S-G` and Section 3.3 contradicted each other, and 2b code cannot start until they agree** |
 | **S-H** | The `G17` module uses any numeric constant not in Section 12 (U12) | a constant was introduced outside the freeze -> defect |
 
 **What would show the design itself is wrong (not only the code):** (i) S-A or S-B; (ii) the knife-edge behaviour of
-P2b-10 turning out to dominate real blocks (blocks concentrated where the crude sits within `theta` of a criterion,
+P2b-10 (**[Rev 1]** superseded by `P2b-10R`/R1-P5: at a criterion boundary the block rate is set by `SE_theta` relative to
+the criterion's SE, Section 15.3) turning out to dominate real blocks (blocks concentrated where the crude sits within `theta` of a criterion,
 with `theta` small relative to the criterion margin — the rule then measures nearness to a bar, not confounding);
 (iii) the categorical restriction leaving the mechanism with no assessable `Z` on any dataset the founder considers
 representative (the mechanism then never runs and adds contract surface for nothing — the design-doc abandonment
@@ -799,6 +907,10 @@ criterion); (iv) the finding that `complete_removal_detectable_80` is false at t
 | **F6** | Declaration content and signer for a real dataset (delivered travel dataset) | approve/amend/replace design 2.2 tiers; independent drafting first; supply none (5.2) | no (2b uses test-side declarations) | none for real datasets: missing-declaration `WARN` |
 | **F7** | Declared-but-unobservable (class (ii)) consequence | claim only; `WARN`; readiness consequence (5.3) | no | claim only |
 | **F9** | Versioning ratification | 1.4.0 + `NONE_V0` default-on; label-only; opt-in (7.3) | yes | 1.4.0 + `NONE_V0`, default-on |
+| **F4a-K** (Rev 1) | Knife-edge acceptance (explicit line item under F4a) | accept / do not accept (4.3) | yes | none applied silently |
+| **F10** (Rev 1) | What attribution requires of the matched crude | F10-a flipping criterion only (`F_adj \ F_c`); F10-b matched crude satisfies **all** core criteria; F10-c C1-only precondition (15.1) | yes | **none** (Section 3.3 text vs `S-G` contradict; no default) |
+| **F11** (Rev 1) | Ratify that C1-C3 are `development`-split rules that `G17` applies to `validation` (a new criterion set on a new split) | accept as disclosed; compute the adjusted test on `development` instead; require the crude to meet the criteria only on the contract's own split; other (15.2) | yes | none (ties to F1, F3) |
+| **F12** (Rev 1) | Ratify the inherited fail-open 0.50 assessability floor | ratify 0.50; separate value decided before any 2b result (15.6) | yes | 0.50 inherited, flagged fail-open |
 
 ---
 
@@ -819,7 +931,7 @@ All numbers used by `G17` are in this table; nothing else is a numeric constant 
 | `min_clusters` | 5 | `contract.py:234`; `apply.py:573` | C3 |
 | `MDE` formula, `Z_95 = 1.959964`, `Z_POWER_80 = 0.841621` | — | `apply.py:103-104, 263-267`; `power_target` 0.80 `contract.py:235` | C3's `MDE < |harm|`; detectability quantile |
 | `MIN_STRATUM_CELL` | 5 | `apply.py:124, 369-371` | usable strata |
-| `min_confounder_stratum_coverage` | 0.50 | `contract.py:248`; `apply.py:626`; `contract.py:585-586` | assessability floor (not a veto) |
+| `min_confounder_stratum_coverage` | 0.50 | `contract.py:248`; `apply.py:626`; `contract.py:585-586` | assessability floor (not a veto) — **[Rev 1] fail-open constant** (a candidate below the floor is never blocked); ratification **F12** |
 | sign rule | `harm > 0` | `apply.py:627, 741-743` | C1 |
 | evidence cap for a confounding gate | `CAP_EVIDENCE`, `PREDICTIVE` | `contract.py:424-425, 594-595` | `G17` failure action |
 | level tuple for confounding gates | `ADJUSTED_OBSERVATIONAL` | `contract.py:616-626` | `G17` registration |
@@ -898,3 +1010,176 @@ conjunct. Both are superseded: `P2b-10R` := R1-P4/R1-P5 (knife-edge with the `p_
 `P2b-11R` := R1-P2/P3/P6/P7 (null calibration with the crude exactly at the C2 and C3 boundaries and few-cluster cells). No
 further prediction is added after the run; Section 15.4 only records the mapping and the scoring. The original rows stay as
 written and are scored against the same simulation where they overlap.
+
+---
+
+## 15. Revision 1 (2026-09-24) — response to the independent adversarial review
+
+### 15.1 `F10` — what attribution requires of the matched crude (new OPEN decision; small spec decision, not a code detail)
+
+**The defect.** Section 3.3 defines `AttributableLoss(Z) := F_adj(Z) \ F_c(Z) != {}`. That blocks whenever the adjusted
+estimate fails **any** criterion the matched crude satisfies, even if the matched crude fails a **different** one. Example
+(`validation` split): crude passes C1 and C2 and fails C3; adjusted fails C2; `F_adj \ F_c = {C2}`, non-empty, so a
+BH-established reduction blocks. `S-G` (Section 10) calls "a block where the matched crude already failed the contract" a
+defect, and Sections 3.5 (row "matched crude already fails a criterion the adjusted also fails") and 6.b (C1 precondition)
+speak only of shared failures / C1. The three texts are not consistent; the review is right.
+
+**Options (neutral; none chosen; no default in force).**
+
+| Option | Rule | What follows |
+|---|---|---|
+| **F10-a — flipping criterion only** | block iff rejected and `F_adj \ F_c != {}` (Section 3.3 as written) | Attribution is per criterion: the criterion that flips must be one the crude met. A candidate whose `validation` crude already fails another criterion (for example C3: `validation` `MDE` above its effect, which the contract never required on `validation`, Section 3.1) can still be blocked through a different criterion. Contradicts the wording of `S-G`. Consistent with the row of 3.5 (shared failures only) |
+| **F10-b — crude satisfies all core criteria** | block iff rejected and `F_c = {}` and `F_adj != {}` | Never blocks a candidate whose `validation` crude already fails any of C1-C3, including candidates the contract legitimately promoted on `development` with an underpowered `validation` crude, and genuinely confounded candidates in that state (the mechanism is silent where the evaluation split is weakest: `P2b-12`). Consistent with `S-G`. Strictly fewer blocks than F10-a (`block_A => block_S`, verified in every simulated dataset, R1-P1) |
+| **F10-c — C1 only as precondition** | block iff rejected, `C1 not in F_c`, and `F_adj \ F_c != {}` (the literal reading of 6.b) | Because promotion-path candidates have positive raw `validation` harm (`G10`, Section 1.2), the matched crude usually passes C1, so F10-c is close to F10-a; it differs only when the matched crude has non-positive harm (then nothing blocks). **Not simulated in Section 15.3** |
+
+**Measured difference (scratch replica, Section 15.3; not real-estimator evidence).** In exact-null cells with a
+prognostic `Z` the block rates under F10-a vs F10-b at 50 clusters were 0.0785 vs 0.0555 (crude at the C2 boundary,
+`m = 1`), 0.0540 vs 0.0535 (C3 boundary), 0.0655 vs 0.0570 (midpoint), and for `m = 3` 0.0855 vs 0.0625, 0.059 vs
+0.0485, 0.0635 vs 0.048; with a prognostic-neutral `Z` the difference was at most 0.002; in the confounded and M-bias
+cells the two were identical. So the choice moves the false-block rate by 0-2.3 percentage points in those cells; 1-29%
+of F10-a's blocks had a non-empty `F_c` at 50 clusters with a prognostic `Z` (`R1-P8`'s 50% was not met). The size of
+the difference in real use is unknown.
+
+**Mutant coverage** added: M16 (Section 9.4), tests U16. Until `F10` is decided the Section 3.3 line is "frozen but
+ambiguous"; 2b code is blocked on it.
+
+### 15.2 `F11` — the criteria are development-split rules (new OPEN decision; ratification of a disclosure)
+
+Verified before editing (Section 3.1, Rev 1 correction): `G03` `apply.py:566-581`, `G04` `apply.py:583-602`, `G06`
+sign/attenuation `apply.py:606-627` run on `dev`, `dev_frame`, `dev_clusters`, `binned_dev_frame`; `G10` is the only gate
+touching `validation`, only for sign and holdout retention (`apply.py:741-757`). `G17` applying C1-C3 on `validation` is
+therefore a **new criterion set on a new split**, not a re-evaluation of the final promotion contract; C2 and C3 on the
+`validation` crude are conditions no promoted candidate has ever been required to meet; a candidate can be blocked for
+failing a criterion the contract never demanded on that split; a genuinely confounded candidate with an underpowered
+`validation` crude is never blocked. **Options (neutral, none chosen):**
+
+| Option | What it is | Consequence |
+|---|---|---|
+| **F11-a** | Accept as disclosed: `G17` = the contract's criterion *forms* applied to `validation` (F1-a), with the mandatory disclosure sentence added to every claim | Smallest change to the freeze; the mechanism's block criterion is stricter than what promotion demanded on `validation`; power on `validation` (`n = 2,462`) governs what can be blocked |
+| **F11-b** | Compute the adjusted test on `development` (where the contract executes C1-C3) | Matches the contract's split; the adjusted estimate is then not independent of selection (Section 1.2; conflicts with the A8 preference and `F1-a`); a second reason to decide `F1` first |
+| **F11-c** | Restrict the `validation` criteria to what the contract itself demands on `validation` (sign, `G10`), i.e. drop C2/C3 from `G17`'s criteria | The block criterion equals the contract's; the mechanism blocks less (adjusted sign flip only), weakening the capability claim; removes the case "blocked for a criterion never demanded" |
+| **F11-d** | Other, named by the founder | — |
+
+Ties to **F1** (which split) and **F3** (scope of the re-evaluated contract). Mutant M17 and test U17 added.
+
+### 15.3 Read-only simulation of the block rule (scratch; committed unchanged after the run)
+
+Files under `docs/analytics/task-105-evidence/` and sha256:
+
+| File | sha256 |
+|---|---|
+| `rev3_g17_block_sim.py` (committed in `9ca8ec5`, before the run; unchanged) | `7bf2bfe51cbaae2c79d1902e862584d39fb566d4e6a3b01b4344616eefea4ce5` |
+| `rev3_validate_estimator.py` (committed in `9ca8ec5`; the `packages/schemas/src` path line was added to it *before* that commit) | `1cf901f9288ed1ed40f742a3fc6092ae350835618685eeab5f915332a2dc9969` |
+| `rev3_validate_estimator.out` (`_stratified_adjustment` vs replica, 6 datasets, all `OK` to `1e-6`) | `d9abae9f9034f891179a1921ede35977d151deecd7f66119bf6e5850462283a2` |
+| `rev3_block_sim.json` (all cells, full precision) | `6b4628d7b545a1eafe5db317bd3e3cd349000be897f9e20debbcd3d48e7ac239` |
+| `rev3_block_sim.out` (one line per cell) | `8dc08b2262f315dbbd2b73b65f5dd007b7e272db28be1b3b185915f22027e9b6` |
+
+**Commit ordering proof.** `git log`: `617e166` (original) -> `9ca8ec5` (predictions R1-P1..P10 in Section 14 + the unrun
+scripts) -> `8a3e1af` (outputs). The simulation was executed after `9ca8ec5` was committed; the scripts in `8a3e1af` are
+byte-identical to those in `9ca8ec5` (`git diff 9ca8ec5 8a3e1af -- '*.py'` is empty). The only run before `9ca8ec5` was the
+estimator-arithmetic check, which prints no rule outcome.
+
+**What it is and is not.** A numpy replica (`B = 2,000`, 2,000 invented datasets per cell, 51 cells, fixed seeds). Only the
+adjusted point estimate and coverage are validated against real code; the bootstrap layer, the `pooled_sd` and the
+criteria are a replica. The data-generating processes are invented (a prognostic `Z` shifts `Y` by `300 * (level - 1)`
+and is independent of `X`); nothing here is a measurement of any real dataset, of recall, or of the mechanism's
+value. The prognostic strength `300` was set before the run and is not a fitted quantity. Monte-Carlo standard error of a
+rate near 0.08 at 2,000 datasets is about 0.006.
+
+**Results (`reject_any` = BH rejects some assessed `Z`; `block_a`/`block_b` = F10-a / F10-b; `flip_a` = deterministic
+flip without a `p`-value, F4a-(ii)):**
+
+| Exact null, prognostic `Z` (`gamma = 300`) | `reject_any` | `block_a` | `block_b` | `flip_a` |
+|---|---|---|---|---|
+| `K = 50`, `m = 1`, crude at C2 boundary | 0.104 | 0.0785 | 0.0555 | 0.151 |
+| `K = 50`, `m = 1`, crude at C3 boundary | 0.1075 | 0.0540 | 0.0535 | 0.1325 |
+| `K = 50`, `m = 1`, midpoint | 0.0995 | 0.0655 | 0.0570 | 0.142 |
+| `K = 50`, `m = 1`, crude 6 SE from a boundary | 0.118 | 0.000 | 0.000 | 0.000 |
+| `K = 50`, `m = 3`, C2 / C3 / midpoint | 0.1195 / 0.118 / 0.1095 | 0.0855 / 0.059 / 0.0635 | 0.0625 / 0.0485 / 0.048 | 0.267 / 0.2355 / 0.2635 |
+| `K = 10`, `m = 1`, C2 / C3 / midpoint | 0.1365 / 0.117 / 0.119 | 0.086 / 0.0485 / 0.070 | 0.0695 / 0.047 / 0.0625 | 0.146 / 0.125 / 0.1475 |
+| `K = 10`, `m = 3`, C2 / C3 / midpoint | 0.174 / 0.1685 / 0.1605 | **0.108** / 0.0655 / 0.093 | 0.0745 / 0.0545 / 0.070 | 0.2775 / 0.242 / 0.29 |
+| `K = 5`, `m = 1`, C2 / C3 / midpoint | 0.148 / 0.1555 / 0.1725 | 0.0785 / 0.0615 / 0.0945 | 0.062 / 0.057 / 0.087 | 0.143 / 0.130 / 0.172 |
+| `K = 5`, `m = 3`, C2 / C3 / midpoint | 0.2475 / 0.2335 / 0.256 | **0.1295** / 0.095 / **0.1165** | 0.085 / 0.084 / 0.0905 | 0.286 / 0.2505 / 0.2765 |
+
+Prognostic-neutral `Z` (`gamma = 0`), all `K`, `m`, crude at C2/C3/midpoint: `reject_any` 0.000-0.042 (`K = 50`:
+0.000-0.010; `K = 5`: 0.029-0.042), `block_a <= 0.004`, `block_b <= 0.0025`, `flip_a` 0-0.037. Mean bootstrap
+`SE_theta` 0.53-0.63 EUR (hand estimate 0.4) against 9.3-11.1 EUR for the prognostic `Z` (`SE_c` about 15.9). Confounded
+positive control: `block` 1.000 (crude 172.5, adjusted -0.3). M-bias (`K = 50`): `beta = 80`, crude 80.1, adjusted 22.6,
+`block_a = block_b = 0.8345`; `beta = 120`, adjusted 61.9, `block` 0.018; adjusted below crude in 100% of datasets.
+
+**Readings (measured on the replica only; no decision is taken here):**
+
+1. **The rejection event is not a calibrated 10%.** It is over-conservative for a prognostic-neutral `Z` (0.0-4%: the
+   bootstrap `SE_theta` overstates the sampling spread of a product-of-noise statistic under the exact null; post-hoc
+   explanation, not a registered prediction) and near or above 10% for a prognostic `Z` at 50 clusters (0.095-0.12),
+   clearly above it at 5-10 clusters (0.12-0.26). The normal approximation on a bootstrap SE at the 5-10 clusters `G03`
+   permits is anti-conservative.
+2. **The attributable-loss conjunct is not a reliable further reduction.** With a prognostic `Z`, blocks were 50-75% of
+   rejections at a criterion boundary (`K = 50`, `m = 1`). Under F10-a the false-block rate exceeds 0.10 in exact-null
+   cells at 5-10 clusters with `m = 3`. Under F10-b the maximum over all null cells was 0.0905.
+3. **The block rate at a boundary is set by `SE_theta` relative to the criterion's own SE**, not by BH: 0-0.4% with a
+   prognostic-neutral `Z`, up to 8.6% with a prognostic `Z`. Far from a boundary (6 SE) the block rate was 0.000 in all
+   cells.
+4. **M-bias is a wrongful-block route**: a pre-exposure collider `Z` with an unbiased crude is blocked in 83% of datasets
+   at `beta = 80`; the rule assumes adjusted is better than crude (`FX-M`, Section 9.2; Section 5.1 5.c already lists the
+   collider limitation).
+5. F4a-(ii) (no `p`-value): the deterministic flip rate in exact-null cells was 0.65-29% depending on `Z` and `m`, i.e. a
+   false-block rate of that order under the complete null with nothing to bound it.
+
+### 15.4 Scoring of the Section 14 predictions (nothing edited; `P2b-10`, `P2b-11` superseded)
+
+| ID | Result |
+|---|---|
+| R1-P1 | **Held** (all 51 cells, every dataset) |
+| R1-P2 | **Falsified** for `gamma = 0`, `K = 50`: `reject_any` 0.005-0.010 (`m = 1`), 0.000-0.002 (`m = 3`) against a predicted 0.07-0.13. (Holds at 0.0995-0.118 for the prognostic `Z`, which was not what the prediction covered) |
+| R1-P3 | **Partly held**: at `K = 5` and `K = 10` with `gamma = 300` `reject_any` was above 0.10 within the predicted ranges (0.148-0.1725; 0.117-0.137). Falsified for `gamma = 0` (0.029-0.042; 0.0125-0.0195: over-conservative, not anti-conservative) |
+| R1-P4 | **Held** (`block` 0.000 at both boundaries, `flip` 0.0065-0.0095 for `m = 1`), but for a different reason than registered: rejection was rare (0.5%), not "near alpha", and bootstrap `SE_theta` 0.63 against a hand 0.4 |
+| R1-P5 | **Partly held**: `block` above the `gamma = 0` cell at each location (held), `SE_theta` 10.99 (held), `block` at the C3 boundary 0.054 inside `[0.005, 0.06]`; **falsified** at the C2 boundary (0.0785 > 0.06; `flip` 0.151 just above 0.15); the point 0.02 was not met |
+| R1-P6 | **Falsified**: `K = 50` max `block_a` 0.0855 (> 0.06); under F10-a cells with `block > 0.10` exist (`K = 5`, `m = 3`: 0.1295, 0.1165; `K = 10`, `m = 3`: 0.108), which under the `S-A` wording would be a stop-condition hit (scratch replica, so scored as evidence, not as a stop); under F10-b the maximum was 0.0905 |
+| R1-P7 | **Held** (0.000 in every `b_far` cell) |
+| R1-P8 | **Half held**: `block_a - block_b` = 0.0085 (>= 0.003) held; the 50% share of F10-a blocks with non-empty `F_c` **falsified** (13%) |
+| R1-P9 | **Held** (1.000, 1.000) |
+| R1-P10 | **Held** on the registered ranges (adjusted < crude 100%; `beta = 80` 0.8345 in `[0.30, 0.95]`; `beta = 120` 0.018 <= 0.50); the points (0.70, 0.15) were not met |
+| P2b-10 (original) | Superseded and **not scored** (the simulation has no fixed-reduction cell; its premise of a deterministic adjusted estimate is what R1-P4/P5 replace) |
+| P2b-11 (original) | **Falsified as a general statement** on the replica: "false-block <= 0.10 in every cell" fails under F10-a at 5-10 clusters; "well below" fails at a boundary with a prognostic `Z`; the `P(p_Z <= 0.05)` in `[0.03, 0.07]` interval was not measured (only the BH rejection event) |
+
+Five of ten Revision-1 predictions were partly or wholly wrong. That is recorded, not repaired; the freeze does not depend
+on any of them (they characterise the rule, they do not fix a constant). No constant of Sections 1-7 was changed by the
+simulation, and none was chosen from its outcome.
+
+### 15.5 Per-finding disposition
+
+| # | Finding | Disposition | Where |
+|---|---|---|---|
+| 1 | 3.3 attribution contradicts `S-G` / 3.5 / 6.b | **Confirmed.** Options presented neutrally as new `F10`; mutants M16 + test U16; 3.3 and `S-G` annotated | 3.3, 9.1, 9.4, 10, 15.1 |
+| 2 | 3.1 mischaracterises where C1-C3 execute | **Confirmed against code** (`G03`/`G04`/`G06` on `dev`; `G10` the only `validation` gate, sign + retention). 3.1 corrected, split named in every citation, tied to `F1`/`F3`; new `F11`; test U17, mutant M17 | 3.1, 3.3, 9.1, 9.4, 15.2 |
+| 3 | Knife-edge / `p_Z` oversold | **Confirmed.** 3.4 and 4.3 (F4a) rewritten: `p_Z` is this document's addition, not `ADR-102`'s; at large `n` collapses to the flip, at small `n` does not kill the ADR's 20% example; `P2b-10`, `P2b-11` superseded (R1-P4/P5/P2/P3/P6/P7 with boundary cells, few-cluster cells `K = 5, 10`); `F4a-K` added; M-bias added (FX-M, 15.3 reading 4). The reviewer's "P(block) about alpha at the boundary" was **partly** borne out: it depends on `SE_theta`/criterion SE (0.4% prognostic-neutral, up to 8.6% with a prognostic `Z`, 50-75% of rejections), so the doc states the dependence, not a single rate | 3.4, 4.2, 4.3, 9.2, 9.3, 14, 15.3-15.4 |
+| 4 | 8.3 / 8.4 overclaim detectability | **Confirmed.** Reworded to "statistically distinguishable"; "blocking additionally requires an adjusted-criterion failure"; unpaired-SE caveat; field renamed | 8.1, 8.3, 8.4 |
+| 5 | Floor 0.50 fail-open; BH imprecise; mutants; citation drift; TASKS wording | **Confirmed, all done**: `F12` and fail-open label (2.1 2.j, 12); BH step-up sentence corrected (4.2); M16/M17 (and M18); engine citation 957-959 -> 957-961 (1.2, 6.1 6.d); TASKS.md correction appended | 2.1, 4.2, 9.4, 12, 1.2, 6.1, `TASKS.md` |
+
+**No disagreement with any finding.** One qualification is recorded under finding 3 (the rate at the boundary is
+conditional, not uniformly `alpha`).
+
+### 15.6 Founder items restated (none chosen)
+
+| Item | Needs the founder? | Blocks 2b code? | Note |
+|---|---|---|---|
+| **F1** split | **Yes** (residual independence and which split the criteria are judged on) | Yes | now interlocked with `F11` |
+| **F3a, F3b** contract scope | **Yes** (what "the promotion contract" means for `G17`) | Yes | with `F11`, decide together |
+| **F4a**, **F4a-K** (new) | **Yes** (what the rule is and its knife-edge properties) | Yes | rewritten in 4.3 |
+| **F10** (new) | **Yes** (a contract-level choice that changes which candidates are blocked) | Yes | no default |
+| **F11** (new) | **Yes** (ratifies a disclosure that the criteria are development-split rules applied to `validation`) | Yes | no default |
+| **F2**, **F4b**, **F4c**, **F5a**, **F5b**, **F9**, **F12** (new) | Ratification of a stated fail-closed default is sufficient; the founder may delegate or ratify in one bundle. `F12` ratifies the inherited fail-open 0.50 floor | Yes (they define what `G17` computes or reports), unless the founder ratifies the defaults in force | classification is a judgement of the authors, not a decision |
+| **F3c**, **F6**, **F7** | No decision needed for 2b (F6 only for a real-dataset run) | No | unchanged |
+
+`F8` remains unused. Q1-Q17 statuses of Section 11.1 are unchanged except that Q12(b) (which contract gates) now also
+carries the split question (`F11`).
+
+### 15.7 Change log (git history additive; original text traceable)
+
+`617e166` original. `9ca8ec5` Section 14 (predictions) + unrun scripts. `8a3e1af` simulation outputs. This commit:
+Revision-1 note (header), Section 0 blocking/new-items lines, 1.2 / 6.1 citation fix, 2.1 (2.j) fail-open label, 3.1 split
+correction and C1-C3 rows, 3.3 `F10`/`F11` notes and the one-paragraph statement, 3.4 knife-edge, 4.2 corrections, 4.3 F4a and
+`F4a-K`, 8.1 / 8.3 / 8.4 wording, 9.2 FX-M and few-cluster cells, 9.1 U16/U17, 9.3 supersession markers on `P2b-10`/
+`P2b-11`, 9.4 M16-M18, 10 `S-A`/`S-G`/design-wrong (ii), 11.2 new rows, 12 floor label, Section 15. No numeric constant of
+the freeze was changed; no prediction of Section 9.3 was edited in text.
