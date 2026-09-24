@@ -293,3 +293,41 @@ override path anywhere in the real official-run pipeline (re-confirmed by readin
 unaddressed by this task, per its own hard rule. `max_feature_identity_fraction=1.0` remains the
 correct, genuine, correctly-documented default. No new rejected-experimental-parameter-as-default case
 was found.
+
+---
+
+**2026-09-24, Statistics/Architect. `TASK-103`: two official `TASK-015`-equivalent blind runs, the first ever
+under `discovery-engine-v0.6.2` (`TASK-101`/`ADR-096`), run to grade the current engine against
+`TASK-102`'s frozen bar (`ADR-097`).** Both followed the full `ADR-008`/`051`/`052` protocol
+(rehearsal `BLIND_REHEARSAL_VALID` -> issue -> verify `BLIND_WORKSPACE_VALID` -> launch -> freeze),
+validated under contract **v1.3.0** (which includes `G16`), scored by `TASK-028`. Configuration for both
+is byte-for-byte the shipped default (`DiscoveryConfig()` printed and checked against
+`tests/analytics/test_discovery_config_accepted_defaults.py`, 21 passed; `engine.py` sha256
+`fefceeaac20e8ff7b57f4e7a9cc9a1e9c649dd05269e10884d358d326d2e4549`; `beam_rules_per_structure=2`,
+`max_feature_identity_fraction=1.0`, `reserve_k1_slot=False`), dataset
+`travel-bookings-analytical-v1.1.0` (identity `b6128eb3c1bdb36515c90570aa4ccabfc3dff8d1026d9002f1c832774b60a683`).
+Run A: `task-103-official-20260922-001`, seed `4242`. Run B: `task-103-official-20260922-003`, seed
+`8916` (`-002` was issued and verified with seed `8916`, then interrupted mid-launch by an
+infrastructure/API-limit stop before producing any output; its ID is permanently consumed, it was never
+scored or inspected, and `-003` was issued fresh with the same seed). Full record:
+`docs/benchmark/task-103-official-grading-results.md`.
+
+**Disclosure that governs how to read the two entries: the two runs are not two independent draws.**
+`DiscoveryConfig.seed` is a declared but unused field (the engine has no RNG; `docs/analytics/discovery-engine-v0.md`
+already says "the seed is recorded for forward compatibility"). The two frozen `candidates.json` files are
+identical except for the `run_id` string, both evaluated 36,791 hypotheses, and the validation and
+evaluation reports are identical after dropping paths and timestamps. This is the `TASK-073`/`TASK-083`
+shape (different label, identical discovery output), reached by a different route.
+
+| Metric | Pre-registered band met | Actual result (identical in Run A and Run B) | Notes |
+|---|---|---|---|
+| Top-K precision | STRONG (>=60%) | 100% (10/10) | All 10 are true-pattern matches, non-trap, non-noise. Most candidates are broad rules (up to ~7,500 exposed rows) that satisfy `TASK-028`'s 0.5 pattern-recall match against several patterns each (up to 8, including excluded `P05`/`P07`); 9 of the 15 candidates match only `P01`. Reported as computed, not reinterpreted |
+| Economic-weighted recall | STRONG (>=50%) | 100.0% (614,695.29 / 614,695.29 EUR) | All 7 scoreable patterns count as recovered under the same lenient match statistic; not comparable to the 45.2% `v0.6.0` figure without noting the candidate set changed completely |
+| Confounder trap rejection | PROMISING, not STRONG | 0/5 promoted | No trap's apparent feature appears in any candidate: non-promotion by absence, not active rejection. `G16` had nothing to cap. `T01`-`T05` all did not appear |
+| Leakage violations | passes | 0 | Hard disqualifier 1 did not fire |
+| Effect direction accuracy | STRONG (100%) | 100% (13/13) | |
+| **Overall verdict** | | **PROMISING** | Weakest banded metric is trap rejection (by absence, per the 2026-08-16 precedent). No hard disqualifier fired |
+| **Action taken** | | See `TASK-103` results | Grading exercise only; no code, gate, or threshold changed; `TASK-057` untouched |
+
+Evidence levels (both runs): 13 `predictive_association`, 2 `descriptive_observation`, 0
+`adjusted_observational_association`; all 15 verdicts `DOWNGRADE`, all `experiment_only`.
