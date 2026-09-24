@@ -170,7 +170,7 @@ vs 0.3913 (either); `T02` non-Tokyo `trip<14` 0.250 vs 0.25, Tokyo `trip<14` 0.1
 0.500 vs 0.5, non-Tokyo `trip>=14` **0.614 vs 0.625** (18,204 rows, ~3 SE low at 400k; within the test
 tolerance at 60k, noted, unexplained beyond sampling); `T04` `lead<14` 0.503 vs 0.50, else 0.279 vs 0.28;
 `T05` by complexity 0..4: 0.025, 0.080, 0.133, 0.189, 0.264 vs 0.025, 0.080, 0.135, 0.190, 0.245 (the last is
-26 rows at 60k, 65 at 400k). `T05` therefore confirms **equal weights of 0.055 per indicator**.
+26 rows at 60k, 178 at 400k). `T05` therefore confirms **equal weights of 0.055 per indicator**.
 `T03`: `P(discount>=0.12 | paid_search)` 0.318 vs 0.3167 and `| not paid_search` 0.266 vs 0.2647;
 `P(paid_search)` is 0.272 vs 0.269 by `customer_type` and 0.272 vs 0.270 by `installments` (no dependence).
 
@@ -234,7 +234,7 @@ timing. They assert: manifest completeness; manifest `intended_confounders` == c
 and `DECISION_TIME`; structural parents/roles vs manifest; measured both-sided dependence set vs manifest;
 `booking_month` never drives any exposure; expected exposure rates and directions vs fresh output; `T03`
 discount downstream of the exposure; no latent parent. The 12 xfails are `strict=True`, each reason names the
-manifest field; if the catalogue or generator is corrected they become failures, forcing a manifest update.
+manifest field. Correcting the *catalogue* flips the whole-trap and `implemented_not_catalogued` xfails (and the tests pinning manifest `intended_confounders` to the catalogue); the per-confounder `intended_not_implemented` xfails assert against generator measurements, so only a *generator* change flips them.
 Not tested: any gate/mechanism behavior (out of scope).
 
 ---
@@ -281,6 +281,13 @@ was found. The specification as written is a target statement, not yet testable 
 - **A6 (minor) — timing inside the decision.** `manual_exception` is "recorded during approval" and
   `discount_rate` "approved at booking"; the classification places all of them in one bucket, so ordering
   within the decision is unspecified (same root as A1).
+
+- **A7 (added after independent review) — existential `Z`.** The definition says "there exists `Z ⊆ A(C)`". A large admissible pool
+  could explain away almost anything unless a mechanism penalizes the search over subsets; this must be constrained.
+- **A8 (added after independent review) — evaluation data.** It is not stated on which data (full data, split, held-out) the
+  promotion criterion is evaluated after accounting for `Z`; "substantially explained" is covered only indirectly by A5.
+- **A9 (added after independent review) — suppression.** The definition covers explaining-away confounding only; it does not
+  address suppression (e.g. `T02`'s adjusted effect moves from +9.4 to +21.3, i.e. adjustment *increases* it).
 
 ### C4. Open questions the mechanism design will have to answer (labelled as such; **no algorithm is proposed**)
 
