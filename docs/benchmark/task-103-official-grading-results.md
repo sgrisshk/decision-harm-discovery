@@ -15,9 +15,9 @@ hashes, signed manifests, validation and evaluation reports per run, plus `overl
 2. **The two runs are not two independent draws.** `seed` is an unused `DiscoveryConfig` field; the two
    runs' discovery output is identical apart from the `run_id` string. Under the frozen bar's own
    rationale (Dimension 5(a); the exclusion of `TASK-073`/`TASK-083`), effective independent runs = **1**.
-3. Mechanical overlay: **D1 FAIL, D2 FAIL, D3 FAIL, D5 FAIL, D4 UNKNOWN**. Sections 5 and 6 explain which
-   of these turn on the run count and which do not, and give the alternative label-only reading for the
-   founder's ruling.
+3. Mechanical overlay: **D1 FAIL, D2 FAIL, D3 FAIL, D5 FAIL, D4 UNKNOWN**. Section 6 explains which
+   of these turn on the run count and which do not, and gives the alternative label-only reading for the
+   founder's ruling (Section 5 records only the gate entry).
 
 ## 1. Starting-state confirmation
 
@@ -99,7 +99,7 @@ re-derived or copied from it.
 
 **Reading caveat (disclosed, nothing reinterpreted).** The 100% figures arise under `TASK-028`'s
 unchanged lenient match statistic applied to a candidate set of broad rules (exposed populations up to
-~7,500 rows; several candidates match up to 8 patterns, including `P05`/`P07`). Only 9 of 15 candidates
+~7,800 rows (7,817, `CAND-015`); several candidates match up to 8 patterns, including `P05`/`P07`). Only 9 of 15 candidates
 match `P01` alone. This is a very different set from `v0.6.0`'s (70% precision, 45.2% recall), consistent
 with `TASK-101`'s finding that `v0.6.2` changes 10 of 15 travel candidates. Whether the broad-rule regime
 is desirable is a question for a reviewer, not something this task adjusts. Also: with no trap present,
@@ -107,7 +107,7 @@ is desirable is a question for a reviewer, not something this task adjusts. Also
 
 ## 5. `decision-gate.md` entries
 
-Two entries were appended (one per run, same format as `TASK-073`/`TASK-083`), each stating the identical
+One combined entry covering both runs was appended (same format as `TASK-073`/`TASK-083`; not one entry per run), stating the identical
 result and the independence disclosure: overall verdict **PROMISING** (STRONG on precision, recall,
 direction; PROMISING on trap rejection because no trap appeared; leakage 0; no hard disqualifier).
 
