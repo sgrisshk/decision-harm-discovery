@@ -37,6 +37,22 @@ Unchanged runs (no candidate changes): `task-028-benchmark-evaluation` (task-015
 * **The `TASK-073` and `TASK-083` official evaluation files** (`task-028-task-073-official-001.json` and the `TASK-083` run) are not among the available archives (`artifacts/evaluation` has 10 files, none of them these), so they were not rescored;
   the same candidate rules appear in the archived files above.
 
+## Revision R1-R5 disclosures (documentation only; the .json evidence is untouched)
+
+* **Changed set.** Under the rule no historical verdict changes. The (trap, pattern) pairs whose classification can change are exactly T03/P03, T02/P04, T04/P06 and T05/P05. The promoted
+  `TASK-073` T03/T04 candidates cannot be reclassified: their extra feature `discount_rate` is in neither P03's nor P06's rule.
+* **Unrescored.** `artifacts/blind/task-060-iteration-20260820-003.candidates.json` CAND-007 has the same changing shape (`lead<23 AND Tokyo AND bank_transfer`) but no evaluation file exists for that run, so it
+  was not rescored. The `TASK-073`/`TASK-083` official evaluation files are missing (above).
+* **Simplified description elsewhere.** `decision-gate.md` (line ~164, `task-058-remediation-001`) calls the changing candidate `Tokyo AND bank_transfer` (2 conditions); the archived rule is
+  `booking_lead_days < 23 AND destination eq Tokyo AND payment_method eq bank_transfer` (T04 was `experiment_only` there). Not edited.
+* **Machine-local paths.** `task-108-rescore-comparison.json` has two `candidates_file` values (TASK-103 run1/run2) that are absolute paths into another agent's worktree
+  (`worktrees/agent-a1487ed9c0afeab2b/...`); a machine-local-path nit, not edited.
+* **Exemption is only syntactic (F1).** The exemption inherits the lenient recall match's superset permissiveness, so trap-literal plus a vacuous pattern-feature condition
+  (e.g. `bank_transfer AND booking_lead_days<400`, exposure 3077 = bare T04) is un-flagged. No such shape exists in any archived run, so none of the numbers above are affected. Details, the reproduced
+  exposure table, the "Risk until `TASK-107` lands" note and the `TASK-107` open item are in the specification, Sections 3 and 8.
+* **Coverage and failure modes.** P03/P04/P05 exact-rule shapes are unit-test-only; the mutation test is a wholesale revert to `_matches_trap` (it does not mutate conditions (1)/(2)); vacuous-threshold cases are untested.
+  `_genuine_trap_matches` does an unguarded `patterns_by_id[pid]` (`KeyError` if an archive is replayed against the wrong ground truth); the pre-existing `_matches_trap` `TypeError` on list-valued conditions is unchanged.
+
 ## Changed historical verdict
 
 **None found.** No archived run's `trap_promoted` map, `any_trap_promoted`, Top-K precision or economic-weighted recall changes, so no recorded hard-disqualifier or graded-metric verdict changes on the
