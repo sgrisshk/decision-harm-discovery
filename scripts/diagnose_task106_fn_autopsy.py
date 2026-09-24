@@ -20,7 +20,11 @@ Two subcommands:
   and scores each candidate x pattern under BOTH TASK-028's lenient statistic (recall >= 0.5) and
   a specific-rule statistic (Jaccard >= 0.5). With `--trace` (committed seed only) it also traces
   the search pool.
-* `aggregate --in DIR --out F` — rates over the per-seed JSON files.
+* `exact --seed S --out F` — the EXACT true rule (incl. calendar conjuncts) graded by the real
+  contract as one idealised Boolean atom (not engine-representable; tests statistical
+  detectability only). `rates --dirs D... --out F` — detectability rates with Wilson intervals.
+  `poolrules` — counterfactual validation of the closest pool rule. `engine-summary` — engine
+  outcomes over seeds. `--family-size N` overrides the oracle multiplicity family (sensitivity).
 
 Pre-declared matching definitions (fixed before any Jaccard was computed):
   lenient  = candidate exposed-set recall of the pattern's affected records >= 0.5 (TASK-028)
@@ -28,6 +32,7 @@ Pre-declared matching definitions (fixed before any Jaccard was computed):
 Sensitivity thresholds 0.3 is also reported. A candidate that is lenient-only is a broad rule.
 """
 
+# pyright: reportPrivateUsage=false
 from __future__ import annotations
 
 import argparse
@@ -36,6 +41,7 @@ import json
 import math
 import sys
 import tempfile
+from dataclasses import asdict
 from pathlib import Path
 from typing import Any, cast
 
@@ -51,7 +57,6 @@ from diagnose_oracle_decomposition import (  # noqa: E402
     _rule_expr_local,
     _true_rule_reference,
     build_projection,
-    parse_true_rule,
     trace_search,
 )
 from diagnose_validation_power import _gate_map, _true_rule_power_reference  # noqa: E402
@@ -59,18 +64,17 @@ from evaluate_benchmark import _scoreable_pattern_ids  # noqa: E402
 from policy_analytics.analytical_dataset import build_analytical_dataset  # noqa: E402
 from policy_analytics.discovery.engine import (  # noqa: E402
     DISCOVERY_METHOD_VERSION,
+    Condition,
     DiscoveryConfig,
     _atoms,
     discover_candidates,
 )
-from policy_analytics.discovery.engine import Condition as EngineCondition  # noqa: E402
 from policy_analytics.outcomes import (  # noqa: E402
     outcome_definition_from_manifest,
     primary_outcome,
 )
 from policy_analytics.synthetic_benchmark import BenchmarkConfig, generate_benchmark  # noqa: E402
 from policy_analytics.validation.apply import (  # noqa: E402
-    Condition,
     load_analytical_frame,
     run_validation,
 )
@@ -112,18 +116,17 @@ PREDICTIVE_OR_ABOVE = (
 
 def frozen_version_record() -> dict[str, Any]:
     sha = hashlib.sha256(ENGINE_PATH.read_bytes()).hexdigest()
-    record = {
+    defaults: dict[str, Any] = dict(asdict(DiscoveryConfig()))
+    record: dict[str, Any] = {
         "discovery_method_version": DISCOVERY_METHOD_VERSION,
         "engine_py_sha256": sha,
         "validation_contract_version": DEFAULT_THRESHOLDS.version,
         "gate_ids": sorted(gate.value for gate in GateId),
         "g17_present": any("G17" in gate.value for gate in GateId),
         "discovery_config_defaults": {
-            k: (list(v) if isinstance(v, tuple) else v)
-            for k, v in DiscoveryConfig().__dict__.items()
-        }
-        if hasattr(DiscoveryConfig(), "__dict__")
-        else None,
+            k: (list(cast("tuple[Any, ...]", v)) if isinstance(v, tuple) else v)
+            for k, v in defaults.items()
+        },
     }
     if (
         DISCOVERY_METHOD_VERSION != FROZEN_METHOD_VERSION
@@ -147,11 +150,9 @@ def _prepare_dataset(seed: int, work: Path) -> tuple[Path, Path]:
         work / "g/metadata/feature_timing.json",
         work / "a",
     )
-    return work / "a" / str(manifest["dataset_version"]), work / "g/evaluation/hidden_ground_truth.json"
-
-
-def _cond_key(rule: tuple[Condition, ...]) -> list[list[Any]]:
-    return [[c.feature, str(c.operator), c.value] for c in rule]
+    return work / "a" / str(
+        manifest["dataset_version"]
+    ), work / "g/evaluation/hidden_ground_truth.json"
 
 
 def _validate_rules(
@@ -217,6 +218,47 @@ def _validate_rules(
     return out
 
 
+def _summarise_pattern(pid: str, cand_rows: list[dict[str, Any]]) -> dict[str, Any]:
+    def recall(c: dict[str, Any]) -> float:
+        return float(c["per_pattern"][pid]["recall"])
+
+    def jac(c: dict[str, Any]) -> float:
+        return float(c["per_pattern"][pid]["jaccard"])
+
+    def predictive(c: dict[str, Any]) -> bool:
+        return bool(c["evidence_level"] in PREDICTIVE_OR_ABOVE)
+
+    def ids(selected: list[dict[str, Any]]) -> list[str]:
+        return [str(c["candidate_id"]) for c in selected]
+
+    best = max(cand_rows, key=jac)
+    pred_rows = [c for c in cand_rows if predictive(c)]
+    best_pred = max(pred_rows, key=jac, default=None)
+    return {
+        "lenient_any_level": ids([c for c in cand_rows if recall(c) >= LENIENT_RECALL]),
+        "lenient_predictive": ids([c for c in pred_rows if recall(c) >= LENIENT_RECALL]),
+        "specific_any_level": ids([c for c in cand_rows if jac(c) >= SPECIFIC_JACCARD]),
+        "specific_predictive": ids([c for c in pred_rows if jac(c) >= SPECIFIC_JACCARD]),
+        "sensitivity_j0.3_any_level": ids([c for c in cand_rows if jac(c) >= SENSITIVITY_JACCARD]),
+        "sensitivity_j0.3_predictive": ids([c for c in pred_rows if jac(c) >= SENSITIVITY_JACCARD]),
+        "best_jaccard_candidate": best["candidate_id"],
+        "best_jaccard": jac(best),
+        "best_jaccard_evidence_level": best["evidence_level"],
+        "best_jaccard_predictive_candidate": None
+        if best_pred is None
+        else best_pred["candidate_id"],
+        "best_jaccard_predictive": None if best_pred is None else jac(best_pred),
+        "promoted_any_matching": ids(
+            [
+                c
+                for c in cand_rows
+                if c["policy_readiness"] in ("shadow_policy", "high_confidence")
+                and recall(c) >= LENIENT_RECALL
+            ]
+        ),
+    }
+
+
 def _score_candidates(
     frame: pl.DataFrame,
     candidates: list[dict[str, Any]],
@@ -227,9 +269,7 @@ def _score_candidates(
     n_rows = frame.height
     cand_rows: list[dict[str, Any]] = []
     for cand in candidates:
-        rule = tuple(
-            Condition(c["feature"], c["operator"], c["value"]) for c in cand["conditions"]
-        )
+        rule = tuple(Condition(c["feature"], c["operator"], c["value"]) for c in cand["conditions"])
         mask = _frame_mask(frame, _rule_expr_local(rule))
         exposed = mask.bit_count()
         per: dict[str, Any] = {}
@@ -255,60 +295,19 @@ def _score_candidates(
                 "failed_gates": val["failed_gates"],
                 "level2_failed_gates": val["level2_failed_gates"],
                 "per_pattern": per,
-                "lenient_matches": [
-                    p for p in pattern_masks if per[p]["recall"] >= LENIENT_RECALL
-                ],
+                "lenient_matches": [p for p in pattern_masks if per[p]["recall"] >= LENIENT_RECALL],
                 "specific_matches": [
                     p for p in pattern_masks if per[p]["jaccard"] >= SPECIFIC_JACCARD
                 ],
             }
         )
-    summary: dict[str, Any] = {}
-    for pid in scoreable:
-        def _any(pred: Any, pid: str = pid) -> list[str]:
-            return [c["candidate_id"] for c in cand_rows if pred(c, pid)]
-
-        pred_level = lambda c: c["evidence_level"] in PREDICTIVE_OR_ABOVE  # noqa: E731
-        best = max(cand_rows, key=lambda c: c["per_pattern"][pid]["jaccard"])
-        best_pred = max(
-            (c for c in cand_rows if pred_level(c)),
-            key=lambda c: c["per_pattern"][pid]["jaccard"],
-            default=None,
-        )
-        summary[pid] = {
-            "lenient_any_level": _any(lambda c, p: c["per_pattern"][p]["recall"] >= LENIENT_RECALL),
-            "lenient_predictive": _any(
-                lambda c, p: pred_level(c) and c["per_pattern"][p]["recall"] >= LENIENT_RECALL
-            ),
-            "specific_any_level": _any(
-                lambda c, p: c["per_pattern"][p]["jaccard"] >= SPECIFIC_JACCARD
-            ),
-            "specific_predictive": _any(
-                lambda c, p: pred_level(c) and c["per_pattern"][p]["jaccard"] >= SPECIFIC_JACCARD
-            ),
-            "sensitivity_j0.3_any_level": _any(
-                lambda c, p: c["per_pattern"][p]["jaccard"] >= SENSITIVITY_JACCARD
-            ),
-            "sensitivity_j0.3_predictive": _any(
-                lambda c, p: pred_level(c) and c["per_pattern"][p]["jaccard"] >= SENSITIVITY_JACCARD
-            ),
-            "best_jaccard_candidate": best["candidate_id"],
-            "best_jaccard": best["per_pattern"][pid]["jaccard"],
-            "best_jaccard_evidence_level": best["evidence_level"],
-            "best_jaccard_predictive_candidate": None if best_pred is None else best_pred["candidate_id"],
-            "best_jaccard_predictive": None
-            if best_pred is None
-            else best_pred["per_pattern"][pid]["jaccard"],
-            "promoted_any_matching": _any(
-                lambda c, p: c["policy_readiness"] in ("shadow_policy", "high_confidence")
-                and c["per_pattern"][p]["recall"] >= LENIENT_RECALL
-            ),
-        }
+    summary = {pid: _summarise_pattern(pid, cand_rows) for pid in scoreable}
     return {"candidates": cand_rows, "per_pattern": summary}
 
 
 def run_seed(seed: int, out: Path, with_engine: bool, with_trace: bool) -> None:
     version = frozen_version_record()
+    cand_list: list[dict[str, Any]] = []
     with tempfile.TemporaryDirectory(prefix=f"task106-seed{seed}-") as tmp:
         root, gt_path = _prepare_dataset(seed, Path(tmp))
         manifest = json.loads((root / "manifest.json").read_text(encoding="utf-8"))
@@ -353,11 +352,19 @@ def run_seed(seed: int, out: Path, with_engine: bool, with_trace: bool) -> None:
             n_aff = affected.bit_count()
             n_dev = len(dev_ids & set(pattern["affected_booking_ids"]))
             projection = build_projection(
-                pid, str(pattern["rule"]), atoms, feature_columns, frame_columns, timing,
-                development, config,
+                pid,
+                str(pattern["rule"]),
+                atoms,
+                feature_columns,
+                frame_columns,
+                timing,
+                development,
+                config,
             )
             exact = _true_rule_reference(frame, projection.true_conditions, outcome, config)
-            power = _true_rule_power_reference(exact, development.height, dev_sd, ORACLE_FAMILY_SIZE)
+            power = _true_rule_power_reference(
+                exact, development.height, dev_sd, ORACLE_FAMILY_SIZE
+            )
             entry: dict[str, Any] = {
                 "scoreable": pid in scoreable,
                 "true_rule": str(pattern["rule"]),
@@ -405,7 +412,9 @@ def run_seed(seed: int, out: Path, with_engine: bool, with_trace: bool) -> None:
 
         if with_engine:
             if seed == COMMITTED_SEED:
-                cand_doc = json.loads((TASK103_RUN1 / "candidates.json").read_text(encoding="utf-8"))
+                cand_doc = json.loads(
+                    (TASK103_RUN1 / "candidates.json").read_text(encoding="utf-8")
+                )
                 cand_list = cast("list[dict[str, Any]]", cand_doc["candidates"])
                 family = int(
                     json.loads((TASK103_RUN1 / "discovery_metrics.json").read_text())[
@@ -422,7 +431,9 @@ def run_seed(seed: int, out: Path, with_engine: bool, with_trace: bool) -> None:
             rules = [
                 (
                     c["candidate_id"],
-                    tuple(Condition(x["feature"], x["operator"], x["value"]) for x in c["conditions"]),
+                    tuple(
+                        Condition(x["feature"], x["operator"], x["value"]) for x in c["conditions"]
+                    ),
                 )
                 for c in cand_list
             ]
@@ -438,7 +449,9 @@ def run_seed(seed: int, out: Path, with_engine: bool, with_trace: bool) -> None:
                 frame, feature_columns, outcome, config, pattern_masks, scoreable, result, cand_list
             )
     out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(json.dumps(result, indent=1, sort_keys=True, default=str) + "\n", encoding="utf-8")
+    out.write_text(
+        json.dumps(result, indent=1, sort_keys=True, default=str) + "\n", encoding="utf-8"
+    )
     print(f"wrote {out}")
 
 
@@ -455,7 +468,9 @@ def _trace(
     print("tracing search pool (v0.6.2)", flush=True)
     trace = trace_search(frame, feature_columns, outcome, config)
     committed_rules = [
-        tuple(sorted(EngineCondition(c["feature"], c["operator"], c["value"]) for c in cand["conditions"]))
+        tuple(
+            sorted(Condition(c["feature"], c["operator"], c["value"]) for c in cand["conditions"])
+        )
         for cand in cand_list
     ]
     if trace.evaluated != ORACLE_FAMILY_SIZE or committed_rules != trace.selected:
@@ -468,7 +483,9 @@ def _trace(
     def rmask(rule: tuple[Condition, ...]) -> int:
         packed = full
         for c in rule:
-            packed &= atom_masks[c] if c in atom_masks else _frame_mask(frame, _rule_expr_local((c,)))
+            packed &= (
+                atom_masks[c] if c in atom_masks else _frame_mask(frame, _rule_expr_local((c,)))
+            )
         return packed
 
     selected_set = set(trace.selected)
@@ -527,8 +544,14 @@ def _trace(
         if pid not in scoreable:
             continue
         proj = build_projection(
-            pid, str(pattern["rule"]), trace.atoms, feature_columns, frozenset(frame.columns),
-            timing, development, config,
+            pid,
+            str(pattern["rule"]),
+            trace.atoms,
+            feature_columns,
+            frozenset(frame.columns),
+            timing,
+            development,
+            config,
         )
         if proj.over_depth or not proj.atoms:
             continue
@@ -606,9 +629,8 @@ def run_exact(seed: int, out: Path) -> None:
         root, gt_path = _prepare_dataset(seed, Path(tmp))
         gt = json.loads(gt_path.read_text(encoding="utf-8"))
         frame = load_analytical_frame(root)
-        dev_ids = frozenset(
-            cast("list[str]", frame.filter(pl.col("split_label") == "development")["booking_id"].to_list())  # pyright: ignore[reportUnknownMemberType]
-        )
+        dev_frame = frame.filter(pl.col("split_label") == "development")  # pyright: ignore[reportUnknownMemberType]
+        dev_ids = frozenset(cast("list[str]", dev_frame["booking_id"].to_list()))
         scoreable = list(_scoreable_pattern_ids(gt, dev_ids))
         index_of = {b: i for i, b in enumerate(cast("list[str]", frame["booking_id"].to_list()))}
         masks: dict[str, int] = {}
@@ -618,9 +640,7 @@ def run_exact(seed: int, out: Path) -> None:
                 packed |= 1 << index_of[b]
             masks[str(pattern["id"])] = packed
         copy_root = _augment_with_exact_columns(root, Path(tmp), frame, masks, scoreable)
-        rules = [
-            (pid, (Condition(f"oracle_exact_{pid}", "eq", True),)) for pid in scoreable
-        ]
+        rules = [(pid, (Condition(f"oracle_exact_{pid}", "eq", True),)) for pid in scoreable]
         val = _validate_rules(copy_root, rules, ORACLE_FAMILY_SIZE, f"exact-{seed}")
     payload = {
         "seed": seed,
@@ -632,7 +652,6 @@ def run_exact(seed: int, out: Path) -> None:
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(payload, indent=1, sort_keys=True) + "\n", encoding="utf-8")
     print(f"wrote {out}")
-
 
 
 def _wilson(k: int, n: int, z: float = 1.96) -> list[float]:
@@ -675,7 +694,12 @@ def rates(dirs: list[Path], out: Path) -> None:
                     fails[g] = fails.get(g, 0) + 1
             block[pid] = {
                 "seeds_where_scoreable": n,
-                "reaches_predictive": {"k": pred, "n": n, "rate": pred / n if n else None, "wilson95": _wilson(pred, n)},
+                "reaches_predictive": {
+                    "k": pred,
+                    "n": n,
+                    "rate": pred / n if n else None,
+                    "wilson95": _wilson(pred, n),
+                },
                 "reaches_adjusted_or_above": {"k": adj, "n": n},
                 "level2_gate_failures": dict(sorted(fails.items())),
             }
@@ -686,8 +710,11 @@ def rates(dirs: list[Path], out: Path) -> None:
         for pid, v in block.items():
             if pid != "n_seeds":
                 r = v["reaches_predictive"]
-                print(f"  {pid}: scoreable {v['seeds_where_scoreable']}, predictive {r['k']}/{r['n']} {r['wilson95']} adj {v['reaches_adjusted_or_above']['k']} {v['level2_gate_failures']}")
-
+                print(
+                    f"  {pid}: scoreable {v['seeds_where_scoreable']}, "
+                    f"predictive {r['k']}/{r['n']} {r['wilson95']} "
+                    f"adj {v['reaches_adjusted_or_above']['k']} {v['level2_gate_failures']}"
+                )
 
 
 def _parse_rendered_rule(text: str) -> tuple[Condition, ...]:
@@ -717,70 +744,44 @@ def run_poolrules(committed_json: Path, out: Path) -> None:
         if "best_jaccard_rule" in entry
     ]
     val = _validate_rules(COMMITTED_ROOT, rules, ORACLE_FAMILY_SIZE, "poolbest")
-    payload = {
+    rendered = {pid: _render_rule(rule) for pid, rule in rules}
+    payload: dict[str, Any] = {
         "family_size": ORACLE_FAMILY_SIZE,
-        "rules": {pid: _render_rule(rule) for pid, rule in rules},
+        "rules": rendered,
         "validation": val,
     }
     out.write_text(json.dumps(payload, indent=1, sort_keys=True) + "\n", encoding="utf-8")
     for pid, v in val.items():
-        print(pid, payload["rules"][pid], v["evidence_level"], v["level2_failed_gates"])
+        print(pid, rendered[pid], v["evidence_level"], v["level2_failed_gates"])
 
 
-
-def aggregate(in_dir: Path, out: Path) -> None:
-    files = sorted(in_dir.glob("seed-*.json"))
-    seeds = [json.loads(f.read_text(encoding="utf-8")) for f in files]
-    pids = ["P01", "P02", "P03", "P04", "P06", "P08", "P09"]
-    agg: dict[str, Any] = {"n_seeds": len(seeds), "seeds": [s["seed"] for s in seeds], "per_pattern": {}}
-    for pid in pids:
-        rows = [s for s in seeds if pid in s["scoreable_pattern_ids"]]
+def engine_summary(in_dir: Path, out: Path) -> None:
+    """Per-pattern engine outcomes over the seed files that carry an `engine` block."""
+    seeds = [json.loads(f.read_text(encoding="utf-8")) for f in sorted(in_dir.glob("seed-*.json"))]
+    seeds = [s for s in seeds if "engine" in s]
+    summary: dict[str, Any] = {"n_seeds": len(seeds), "seeds": [s["seed"] for s in seeds]}
+    for pid in ("P01", "P02", "P03", "P04", "P06", "P08", "P09"):
+        rows = [s["engine"]["per_pattern"][pid] for s in seeds if pid in s["engine"]["per_pattern"]]
         n = len(rows)
-
-        def rate(pred: Any, rows: list[dict[str, Any]] = rows) -> dict[str, Any]:
-            k = sum(1 for s in rows if pred(s))
-            return {"k": k, "n": len(rows), "rate": k / len(rows) if rows else None}
-
-        pat = lambda s: s["patterns"][pid]  # noqa: E731
-        entry: dict[str, Any] = {
-            "scoreable_in_n_seeds": n,
-            "exact_rule_power_bound_passes": rate(lambda s: pat(s)["exact_rule_power_bound_passes"]),
-            "oracle_projection_reaches_predictive": rate(
-                lambda s: pat(s).get("oracle_reaches_predictive") is True
-            ),
-            "oracle_projection_level3_or_above": rate(
-                lambda s: pat(s)["projection"] is not None
-                and pat(s)["projection"]["oracle_validation"]["evidence_level"]
-                in PREDICTIVE_OR_ABOVE[1:]
-            ),
-        }
-        gate_fail: dict[str, int] = {}
-        for s in rows:
-            proj = pat(s)["projection"]
-            if proj:
-                for g in proj["oracle_validation"]["level2_failed_gates"]:
-                    gate_fail[g] = gate_fail.get(g, 0) + 1
-        entry["oracle_level2_gate_failure_counts"] = gate_fail
-        eng = [s for s in rows if "engine" in s]
-        if eng:
-            e = lambda s: s["engine"]["per_pattern"][pid]  # noqa: E731
-            entry["engine_n_seeds"] = len(eng)
-            for key in (
-                "lenient_predictive",
-                "specific_predictive",
-                "specific_any_level",
-                "sensitivity_j0.3_predictive",
-            ):
-                k = sum(1 for s in eng if e(s)[key])
-                entry[f"engine_{key}"] = {"k": k, "n": len(eng), "rate": k / len(eng)}
-            entry["engine_best_jaccard"] = [round(e(s)["best_jaccard"], 3) for s in eng]
-        agg["per_pattern"][pid] = entry
-    out.write_text(json.dumps(agg, indent=1, sort_keys=True) + "\n", encoding="utf-8")
-    print(json.dumps(agg["per_pattern"], indent=1, sort_keys=True))
+        entry: dict[str, Any] = {"n_seeds_scoreable": n}
+        for key in (
+            "lenient_predictive",
+            "specific_any_level",
+            "specific_predictive",
+            "sensitivity_j0.3_predictive",
+        ):
+            k = sum(1 for r in rows if r[key])
+            entry[key] = {"k": k, "n": n, "wilson95": _wilson(k, n)}
+        entry["best_jaccard_per_seed"] = [round(r["best_jaccard"], 3) for r in rows]
+        summary[pid] = entry
+    out.write_text(json.dumps(summary, indent=1, sort_keys=True) + "\n", encoding="utf-8")
+    print(json.dumps(summary, indent=1, sort_keys=True))
 
 
 def main(argv: list[str] | None = None) -> None:
-    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     sub = parser.add_subparsers(dest="cmd", required=True)
     s = sub.add_parser("seed")
     s.add_argument("--seed", type=int, required=True)
@@ -798,7 +799,7 @@ def main(argv: list[str] | None = None) -> None:
     q = sub.add_parser("poolrules")
     q.add_argument("--committed-json", type=Path, required=True)
     q.add_argument("--out", type=Path, required=True)
-    a = sub.add_parser("aggregate")
+    a = sub.add_parser("engine-summary")
     a.add_argument("--in", dest="in_dir", type=Path, required=True)
     a.add_argument("--out", type=Path, required=True)
     args = parser.parse_args(argv if argv is not None else sys.argv[1:])
@@ -815,7 +816,7 @@ def main(argv: list[str] | None = None) -> None:
     elif args.cmd == "exact":
         run_exact(args.seed, args.out)
     else:
-        aggregate(args.in_dir, args.out)
+        engine_summary(args.in_dir, args.out)
 
 
 if __name__ == "__main__":
