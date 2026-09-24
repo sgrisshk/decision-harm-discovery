@@ -209,7 +209,7 @@ uv run python scripts/diagnose_task078_oracle_adjustment_sufficiency.py --raw-ou
 
 **Caveats added post-review (R4).** (a) The committed exact-mode raw files (`task-106-raw-exact*`) and the committed-seed raw
 (`task-106-raw/seed-20260813.json`) predate script edits: `g05_detail` is absent from the committed exact files, and `discovery_config_defaults` is
-`null` even in the committed-seed raw, although section 0 says the field is recorded in every raw file (it is not; `frozen_version` is). On re-run
+`null` even in the committed-seed raw, although section 0 says the field is recorded in every raw file (it is not; `frozen_version` is present in the committed-seed raw but absent from the committed exact-mode raw). On re-run
 the substantive values were identical. (b) The section-3 D2/D4 outputs need the gitignored `artifacts/` (blind and evaluation roots) and cannot be reproduced from a clean checkout alone.
 (c) Engine-side specific-rule rates (P01 3/7, P06 1/7) rest on 7 draws only and are correspondingly wide (Wilson intervals given). 
 
