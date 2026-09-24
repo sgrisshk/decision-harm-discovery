@@ -62,6 +62,7 @@ from policy_analytics.discovery.engine import (  # noqa: E402
     _atoms,
     discover_candidates,
 )
+from policy_analytics.discovery.engine import Condition as EngineCondition  # noqa: E402
 from policy_analytics.outcomes import (  # noqa: E402
     outcome_definition_from_manifest,
     primary_outcome,
@@ -453,7 +454,7 @@ def _trace(
     print("tracing search pool (v0.6.2)", flush=True)
     trace = trace_search(frame, feature_columns, outcome, config)
     committed_rules = [
-        tuple(sorted(Condition(c["feature"], c["operator"], c["value"]) for c in cand["conditions"]))
+        tuple(sorted(EngineCondition(c["feature"], c["operator"], c["value"]) for c in cand["conditions"]))
         for cand in cand_list
     ]
     if trace.evaluated != ORACLE_FAMILY_SIZE or committed_rules != trace.selected:
