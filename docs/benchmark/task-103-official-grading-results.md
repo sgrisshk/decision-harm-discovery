@@ -62,6 +62,15 @@ API rate-limit stop (state left `RUNNING`, no `output/` files, container gone). 
 relaunched and the ID cannot be reused, so `-003` was issued with the same seed. No result from `-002`
 existed, so nothing was selected or discarded on outcome.
 
+**Dates (verified from `/tmp/policy-blind-runs/*/events.jsonl`).** `-001` was created 2026-09-22T06:29Z and frozen
+2026-09-22T06:40:17Z. `-002` was created 2026-09-22T06:40:23Z (seconds after Run A's freeze), reached `running` at
+06:40:29Z, and its state is still `RUNNING` with an empty `output/` directory: it was never completed, scored or
+inspected. `-003` was created 2026-09-24T06:26Z (two days later), with the same seed `8916`, and frozen
+2026-09-24T06:36Z. The date string `20260922` in the `-003` run ID is therefore misleading: it is a naming
+counter carried over from `-001`/`-002`, not the issue date of `-003`, which is 2026-09-24. (Times are the events'
+UTC timestamps. The interruption cause, an API rate-limit stop, is not recorded in `/tmp` state, which holds only
+the events above, so that cause could not be re-verified here.)
+
 **Custody re-derivation (own code, not the tool's checks).** SHA-256 of the three frozen files of each run
 match `frozen/hashes.json`; the manifest HMAC-SHA256 (domain `blind-agent-manifest-v1\0`, canonical JSON)
 recomputed with the evaluator key matches `evaluator_signature` for both runs. The whole worktree that
@@ -104,6 +113,12 @@ match `P01` alone. This is a very different set from `v0.6.0`'s (70% precision, 
 with `TASK-101`'s finding that `v0.6.2` changes 10 of 15 travel candidates. Whether the broad-rule regime
 is desirable is a question for a reviewer, not something this task adjusts. Also: with no trap present,
 `G16` was never exercised on a trap this cycle.
+
+**Ranking basis (disclosed).** The top-10 for Dimension 1 is ranked by `economic_exposure`, a documented
+`TASK-016` substitution per the evaluation methodology (`docs/benchmark/task-029-benchmark-report-v1.md`, since
+`TASK-016` ranking has not run). Frozen Dimension 1 speaks of a "ranked top-10". Ranking cannot change the result
+here: all 15 candidates are true-pattern, non-trap, non-noise matches (verified in both runs' `evaluation.json`),
+so any 10 of them give 10/10.
 
 ## 5. `decision-gate.md` entries
 

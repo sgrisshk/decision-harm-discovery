@@ -319,9 +319,15 @@ identical except for the `run_id` string, both evaluated 36,791 hypotheses, and 
 evaluation reports are identical after dropping paths and timestamps. This is the `TASK-073`/`TASK-083`
 shape (different label, identical discovery output), reached by a different route.
 
+**Alternative label-only reading (founder's call, not mine).** Under the label-only reading (treating "varies seed" as satisfied by the label alone), Dimensions 1 and 3 would each read PASS on the measurements above, while Dimensions 2, 5 and 6 would still be FAIL and Dimension 4 UNKNOWN, so the conjunction (Dimension 6) is FAIL under either reading. I graded the substantive reading; choosing between them is a founder decision (a new dated ADR). See results doc Section 6.
+
+**Ranking basis.** The top-10 is ranked by `economic_exposure`, a documented `TASK-016` substitution per the evaluation methodology, whereas frozen Dimension 1 speaks of a "ranked top-10". Ranking cannot change the result here: all 15 candidates are true non-trap matches.
+
+**Dates.** `-001` ran 2026-09-22 (frozen 06:40Z); `-002` was issued 2026-09-22 (~06:40Z, seconds after `-001`'s freeze) and left RUNNING with empty output; `-003` was issued 2026-09-24 with the same seed 8916, so the `20260922` in its run ID is misleading.
+
 | Metric | Pre-registered band met | Actual result (identical in Run A and Run B) | Notes |
 |---|---|---|---|
-| Top-K precision | STRONG (>=60%) | 100% (10/10) | All 10 are true-pattern matches, non-trap, non-noise. Most candidates are broad rules (up to ~7,500 exposed rows) that satisfy `TASK-028`'s 0.5 pattern-recall match against several patterns each (up to 8, including excluded `P05`/`P07`); 9 of the 15 candidates match only `P01`. Reported as computed, not reinterpreted |
+| Top-K precision | STRONG (>=60%) | 100% (10/10) | All 10 are true-pattern matches, non-trap, non-noise. Most candidates are broad rules (up to ~7,800 exposed rows: 7,817, `CAND-015`) that satisfy `TASK-028`'s 0.5 pattern-recall match against several patterns each (up to 8, including excluded `P05`/`P07`); 9 of the 15 candidates match only `P01`. Reported as computed, not reinterpreted |
 | Economic-weighted recall | STRONG (>=50%) | 100.0% (614,695.29 / 614,695.29 EUR) | All 7 scoreable patterns count as recovered under the same lenient match statistic; not comparable to the 45.2% `v0.6.0` figure without noting the candidate set changed completely |
 | Confounder trap rejection | PROMISING, not STRONG | 0/5 promoted | No trap's apparent feature appears in any candidate: non-promotion by absence, not active rejection. `G16` had nothing to cap. `T01`-`T05` all did not appear |
 | Leakage violations | passes | 0 | Hard disqualifier 1 did not fire |
