@@ -244,9 +244,11 @@ def rates(d: Path, out: Path) -> None:
               {k: f"{v['k']}/{v['n']}" for k, v in e.items() if k.endswith("@36791")})
 
 
+for _t in V2_SPEC:  # module level: multiprocessing 'spawn' workers re-import this module
+    V2_TARGETS.append({"id": _t["id"], "pred": _t["pred"], "dose": DOSE[_t["dose"]]})
+
+
 def main() -> None:
-    for t in V2_SPEC:
-        V2_TARGETS.append({"id": t["id"], "pred": t["pred"], "dose": DOSE[t["dose"]]})
     ap = argparse.ArgumentParser()
     sub = ap.add_subparsers(dest="cmd", required=True)
     sub.add_parser("fidelity")
