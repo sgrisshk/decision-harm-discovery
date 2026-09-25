@@ -1,0 +1,831 @@
+{
+ "final": [
+  {
+   "id": "C01",
+   "rule": "destination=Lisbon AND acquisition_channel=referral",
+   "ladder": "mixed",
+   "class": "core_candidate",
+   "dose": "XXL"
+  },
+  {
+   "id": "C02",
+   "rule": "destination=Rome AND customer_segment=corporate",
+   "ladder": "mixed",
+   "class": "core_candidate",
+   "dose": "H"
+  },
+  {
+   "id": "C03",
+   "rule": "product_category=premium AND acquisition_channel=partner AND discount_rate>=0.08",
+   "ladder": "mixed",
+   "class": "core_candidate",
+   "dose": "H"
+  },
+  {
+   "id": "C04",
+   "rule": "supplier=Cedar AND customer_segment=family AND trip_duration_days>=8",
+   "ladder": "mixed",
+   "class": "core_candidate",
+   "dose": "XXL"
+  },
+  {
+   "id": "C05",
+   "rule": "supplier=DeltaSun AND discount_rate>=0.12",
+   "ladder": "loss",
+   "class": "core_candidate",
+   "dose": "LO1"
+  },
+  {
+   "id": "C06",
+   "rule": "destination=Reykjavik AND customer_type=returning AND discount_rate>=0.05",
+   "ladder": "mixed",
+   "class": "core_candidate",
+   "dose": "XXL"
+  },
+  {
+   "id": "C07",
+   "rule": "supplier=BlueWing AND acquisition_channel=direct AND party_size>=3",
+   "ladder": "cancel",
+   "class": "core_candidate",
+   "dose": "CX1"
+  },
+  {
+   "id": "C08",
+   "rule": "payment_method=wallet",
+   "ladder": "mixed",
+   "class": "core_candidate",
+   "dose": "H"
+  },
+  {
+   "id": "C09",
+   "rule": "destination=Tokyo AND customer_segment=leisure AND product_category=standard",
+   "ladder": "loss",
+   "class": "core_candidate",
+   "dose": "LO3"
+  },
+  {
+   "id": "C10",
+   "rule": "product_category=luxury",
+   "ladder": "loss",
+   "class": "core_candidate",
+   "dose": "LO3"
+  },
+  {
+   "id": "C11",
+   "rule": "payment_method=card AND discount_rate>=0.12 AND party_size>=3",
+   "ladder": "cancel",
+   "class": "core_candidate",
+   "dose": "CX1"
+  },
+  {
+   "id": "C12",
+   "rule": "customer_type=new AND customer_segment=corporate AND discount_rate>=0.05",
+   "ladder": "mixed",
+   "class": "core_candidate",
+   "dose": "M"
+  },
+  {
+   "id": "C13",
+   "rule": "supplier=BlueWing AND destination=Tokyo AND customer_segment=family",
+   "ladder": "mixed",
+   "class": "core_candidate",
+   "dose": "H"
+  },
+  {
+   "id": "C14",
+   "rule": "acquisition_channel=direct AND product_category=premium AND customer_segment=leisure",
+   "ladder": "mixed",
+   "class": "core_candidate",
+   "dose": "XXL"
+  },
+  {
+   "id": "H01",
+   "rule": "customer_segment=corporate AND product_category=premium AND acquisition_channel=direct",
+   "ladder": "mixed",
+   "class": "challenge_candidate",
+   "dose": "XL"
+  },
+  {
+   "id": "H02",
+   "rule": "destination=Rome AND supplier=Cedar AND discount_rate>=0.05",
+   "ladder": "mixed",
+   "class": "challenge_candidate",
+   "dose": "M"
+  },
+  {
+   "id": "H03",
+   "rule": "customer_type=returning AND payment_method=card AND party_size>=4",
+   "ladder": "mixed",
+   "class": "challenge_candidate",
+   "dose": "M"
+  },
+  {
+   "id": "D01",
+   "rule": "acquisition_channel=paid_search AND destination=Rome AND customer_type=returning",
+   "ladder": "mixed",
+   "class": "declared_overlap",
+   "trap_literal": "acquisition_channel=paid_search",
+   "dose": "XXL"
+  },
+  {
+   "id": "D02",
+   "rule": "payment_method=bank_transfer AND customer_segment=family AND discount_rate>=0.08",
+   "ladder": "mixed",
+   "class": "declared_overlap",
+   "trap_literal": "payment_method=bank_transfer",
+   "dose": "H"
+  }
+ ],
+ "log": [
+  {
+   "round": 1,
+   "targets": {
+    "C01": {
+     "dose": "M",
+     "t_mean": 3.24,
+     "t_min": 1.41,
+     "ok": false,
+     "unreachable": false
+    },
+    "C02": {
+     "dose": "M",
+     "t_mean": 7.55,
+     "t_min": 6.82,
+     "ok": true,
+     "unreachable": false
+    },
+    "C03": {
+     "dose": "M",
+     "t_mean": 6.52,
+     "t_min": 5.56,
+     "ok": false,
+     "unreachable": false
+    },
+    "C04": {
+     "dose": "M",
+     "t_mean": 5.15,
+     "t_min": 3.3,
+     "ok": false,
+     "unreachable": false
+    },
+    "C05": {
+     "dose": "LO1",
+     "t_mean": 13.02,
+     "t_min": 11.85,
+     "ok": true,
+     "unreachable": false
+    },
+    "C06": {
+     "dose": "M",
+     "t_mean": 4.37,
+     "t_min": 2.9,
+     "ok": false,
+     "unreachable": false
+    },
+    "C07": {
+     "dose": "CX1",
+     "t_mean": 10.79,
+     "t_min": 10.01,
+     "ok": true,
+     "unreachable": false
+    },
+    "C08": {
+     "dose": "M",
+     "t_mean": 6.53,
+     "t_min": 5.33,
+     "ok": false,
+     "unreachable": false
+    },
+    "C09": {
+     "dose": "LO1",
+     "t_mean": 3.36,
+     "t_min": 1.28,
+     "ok": false,
+     "unreachable": false
+    },
+    "C10": {
+     "dose": "LO1",
+     "t_mean": 3.6,
+     "t_min": 2.39,
+     "ok": false,
+     "unreachable": false
+    },
+    "C11": {
+     "dose": "CX1",
+     "t_mean": 16.02,
+     "t_min": 14.29,
+     "ok": true,
+     "unreachable": false
+    },
+    "C12": {
+     "dose": "M",
+     "t_mean": 9.06,
+     "t_min": 7.93,
+     "ok": true,
+     "unreachable": false
+    },
+    "C13": {
+     "dose": "M",
+     "t_mean": 7.8,
+     "t_min": 6.44,
+     "ok": true,
+     "unreachable": false
+    },
+    "C14": {
+     "dose": "M",
+     "t_mean": 2.45,
+     "t_min": 1.02,
+     "ok": false,
+     "unreachable": false
+    },
+    "H01": {
+     "dose": "M",
+     "t_mean": 4.04,
+     "t_min": 2.07,
+     "ok": false,
+     "unreachable": false
+    },
+    "H02": {
+     "dose": "M",
+     "t_mean": 7.14,
+     "t_min": 5.39,
+     "ok": true,
+     "unreachable": false
+    },
+    "H03": {
+     "dose": "M",
+     "t_mean": 7.45,
+     "t_min": 6.67,
+     "ok": true,
+     "unreachable": false
+    },
+    "D01": {
+     "dose": "M",
+     "t_mean": 4.53,
+     "t_min": 3.7,
+     "ok": false,
+     "unreachable": false
+    },
+    "D02": {
+     "dose": "M",
+     "t_mean": 7.01,
+     "t_min": 6.14,
+     "ok": true,
+     "unreachable": false
+    }
+   }
+  },
+  {
+   "round": 2,
+   "targets": {
+    "C01": {
+     "dose": "H",
+     "t_mean": 4.46,
+     "t_min": 2.75,
+     "ok": false,
+     "unreachable": false
+    },
+    "C02": {
+     "dose": "M",
+     "t_mean": 7.09,
+     "t_min": 6.29,
+     "ok": true,
+     "unreachable": false
+    },
+    "C03": {
+     "dose": "H",
+     "t_mean": 7.84,
+     "t_min": 6.54,
+     "ok": true,
+     "unreachable": false
+    },
+    "C04": {
+     "dose": "H",
+     "t_mean": 6.72,
+     "t_min": 4.19,
+     "ok": false,
+     "unreachable": false
+    },
+    "C05": {
+     "dose": "LO1",
+     "t_mean": 12.19,
+     "t_min": 10.43,
+     "ok": true,
+     "unreachable": false
+    },
+    "C06": {
+     "dose": "H",
+     "t_mean": 6.11,
+     "t_min": 4.43,
+     "ok": false,
+     "unreachable": false
+    },
+    "C07": {
+     "dose": "CX1",
+     "t_mean": 10.63,
+     "t_min": 9.78,
+     "ok": true,
+     "unreachable": false
+    },
+    "C08": {
+     "dose": "H",
+     "t_mean": 9.7,
+     "t_min": 8.7,
+     "ok": true,
+     "unreachable": false
+    },
+    "C09": {
+     "dose": "LO2",
+     "t_mean": 5.49,
+     "t_min": 3.69,
+     "ok": false,
+     "unreachable": false
+    },
+    "C10": {
+     "dose": "LO2",
+     "t_mean": 5.73,
+     "t_min": 4.82,
+     "ok": false,
+     "unreachable": false
+    },
+    "C11": {
+     "dose": "CX1",
+     "t_mean": 15.4,
+     "t_min": 13.93,
+     "ok": true,
+     "unreachable": false
+    },
+    "C12": {
+     "dose": "M",
+     "t_mean": 8.35,
+     "t_min": 7.36,
+     "ok": true,
+     "unreachable": false
+    },
+    "C13": {
+     "dose": "M",
+     "t_mean": 7.38,
+     "t_min": 6.12,
+     "ok": true,
+     "unreachable": false
+    },
+    "C14": {
+     "dose": "H",
+     "t_mean": 4.81,
+     "t_min": 3.38,
+     "ok": false,
+     "unreachable": false
+    },
+    "H01": {
+     "dose": "H",
+     "t_mean": 4.96,
+     "t_min": 3.33,
+     "ok": false,
+     "unreachable": false
+    },
+    "H02": {
+     "dose": "M",
+     "t_mean": 6.88,
+     "t_min": 5.1,
+     "ok": true,
+     "unreachable": false
+    },
+    "H03": {
+     "dose": "M",
+     "t_mean": 7.2,
+     "t_min": 6.52,
+     "ok": true,
+     "unreachable": false
+    },
+    "D01": {
+     "dose": "H",
+     "t_mean": 5.53,
+     "t_min": 4.25,
+     "ok": false,
+     "unreachable": false
+    },
+    "D02": {
+     "dose": "M",
+     "t_mean": 6.59,
+     "t_min": 5.85,
+     "ok": false,
+     "unreachable": false
+    }
+   }
+  },
+  {
+   "round": 3,
+   "targets": {
+    "C01": {
+     "dose": "XL",
+     "t_mean": 5.9,
+     "t_min": 4.31,
+     "ok": false,
+     "unreachable": false
+    },
+    "C02": {
+     "dose": "M",
+     "t_mean": 6.66,
+     "t_min": 5.83,
+     "ok": false,
+     "unreachable": false
+    },
+    "C03": {
+     "dose": "H",
+     "t_mean": 7.33,
+     "t_min": 6.06,
+     "ok": true,
+     "unreachable": false
+    },
+    "C04": {
+     "dose": "XL",
+     "t_mean": 7.83,
+     "t_min": 5.31,
+     "ok": false,
+     "unreachable": false
+    },
+    "C05": {
+     "dose": "LO1",
+     "t_mean": 11.82,
+     "t_min": 9.87,
+     "ok": true,
+     "unreachable": false
+    },
+    "C06": {
+     "dose": "XL",
+     "t_mean": 7.53,
+     "t_min": 6.03,
+     "ok": true,
+     "unreachable": false
+    },
+    "C07": {
+     "dose": "CX1",
+     "t_mean": 10.5,
+     "t_min": 9.5,
+     "ok": true,
+     "unreachable": false
+    },
+    "C08": {
+     "dose": "H",
+     "t_mean": 9.24,
+     "t_min": 8.24,
+     "ok": true,
+     "unreachable": false
+    },
+    "C09": {
+     "dose": "LO3",
+     "t_mean": 8.03,
+     "t_min": 6.66,
+     "ok": true,
+     "unreachable": false
+    },
+    "C10": {
+     "dose": "LO3",
+     "t_mean": 7.92,
+     "t_min": 7.04,
+     "ok": true,
+     "unreachable": false
+    },
+    "C11": {
+     "dose": "CX1",
+     "t_mean": 14.81,
+     "t_min": 13.36,
+     "ok": true,
+     "unreachable": false
+    },
+    "C12": {
+     "dose": "M",
+     "t_mean": 7.62,
+     "t_min": 6.52,
+     "ok": true,
+     "unreachable": false
+    },
+    "C13": {
+     "dose": "M",
+     "t_mean": 7.15,
+     "t_min": 5.76,
+     "ok": false,
+     "unreachable": false
+    },
+    "C14": {
+     "dose": "XL",
+     "t_mean": 6.3,
+     "t_min": 5.05,
+     "ok": false,
+     "unreachable": false
+    },
+    "H01": {
+     "dose": "XL",
+     "t_mean": 5.68,
+     "t_min": 4.09,
+     "ok": true,
+     "unreachable": false
+    },
+    "H02": {
+     "dose": "M",
+     "t_mean": 6.64,
+     "t_min": 4.87,
+     "ok": true,
+     "unreachable": false
+    },
+    "H03": {
+     "dose": "M",
+     "t_mean": 6.96,
+     "t_min": 6.3,
+     "ok": true,
+     "unreachable": false
+    },
+    "D01": {
+     "dose": "XL",
+     "t_mean": 6.59,
+     "t_min": 5.42,
+     "ok": false,
+     "unreachable": false
+    },
+    "D02": {
+     "dose": "H",
+     "t_mean": 8.51,
+     "t_min": 7.4,
+     "ok": true,
+     "unreachable": false
+    }
+   }
+  },
+  {
+   "round": 4,
+   "targets": {
+    "C01": {
+     "dose": "XXL",
+     "t_mean": 7.6,
+     "t_min": 6.03,
+     "ok": true,
+     "unreachable": false
+    },
+    "C02": {
+     "dose": "H",
+     "t_mean": 8.41,
+     "t_min": 7.76,
+     "ok": true,
+     "unreachable": false
+    },
+    "C03": {
+     "dose": "H",
+     "t_mean": 7.1,
+     "t_min": 5.93,
+     "ok": true,
+     "unreachable": false
+    },
+    "C04": {
+     "dose": "XXL",
+     "t_mean": 8.95,
+     "t_min": 6.5,
+     "ok": true,
+     "unreachable": false
+    },
+    "C05": {
+     "dose": "LO1",
+     "t_mean": 11.45,
+     "t_min": 9.42,
+     "ok": true,
+     "unreachable": false
+    },
+    "C06": {
+     "dose": "XL",
+     "t_mean": 7.19,
+     "t_min": 5.57,
+     "ok": false,
+     "unreachable": false
+    },
+    "C07": {
+     "dose": "CX1",
+     "t_mean": 10.69,
+     "t_min": 9.5,
+     "ok": true,
+     "unreachable": false
+    },
+    "C08": {
+     "dose": "H",
+     "t_mean": 9.11,
+     "t_min": 8.16,
+     "ok": true,
+     "unreachable": false
+    },
+    "C09": {
+     "dose": "LO3",
+     "t_mean": 7.05,
+     "t_min": 5.59,
+     "ok": false,
+     "unreachable": true
+    },
+    "C10": {
+     "dose": "LO3",
+     "t_mean": 7.64,
+     "t_min": 6.84,
+     "ok": true,
+     "unreachable": false
+    },
+    "C11": {
+     "dose": "CX1",
+     "t_mean": 14.59,
+     "t_min": 13.06,
+     "ok": true,
+     "unreachable": false
+    },
+    "C12": {
+     "dose": "M",
+     "t_mean": 7.64,
+     "t_min": 6.51,
+     "ok": true,
+     "unreachable": false
+    },
+    "C13": {
+     "dose": "H",
+     "t_mean": 8.61,
+     "t_min": 7.4,
+     "ok": true,
+     "unreachable": false
+    },
+    "C14": {
+     "dose": "XXL",
+     "t_mean": 8.38,
+     "t_min": 7.31,
+     "ok": true,
+     "unreachable": false
+    },
+    "H01": {
+     "dose": "XL",
+     "t_mean": 5.71,
+     "t_min": 4.05,
+     "ok": true,
+     "unreachable": false
+    },
+    "H02": {
+     "dose": "M",
+     "t_mean": 6.85,
+     "t_min": 5.19,
+     "ok": true,
+     "unreachable": false
+    },
+    "H03": {
+     "dose": "M",
+     "t_mean": 7.08,
+     "t_min": 6.3,
+     "ok": true,
+     "unreachable": false
+    },
+    "D01": {
+     "dose": "XXL",
+     "t_mean": 8.03,
+     "t_min": 7.13,
+     "ok": true,
+     "unreachable": false
+    },
+    "D02": {
+     "dose": "H",
+     "t_mean": 8.46,
+     "t_min": 7.37,
+     "ok": true,
+     "unreachable": false
+    }
+   }
+  },
+  {
+   "round": 5,
+   "targets": {
+    "C01": {
+     "dose": "XXL",
+     "t_mean": 7.52,
+     "t_min": 5.96,
+     "ok": true,
+     "unreachable": false
+    },
+    "C02": {
+     "dose": "H",
+     "t_mean": 8.33,
+     "t_min": 7.68,
+     "ok": true,
+     "unreachable": false
+    },
+    "C03": {
+     "dose": "H",
+     "t_mean": 7.1,
+     "t_min": 5.9,
+     "ok": true,
+     "unreachable": false
+    },
+    "C04": {
+     "dose": "XXL",
+     "t_mean": 8.92,
+     "t_min": 6.5,
+     "ok": true,
+     "unreachable": false
+    },
+    "C05": {
+     "dose": "LO1",
+     "t_mean": 11.42,
+     "t_min": 9.39,
+     "ok": true,
+     "unreachable": false
+    },
+    "C06": {
+     "dose": "XXL",
+     "t_mean": 9.01,
+     "t_min": 7.71,
+     "ok": true,
+     "unreachable": false
+    },
+    "C07": {
+     "dose": "CX1",
+     "t_mean": 10.66,
+     "t_min": 9.48,
+     "ok": true,
+     "unreachable": false
+    },
+    "C08": {
+     "dose": "H",
+     "t_mean": 9.06,
+     "t_min": 8.09,
+     "ok": true,
+     "unreachable": false
+    },
+    "C09": {
+     "dose": "LO3",
+     "t_mean": 6.89,
+     "t_min": 5.41,
+     "ok": false,
+     "unreachable": true
+    },
+    "C10": {
+     "dose": "LO3",
+     "t_mean": 7.61,
+     "t_min": 6.81,
+     "ok": true,
+     "unreachable": false
+    },
+    "C11": {
+     "dose": "CX1",
+     "t_mean": 14.57,
+     "t_min": 13.02,
+     "ok": true,
+     "unreachable": false
+    },
+    "C12": {
+     "dose": "M",
+     "t_mean": 7.53,
+     "t_min": 6.41,
+     "ok": true,
+     "unreachable": false
+    },
+    "C13": {
+     "dose": "H",
+     "t_mean": 8.57,
+     "t_min": 7.36,
+     "ok": true,
+     "unreachable": false
+    },
+    "C14": {
+     "dose": "XXL",
+     "t_mean": 8.34,
+     "t_min": 7.3,
+     "ok": true,
+     "unreachable": false
+    },
+    "H01": {
+     "dose": "XL",
+     "t_mean": 5.7,
+     "t_min": 4.04,
+     "ok": true,
+     "unreachable": false
+    },
+    "H02": {
+     "dose": "M",
+     "t_mean": 6.78,
+     "t_min": 5.12,
+     "ok": true,
+     "unreachable": false
+    },
+    "H03": {
+     "dose": "M",
+     "t_mean": 7.14,
+     "t_min": 6.39,
+     "ok": true,
+     "unreachable": false
+    },
+    "D01": {
+     "dose": "XXL",
+     "t_mean": 7.98,
+     "t_min": 7.07,
+     "ok": true,
+     "unreachable": false
+    },
+    "D02": {
+     "dose": "H",
+     "t_mean": 8.45,
+     "t_min": 7.38,
+     "ok": true,
+     "unreachable": false
+    }
+   }
+  }
+ ]
+}
