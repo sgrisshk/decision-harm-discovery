@@ -272,7 +272,7 @@ def effective_rule(
             break
         current.remove(least[2])
         dropped.append(least[2])
-    return EffectiveRule(tuple(current), tuple(dropped))
+    return EffectiveRule(tuple(sorted(current, key=CondSpec.sort_key)), tuple(dropped))
 
 
 # ---------------------------------------------------------------------------- pair metrics ------
@@ -376,7 +376,7 @@ def exact_verdict(
     if strict:
         return ExactVerdict(True, False)
     relaxed = (
-        list(effective) != list(candidate_conditions)
+        len(effective) != len(candidate_conditions)
         and equivalent
         and bijection_exists(space, effective, truth, const.eta)
     )
@@ -447,6 +447,7 @@ def score(
     thetas: Sequence[float] = SENSITIVITY_THETAS,
 ) -> dict[str, Any]:
     """Score one seed. Returns a JSON-serialisable dict; raises `InvariantViolation` on a bug."""
+    thetas = tuple(sorted({*thetas, const.theta_j}))  # the primary threshold is always scored
     scoreable = {t.target_id: t for t in targets if _is_scoreable(space, t, const)}
     unscoreable = sorted(t.target_id for t in targets if t.target_id not in scoreable)
     trap_masks = {tr.trap_id: space.cond_mask(tr.literal) for tr in traps}
