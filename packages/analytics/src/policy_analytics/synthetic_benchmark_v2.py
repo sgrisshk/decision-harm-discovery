@@ -17,9 +17,12 @@ changes every later row's covariates (measured in `rev1_check.py`: `n_affected` 
   The v1 nine-pattern effects act only inside the shadow (they decide v1's RNG consumption); they
   play no role in v2 outcomes (`ADR-107` D11: clean v2).
 * **Outcome streams (stream B).** Every outcome / outcome-derived column is drawn from a per-row
-  `random.Random` keyed by `sha256("travel-v2/outcome/<seed>/<index>")`, with the SAME number of
-  calls for every row and target set (conditional draws such as `refund_ratio` and the refund
-  offset are drawn unconditionally and used only for cancelling rows). A target therefore changes
+  `random.Random` keyed by `sha256("travel-v2/outcome/<seed>/<index>")`, with the SAME call
+  sequence for every row and target set (conditional draws such as `refund_ratio` and the refund
+  offset are drawn unconditionally and used only for cancelling rows). [Rev 3] "Same call
+  sequence", not "same number of RNG words": `randint` uses rejection sampling, so the number of
+  Mersenne Twister words consumed per row varies, but it depends only on `(seed, index)` (the
+  per-row stream is keyed by them), never on targets, so isolation holds. A target therefore changes
   only the rows that satisfy its predicate (common random numbers), never any other row.
 
 **What is and is not reproduced relative to v1.** Reproduced byte-for-byte: every covariate column

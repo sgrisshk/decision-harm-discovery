@@ -27,7 +27,9 @@ value) and repeat.
 condition of `C` or `J(E(C), E(L)) >= theta_T`; it is exempt only if some target `P` whose rule
 contains that literal has `J_e >= theta_J`, `Cp >= theta_p`, non-empty `K(C)` (the metric match) AND
 `C` reaches `predictive_association` or above (the validation clause). Geometric similarity to a
-positive never cancels trap semantics on its own.
+positive never cancels trap semantics on its own. [Rev 3] "T's literal is a condition of C" means a
+condition of C on the same feature with the SAME ROW SET as the literal (so `x IN [v]` and `x = v`
+agree); it is not `CondSpec` equality.
 
 **Pinned readings (Rev 2, flagged for the reviewer)**
 1. Credit: each candidate is credited to at most one scoreable target, the one with the highest
@@ -36,7 +38,9 @@ positive never cancels trap semantics on its own.
    (`specific_metric_also_holds_for`), not credited.
 2. Pool: Coverage, Specific and Exact all use the same candidate pool: every emitted candidate
    that is not a genuine trap hit (`trap_hit` and not exempt). Coverage does not require
-   validation.
+   validation. [Rev 3] Exact also requires no validation, so Exact can exceed Specific (a candidate
+   that exactly reproduces a target but is not `predictive_association` counts for Exact and Coverage
+   only); the report says so.
 3. `mu(c, t)` (condition match) requires the same feature, compatible direction (`ge`/`ge`,
    `lt`/`lt`, or `eq`/`in` with `eq`/`in`) and nested, non-empty marginal row sets. Thresholds are
    not compared.
@@ -142,6 +146,9 @@ class RowSpace:
 
 
 def _row_matches(x: Any, cond: CondSpec) -> bool:
+    # [Rev 3] Known latent limitation: only int/float (non-bool) values match `ge`/`lt`, so a
+    # date-typed value never matches a numeric threshold. Harmless for engine-language v2 targets
+    # (the engine's features exclude the date columns); do not use date-typed thresholds.
     if x is None:
         return False
     v = cond.value
@@ -469,8 +476,17 @@ def score(
                 "cr": pm.cr,
             }
         # --- strict trap classification (ADR-107) ------------------------------------------------
-        cand_set = set(cand.conditions)
-        literal_hits = sorted(tr.trap_id for tr in traps if tr.literal in cand_set)
+        # [Rev 3] literal match by row-set equality on the same feature, not `CondSpec` equality, so
+        # `x IN [v]` and `x = v` (same rows) agree; a non-empty row set is required.
+        literal_hits = sorted(
+            tr.trap_id
+            for tr in traps
+            if trap_masks[tr.trap_id] != 0
+            and any(
+                c.feature == tr.literal.feature and space.cond_mask(c) == trap_masks[tr.trap_id]
+                for c in cand.conditions
+            )
+        )
         equiv_hits = sorted(
             tr.trap_id
             for tr in traps
@@ -737,8 +753,8 @@ def render_report(result: Mapping[str, Any], seed_label: str = "") -> str:
             exact = _ratio(s["exact_targets"], s["exact_defined_targets"])
             relaxed = ", ".join(s["exact_after_vacuity_targets"]) or "none"
             lines.append(
-                f"{tag} / {name} / Exact (strict diagnostic): {exact} matched exactly; "
-                f"exact_after_vacuity (not counted): {relaxed}"
+                f"{tag} / {name} / Exact (strict diagnostic): {exact} matched exactly "
+                f"(no validation required, so Exact can exceed Specific); exact_after_vacuity (not counted): {relaxed}"
             )
         sens = ", ".join(
             f"theta_J={k}: {_ratio(v, scoreable)}" for k, v in sorted(s["specific_targets"].items())

@@ -710,3 +710,173 @@ def test_parse_rule_and_row_semantics() -> None:
     assert space.cond_mask(C("v", "ge", 1)) == 0b01010  # bool and str never match numerics
     assert space.cond_mask(C("v", "eq", True)) == 0b00100
     assert space.cond_mask(C("v", "in", (1, 5.0))) == 0b01010
+
+
+# ---- [Rev 3] trap literal matching is by row set, not CondSpec equality --------------------------
+_T03_EQ = C("acquisition_channel", "eq", "paid_search")
+_T03_IN = C("acquisition_channel", "in", ("paid_search",))
+_T03_COMPOSITE_TAIL = [C("installments", "ge", 3.0), C("discount_rate", "ge", 0.03)]
+
+
+def test_in_form_bare_literal_is_the_same_trap_hit_as_its_eq_twin() -> None:
+    eq_rec, in_rec = only(run([_T03_EQ])), only(run([_T03_IN]))
+    assert eq_rec["trap_hits"] == ["T03"] and in_rec["trap_hits"] == ["T03"]
+    assert in_rec["trap_literal_hits"] == ["T03"]
+    assert in_rec["in_pool"] is False and in_rec["covers_targets"] == []
+
+
+def test_in_form_composite_is_the_same_trap_hit_as_its_eq_twin() -> None:
+    eq_rec = only(run([_T03_EQ, *_T03_COMPOSITE_TAIL]))
+    in_rec = only(run([_T03_IN, *_T03_COMPOSITE_TAIL]))
+    assert eq_rec["trap_hits"] == ["T03"]
+    assert in_rec["trap_hits"] == eq_rec["trap_hits"]  # was [] under CondSpec equality
+    for key in ("trap_literal_hits", "trap_equivalence_hits", "in_pool", "n_exposed"):
+        assert in_rec[key] == eq_rec[key]
+
+
+def test_in_and_eq_forms_agree_on_the_exemption_and_the_promotion_flag() -> None:
+    promoted = run([_T03_IN, C("discount_rate", "ge", 0.03)], OK, readiness="shadow_policy")
+    assert only(promoted)["trap_hits"] == ["T03"]
+    assert promoted["safety"]["trap_promoted"]["T03"] is True
+    assert only(run(P06_PRECISE))["trap_hits"] == []  # exempt stays exempt (existing verdict)
+    p06_in = [C("booking_lead_days", "lt", 23.0), C("destination", "eq", "Tokyo")]
+    assert only(run([*p06_in, C("payment_method", "in", ("bank_transfer",))]))["trap_hits"] == []
+
+
+def test_in_condition_with_a_different_row_set_is_not_the_literal() -> None:
+    wider = C("acquisition_channel", "in", ("paid_search", "partner"))
+    rec = only(run([wider, C("customer_type", "eq", "new"), C("installments", "ge", 3.0)]))
+    assert rec["trap_literal_hits"] == []  # a strictly wider set is not the trap literal
+
+
+def test_literal_match_needs_the_same_feature_and_a_non_empty_row_set() -> None:
+    space = S.RowSpace({"a": [1, 1, 0, 0] * 50, "b": [1, 1, 0, 0] * 50})  # identical row sets
+    trap = S.Trap("TX", C("a", "eq", 1))
+    res = only(S.score(space, [], [trap], [cand("A", [C("b", "eq", 1)])]))
+    assert res["trap_literal_hits"] == []  # same rows, other feature: equivalence path only
+    assert res["trap_equivalence_hits"] == ["TX"]
+    empty = S.RowSpace({"a": [0] * 100})
+    res = only(S.score(empty, [], [S.Trap("TE", C("a", "eq", 1))], [cand("A", [C("a", "eq", 1)])]))
+    assert res["trap_literal_hits"] == []  # an empty literal matches nothing
+
+
+# ---- [Rev 3] mutation tests for components that previously survived ------------------------------
+def _grid_space() -> S.RowSpace:
+    return S.RowSpace({"n": list(range(100)) * 10, "f": [i % 4 for i in range(1000)]})
+
+
+def _nested_rows(space: S.RowSpace, a: S.CondSpec, b: S.CondSpec) -> bool:
+    return S.nested(space.cond_mask(a), space.cond_mask(b))
+
+
+def test_direction_compatibility_pin_kills_the_always_compatible_mutant() -> None:
+    space = _grid_space()
+    ge0, lt50 = C("n", "ge", 0), C("n", "lt", 50)
+    assert _nested_rows(space, ge0, lt50)  # marginals ARE nested (ge 0 covers everything) ...
+    assert S.conditions_match(space, ge0, lt50) is False  # ... yet the directions are incompatible
+    assert S._compatible(ge0, lt50) is False
+    assert S._compatible(C("f", "eq", 1), C("f", "in", (1, 2))) is True
+    assert S._compatible(C("n", "ge", 1), C("f", "ge", 1)) is False  # different features
+    target = S.Target("T", "core", (lt50,), space.rule_mask((lt50,)), (lt50,))
+    rec = only(S.score(space, [target], [], [cand("A", [ge0, C("f", "eq", 1)])]))
+    assert rec["per_target"]["T"]["cr"] == 0.0  # ge 0 never counts as matching `n < 50`
+
+
+def test_nested_marginals_pin_kills_the_intersects_mutant() -> None:
+    space = _grid_space()
+    a, b = C("f", "in", (0, 1)), C("f", "in", (1, 2))  # overlap but neither contains the other
+    assert S.popcount(space.cond_mask(a) & space.cond_mask(b)) > 0
+    assert S.nested(space.cond_mask(a), space.cond_mask(b)) is False
+    assert S.conditions_match(space, a, b) is False
+    assert S.conditions_match(space, C("f", "eq", 1), b) is True  # nested: eq inside the in-set
+    assert S.conditions_match(space, C("f", "eq", 3), C("f", "eq", 3)) is True
+    assert S.conditions_match(space, C("f", "eq", 9), C("f", "eq", 9)) is False  # empty: no match
+    truth = (a,)
+    target = S.Target("T", "core", truth, space.rule_mask(truth), truth)
+    rec = only(S.score(space, [target], [], [cand("A", [b])]))
+    assert rec["per_target"]["T"]["cp"] == 0.0 and rec["per_target"]["T"]["cr"] == 0.0
+
+
+def test_exact_is_restricted_to_the_trap_free_pool() -> None:
+    space = _vac_space()
+    truth = (C("a", "eq", 1), C("b", "eq", 1))
+    target = S.Target("T1", "core", truth, space.rule_mask(truth), truth)
+    trap = S.Trap("TA", C("a", "eq", 1))
+    unvalidated = S.score(space, [target], [trap], [cand("A", list(truth), None)])
+    rec = only(unvalidated)
+    assert rec["trap_hits"] == ["TA"] and rec["in_pool"] is False
+    assert rec["exact_targets"] == [] and rec["exact_after_vacuity_targets"] == []
+    assert unvalidated["strata"]["core"]["exact_targets"] == []
+    exempt = only(S.score(space, [target], [trap], [cand("A", list(truth), OK)]))
+    assert exempt["in_pool"] is True and exempt["exact_targets"] == ["T1"]  # exempt: in the pool
+
+
+def test_exact_and_coverage_need_no_validation_so_exact_can_exceed_specific() -> None:
+    space = _vac_space()
+    truth = (C("a", "eq", 1), C("b", "eq", 1))
+    target = S.Target("T1", "core", truth, space.rule_mask(truth), truth)
+    res = S.score(space, [target], [], [cand("A", list(truth), "descriptive")])
+    core = res["strata"]["core"]
+    assert core["exact_targets"] == ["T1"] and core["coverage_targets"] == ["T1"]
+    assert core["specific_targets"]["0.50"] == []
+    assert "can exceed Specific" in S.render_report(res)
+
+
+def _dev_space(dev_rows: int, affected_rows: int = 60) -> tuple[S.RowSpace, S.Target]:
+    columns = {"f": [1] * affected_rows + [0] * (1000 - affected_rows)}
+    space = S.RowSpace(columns, (1 << dev_rows) - 1)
+    truth = (C("f", "eq", 1),)
+    return space, S.Target("T", "core", truth, space.rule_mask(truth), truth)
+
+
+def test_dev_affected_floor_is_enforced_at_its_boundary() -> None:
+    assert S.CONSTANTS.min_dev_n == 40
+    for dev_rows, expected in ((39, False), (40, True)):
+        space, target = _dev_space(dev_rows)
+        res = S.score(space, [target], [], [cand("A", list(target.conditions))])
+        assert (res["strata"]["core"]["scoreable"] == ["T"]) is expected, dev_rows
+        assert (res["unscoreable_targets"] == []) is expected
+    space, target = _dev_space(39)  # the constant is what moves the floor
+    relaxed = replace(S.CONSTANTS, min_dev_n=39)
+    assert S.score(space, [target], [], [], relaxed)["strata"]["core"]["scoreable"] == ["T"]
+    # the exposed-records floor is independent: 49 affected rows, all in development
+    space, target = _dev_space(1000, 49)
+    assert S.score(space, [target], [], [])["strata"]["core"]["scoreable"] == []
+    space, target = _dev_space(1000, 50)
+    assert S.score(space, [target], [], [])["strata"]["core"]["scoreable"] == ["T"]
+
+
+def _broad_result(n_targets: int, const: S.Constants = S.CONSTANTS) -> dict[str, Any]:
+    space = S.RowSpace({"f": [1] * 100 + [0] * 900})
+    truth = (C("f", "eq", 1),)
+    targets = [
+        S.Target(f"T{i}", "core", truth, space.rule_mask(truth) >> (i * 5) << (i * 5), truth)
+        for i in range(n_targets)
+    ]
+    return S.score(space, targets, [], [cand("A", list(truth))], const)
+
+
+def test_broad_candidate_flag_needs_broad_min_targets_covered_targets() -> None:
+    assert S.CONSTANTS.broad_min_targets == 3
+    assert only(_broad_result(3))["covers_targets"] == ["T0", "T1", "T2"]
+    assert only(_broad_result(3))["broad"] is True
+    assert only(_broad_result(2))["broad"] is False  # boundary: two covered targets are not broad
+    assert only(_broad_result(2, replace(S.CONSTANTS, broad_min_targets=2)))["broad"] is True
+    assert only(_broad_result(3, replace(S.CONSTANTS, broad_min_targets=4)))["broad"] is False
+
+
+def test_score_runs_the_invariant_check(monkeypatch: pytest.MonkeyPatch) -> None:
+    space = _vac_space()
+    truth = (C("a", "eq", 1),)
+    target = S.Target("T1", "core", truth, space.rule_mask(truth), truth)
+    real = S._aggregate
+
+    def corrupt(*args: Any, **kwargs: Any) -> dict[str, S.StratumResult]:
+        strata = real(*args, **kwargs)
+        strata["core"].specific_targets["0.50"] = ["T1"]  # Specific outside Coverage: a bug
+        strata["core"].coverage_targets = []
+        return strata
+
+    monkeypatch.setattr(S, "_aggregate", corrupt)
+    with pytest.raises(S.InvariantViolation):
+        S.score(space, [target], [], [cand("A", list(truth))])
