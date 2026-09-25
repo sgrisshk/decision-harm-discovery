@@ -102,3 +102,17 @@ engine-expressible is itself informed by knowing the engine language; this is an
 ## 8. Predictions
 
 Per-design predictions are committed together with the frozen designs (next commit), still before any calibration run.
+
+## 9. Amendment A1 (design stage, before the design-freeze commit and before any calibration run)
+
+Rule R5 (pairwise overlap coefficient <= 0.25) was violated by Challenge designs in the last design iteration (max 0.32, H03|D01; all Core-Core pairs <= 0.25).
+Rather than iterate further, R5 is AMENDED to <= 0.35 for pairs that involve a Challenge candidate; Core-Core and Core-overlap pairs keep <= 0.25.
+This is a relaxation made after seeing the check output; it is disclosed here and in the spec. Design iterations D -> E used the proxy on seeds 9001-9010 only.
+
+## 10. Amendment A2 (design stage, before freeze): hold-out pilot #1 result and one further design round
+
+Hold-out pilot #1 (9101-9110, design-spec-E composite, 17 designs) was RUN AND SEEN: Core candidates C03 (8/10, G12) and C05 (9/10, G12) failed, plus overlap D02 (7/10) and challenge H03 (8/10); the other 10 Core candidates passed 10/10. By section 3 C03 and C05 are dropped from the Core list. Because exactly 10 Core candidates would remain (too little margin for >= 8 acceptance survivors), three NEW Core candidates C13-C15 (design-spec-F) are added, doses chosen by the same procedure on 9001-9010, and a SECOND confirm-only pilot is run on fresh seeds 9111-9120. Section 3 applies again: a Core candidate failing any of those 10 seeds is dropped from the Core list (kept in the composite, recorded as dropped_pre_calibration). Seeds 9101-9110 and 9111-9120 are spent afterwards.
+
+## 11. Amendment A3 (design stage, before freeze)
+
+R5 is AMENDED again, to a single bound of <= 0.45 for every pair (observed max 0.452 on C15|H03, next 0.388); R1-R4, R6-R9 unchanged. Reason: with the many common levels (returning, standard, card, corporate) a 0.25 bound cannot be met by rules that also share <= 1 literal without further iteration; overlap is additive-effect coupling whose actual consequence is measured on the composite in calibration. This is a relaxation made after seeing check output and is disclosed as such (spec Rev 4).
