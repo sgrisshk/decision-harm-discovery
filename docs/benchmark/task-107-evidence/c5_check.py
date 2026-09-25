@@ -166,6 +166,11 @@ def rates(d: Path, out: Path) -> None:
         bare_k = sum(r["bare"]["evidence_level"] in PREDICTIVE_OR_ABOVE for r in rows)
         comp_k = sum(any(c["evidence_level"] in PREDICTIVE_OR_ABOVE for c in r["composites"]) for r in rows)
         promo_k = sum(any(c["policy_readiness"] in PROMOTED for c in r["composites"]) for r in rows)
+        bare_promo = [str(x["seed"]) for x, r in zip(data, rows, strict=True)
+                      if r["bare"]["policy_readiness"] in PROMOTED]
+        bare_levels: dict[str, int] = {}
+        for r in rows:
+            bare_levels[r["bare"]["evidence_level"]] = bare_levels.get(r["bare"]["evidence_level"], 0) + 1
         no_comp = sum(len(r["composites"]) == 0 for r in rows)
         gates: dict[str, int] = {}
         for r in rows:
@@ -176,6 +181,10 @@ def rates(d: Path, out: Path) -> None:
             "n": n,
             "seeds_without_eligible_composite": no_comp,
             "bare_predictive": {"k": bare_k, "wilson95": _wilson(bare_k, n)},
+            "bare_promoted_shadow_or_above": {
+                "k": len(bare_promo), "wilson95": _wilson(len(bare_promo), n), "seeds": bare_promo,
+            },
+            "bare_evidence_levels": dict(sorted(bare_levels.items())),
             "composite_predictive": {"k": comp_k, "wilson95": _wilson(comp_k, n)},
             "composite_promoted_shadow_or_above": {"k": promo_k, "wilson95": _wilson(promo_k, n)},
             "top_ranked_composite_level2_gate_failures": dict(sorted(gates.items())),
