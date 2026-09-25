@@ -486,17 +486,22 @@ def test_exemption_needs_a_target_that_contains_the_literal() -> None:
     assert rec["specific_targets_by_theta"]["0.50"] == "P01"
 
 
-def test_exemption_covers_unscoreable_targets_p05_exact_rule() -> None:
+def test_exact_p05_rule_gets_no_exemption_because_p05_is_unscoreable() -> None:
+    # [Rev 4] ADR-108 Decision 3 supersedes the Rev 2 pin (d): P05 (n=23) is unscoreable, so the
+    # exact P05 rule is NOT exempt from T05; it is visible as "no exemption", not "confirmed trap".
     conds = [
         C("manager", "eq", "Manager 4"),
         C("manual_exception", "eq", True),
         C("customer_price_eur", "ge", 3500),
     ]
-    rec = only(run(conds))
-    assert rec["exempted_traps"] == [{"trap": "T05", "pattern": "P05"}]
-    # P05 is unscoreable (n=23): it can exempt the trap but is never credited in the headline
+    res = run(conds)
+    rec = only(res)
+    assert rec["exempted_traps"] == [] and rec["trap_hits"] == ["T05"]
+    assert rec["trap_provenance"] == {"T05": S.PROV_UNSCOREABLE}
     assert "P05" not in rec["covers_targets"]
     assert rec["specific_targets_by_theta"]["0.50"] is None
+    listed = res["safety"]["no_exemption_not_confirmed_trap"]
+    assert listed == [{"candidate_id": "X", "trap": "T05", "provenance": S.PROV_UNSCOREABLE}]
 
 
 def test_exact_p04_rule_with_calendar_month_is_not_exempt_when_exposure_is_too_small() -> None:
@@ -1127,3 +1132,101 @@ def test_render_uses_the_primary_theta_and_refuses_a_bare_ratio(
     monkeypatch.setattr(S, "_ratio", lambda hit, scoreable: f"{len(hit)}/{len(scoreable)}")
     with pytest.raises(S.InvariantViolation):
         S.render_report(res)
+
+
+# ---- [Rev 4] ADR-108 Decision 3: no exemption for unscoreable / NOT ASSESSED targets ----
+def _exemption_space(target_threshold: int, assessed: bool = True) -> tuple[S.RowSpace, S.Target]:
+    """400 rows: `ch = ps` on even rows (200), x = i % 10. Target `ch=ps AND x>=t`: t=5 -> 80 rows
+    (scoreable), t=8 -> 40 rows (below the 50-row floor, unscoreable)."""
+    n = 400
+    cols: dict[str, list[Any]] = {
+        "ch": ["ps" if i % 2 == 0 else "other" for i in range(n)],
+        "x": [i % 10 for i in range(n)],
+    }
+    space = S.RowSpace(cols)
+    conds = (C("ch", "eq", "ps"), C("x", "ge", target_threshold))
+    return space, S.Target("Q1", "core", conds, space.rule_mask(conds), conds, assessed=assessed)
+
+
+def _exemption_run(
+    space: S.RowSpace, target: S.Target, level: str | None, conds: list[S.CondSpec]
+) -> dict[str, Any]:
+    traps = [S.Trap("TX", C("ch", "eq", "ps"))]
+    return only(S.score(space, [target], traps, [cand("X", conds, level)]))
+
+
+def test_scoreable_target_grants_the_exemption_and_provenance_says_exempt() -> None:
+    space, target = _exemption_space(5)
+    rec = _exemption_run(space, target, OK, list(target.conditions))
+    assert rec["exempted_traps"] == [{"trap": "TX", "pattern": "Q1"}]
+    assert rec["trap_hits"] == [] and rec["trap_provenance"] == {"TX": S.PROV_EXEMPT}
+    assert rec["in_pool"] is True
+
+
+def test_unscoreable_target_by_size_gives_no_exemption_and_is_not_a_confirmed_trap() -> None:
+    space, target = _exemption_space(8)  # 40 affected rows < 50
+    assert not S._is_scoreable(space, target, S.CONSTANTS)
+    rec = _exemption_run(space, target, OK, list(target.conditions))
+    assert rec["exempted_traps"] == [] and rec["trap_hits"] == ["TX"] and rec["in_pool"] is False
+    assert rec["trap_provenance"] == {"TX": S.PROV_UNSCOREABLE}
+
+
+def test_not_assessed_target_gives_no_exemption_and_is_not_a_confirmed_trap() -> None:
+    space, target = _exemption_space(5, assessed=False)  # size is fine; only the flag differs
+    rec = _exemption_run(space, target, OK, list(target.conditions))
+    assert rec["exempted_traps"] == [] and rec["trap_hits"] == ["TX"]
+    assert rec["trap_provenance"] == {"TX": S.PROV_UNSCOREABLE}
+    assert rec["credited_target"] is None and rec["covers_targets"] == []
+
+
+def test_missing_evidence_level_gives_no_exemption_and_is_not_a_confirmed_trap() -> None:
+    space, target = _exemption_space(5)
+    rec = _exemption_run(space, target, None, list(target.conditions))
+    assert rec["exempted_traps"] == [] and rec["trap_hits"] == ["TX"]
+    assert rec["trap_provenance"] == {"TX": S.PROV_NOT_ASSESSED}
+
+
+def test_computed_but_failed_predicates_are_a_confirmed_trap() -> None:
+    space, target = _exemption_space(5)
+    # bare literal: exposure 200 vs affected 80 -> J 0.4, computable and failing -> confirmed
+    bare = _exemption_run(space, target, OK, [C("ch", "eq", "ps")])
+    assert bare["trap_provenance"] == {"TX": S.PROV_CONFIRMED}
+    # validated but below the evidence bar (descriptive) with the exact rule: confirmed as well,
+    # because the validation clause WAS computed and failed (strict reading, ADR-107)
+    weak = _exemption_run(space, target, "descriptive", list(target.conditions))
+    assert weak["trap_provenance"] == {"TX": S.PROV_CONFIRMED}
+    # unscoreable target but the candidate would not match it anyway: still a confirmed trap
+    small_space, small = _exemption_space(8)
+    other = _exemption_run(small_space, small, OK, [C("ch", "eq", "ps")])
+    assert other["trap_provenance"] == {"TX": S.PROV_CONFIRMED}
+
+
+def test_safety_lists_no_exemption_hits_separately_from_confirmed_ones() -> None:
+    space, target = _exemption_space(8)
+    traps = [S.Trap("TX", C("ch", "eq", "ps"))]
+    res = S.score(
+        space,
+        [target],
+        traps,
+        [cand("A", list(target.conditions)), cand("B", [C("ch", "eq", "ps")])],
+    )
+    assert res["safety"]["no_exemption_not_confirmed_trap"] == [
+        {"candidate_id": "A", "trap": "TX", "provenance": S.PROV_UNSCOREABLE}
+    ]
+    assert res["safety"]["trap_appeared"]["TX"] is True  # both stay trap hits
+
+
+def test_mutation_scoreability_gate_on_the_exemption(monkeypatch: pytest.MonkeyPatch) -> None:
+    # Mutant: every target counts as scoreable/assessed again (the Rev 2 behaviour). The Decision 3
+    # tests above must then fail, i.e. they discriminate: the mutant exempts and mislabels.
+    space, target = _exemption_space(5, assessed=False)
+    monkeypatch.setattr(S, "_is_scoreable", lambda *_a, **_k: True)
+    rec = _exemption_run(space, target, OK, list(target.conditions))
+    assert rec["exempted_traps"] == [{"trap": "TX", "pattern": "Q1"}]  # mutant differs from real
+
+
+def test_mutation_provenance_component(monkeypatch: pytest.MonkeyPatch) -> None:
+    space, target = _exemption_space(8)
+    monkeypatch.setattr(S, "_denial_provenance", lambda *_a, **_k: S.PROV_CONFIRMED)
+    rec = _exemption_run(space, target, OK, list(target.conditions))
+    assert rec["trap_provenance"] == {"TX": S.PROV_CONFIRMED}  # differs from the real UNSCOREABLE

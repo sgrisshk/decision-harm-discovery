@@ -44,7 +44,16 @@ agree); it is not `CondSpec` equality.
 3. `mu(c, t)` (condition match) requires the same feature, compatible direction (`ge`/`ge`,
    `lt`/`lt`, or `eq`/`in` with `eq`/`in`) and nested, non-empty marginal row sets. Thresholds are
    not compared.
-4. `S subset of C` (Specific targets inside Coverage targets) is guaranteed and enforced only for
+4. [Rev 4, ADR-108 Decision 3] The trap exemption is available ONLY through a scoreable, assessed
+   target for which every exemption predicate (metric match AND validation clause) is computable.
+   A NOT ASSESSED (`Target.assessed=False`) or unscoreable target, or a candidate whose evidence
+   level is missing, yields NO exemption. This supersedes pin (d) of Rev 2 (the exact `P05` rule no
+   longer exempts `T05`). Provenance distinguishes "no exemption" from "confirmed trap":
+   `trap_provenance[trap]` is `exempt`, `confirmed_trap` (all predicates computable, failed), or
+   `no_exemption_unscoreable_target` / `no_exemption_validation_not_assessed` (the candidate would
+   have matched but a predicate could not be computed: NOT proven trap semantics). All non-exempt
+   hits still leave the candidate outside the pool and in `trap_hits`.
+5. `S subset of C` (Specific targets inside Coverage targets) is guaranteed and enforced only for
    `theta_J >= 0.5`; at lower sensitivities the check is reported, not enforced.
 """
 
@@ -228,6 +237,9 @@ class Target:
     conditions: tuple[CondSpec, ...]
     affected: int
     canonical_in_language: tuple[CondSpec, ...] | None = None
+    #: [Rev 4] False = the target is NOT ASSESSED (ADR-108 Decision 3): treated as unscoreable, it
+    #: is never credited and can never grant a trap exemption.
+    assessed: bool = True
 
     def literals(self) -> frozenset[CondSpec]:
         return frozenset(c for c in self.conditions if c.operator == "eq")
@@ -419,6 +431,10 @@ class CandidateRecord:
     specific_metric_also_holds_for: list[str]
     exact_targets: list[str]
     exact_after_vacuity_targets: list[str]
+    #: [Rev 4] per trap hit: "confirmed_trap" (every exemption predicate was computable and failed)
+    #: vs "no_exemption_unscoreable_target" / "no_exemption_validation_not_assessed" (denied only
+    #: because a required predicate could not be computed: NOT proven trap semantics) vs "exempt".
+    trap_provenance: dict[str, str] = field(default_factory=lambda: {})
 
 
 @dataclass(slots=True)
@@ -436,7 +452,8 @@ class StratumResult:
 
 def _is_scoreable(space: RowSpace, target: Target, const: Constants) -> bool:
     return (
-        popcount(target.affected) >= const.min_exposed_records
+        target.assessed
+        and popcount(target.affected) >= const.min_exposed_records
         and popcount(target.affected & space.dev_mask) >= const.min_dev_n
     )
 
@@ -495,21 +512,31 @@ def score(
         )
         exempted: list[dict[str, str]] = []
         genuine: list[str] = []
+        provenance: dict[str, str] = {}
         for trap in traps:
             if trap.trap_id not in literal_hits and trap.trap_id not in equiv_hits:
                 continue
+            # [Rev 4] ADR-108 Decision 3: exemption only through a SCOREABLE target for which every
+            # predicate (metric match, validation clause) is computable; NOT ASSESSED /
+            # unscoreable / missing data => no exemption (absence of verifiability is not positive
+            # evidence).
+            bearing = sorted(
+                (t for t in targets if trap.literal in t.literals()), key=lambda t: t.target_id
+            )
             exempt_by: str | None = None
             if cand.validated:
-                for target in sorted(targets, key=lambda t: t.target_id):
-                    if trap.literal in target.literals() and metric_specific(
+                for target in bearing:
+                    if target.target_id in scoreable and metric_specific(
                         metrics[target.target_id], const.theta_j, const.theta_p
                     ):
                         exempt_by = target.target_id
                         break
-            if exempt_by is None:
-                genuine.append(trap.trap_id)
-            else:
+            if exempt_by is not None:
                 exempted.append({"trap": trap.trap_id, "pattern": exempt_by})
+                provenance[trap.trap_id] = "exempt"
+                continue
+            genuine.append(trap.trap_id)
+            provenance[trap.trap_id] = _denial_provenance(cand, bearing, scoreable, metrics, const)
         in_pool = not genuine
         covers = sorted(
             tid
@@ -565,6 +592,7 @@ def score(
                 trap_equivalence_hits=equiv_hits,
                 trap_hits=genuine,
                 exempted_traps=exempted,
+                trap_provenance=provenance,
                 in_pool=in_pool,
                 covers_targets=covers if in_pool else [],
                 broad=len(covers) >= const.broad_min_targets,
@@ -611,6 +639,37 @@ def score(
         "safety": safety,
         "candidates": [_asdict(r) for r in records],
     }
+
+
+#: Provenance labels for a trap hit (ADR-108 Decision 3): "no exemption" is not "confirmed trap".
+PROV_EXEMPT = "exempt"
+PROV_CONFIRMED = "confirmed_trap"
+PROV_UNSCOREABLE = "no_exemption_unscoreable_target"
+PROV_NOT_ASSESSED = "no_exemption_validation_not_assessed"
+
+
+def _denial_provenance(
+    cand: Candidate,
+    bearing: Sequence[Target],
+    scoreable: Mapping[str, Target],
+    metrics: Mapping[str, PairMetrics],
+    const: Constants,
+) -> str:
+    """Why an exemption was denied. The denial is a *confirmed trap* only when every predicate was
+    computable and failed; if the candidate would have matched a literal-bearing target but for a
+    predicate that could not be computed (target unscoreable / NOT ASSESSED, or the candidate's
+    evidence level missing), the hit is recorded as a no-exemption, not proven trap semantics."""
+
+    def metric_holds(t: Target) -> bool:
+        return metric_specific(metrics[t.target_id], const.theta_j, const.theta_p)
+
+    if any(t.target_id in scoreable and metric_holds(t) for t in bearing) and (
+        cand.evidence_level is None
+    ):
+        return PROV_NOT_ASSESSED
+    if any(t.target_id not in scoreable and metric_holds(t) for t in bearing):
+        return PROV_UNSCOREABLE
+    return PROV_CONFIRMED
 
 
 def _asdict(r: CandidateRecord) -> dict[str, Any]:
@@ -697,10 +756,17 @@ def _safety(
         for tr in traps
     }
     appeared = {tr.trap_id: any(tr.trap_id in r.trap_hits for r in records) for tr in traps}
+    unverified = [
+        {"candidate_id": r.candidate_id, "trap": trap_id, "provenance": prov}
+        for r in records
+        for trap_id, prov in sorted(r.trap_provenance.items())
+        if prov in (PROV_UNSCOREABLE, PROV_NOT_ASSESSED)
+    ]
     return {
         "trap_appeared": appeared,
         "trap_promoted": promoted,
         "any_trap_promoted": any(promoted.values()),
+        "no_exemption_not_confirmed_trap": unverified,
         "exempted_candidates_to_verify_manually": [
             {"candidate_id": r.candidate_id, "exempted": r.exempted_traps}
             for r in records
