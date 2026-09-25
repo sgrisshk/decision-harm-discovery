@@ -880,3 +880,250 @@ def test_score_runs_the_invariant_check(monkeypatch: pytest.MonkeyPatch) -> None
     monkeypatch.setattr(S, "_aggregate", corrupt)
     with pytest.raises(S.InvariantViolation):
         S.score(space, [target], [], [cand("A", list(truth))])
+
+
+# ---- [Rev 3] second mutation batch: boundaries, undefined cases and reporting ---------------------
+def _stepped_space() -> S.RowSpace:
+    """100 rows at n=10, 16 rows at n=5, 84 rows at n=0."""
+    return S.RowSpace({"n": [10] * 100 + [5] * 16 + [0] * 84})
+
+
+def test_jaccard_and_pair_metric_arithmetic_is_pinned() -> None:
+    assert S.jaccard(0, 0) == 0.0  # two empty sets are not "identical"
+    assert S.jaccard(0b1100, 0b0110) == pytest.approx(1 / 3)
+    space = S.RowSpace({"a": [1, 1, 1, 1, 0, 0, 0, 0], "b": [1, 1, 0, 0, 1, 1, 0, 0]})
+    truth = (C("a", "eq", 1), C("b", "eq", 1))
+    target = S.Target("T", "core", truth, 0b00001111, truth)  # rows 0-3 affected
+    eff = [C("a", "eq", 1), C("b", "eq", 0)]  # exposes rows 2, 3 : half of the target
+    pm = S.pair_metrics(space, eff, space.rule_mask(eff), target)
+    assert (pm.recall, pm.precision, pm.j_e) == (0.5, 1.0, 0.5)
+    assert pm.cp == 0.5 and pm.cr == 0.5  # `b eq 0` is not nested with the true `b eq 1`
+    assert pm.n_effective == 2 and pm.n_exposed == 2
+    wide = S.pair_metrics(space, [C("a", "eq", 1)], space.rule_mask([C("a", "eq", 1)]), target)
+    assert wide.cp == 1.0 and wide.cr == 0.5  # cp and cr use different denominators
+    twice = [C("a", "eq", 1), C("a", "in", (1,))]  # two candidate conditions, one true condition
+    dup = S.pair_metrics(space, twice, space.rule_mask(twice), target)
+    assert dup.cp == 1.0 and dup.cr == 0.5  # cp = matched candidate conditions / |K|
+    none = S.pair_metrics(space, [], space.full, target)
+    assert none.cp == 0.0  # an empty effective rule has no condition precision
+
+
+def test_metric_specific_boundaries_and_non_empty_effective_rule() -> None:
+    pm = S.PairMetrics(0.6, 0.6, 0.5, 1.0, 1.0, 2, 10)
+    assert S.metric_specific(pm, 0.5, 1.0)  # J exactly at theta_J counts
+    assert not S.metric_specific(replace(pm, j_e=0.499), 0.5, 1.0)
+    assert not S.metric_specific(replace(pm, cp=0.99), 0.5, 1.0)
+    assert not S.metric_specific(replace(pm, n_effective=0, cp=0.0), 0.5, 0.0)  # K empty never
+    assert S.metric_specific(replace(pm, cp=0.7), 0.5, 0.7)  # cp exactly at theta_p counts
+
+
+def test_exact_bijection_pins_feature_operator_rows_and_tolerance_denominator() -> None:
+    space = _stepped_space()
+    ge10, ge5 = C("n", "ge", 10), C("n", "ge", 5)
+    assert S.bijection_exists(space, [ge10], [ge5], 0.15)  # 16 <= 0.15 * 116, denominator is truth
+    assert not S.bijection_exists(space, [ge10], [ge5], 0.13)
+    twin = S.RowSpace({"a": [1, 0] * 60, "b": [1, 0] * 60, "c": [1, 1, 0, 0] * 30})
+    assert not S.bijection_exists(twin, [C("b", "eq", 1)], [C("a", "eq", 1)], 0.15)  # feature
+    assert not S.bijection_exists(twin, [C("a", "in", (1,))], [C("a", "eq", 1)], 0.15)  # operator
+    assert not S.bijection_exists(twin, [C("a", "eq", 9)], [C("a", "eq", 9)], 0.15)  # empty truth
+    wide, narrow = C("c", "in", (0, 1)), C("c", "in", (1,))
+    assert not S.bijection_exists(twin, [wide], [narrow], 0.15)  # a superset is not equal rows
+    assert S.bijection_exists(twin, [narrow], [narrow], 0.15)
+    edge = S.RowSpace({"n": [10] * 100 + [5] * 15 + [0] * 85})
+    assert S.bijection_exists(edge, [ge5], [ge10], 0.15)  # exactly eta * |rows(truth)|
+
+
+def test_exact_categorical_superset_is_not_exact_even_when_exposure_is_equivalent() -> None:
+    space = _vac_space()
+    truth = (C("a", "eq", 1), C("b", "eq", 1), C("weak", "in", (1,)))
+    target = S.Target("T1", "core", truth, space.rule_mask(truth), truth)
+    loose = [C("a", "eq", 1), C("b", "eq", 1), C("weak", "in", (0, 1))]
+    assert S.popcount(space.rule_mask(loose) ^ target.affected) <= 0.1 * S.popcount(target.affected)
+    rec = only(S.score(space, [target], [], [cand("A", loose)]))
+    assert rec["exact_targets"] == []
+
+
+def test_exact_exposure_equivalence_boundary_and_relaxed_needs_equivalence() -> None:
+    truth = (C("n", "ge", 10),)
+    space = _stepped_space()
+    target = S.Target("T", "core", truth, space.rule_mask(truth), truth)
+    over = only(S.score(space, [target], [], [cand("A", [C("n", "ge", 5)])]))
+    assert over["n_exposed"] == 116 and over["exact_targets"] == []  # 16 > 0.1 * 100
+    space2 = S.RowSpace({"n": [10] * 100 + [5] * 10 + [0] * 90})
+    target2 = S.Target("T", "core", truth, space2.rule_mask(truth), truth)
+    edge = only(S.score(space2, [target2], [], [cand("A", [C("n", "ge", 5)])]))
+    assert edge["exact_targets"] == ["T"]  # exposure differs by exactly eps_x * |A|: equivalent
+    vspace = _vac_space()
+    vtruth = (C("a", "eq", 1), C("b", "eq", 1))
+    vtarget = S.Target("T1", "core", vtruth, vspace.rule_mask(vtruth), vtruth)
+    extra = [*vtruth, C("z", "eq", 1)]
+    tight = replace(S.CONSTANTS, eps_x=0.0)
+    rec = only(S.score(vspace, [vtarget], [], [cand("A", extra)], tight))
+    assert rec["vacuous_dropped"] != [] and rec["exact_after_vacuity_targets"] == []
+    assert only(S.score(vspace, [vtarget], [], [cand("A", extra)]))["exact_after_vacuity_targets"]
+
+
+def test_trap_equivalence_boundary_and_literal_hits_are_not_double_reported() -> None:
+    space = S.RowSpace({"t": [1] * 100 + [0] * 900, "f": [1] * 90 + [0] * 910})
+    trap = S.Trap("TX", C("t", "eq", 1))
+    edge = only(S.score(space, [], [trap], [cand("A", [C("f", "eq", 1)])]))
+    assert edge["trap_equivalence_hits"] == ["TX"]  # J = 0.90 exactly, threshold is inclusive
+    bare = only(S.score(space, [], [trap], [cand("A", [C("t", "eq", 1)])]))
+    assert bare["trap_literal_hits"] == ["TX"] and bare["trap_equivalence_hits"] == []
+
+
+def test_exemption_needs_the_trap_literal_inside_a_metric_matching_target() -> None:
+    n = 1000
+    g = [1] * 100 + [0] * (n - 100)
+    t = [1] * 95 + [0] * 5 + [1] * 5 + [0] * (n - 105)  # exposure-equivalent to g AND h, J >= 0.9
+    space = S.RowSpace({"g": g, "h": list(g), "t": t})
+    truth = (C("g", "eq", 1), C("h", "eq", 1))
+    target = S.Target("T1", "core", truth, space.rule_mask(truth), truth)
+    trap = S.Trap("TX", C("t", "eq", 1))
+    rec = only(S.score(space, [target], [trap], [cand("A", list(truth), OK)]))
+    assert rec["trap_equivalence_hits"] == ["TX"]
+    assert rec["trap_hits"] == ["TX"]  # T1 is metric-matched but does not contain the literal
+    assert rec["exempted_traps"] == [] and rec["in_pool"] is False
+
+
+def test_coverage_boundary_and_unscoreable_targets_are_never_credited() -> None:
+    space = S.RowSpace({"f": [1] * 100 + [0] * 900, "s": [1] * 30 + [0] * 970})
+    big, small = (C("f", "eq", 1),), (C("s", "eq", 1),)
+    upper_half = space.rule_mask(big) >> 50 << 50  # rows 50-99: candidate covers all of them
+    assert S.popcount(upper_half) == 50
+    # recall exactly 0.5: the target's 100 affected rows, of which the candidate exposes 50
+    half = S.RowSpace({"f": [1] * 50 + [0] * 950})
+    affected = (1 << 100) - 1
+    target = S.Target("TH", "core", big, affected, big)
+    assert only(S.score(half, [target], [], [cand("A", list(big))]))["covers_targets"] == ["TH"]
+    below = S.RowSpace({"f": [1] * 49 + [0] * 951})
+    assert only(S.score(below, [target], [], [cand("A", list(big))]))["covers_targets"] == []
+    # an unscoreable target (30 rows) is neither covered, credited, also-Specific nor Exact
+    t_small = S.Target("TS", "core", small, space.rule_mask(small), small)
+    same = only(S.score(space, [t_small], [], [cand("A", list(small))]))
+    assert same["covers_targets"] == [] and same["credited_target"] is None
+    assert same["specific_metric_also_holds_for"] == [] and same["exact_targets"] == []
+    assert same["per_target"]["TS"]["j_e"] == 1.0  # still measured, never counted
+
+
+def test_broad_counts_covered_targets_not_scoreable_targets() -> None:
+    space = S.RowSpace({"f": [1] * 100 + [0] * 900, "g": [0] * 500 + [1] * 100 + [0] * 400})
+    truth_f, truth_g = (C("f", "eq", 1),), (C("g", "eq", 1),)
+    fm, gm = space.rule_mask(truth_f), space.rule_mask(truth_g)
+    targets = [
+        S.Target("T0", "core", truth_f, fm, truth_f),
+        S.Target("T1", "core", truth_f, fm >> 5 << 5, truth_f),
+        S.Target("T2", "core", truth_g, gm, truth_g),
+    ]
+    rec = only(S.score(space, targets, [], [cand("A", list(truth_f))]))
+    assert rec["covers_targets"] == ["T0", "T1"] and rec["broad"] is False
+
+
+def test_strata_split_coverage_and_exact_after_vacuity_never_lists_exact_targets() -> None:
+    space = S.RowSpace({"f": [1] * 100 + [0] * 900, "g": [0] * 200 + [1] * 100 + [0] * 700})
+    tf, tg = (C("f", "eq", 1),), (C("g", "eq", 1),)
+    targets = [
+        S.Target("C1", "core", tf, space.rule_mask(tf), tf),
+        S.Target("H1", "challenge", tg, space.rule_mask(tg), tg),
+    ]
+    both = S.score(space, targets, [], [cand("A", list(tf)), cand("B", list(tg))])
+    assert both["strata"]["core"]["coverage_targets"] == ["C1"]
+    assert both["strata"]["challenge"]["coverage_targets"] == ["H1"]
+    # one candidate reaches T1 exactly, another only after vacuity: only the exact one is listed
+    vspace = _vac_space()
+    truth = (C("a", "eq", 1), C("b", "eq", 1))
+    vt = S.Target("T1", "core", truth, vspace.rule_mask(truth), truth)
+    res = S.score(vspace, [vt], [], [cand("A", list(truth)), cand("B", [*truth, C("z", "eq", 1)])])
+    assert res["strata"]["core"]["exact_targets"] == ["T1"]
+    assert res["strata"]["core"]["exact_after_vacuity_targets"] == []
+    assert res["candidates"][1]["exact_after_vacuity_targets"] == ["T1"]
+
+
+def test_remaining_invariants_are_enforced_by_the_check() -> None:
+    def record(**over: Any) -> S.CandidateRecord:
+        base: dict[str, Any] = {
+            "candidate_id": "X",
+            "conditions": [],
+            "evidence_level": OK,
+            "policy_readiness": "hold",
+            "validated": True,
+            "n_exposed": 1,
+            "effective_conditions": [],
+            "vacuous_dropped": [],
+            "trap_literal_hits": [],
+            "trap_equivalence_hits": [],
+            "trap_hits": [],
+            "exempted_traps": [],
+            "in_pool": True,
+            "covers_targets": [],
+            "broad": False,
+            "credited_target": None,
+            "best_j": 0.0,
+            "per_target": {},
+            "specific_targets_by_theta": {"0.30": None},
+            "specific_metric_also_holds_for": [],
+            "exact_targets": [],
+            "exact_after_vacuity_targets": [],
+        }
+        return S.CandidateRecord(**{**base, **over})
+
+    S._check_invariants({}, [record()], (0.3,))
+    with pytest.raises(S.InvariantViolation, match="outside"):
+        S._check_invariants({}, [record(per_target={"T": {"j_e": 1.5}})], (0.3,))
+    with pytest.raises(S.InvariantViolation, match="trap-excluded"):
+        S._check_invariants({}, [record(in_pool=False, covers_targets=["T"])], (0.3,))
+    with pytest.raises(S.InvariantViolation, match="trap-excluded"):
+        S._check_invariants(
+            {},
+            [record(in_pool=False, specific_targets_by_theta={"0.30": "T"}, credited_target="T")],
+            (0.3,),
+        )
+    stray = S.StratumResult("core", ["T"], [], [], {"0.99": []}, [], [], [])
+    with pytest.raises(S.InvariantViolation, match="sensitivity"):
+        S._check_invariants({"core": stray}, [], (0.3,))
+
+
+def test_safety_flags_appeared_promoted_and_exempted_separately() -> None:
+    conds = [C("acquisition_channel", "eq", "paid_search"), C("discount_rate", "ge", 0.03)]
+    held = run(conds, OK, readiness="hold")
+    assert held["safety"]["trap_appeared"]["T03"] is True
+    assert held["safety"]["trap_promoted"]["T03"] is False  # appeared but not promoted
+    assert held["safety"]["any_trap_promoted"] is False
+    assert run(conds, OK, readiness="high_confidence")["safety"]["any_trap_promoted"] is True
+    assert run(conds, OK, readiness="shadow_policy")["safety"]["any_trap_promoted"] is True
+    exempt = run(P06_PRECISE)
+    listed = exempt["safety"]["exempted_candidates_to_verify_manually"]
+    assert [row["candidate_id"] for row in listed] == ["X"]
+    assert exempt["safety"]["trap_appeared"]["T04"] is False  # exempt is not a genuine hit
+
+
+@pytest.mark.parametrize(
+    ("level", "expected"),
+    [
+        ("predictive_association", True),
+        ("adjusted_observational_association", True),
+        ("quasi_causal_evidence", True),
+        ("experimental_evidence", True),
+        ("descriptive", False),
+        ("hypothesis", False),
+        (None, False),
+    ],
+)
+def test_validated_means_predictive_association_or_above(level: str | None, expected: bool) -> None:
+    assert S.Candidate("X", (), level).validated is expected
+
+
+def test_render_uses_the_primary_theta_and_refuses_a_bare_ratio(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    f = [10.0] * 40 + [5.0] * 60 + [0.0] * 900
+    space = S.RowSpace({"f": f})
+    truth = (C("f", "ge", 5.0),)
+    target = S.Target("T1", "core", truth, space.rule_mask(truth), truth)
+    res = S.score(space, [target], [], [cand("A", [C("f", "ge", 10.0)])])
+    text = S.render_report(res)
+    assert "Specific: 0/1 benchmark targets" in text  # J 0.4: not Specific at the primary 0.50
+    assert "theta_J=0.30: 1/1 benchmark targets" in text
+    monkeypatch.setattr(S, "_ratio", lambda hit, scoreable: f"{len(hit)}/{len(scoreable)}")
+    with pytest.raises(S.InvariantViolation):
+        S.render_report(res)
