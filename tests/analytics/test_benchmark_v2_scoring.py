@@ -882,7 +882,7 @@ def test_score_runs_the_invariant_check(monkeypatch: pytest.MonkeyPatch) -> None
         S.score(space, [target], [], [cand("A", list(truth))])
 
 
-# ---- [Rev 3] second mutation batch: boundaries, undefined cases and reporting ---------------------
+# ---- [Rev 3] second mutation batch: boundaries, undefined cases, reporting ---------------------
 def _stepped_space() -> S.RowSpace:
     """100 rows at n=10, 16 rows at n=5, 84 rows at n=0."""
     return S.RowSpace({"n": [10] * 100 + [5] * 16 + [0] * 84})

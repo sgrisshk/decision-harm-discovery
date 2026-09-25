@@ -39,8 +39,8 @@ agree); it is not `CondSpec` equality.
 2. Pool: Coverage, Specific and Exact all use the same candidate pool: every emitted candidate
    that is not a genuine trap hit (`trap_hit` and not exempt). Coverage does not require
    validation. [Rev 3] Exact also requires no validation, so Exact can exceed Specific (a candidate
-   that exactly reproduces a target but is not `predictive_association` counts for Exact and Coverage
-   only); the report says so.
+   that exactly reproduces a target but is not `predictive_association` counts for Exact and
+   Coverage only); the report says so.
 3. `mu(c, t)` (condition match) requires the same feature, compatible direction (`ge`/`ge`,
    `lt`/`lt`, or `eq`/`in` with `eq`/`in`) and nested, non-empty marginal row sets. Thresholds are
    not compared.
@@ -754,7 +754,8 @@ def render_report(result: Mapping[str, Any], seed_label: str = "") -> str:
             relaxed = ", ".join(s["exact_after_vacuity_targets"]) or "none"
             lines.append(
                 f"{tag} / {name} / Exact (strict diagnostic): {exact} matched exactly "
-                f"(no validation required, so Exact can exceed Specific); exact_after_vacuity (not counted): {relaxed}"
+                f"(no validation required, so Exact can exceed Specific); "
+                f"exact_after_vacuity (not counted): {relaxed}"
             )
         sens = ", ".join(
             f"theta_J={k}: {_ratio(v, scoreable)}" for k, v in sorted(s["specific_targets"].items())

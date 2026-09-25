@@ -49,6 +49,17 @@ extend-exclude = ["apps/api/migrations/versions", "docs/benchmark"]
 #: Without this, `ruff check docs/benchmark` (an explicitly passed path) would still lint it.
 force-exclude = true
 
+#: Frozen engine (`discovery-engine-v0.6.2`), validation gates and contract (1.3.0), and the v1
+#: generator/scorer are hash-pinned evidence: a plain `ruff format .` (Makefile, CI) must never
+#: reformat them (TASK-107 Rev 3). Affects the formatter only; `ruff check` is unchanged.
+[tool.ruff.format]
+exclude = [
+    "packages/analytics/src/policy_analytics/discovery/*.py",
+    "packages/analytics/src/policy_analytics/validation/*.py",
+    "packages/analytics/src/policy_analytics/synthetic_benchmark.py",
+    "scripts/evaluate_benchmark.py",
+]
+
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP", "SIM", "RUF"]
 
