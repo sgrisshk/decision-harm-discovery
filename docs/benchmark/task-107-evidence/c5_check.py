@@ -28,7 +28,6 @@ sys.path.insert(0, str(REPOSITORY / "packages/analytics/src"))
 sys.path.insert(0, str(REPOSITORY / "packages/schemas/src"))
 sys.path.insert(0, str(REPOSITORY / "scripts"))
 
-import numpy as np  # noqa: E402
 import polars as pl  # noqa: E402
 from diagnose_oracle_decomposition import _rule_expr_local  # noqa: E402
 from diagnose_task106_fn_autopsy import (  # noqa: E402
@@ -73,12 +72,12 @@ def _build(seed: int, draw: str, work: Path) -> Path:
     return work / "a" / str(manifest["dataset_version"])
 
 
-def _tstat_harm(y: np.ndarray, mask: np.ndarray) -> float:
-    a, b = y[mask], y[~mask]
+def _tstat_harm(y: pl.Series, mask: pl.Series) -> float:
+    a, b = y.filter(mask), y.filter(~mask)
     if len(a) < 2 or len(b) < 2:
         return float("-inf")
-    se = math.sqrt(a.var(ddof=1) / len(a) + b.var(ddof=1) / len(b))
-    return float((b.mean() - a.mean()) / se) if se > 0 else float("-inf")
+    se = math.sqrt(cast(float, a.var()) / len(a) + cast(float, b.var()) / len(b))
+    return (cast(float, b.mean()) - cast(float, a.mean())) / se if se > 0 else float("-inf")
 
 
 def run_seed(seed: int, draw: str, out: Path) -> None:
@@ -93,16 +92,15 @@ def run_seed(seed: int, draw: str, out: Path) -> None:
             for n in frame.columns
             if timing.get(n) == "DECISION_TIME" and n not in {"booking_date", "travel_date"}
         )
-        dev_mask = (frame["split_label"] == "development").to_numpy()
-        y = frame[OUTCOME].cast(pl.Float64).to_numpy()
+        dev_mask = frame["split_label"] == "development"
+        y_dev = frame.filter(dev_mask)[OUTCOME].cast(pl.Float64)
         atoms = _atoms(frame.filter(pl.col("split_label") == "development"), feats, DiscoveryConfig())
         n = frame.height
-        cache: dict[Condition, np.ndarray] = {}
+        cache: dict[Condition, pl.Series] = {}
 
-        def m(c: Condition) -> np.ndarray:
+        def m(c: Condition) -> pl.Series:
             if c not in cache:
-                arr = frame.select(_rule_expr_local((c,)).alias("m"))["m"].fill_null(False)
-                cache[c] = arr.to_numpy().astype(bool)
+                cache[c] = frame.select(_rule_expr_local((c,)).alias("m"))["m"].fill_null(False)
             return cache[c]
 
         result: dict[str, Any] = {"seed": seed, "draw": draw, "family": FAMILY, "traps": {}}
@@ -115,13 +113,13 @@ def run_seed(seed: int, draw: str, out: Path) -> None:
             scored: list[tuple[float, tuple[Condition, ...]]] = []
             for extra in combos:
                 rule = (lit, *extra)
-                mask = m(lit).copy()
+                mask = m(lit)
                 for c in extra:
-                    mask &= m(c)
+                    mask = mask & m(c)
                 dev_n = int((mask & dev_mask).sum())
-                if dev_n < MIN_DEV_N or mask.sum() > MAX_SUPPORT * n:
+                if dev_n < MIN_DEV_N or int(mask.sum()) > MAX_SUPPORT * n:
                     continue
-                scored.append((_tstat_harm(y[dev_mask], mask[dev_mask]), rule))
+                scored.append((_tstat_harm(y_dev, mask.filter(dev_mask)), rule))
             scored.sort(key=lambda x: (-x[0], str(x[1])))
             top = scored[:TOP_K]
             rules = [(f"{tid}-bare", (lit,))] + [(f"{tid}-c{i:02d}", r) for i, (_, r) in enumerate(top)]
