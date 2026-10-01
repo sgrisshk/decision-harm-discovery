@@ -3,6 +3,7 @@
 **Owner:** STATISTICS (lead), ARCHITECT (support). **Recorded:** 2026-09-25. **Status:** DRAFT SPECIFICATION for independent review; nothing here is frozen.
 **[Rev 1] 2026-09-25 (STATISTICS, documentation-only, responding to independent review "APPROVED WITH REVISION NEEDED"):** corrections and tightenings are marked inline `[Rev 1]`; the change log is section 10. No code, generator, scorer, engine, gate, threshold, v1 artifact, raw evidence, `predictions-preregistration.md` or `ADR-*` was changed; no OPEN founder decision was chosen. Two claims of the first draft were false and are corrected: the RNG/covariate-identity claim (sections 1.4, 4.1, 4.2 item 4, 7) and the `specific <= coverage` invariant (sections 3.3, 5).
 **[Rev 2] Phase 2a (STATISTICS lead, ARCHITECT support), after `ADR-107` (founder decisions D1-D13; the ADR text is dated 2026-09-28, the same ledger-date caveat as section 10.2 applies): the specification constants are now fixed (section 8.1); this revision is dated, additive and inline-marked `[Rev 2]`, with the change log in section 11. Status: constants frozen in this document; the BENCHMARK itself is NOT frozen (F3 pending). Phase 2a also delivered executable, tested v2 code (scorer, RNG-isolated generator skeleton) and the C5 measurement (section 11.2); no engine or discovery run took place on any v2 draw, the engine stays frozen (`discovery-engine-v0.6.2`, `engine.py` sha256 `fefceeaac20e8ff7b57f4e7a9cc9a1e9c649dd05269e10884d358d326d2e4549`, contract 1.3.0, no `G17`), and `predictions-preregistration.md` is not edited.**
+**[Rev 4] Phase 2b (2026-09-30/2026-10-01, STATISTICS lead, ARCHITECT support), after `ADR-108` (Decisions 1-3: tau as a one-sided 95% Clopper-Pearson lower bound at 30/30; C5 executed and disclosed, not a gate; no trap exemption for unscoreable/NOT ASSESSED targets).** Implements `ADR-108` Decision 3 in the scorer (`benchmark_v2_scoring.py`: `Target.assessed`, `trap_provenance`, `PROV_EXEMPT`/`PROV_CONFIRMED`/`PROV_UNSCOREABLE`/`PROV_NOT_ASSESSED`); pre-declares the Core/Challenge/DECLARED_OVERLAP classification rule, seed ranges, the optional-stopping ban and a bounded dose-selection procedure (`docs/benchmark/task-107-evidence/rev4-preregistration.md`, committed before any calibration run); designs 20 new v2 targets (12 intended Core, 6 intended Challenge, 2 DECLARED_OVERLAP) on the RNG-isolated composite generator (`synthetic_benchmark_v2_targets.py`); calibrates on 30 fresh seeds (2001-2030, disjoint from 1001-1030 and from any future acceptance/final seeds) at family 60,000 primary with the real contract, plus sensitivities 36,791/26,213 and C5 re-run on the composite for reference. Result (section 12, this revision): **14 of the 20 targets reach calibration verdict `core_candidate` (30/30, CP-LB 0.905 >= 0.90)** under the pre-declared mechanical rule — exceeding the >= 8 requirement — including two (`C06`, `H01`) that were *designed* as Challenge candidates but reclassified up by outcomes alone, per the pre-declared "outcomes decide, never intention" rule. One DECLARED_OVERLAP target (`D01`) is oracle-qualified (30/30, C4 bare-trap-literal exposure-J <= 0.30 on every seed); the other (`D02`) is not (18/30). Disclosed prior-knowledge risk: a design pilot on spent seeds 9001-9010 (before the pre-declaration commit) showed every manager-literal design fails G12 (leave-one-manager-out) structurally; all Core candidates therefore avoid the `manager` feature, a structural (not an engine-output) exclusion, stated here. No engine or discovery run occurred on any v2 draw in Phase 2b. Phase 2c (fresh acceptance seeds, freeze, independent review) is NOT started by this revision.**
 **Binding on:** `ADR-106` (read in full), `ADR-105`, `ADR-103`, `ADR-092`, `docs/benchmark/task-106-fn-autopsy.md` (with its R1-R5 corrections),
 `docs/benchmark/task-108-scorer-trap-classification-spec.md` (section 7 disclosures, section 8 open item), `docs/benchmark/decision-gate.md`.
 
@@ -503,3 +504,133 @@ The Rev 1 wording "`tau_t` met" (invariant iv, FC1) and "metric-only exemption" 
 ### 12.5 Lint scope
 
 `[tool.ruff.format] exclude` now lists the frozen engine, discovery, validation (gate and contract) packages and the v1 generator/scorer, so a plain `ruff format .` (Makefile, CI) cannot reformat them; `ruff check` behavior is unchanged. `force-exclude = true` (Phase 2a) also applies to `extend-exclude`, and `apps/api/migrations/versions` was already in `extend-exclude`: with `force-exclude` it is now skipped even when named explicitly, which is harmless (generated migration files; nothing in the Makefile, CI or pre-commit passes them explicitly; checked in the `TASKS.md` Revision entry).
+
+## 13. [Rev 4] Phase 2b: `ADR-108` Decision 3 in the scorer, pre-declarations, target design, calibration
+
+Binding: `ADR-106`, `ADR-107`, `ADR-108` (read in full); sections 2-4, 11-12 above. Engine stays frozen (`fefceeaac20e8ff7b57f4e7a9cc9a1e9c649dd05269e10884d358d326d2e4549`, contract 1.3.0); verified
+unchanged before and after this phase, alongside the v1 generator/scorer/ground truth and every gate/contract file (`rev4-calibration-raw/` commits each record the check). **No engine or discovery run on any v2 draw.**
+Only the atom-grid builder `_atoms`, `build_projection` and the real `run_validation` (through a local `_validate_rules`, same call shape as `diagnose_task106_fn_autopsy._validate_rules`) touch engine-package
+code, exactly as in Phase 1/2a.
+
+### 13.1 Step 0 - `ADR-108` Decision 3 in the scorer
+
+`benchmark_v2_scoring.py`: `Target.assessed: bool = True` (False marks a target NOT ASSESSED); the exemption loop now requires, for every trap-literal or trap-equivalence hit, a target that (a) contains the
+trap's literal, (b) is `scoreable` (`_is_scoreable`, which now also requires `assessed`), and (c) meets the metric match (`J_e >= theta_J`, `Cp >= theta_p`, non-empty `K`) **and** the candidate reaches
+`predictive_association` or above (the `ADR-107` strict reading, unchanged). A denial is recorded with a provenance label distinguishing **no exemption** from **confirmed trap**:
+`trap_provenance[trap_id]` in `{"exempt", "confirmed_trap", "no_exemption_unscoreable_target", "no_exemption_validation_not_assessed"}`; `confirmed_trap` only when every predicate was computable and failed.
+`safety.no_exemption_not_confirmed_trap` lists every hit whose denial was for unverifiability, separately from genuine `trap_hits`. This supersedes Rev 2 pin (d) (3.3): the exact `P05` rule no longer exempts
+`T05` because `P05` is unscoreable (n=23) — tested directly (`test_exact_p05_rule_gets_no_exemption_because_p05_is_unscoreable`). Tests: `tests/analytics/test_benchmark_v2_scoring.py` (9 new tests covering
+scoreable/unscoreable/NOT-ASSESSED/missing-evidence/computed-and-failed cases, plus a safety-report test); a scripted single-site mutation pass
+(`docs/benchmark/task-107-evidence/rev4_step0_mutation_check.py`, 6 mutants targeting the new scoreability gate, the NOT-ASSESSED flag, both denial-provenance branches, the dropped validation
+requirement, and the safety-report filter) reports **6/6 killed** (`rev4-step0-mutation-output.txt`). `ruff format`/`ruff check`/`pyright` clean on every touched file (never run over frozen `packages/`
+files other than the ones edited: `benchmark_v2_scoring.py` only).
+
+### 13.2 Step 1 - pre-declarations (committed before any calibration run)
+
+`docs/benchmark/task-107-evidence/rev4-preregistration.md` (sha256 `19a7d83bef87faf47e8dd292f9d4470822b66dd075291fbcb24f7169f7ab1ee6`) fixes, before any calibration seed was drawn:
+
+* **Classification rule** (mechanical, outcomes only, never intention): per target, per acceptance/calibration seed, `pass` iff the real conjunction (real `Condition`s) reaches `predictive_association` or
+  above under the real `run_validation` (contract 1.3.0) on the composite draw at the stated family; `k` = passes of `S` seeds. **Core** iff not `declared_overlap`, `k = S` (30/30), one-sided 95%
+  Clopper-Pearson lower bound `>= 0.90`, and every structural check (L1-L5, `K(T)=T`, scoreable) holds on every seed. **DECLARED_OVERLAP** iff the design carries a trap literal (by declaration); `oracle_qualified`
+  iff additionally `k=S`, CP-LB `>= 0.90` and C4 (exposure-J against the bare trap literal `<= 0.30`) holds on every seed. **Challenge** iff not Core/overlap/out-of-language and `15 <= k <= 29` (or `k=S` with a
+  non-L1-L4 structural failure). **Underpowered** otherwise. A design *intended* Core that fails calibration is Challenge or Underpowered; a design *intended* Challenge that reaches 30/30 with clean structure is
+  Core: **the class follows the outcomes, never the intention** — stated and then applied without exception (section 13.4).
+* **Seed ranges** (disjoint, recorded before use): calibration 1001-1030 (Phase 1, spent), design seeds 9001-9010 / 9101-9110 / 9111-9120 / 9121-9130 (spent; real-oracle pilots, see 13.3), **Phase 2b
+  calibration 2001-2030 (used in this revision)**, calibration round 2 (only if needed) 2101-2130, acceptance `A` 3001-3030, `A'`/`A''` 3101-3130/3201-3230, final evaluation `E` 4001-4030 (reserve
+  4101-4130). None but 2001-2030 (and the design/pilot ranges, disclosed as spent) were touched in Phase 2b.
+* **Optional-stopping ban** (`ADR-108`): no run is extended with extra seeds after its result is seen; a failing target is redesigned only on a fresh, disjoint set.
+* **Bounded dose-selection procedure**: allowed only before the design-freeze commit, only on design seeds 9001-9010, only with a contract-free Welch-t power proxy (`design_dose_select.py`); each design has
+  a fixed rule and a fixed effect-structure ladder (`mixed`/`loss`/`cancel`, `synthetic_benchmark_v2_targets.LADDERS`); rung = first rung with proxy `t_mean >= 7.0` and `t_min >= 5.8` (Core/overlap) or
+  `t_mean >= 5.0` (Challenge); composite re-evaluated after every change, at most 12 rounds; forbidden after the design-freeze commit.
+* **Disclosure of a design-stage pilot seen before the pre-declaration commit** (section 13.3 below, pre-registration section 0): one real-oracle run on seeds 9001-9010 was seen before Step 1 was
+  committed; those seeds are recorded as spent and never reused for calibration/acceptance/final evaluation; the affected finding (every `manager=` literal fails G12 structurally) is a disclosed structural
+  exclusion, not an engine-output-informed design choice (no `v0.6.2` discovery output exists or was used).
+
+### 13.3 Step 2 - target design (no engine)
+
+20 targets declared through `TargetSpec` on the composite generator (`packages/analytics/src/policy_analytics/synthetic_benchmark_v2_targets.py`): 12 intended Core, 6 intended Challenge, 2
+DECLARED_OVERLAP (`D01` carries the `T03` literal `acquisition_channel=paid_search`, `D02` carries the `T04` literal `payment_method=bank_transfer`). No v1 pattern literal is reused (`D11`, tested); no trap
+literal outside the two DECLARED_OVERLAP designs (tested); every pair of designs shares at most one categorical literal (tested); no design uses `manager=` (structural G12 exclusion, section 13.2); 1-3
+conditions each, every condition on an engine feature with an engine-expressible operator (`eq` categorical, `ge`/`lt` numeric), on a grid atom stable across 10 design-check draws (9001-9010).
+Design iteration (specs A through G, `docs/benchmark/task-107-evidence/rev4-design-stage/`) used only the contract-free power proxy on design seeds, plus real-oracle **confirm-only** pilots on three disjoint
+hold-out ranges (9101-9110 on spec E, 9111-9120 on spec F, 9121-9130 on the final spec G): a Core candidate failing a pilot was dropped to Challenge (`C03`, `C05`, `C06` were dropped this way across the
+pilots) rather than re-dosed — never a silent iteration. Two amendments to the overlap-coefficient structural rule (R5, `<= 0.25` -> `<= 0.35` for Challenge pairs -> `<= 0.45` for every pair) were made after
+seeing check output on design seeds and are disclosed as such in `rev4-preregistration.md` sections 9-11; they affect design-seed structural bookkeeping only, never the calibration verdict.
+
+| id | rule | dose (ladder) | intended class | conditions |
+|---|---|---|---|---|
+| C01 | `destination=Lisbon AND acquisition_channel=partner` | LO6 (loss) | Core | 2 |
+| C02 | `destination=Rome AND customer_segment=corporate` | LO6 (loss) | Core | 2 |
+| C03 | `product_category=premium AND acquisition_channel=partner AND discount_rate>=0.08` | LO6 (loss) | Challenge | 3 |
+| C04 | `supplier=Cedar AND customer_segment=leisure AND trip_duration_days>=8` | LO5 (loss) | Core | 3 |
+| C05 | `supplier=DeltaSun AND discount_rate>=0.12` | LO3 (loss) | Challenge | 2 |
+| C06 | `destination=Reykjavik AND customer_type=returning AND discount_rate>=0.05` | LO5 (loss) | Challenge | 3 |
+| C07 | `supplier=BlueWing AND acquisition_channel=direct AND party_size>=3` | CX1 (cancel) | Core | 3 |
+| C08 | `payment_method=wallet` | H (mixed) | Core | 1 |
+| C09 | `destination=Tokyo AND customer_segment=leisure AND product_category=standard` | LO6 (loss) | Core | 3 |
+| C10 | `customer_type=new AND acquisition_channel=referral AND trip_duration_days>=6` | LO7 (loss) | Core | 3 |
+| C11 | `destination=Tokyo AND customer_segment=family` | H (mixed) | Core | 2 |
+| C12 | `acquisition_channel=direct AND product_category=premium AND customer_segment=leisure` | XL (mixed) | Core | 3 |
+| C13 | `destination=Reykjavik AND product_category=standard AND payment_method=card` | LO6 (loss) | Core | 3 |
+| C14 | `customer_segment=leisure AND supplier=BlueWing AND discount_rate>=0.08` | LO2 (loss) | Core | 3 |
+| C15 | `customer_type=returning AND acquisition_channel=direct AND trip_duration_days>=6` | LO3 (loss) | Core | 3 |
+| H01 | `supplier=BlueWing AND destination=Zanzibar AND customer_type=new` | LO6 (loss) | Challenge | 3 |
+| H02 | `supplier=DeltaSun AND customer_segment=corporate AND product_category=standard` | H (mixed) | Challenge | 3 |
+| H03 | `customer_type=returning AND payment_method=card AND trip_duration_days>=8` | LO3 (loss) | Challenge | 3 |
+| D01 | `acquisition_channel=paid_search AND destination=Rome AND customer_type=returning` | LO7 (loss) | DECLARED_OVERLAP (`T03`) | 3 |
+| D02 | `payment_method=bank_transfer AND product_category=standard AND discount_rate>=0.08` | ML (mixed) | DECLARED_OVERLAP (`T04`) | 3 |
+
+**Prior-knowledge disclosure** (mirrors section 4.5): the authors know `v0.6.2`'s behaviour on v1. Target selection here used only oracle-structure facts (contract gate code: G12's leave-one-manager-out
+design, G05's family arithmetic), the Phase 1 oracle rates on already-spent seeds, and the contract-free power proxy; no engine or discovery output on any v2 draw exists or was consulted; no design was chosen
+or dropped by what `v0.6.2` finds or misses. The manager-literal exclusion is a structural fact about contract code (robustness group column = `manager`), not an engine-discovery result. Residual, un-removable
+risk: choosing low-order categorical/threshold rules is itself informed by knowing the engine's language (stated in `ADR-107`/section 4.5 already; repeated here for Phase 2b's own designs).
+
+### 13.4 Step 3 - calibration (2001-2030, family 60,000 primary; sensitivities 36,791/26,213; real contract; composite)
+
+Raw output: `docs/benchmark/task-107-evidence/rev4-calibration-raw/` (30 files, all three families, all 20 targets; sha256 of each file is stable under `git log`). Rates:
+`rev4-calibration-rates.json` (sha256 `0a0817a04bcf6c14987a2b2f44b2ad6d51a3ac5f453f515a7735caff6aa81091`). C5 re-run on the composite (reference only, `ADR-108` Decision 2, not a gate):
+`rev4-c5-composite-raw/` and `rev4-c5-composite-rates.json` (sha256 `62e4019f77ab5f0b9d0f92156e66db92dedc0c55e8018ca9f434022b74a38324`).
+
+| id | intended class | k/30 @60,000 | CP-LB (one-sided 95%) | calibration verdict | k/30 @36,791 | k/30 @26,213 |
+|---|---|---|---|---|---|---|
+| C01 | Core | 30/30 | 0.9050 | **core_candidate** | 30/30 | 30/30 |
+| C02 | Core | 30/30 | 0.9050 | **core_candidate** | 30/30 | 30/30 |
+| C03 | Challenge | 15/30 | 0.3389 | challenge_candidate | 15/30 | 15/30 |
+| C04 | Core | 30/30 | 0.9050 | **core_candidate** | 30/30 | 30/30 |
+| C05 | Challenge | 29/30 | 0.8514 | challenge_candidate | 29/30 | 29/30 |
+| C06 | Challenge | 30/30 | 0.9050 | **core_candidate** (outcome promotes it) | 30/30 | 30/30 |
+| C07 | Core | 30/30 | 0.9050 | **core_candidate** | 30/30 | 30/30 |
+| C08 | Core | 30/30 | 0.9050 | **core_candidate** | 30/30 | 30/30 |
+| C09 | Core | 30/30 | 0.9050 | **core_candidate** | 30/30 | 30/30 |
+| C10 | Core | 30/30 | 0.9050 | **core_candidate** | 30/30 | 30/30 |
+| C11 | Core | 30/30 | 0.9050 | **core_candidate** | 30/30 | 30/30 |
+| C12 | Core | 30/30 | 0.9050 | **core_candidate** | 30/30 | 30/30 |
+| C13 | Core | 30/30 | 0.9050 | **core_candidate** | 30/30 | 30/30 |
+| C14 | Core | 30/30 | 0.9050 | **core_candidate** | 30/30 | 30/30 |
+| C15 | Core | 30/30 | 0.9050 | **core_candidate** | 30/30 | 30/30 |
+| H01 | Challenge | 30/30 | 0.9050 | **core_candidate** (outcome promotes it) | 30/30 | 30/30 |
+| H02 | Challenge | 28/30 | 0.8047 | challenge_candidate | 28/30 | 28/30 |
+| H03 | Challenge | 29/30 | 0.8514 | challenge_candidate | 29/30 | 29/30 |
+| D01 | DECLARED_OVERLAP | 30/30 | 0.9050 | **oracle_qualified** (C4 max exposure-J 0.091 <= 0.30, all 30 seeds) | 30/30 | 30/30 |
+| D02 | DECLARED_OVERLAP | 18/30 | 0.4339 | not oracle_qualified (C4 max exposure-J 0.288 <= 0.30, holds, but k too low) | 18/30 | 18/30 |
+
+Structural checks (L1-L5, `K(T)=T` at `nu=0.05`, on-grid, scoreable, projection-Jaccard `= 1.0`) hold on **every one of the 30 calibration seeds for every one of the 20 targets** — zero violations (checked
+programmatically). Dominant failing gates on the non-qualifying targets, as predicted (P5): `G12_ROBUSTNESS` for `C03`/`C05`/`D02` (sign-agreement floor), `G10_TEMPORAL_STABILITY` for `H02`/`H03`. Sensitivity
+families `36,791` and `26,213` give identical `k` to the primary `60,000` for every target (no family-size coincidence).
+
+**Coverage of the >= 8 requirement: 14 of 20 targets reach `core_candidate` at calibration — comfortably above 8.** This includes the 12 originally-intended Core designs minus none (**all 12 pass**) plus two
+originally-intended-Challenge designs (`C06`, `H01`) that the pre-declared mechanical rule promotes on outcomes alone, exactly as section 13.2's classification rule requires ("the class follows the outcomes,
+never the intention"). No target needed a round-2 calibration seed set (2101-2130); section 4 of the pre-registration (design more before acceptance) does not apply this round.
+
+**Predictions review** (`rev4-predictions.md`): P1 confirmed (all structural). P2 under-predicted: author predicted a median of 10 Core passes with `P(all 12) ~ 0.10`; the actual result is all 12 plus two
+promotions (14 total) — stated plainly as an underestimate, not adjusted after the fact. P3-P5 confirmed in direction (dominant gate G12, then G10/G05). P7 (C5 composite, reference only): `T03` composite
+28/30 to 11/30-range shift and `T02` bare-literal predictive rate rising from 0/30 (Phase 2a clean-v2) to 27/30 here are measured and disclosed (not predicted at this magnitude) — attributed to composite
+comparison-group composition changing with 20 active targets, not to any causal confounding-gate change; no composite reached `shadow_policy` (`G16` still blocks promotion for every k>=2 rule). This is a
+disclosed benchmark property of the trap suite under a dense composite, not a gate failure and not evidence that C5 "passed" or "failed" (`ADR-108` Decision 2: C5 is executed and disclosed, never a
+favourable-outcome gate).
+
+### 13.5 What Phase 2c must still do
+
+Fresh acceptance seeds `A` (3001-3030, never touched here) re-run the same classification rule once on the frozen composite; C5 recomputed on `A` for reference; the v2 ground truth and freeze manifest are
+written only after that; independent review of the whole frozen benchmark follows; the engine is not evaluated on v2 until a separate `TASK`/`ADR` authorises F4 after `APPROVED`. The 6 `challenge_candidate`
+targets and the 1 non-qualifying DECLARED_OVERLAP (`D02`) stay in their strata unless a future, explicitly fresh redesign+reacceptance cycle changes them (never by relaxing `tau` or by reusing 2001-2030).
