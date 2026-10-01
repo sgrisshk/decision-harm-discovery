@@ -623,11 +623,30 @@ originally-intended-Challenge designs (`C06`, `H01`) that the pre-declared mecha
 never the intention"). No target needed a round-2 calibration seed set (2101-2130); section 4 of the pre-registration (design more before acceptance) does not apply this round.
 
 **Predictions review** (`rev4-predictions.md`): P1 confirmed (all structural). P2 under-predicted: author predicted a median of 10 Core passes with `P(all 12) ~ 0.10`; the actual result is all 12 plus two
-promotions (14 total) — stated plainly as an underestimate, not adjusted after the fact. P3-P5 confirmed in direction (dominant gate G12, then G10/G05). P7 (C5 composite, reference only): `T03` composite
-28/30 to 11/30-range shift and `T02` bare-literal predictive rate rising from 0/30 (Phase 2a clean-v2) to 27/30 here are measured and disclosed (not predicted at this magnitude) — attributed to composite
-comparison-group composition changing with 20 active targets, not to any causal confounding-gate change; no composite reached `shadow_policy` (`G16` still blocks promotion for every k>=2 rule). This is a
-disclosed benchmark property of the trap suite under a dense composite, not a gate failure and not evidence that C5 "passed" or "failed" (`ADR-108` Decision 2: C5 is executed and disclosed, never a
-favourable-outcome gate).
+promotions (14 total) — stated plainly as an underestimate, not adjusted after the fact. P3-P5 confirmed in direction (dominant gate G12, then G10/G05). P7 (C5 composite, reference only) — **[Rev 4
+correction, 2026-10-01, after independent review]: the original text here under-disclosed the composite shift and contained one false statement ("T01/T04/T05 stay inert"). Corrected, from
+`rev4-c5-composite-rates.json` directly, not re-measured:**
+
+| Trap | Bare, clean-v2 (Phase 2a) | Bare, composite | Composite-rule, clean-v2 (Phase 2a) | Composite-rule, composite |
+|---|---|---|---|---|
+| T01 | 0/30 | 0/30 | 0/30 | **22/30** |
+| T02 | 0/30 | **27/30** | 0/30 | 29/30 |
+| T03 | 28/30 | 29/30 | 28/30 | **11/30** |
+| T04 | 0/30 | 0/30 | 0/30 | 0/30 |
+| T05 | 0/30 | 0/30 | 0/30 | 0/30 |
+
+(all reach at most `predictive_association`; no cell reaches `shadow_policy`, so `G16` still blocks promotion for every k>=2 rule in every cell). The original text disclosed only two of these four large
+shifts (T02 bare, T03 composite-rule) and stated T01 "stays inert", which is false: T01's own composite-rule rate is 22/30 (73%), not 0. T02's composite-rule rate (29/30) and T03's bare rate (29/30) were
+also previously unstated. Pre-registered prediction P7 (`rev4-predictions.md`) predicted composite-rule rates `<= 3/30` for T01/T02/T04/T05 — this holds for T04/T05 but fails badly for T01 (22 vs <= 3) and
+T02 (29 vs <= 3); the original predictions-review text discussed this miss only via T02's *bare* rate, which was not what P7 predicted. All shifts are attributed to the same mechanism: with 20 targets active
+simultaneously (vs. 0 or 1 in Phase 2a), `_outcome_columns` additively sums every active target's dosing on rows its predicate matches, shifting the comparison-group baseline used when grading any one
+trap/composite — a foreseeable consequence of the additive composite design, not an RNG-isolation violation and not a gate change (confirmed by independent review reading `synthetic_benchmark_v2.py`). This
+remains a disclosed benchmark property of the trap suite under a dense composite, not a gate failure and not evidence that C5 "passed" or "failed" (`ADR-108` Decision 2: C5 is executed and disclosed, never
+a favourable-outcome gate) — but per that same Decision 2, C5's only safeguard is complete disclosure, so the under-disclosure itself was a real defect, now corrected here rather than silently.
+
+**[Rev 4 note, 2026-10-01]** The design-stage overlap-coefficient relaxation disclosed in section 13.2 as Amendments A1/A3 (`R5`: `0.25 -> 0.35 -> 0.45`, +80% cumulative) occurred before design freeze and is
+not itself a violation, but independent review flagged it as substantive enough — and plausibly related to the comparison-group effect above — to warrant explicit founder-level acknowledgment alongside this
+correction, rather than being read as a minor implementation detail.
 
 ### 13.5 What Phase 2c must still do
 
