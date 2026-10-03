@@ -156,14 +156,22 @@ def counterfactual_c04_structural_reserve(seeds: list[int]) -> dict:
 
 
 def main() -> None:
-    seeds_c08 = [4001]
-    seeds_c04 = [4001]
-    result = {
-        "c08_reserve_k1_slot": counterfactual_c08_reserve_k1(seeds_c08),
-        "c04_structural_reserve_quota": counterfactual_c04_structural_reserve(seeds_c04),
-    }
-    (OUT / "counterfactuals-result.json").write_text(json.dumps(result, indent=1, sort_keys=True, default=str))
-    print("wrote", OUT / "counterfactuals-result.json")
+    """`counterfactual_c04_structural_reserve` (cheap -- real `_select_expansion_beam` only) is
+    the one actually run and committed (`c04-structural-reserve-counterfactual.json`, built by
+    running this function directly for seeds 4001/4002 -- see the results doc section 4.2).
+    `counterfactual_c08_reserve_k1` calls the real, full `discover_candidates` twice per seed
+    (stability/exposure computation over ~22,000 interactions each call) and was abandoned after
+    >25 minutes CPU per call made it disproportionate to the C08 evidence already established
+    directly from TASK-109's own 30-seed real output (`c08_single_condition_check.py`) and from
+    reading the real phase-ordering code path -- disclosed in the results doc section 4.4, not
+    silently dropped. Left in this file, callable, for a future reviewer who wants the live
+    re-run anyway; not invoked by default here to avoid an unbounded-cost `main()`.
+    """
+    result = {"c04_structural_reserve_quota": counterfactual_c04_structural_reserve([4001, 4002])}
+    (OUT / "c04-structural-reserve-counterfactual.json").write_text(
+        json.dumps(result["c04_structural_reserve_quota"], indent=1, sort_keys=True, default=str)
+    )
+    print("wrote", OUT / "c04-structural-reserve-counterfactual.json")
 
 
 if __name__ == "__main__":

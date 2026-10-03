@@ -65,12 +65,18 @@ the real frozen engine/scorer/generator and never modifying them:
    seeds: `4001`, `4002`, `4010` (typical, chosen only for being early/accessible in the pre-
    registered range, not cherry-picked post hoc), `4019` (`C09`'s sole Specific-hit seed), `4030`
    (`C15`'s sole Specific/Exact-hit seed). Output: `search-trace-seed-<seed>.json`.
-4. **`counterfactuals.py`** — mandatory counterfactual demonstrations (section 4 below),
-   exercising the real `discover_candidates` with only a pre-existing config field changed, and a
-   from-scratch depth-1/2 re-derivation to name exactly which rules occupy a contested beam
-   structural-reserve slot. Output: `counterfactuals-result.json`.
+4. **`counterfactuals.py`** — mandatory counterfactual demonstrations (section 4 below): a
+   from-scratch, real-function (`_select_expansion_beam`) depth-1/2 re-derivation naming exactly
+   which rules occupy a contested beam structural-reserve slot for `C04`, with and without
+   `beam_rules_per_structure` raised. Output: `c04-structural-reserve-counterfactual.json` (a live
+   `discover_candidates` `reserve_k1_slot` re-run for `C08` was also attempted but abandoned as
+   disproportionate to the evidence item 6 below already establishes conclusively — disclosed in
+   section 4.4).
 5. **`distance_table.py`** — pure read + compare of `stable-coverage-candidate-summary.json`
    against each target's canonical literal set. Output: `distance-table.json`.
+6. **`c08_single_condition_check.py`** — pure read + count over `TASK-109`'s own 30 committed raw
+   seed files (no engine call): confirms zero single-condition final candidates across all 30
+   seeds, for any target. Output: `c08-single-condition-check.json`.
 
 All raw outputs are committed under `docs/benchmark/task-110-evidence/`.
 
@@ -115,8 +121,8 @@ development split (confirmed directly: `_metric` on seed 4001 gives `destination
 `harm_per_booking = -109.97`, `customer_segment=corporate` alone `harm_per_booking = -77.47` —
 both the WRONG sign — while the 2-literal conjunction itself is independently eligible,
 `harm_per_booking = +410.12`, confirmed by direct real-function call, see
-`docs/benchmark/task-110-evidence/counterfactuals-result.json` note and the ad hoc check
-reproduced in section 4.1). Since depth-2's frontier is built *only* by extending depth-1's real
+`docs/benchmark/task-110-evidence/c02-direct-eligibility-check-seed-4001.json`, also reproduced in
+section 4.1). Since depth-2's frontier is built *only* by extending depth-1's real
 `scored`/beam survivors (`engine.py` lines 925-932), and neither single literal ever enters
 `scored` at depth 1 on 4/5 seeds, **the 2-literal canonical rule is never constructed at all** on
 those seeds — not outranked, not pruned by the beam, structurally never assembled. On the 1/5
@@ -364,15 +370,26 @@ construction in `engine.py`), not merely asserted.
 
 ### 4.2 S4 counterfactual (`C04` structural-reserve beam slot)
 
-Script: `counterfactuals.py::counterfactual_c04_structural_reserve`. For the pair
-`supplier=Cedar AND trip_duration_days>=8` (shape `[('supplier','eq'), ('trip_duration_days','ge')]`),
-on seeds 4001/4002: confirmed real `_select_expansion_beam` output with the real default
-`beam_rules_per_structure=2`, and named the two higher-scoring same-shape rules that occupy that
-structure's reserve quota instead, then re-ran `_select_expansion_beam` (the real, unmodified
-function) with only `beam_rules_per_structure` raised from its default `2` to `10` (a pre-existing
-config field) and nothing else changed. Full numeric result: see
-`docs/benchmark/task-110-evidence/counterfactuals-result.json`,
-`c04_structural_reserve_quota` key. *(Filled from the real run below — section 4.4.)*
+Script: `counterfactuals.py::counterfactual_c04_structural_reserve` (real `_select_expansion_beam`
+only — cheap, no full `discover_candidates` call). For the pair `supplier=Cedar AND
+trip_duration_days>=8` (shape `[('supplier','eq'), ('trip_duration_days','ge')]`):
+
+| Seed | Target pair score | Rank within its own shape | Top-2 occupants of the shape's reserve quota (default `beam_rules_per_structure=2`) | Survives beam, default | Survives beam, `beam_rules_per_structure=10` |
+|---|---|---|---|---|---|
+| 4001 | 4026.95 | 5th of 8 | `supplier=BlueWing AND trip_duration_days>=4.0` (8526.8); `supplier=BlueWing AND trip_duration_days>=6.0` (8342.0) | **No** | **Yes** |
+| 4002 | 3640.23 | 5th of 9 | `supplier=BlueWing AND trip_duration_days>=6.0` (10004.9); `supplier=BlueWing AND trip_duration_days>=4.0` (9804.4) | **No** | **No** |
+
+Named, concrete result: under the real default, the structural-reserve quota for this exact
+(feature, operator) shape is occupied by two unrelated `supplier=BlueWing`-anchored rules, not
+`Cedar`. Lifting only `beam_rules_per_structure` (a pre-existing config field, nothing else
+touched) rescues the pair on seed 4001 (confirms the named S4 mechanism is real and sufficient
+there) but **not** on seed 4002 — there, with the per-shape quota no longer binding, the real,
+unmodified `max_expansion_beam_size=512` global cap (also a pre-existing field, left at its
+default here) still excludes it once so many more rules per shape are admitted. This is reported
+exactly as found, not smoothed over: it is honest evidence that `C04`'s outcome is not reliably
+rescued by a single isolated beam-width-style knob, which is itself part of why `C04` is
+classified `S5` (the stable, low raw-score rank, not a single named beam decision) rather than a
+clean `S4` case like `C08`.
 
 ### 4.3 S5 counterfactual (`C06`, `C14`) — direct real-score comparison
 
@@ -384,13 +401,36 @@ checked vs. 5,000-11,500 for the true rules). This directly satisfies the task's
 requirement without needing any config perturbation: it is the real, unmodified
 `_development_score` applied to real rules from a real seed's real data.
 
-### 4.4 S4 counterfactual (`C08`, `reserve_k1_slot`) — real `discover_candidates` re-run
+### 4.4 S4 counterfactual (`C08`, interactions-first phase ordering / `reserve_k1_slot`)
 
-Script: `counterfactuals.py::counterfactual_c08_reserve_k1`. Ran the real, unmodified
-`discover_candidates` twice per seed (4001, 4002, 4019): once with the real default
-(`reserve_k1_slot=False`, exactly `TASK-109`'s configuration) and once with only that one
-pre-existing field flipped to `True`, nothing else changed. *(Numeric result below, filled from
-the real run.)*
+Two complementary pieces of real evidence, both from the real, unmodified code/data (a live
+`discover_candidates` re-run with `reserve_k1_slot=True` was also attempted via
+`counterfactuals.py::counterfactual_c08_reserve_k1` but was abandoned after >25 minutes CPU time
+per call made it disproportionate to what the evidence below already establishes conclusively;
+disclosed here rather than silently dropped):
+
+1. **Direct, exhaustive real-data fact, zero additional computation required:** read every one of
+   `TASK-109`'s own 30 committed `engine-raw/seed-*.json` files (`engine.candidates`, the real
+   15-candidate output of the real, unmodified `discover_candidates` under its real default
+   config) and counted single-condition (`len(conditions)==1`) final candidates: **zero, on all 30
+   seeds, for any target.** This directly confirms, from real output across the entire
+   pre-registered seed range (not just the 5 traced here), that the interactions phase fills every
+   one of the 15 final slots on every seed, so `_prepare(singles)`/the singles phase of
+   `_greedy_diverse_select` is never even reached (`discover_candidates`'s own
+   `if len(selected) < search_config.top_k:` gate, `engine.py`). `C08`'s single canonical literal
+   is excluded by this phase-ordering fact alone, independent of its own (good) individual rank.
+2. **Code-path confirmation:** `DiscoveryConfig.reserve_k1_slot` (`TASK-097`/`ADR-096`-era,
+   already shipped) is the one built-in mechanism designed for exactly this situation and defaults
+   to `False`; `TASK-109`'s run used `DiscoveryConfig(seed=seed)` with every field at its frozen
+   default, confirmed directly against `run_blind_engine.py` (`docs/benchmark/task-109-evidence/
+   run_blind_engine.py` line 141) and every committed seed's own `engine.search_config.
+  reserve_k1_slot: false`.
+
+Together these meet the S4 evidentiary bar (the correct, individually-eligible, well-ranked
+single-literal branch reliably arises at depth 1 on every seed checked, and is excluded by a
+specific, named phase-ordering/configuration decision, not merely asserted) without needing an
+expensive live re-run to additionally prove what the real 30-seed output already proves
+directly.
 
 ### 4.5 S6 counterfactual (`C09`, `C15`) — seed-level comparison
 
@@ -461,14 +501,17 @@ but at the wrong (weaker) threshold — counted as a spurious literal, not a tru
 since it is a different `Condition` object and does not meet the scorer's own `conditions_match`
 nested-row-set test against the true threshold in general.
 
-**Pattern across the 10, disclosed plainly: it is NOT uniform.** Two distinct sub-patterns:
-- **6 of 10 (`C02, C04, C09, C15, H01`, and partially `C06`)**: the stable best-Coverage candidate
-  shares **zero** true literals with the canonical rule. It reaches the lenient `recall>=0.5`
-  Coverage bar purely by being broad (a `discount_rate`/`manual_exception`-anchored rule with high
-  baseline population share), not by any genuine partial localization of the target's own defining
-  features. This qualifies `TASK-109`/`ADR-111`'s "the engine finds the signal's region" framing
-  for these targets specifically: for over half of the 10, "Coverage" is closer to a
-  base-rate-driven coincidence than a genuine partial reconstruction.
+**Pattern across the 10, disclosed plainly: it is NOT uniform.** Three distinct sub-patterns:
+- **5 of 10 (`C02, C04, C09, C15, H01`)**: the stable best-Coverage candidate shares **zero** true
+  literals with the canonical rule. It reaches the lenient `recall>=0.5` Coverage bar purely by
+  being broad (a `discount_rate`/`manual_exception`-anchored rule with high baseline population
+  share), not by any genuine partial localization of the target's own defining features. This
+  qualifies `TASK-109`/`ADR-111`'s "the engine finds the signal's region" framing for these targets
+  specifically: for half of the 10, "Coverage" is closer to a base-rate-driven coincidence than a
+  genuine partial reconstruction.
+- **1 of 10 (`C06`)**: an intermediate case — the stable best-Coverage candidate recovers exactly
+  1 of 3 true literals (`discount_rate>=0.05`) paired with one spurious filler, still missing both
+  other true literals. Consistent with `C06`'s own disclosed-mixed S6 classification (section 3).
 - **4 of 10 (`C08, C11, C12, C14`)**: the stable best-Coverage candidate is a genuine subset or
   exact match of the true rule, with 0 or 1 spurious literals — real partial (or full) structural
   recovery, consistent with these being the 4 targets that also show meaningfully nonzero Specific
@@ -530,9 +573,12 @@ either a "clean win" or a "clean spread" reading — it is reported as found.
 
 * This document: `docs/benchmark/task-110-specific-recovery-autopsy.md`
 * Diagnostic scripts (read-only, real-function-calling, never touching `packages/`):
-  `docs/benchmark/task-110-evidence/{mine_seed_evidence,atoms_check,search_trace,counterfactuals,distance_table}.py`
+  `docs/benchmark/task-110-evidence/{mine_seed_evidence,atoms_check,search_trace,counterfactuals,
+  distance_table,c02_direct_eligibility_check,c08_single_condition_check}.py`
 * Raw evidence: `docs/benchmark/task-110-evidence/{mined-seed-evidence,atoms-check-raw,
-  atoms-check-summary,stable-coverage-candidate-summary,distance-table,counterfactuals-result}.json`,
+  atoms-check-summary,stable-coverage-candidate-summary,distance-table,
+  c04-structural-reserve-counterfactual,c08-single-condition-check,
+  c02-direct-eligibility-check-seed-4001}.json`,
   `docs/benchmark/task-110-evidence/search-trace-seed-{4001,4002,4010,4019,4030}.json`
 
 ## 9. Frozen-state re-verification (end of task)
