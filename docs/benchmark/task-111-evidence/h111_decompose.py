@@ -131,6 +131,32 @@ def condition_label(rule: tuple[Condition, ...]) -> list[str]:
     return [f"{c.feature} {c.operator} {c.value}" for c in rule]
 
 
+def _canon_value(operator: str, value) -> object:
+    if operator in ("ge", "lt"):
+        return round(float(value), 6)
+    return value
+
+
+def condition_key(c: Condition) -> tuple:
+    return (c.feature, c.operator, _canon_value(c.operator, c.value))
+
+
+def rule_key(rule: tuple[Condition, ...]) -> frozenset:
+    return frozenset(condition_key(c) for c in rule)
+
+
+import ast  # noqa: E402
+
+
+def parse_condition_str(s: str) -> tuple:
+    # Real format, confirmed against `benchmark_v2_scoring.py::CondSpec.__str__`
+    # (`f"{self.feature} {self.operator} {self.value!r}"`), the function TASK-109's own
+    # `run_blind_engine.py` uses to serialize candidate conditions into the committed raw JSON.
+    feature, operator, raw_value = s.split(" ", 2)
+    value = ast.literal_eval(raw_value)
+    return (feature, operator, _canon_value(operator, value))
+
+
 def direct_eval(frame, rule: tuple[Condition, ...], outcome, config) -> dict:
     metric = _metric(frame, rule, outcome, "development")
     eligible = _eligible(metric, config)
@@ -165,11 +191,17 @@ def sub_rules(rule: tuple[Condition, ...], size: int) -> list[tuple[Condition, .
 
 
 def final_topk_membership(seed: int, rule: tuple[Condition, ...]) -> dict | None:
-    """Pure read of TASK-109's own committed raw output -- no engine call."""
+    """Pure read of TASK-109's own committed raw output -- no engine call. Conditions are matched
+    by normalized (feature, operator, value) key, not raw string equality, because the committed
+    JSON's condition strings use `repr(value)` (`benchmark_v2_scoring.py::CondSpec.__str__`,
+    confirmed by direct inspection) while this script's own `Condition` objects may carry an
+    int where the committed string shows a float (e.g. `party_size ge 3` vs `3.0`) -- numerically
+    identical, textually different. `_canon_value` normalizes both sides before comparing."""
     d = json.loads((RAW / f"seed-{seed}.json").read_text())
-    want = set(condition_label(rule))
+    want = rule_key(rule)
     for c in d["score"]["candidates"]:
-        if set(c["conditions"]) == want:
+        got = frozenset(parse_condition_str(s) for s in c["conditions"])
+        if got == want:
             return {
                 "candidate_id": c["candidate_id"],
                 "credited_target": c["credited_target"],
