@@ -4,6 +4,7 @@
 **[Rev 1] 2026-09-25 (STATISTICS, documentation-only, responding to independent review "APPROVED WITH REVISION NEEDED"):** corrections and tightenings are marked inline `[Rev 1]`; the change log is section 10. No code, generator, scorer, engine, gate, threshold, v1 artifact, raw evidence, `predictions-preregistration.md` or `ADR-*` was changed; no OPEN founder decision was chosen. Two claims of the first draft were false and are corrected: the RNG/covariate-identity claim (sections 1.4, 4.1, 4.2 item 4, 7) and the `specific <= coverage` invariant (sections 3.3, 5).
 **[Rev 2] Phase 2a (STATISTICS lead, ARCHITECT support), after `ADR-107` (founder decisions D1-D13; the ADR text is dated 2026-09-28, the same ledger-date caveat as section 10.2 applies): the specification constants are now fixed (section 8.1); this revision is dated, additive and inline-marked `[Rev 2]`, with the change log in section 11. Status: constants frozen in this document; the BENCHMARK itself is NOT frozen (F3 pending). Phase 2a also delivered executable, tested v2 code (scorer, RNG-isolated generator skeleton) and the C5 measurement (section 11.2); no engine or discovery run took place on any v2 draw, the engine stays frozen (`discovery-engine-v0.6.2`, `engine.py` sha256 `fefceeaac20e8ff7b57f4e7a9cc9a1e9c649dd05269e10884d358d326d2e4549`, contract 1.3.0, no `G17`), and `predictions-preregistration.md` is not edited.**
 **[Rev 4] Phase 2b (2026-09-30/2026-10-01, STATISTICS lead, ARCHITECT support), after `ADR-108` (Decisions 1-3: tau as a one-sided 95% Clopper-Pearson lower bound at 30/30; C5 executed and disclosed, not a gate; no trap exemption for unscoreable/NOT ASSESSED targets).** Implements `ADR-108` Decision 3 in the scorer (`benchmark_v2_scoring.py`: `Target.assessed`, `trap_provenance`, `PROV_EXEMPT`/`PROV_CONFIRMED`/`PROV_UNSCOREABLE`/`PROV_NOT_ASSESSED`); pre-declares the Core/Challenge/DECLARED_OVERLAP classification rule, seed ranges, the optional-stopping ban and a bounded dose-selection procedure (`docs/benchmark/task-107-evidence/rev4-preregistration.md`, committed before any calibration run); designs 20 new v2 targets (12 intended Core, 6 intended Challenge, 2 DECLARED_OVERLAP) on the RNG-isolated composite generator (`synthetic_benchmark_v2_targets.py`); calibrates on 30 fresh seeds (2001-2030, disjoint from 1001-1030 and from any future acceptance/final seeds) at family 60,000 primary with the real contract, plus sensitivities 36,791/26,213 and C5 re-run on the composite for reference. Result (section 12, this revision): **14 of the 20 targets reach calibration verdict `core_candidate` (30/30, CP-LB 0.905 >= 0.90)** under the pre-declared mechanical rule — exceeding the >= 8 requirement — including two (`C06`, `H01`) that were *designed* as Challenge candidates but reclassified up by outcomes alone, per the pre-declared "outcomes decide, never intention" rule. One DECLARED_OVERLAP target (`D01`) is oracle-qualified (30/30, C4 bare-trap-literal exposure-J <= 0.30 on every seed); the other (`D02`) is not (18/30). Disclosed prior-knowledge risk: a design pilot on spent seeds 9001-9010 (before the pre-declaration commit) showed every manager-literal design fails G12 (leave-one-manager-out) structurally; all Core candidates therefore avoid the `manager` feature, a structural (not an engine-output) exclusion, stated here. No engine or discovery run occurred on any v2 draw in Phase 2b. Phase 2c (fresh acceptance seeds, freeze, independent review) is NOT started by this revision.**
+**[Rev 5] Phase 2c (2026-10-03, STATISTICS lead, ARCHITECT support), after `ADR-109` (R5=0.45 accepted with permanent provenance; frozen Phase 2c contract).** One-shot acceptance run on fresh seeds `3001-3030` (verified closed before use), real contract oracle, composite generator, all 20 Phase 2b targets active, family 60,000 primary with 36,791/26,213 sensitivities — same method as Phase 2b calibration (`docs/benchmark/task-107-evidence/v2_oracle.py`, unmodified). **Result: of the 14 `ADR-109`-listed Core candidates, 11 PASS acceptance (30/30, CP-LB 0.9050) and 3 FAIL (`C01`, `C10`, `C13`, each 29/30, CP-LB 0.8514) — Core-FAIL, unconditionally, no exceptions, no re-run, no redesign inside this version.** `D01` (DECLARED_OVERLAP) passes its own acceptance test, `oracle_qualified` (30/30, C4 max exposure-J 0.0918). **Final Core count this version: 11** (`C02, C04, C06, C07, C08, C09, C11, C12, C14, C15, H01`), still >= `ADR-107` D3's minimum of 8. C5 recomputed on `3001-3030` for reference only (`ADR-109` Decision 3 item 2, never a gate, never triggering a v2 change this cycle): all five traps' bare and composite rates fully disclosed (section 14.3) — T01 bare 0/30 / composite 21/30; T02 bare 29/30 / composite 29/30; T03 bare 28/30 / composite 10/30; T04 bare 1/30 / composite 0/30; T05 bare 0/30 / composite 1/30; no cell reaches `shadow_policy` or above for any trap. Freeze manifest (hashes, target classes, thresholds, full seed-range disposition, scorer semantics, `R5` provenance) is `docs/benchmark/task-107-freeze-manifest.md`, written after these results existed and before any discovery run, per `ADR-109` Decision 3 item 3. No engine or discovery run occurred on any v2 draw in Phase 2c. This revision does not declare `APPROVED`; that is reserved for independent review and the founder per `ADR-109` Decision 4.**
 **Binding on:** `ADR-106` (read in full), `ADR-105`, `ADR-103`, `ADR-092`, `docs/benchmark/task-106-fn-autopsy.md` (with its R1-R5 corrections),
 `docs/benchmark/task-108-scorer-trap-classification-spec.md` (section 7 disclosures, section 8 open item), `docs/benchmark/decision-gate.md`.
 
@@ -653,3 +654,76 @@ correction, rather than being read as a minor implementation detail.
 Fresh acceptance seeds `A` (3001-3030, never touched here) re-run the same classification rule once on the frozen composite; C5 recomputed on `A` for reference; the v2 ground truth and freeze manifest are
 written only after that; independent review of the whole frozen benchmark follows; the engine is not evaluated on v2 until a separate `TASK`/`ADR` authorises F4 after `APPROVED`. The 6 `challenge_candidate`
 targets and the 1 non-qualifying DECLARED_OVERLAP (`D02`) stay in their strata unless a future, explicitly fresh redesign+reacceptance cycle changes them (never by relaxing `tau` or by reusing 2001-2030).
+
+## 14. [Rev 5] Phase 2c: acceptance run, C5 informational disclosure, freeze manifest (2026-10-03, after `ADR-109`)
+
+Binding: `ADR-109` (read in full), `ADR-108`, `ADR-107`, `ADR-106`; sections 2-4, 11-13 above; `docs/benchmark/task-107-evidence/rev4-preregistration.md` (unchanged since Phase 2b, sha256
+`19a7d83bef87faf47e8dd292f9d4470822b66dd075291fbcb24f7169f7ab1ee6` — confirms `R5`'s amendments were fixed before these acceptance seeds existed). Engine stays frozen
+(`fefceeaac20e8ff7b57f4e7a9cc9a1e9c649dd05269e10884d358d326d2e4549`, contract 1.3.0); verified unchanged before this phase's first run and after every one of its 6 commits, alongside the v1
+generator/scorer/ground truth and every gate/contract file. **No engine or discovery run on any v2 draw.** Only the atom-grid builder `_atoms`, `build_projection`, and the real `run_validation`
+(through the unmodified Phase 2b `v2_oracle.py`/`c5_composite.py`) touch engine-package code.
+
+### 14.1 Step 1 (`ADR-109` Decision 3 item 1) - acceptance run, seeds 3001-3030, one-shot, closed before use
+
+Seeds verified closed before use: a whole-repository grep for `3001`-`3030` before this run found only prose references to the *reserved* range (`TASKS.md`, `DECISIONS.md`, spec sections 1.5/13.5) —
+no raw output, no per-seed file existed. Raw output: `docs/benchmark/task-107-evidence/rev5-acceptance-raw/` (30 files, all 20 targets, 3 families each; committed in 3 batches, each preceded/followed
+by a frozen-hash check). Rates: `rev5-acceptance-rates.json` (sha256 `6fc4c8d4e65a4f9b08e016214fd1fd04621ba430cd51b3878721ff91be52e42f`). Full per-target table, Core-FAIL detail, and the non-binding
+Challenge-only/D02 rows: `docs/benchmark/task-107-evidence/rev5-acceptance-results.md`.
+
+**Of the 14 `ADR-109`-listed Core candidates (`C01,C02,C04,C06,C07,C08,C09,C10,C11,C12,C13,C14,C15,H01`), 11 reach 30/30 (CP-LB 0.9050) and 3 (`C01`, `C10`, `C13`) reach only 29/30 (CP-LB 0.8514) —
+Core-FAIL, per the unconditional 30/30 rule (`ADR-108`/`ADR-109`), no exceptions.** `C01` fails on seed 3016 (`descriptive_observation`; failed gates `G09_SIMPSON_AND_HETEROGENEITY`,
+`G13_IDENTIFICATION_DESIGN`, `G14_RANDOMIZATION_INTEGRITY`, `G16_CANDIDATE_COMPOSITION_SAFETY`, none LEVEL2). `C10` fails on seed 3001 (`G10_TEMPORAL_STABILITY`, holdout retains 50% of development
+magnitude against the 50% floor). `C13` fails on seed 3022 (`G10_TEMPORAL_STABILITY`, holdout retains 44%). `D01` (DECLARED_OVERLAP) passes its own acceptance test: 30/30, CP-LB 0.9050, C4 max
+exposure-J 0.0918 <= 0.30 on every seed -> `oracle_qualified`. Sensitivity families 36,791/26,213 give identical `k` to the primary 60,000 for every one of these 15 rows (no family-size coincidence).
+Structural checks (`K(T)=T`, on-grid, projection-J = 1.0, scoreable) hold with zero violations on all 30 seeds for all 20 targets; the three Core-FAILs are pure evidence-level failures, not structural
+violations.
+
+**Non-binding, reported for completeness only** (`C03`/`C05`/`H02`/`H03` Challenge-only, `D02` non-qualifying overlap — never Core candidates per `ADR-109`): `C03` 14/30, `C05` 27/30, `H02` 30/30,
+`H03` 29/30, `D02` 17/30 (dominant gate `G12_ROBUSTNESS`).
+
+### 14.2 Final Core count this version
+
+**14 intended -> 11 Core: `C02, C04, C06, C07, C08, C09, C11, C12, C14, C15, H01`.** `C01`/`C10`/`C13` are Core-FAIL, recorded plainly, not redesigned, not re-run on other seeds, not dropped
+quietly. 11 >= `ADR-107` D3's minimum of 8 oracle-qualified Core targets. Per `ADR-109` Decision 3 item 4, any future rescue of `C01`/`C10`/`C13` requires a new target/version and a completely
+fresh acceptance set under D12 (`A'` 3101-3130 or `A''` 3201-3230, never a re-run of 3001-3030 and never this version).
+
+### 14.3 Step 2 (`ADR-109` Decision 3 item 2) - C5 on 3001-3030, informational only, full five-trap disclosure
+
+Raw: `docs/benchmark/task-107-evidence/rev5-c5-composite-raw/` (30 files, 3 batches). Rates: `rev5-c5-composite-rates.json` (sha256
+`48b0bb283755236162ae8047d2fa0836fc59581c0c8669c59ab82345877f7186`). Same protocol as the corrected Phase 2b table (section 13.4), unmodified script. **Per `ADR-109`, this result is not an admission
+condition and does not trigger any v2 change in this cycle, regardless of outcome; all five traps' bare and composite rates are disclosed below in full, none omitted:**
+
+| Trap | Bare predictive (k/30) | Bare promoted >= shadow_policy | Composite-rule predictive (k/30, best-of-15) | Composite promoted >= shadow_policy |
+|---|---|---|---|---|
+| T01 | 0/30 | 0/30 | 21/30 | 0/30 |
+| T02 | 29/30 | 0/30 | 29/30 | 0/30 |
+| T03 | 28/30 | 0/30 | 10/30 | 0/30 |
+| T04 | 1/30 | 0/30 | 0/30 | 0/30 |
+| T05 | 0/30 | 0/30 | 1/30 | 0/30 |
+
+No cell reaches `shadow_policy` or above for any trap on any of the 30 acceptance seeds; `G16_CANDIDATE_COMPOSITION_SAFETY` still structurally blocks promotion for every k>=2 rule. These numbers are
+close in direction and magnitude to the corrected Phase 2b composite table (section 13.4: T01 bare 0/composite-rule 22; T02 bare 27/composite-rule 29; T03 bare 29/composite-rule 11; T04
+bare 0/composite-rule 0; T05 bare 0/composite-rule 0) — the small seed-to-seed drift (T01 22->21, T04 0->1, T05 0->1) is ordinary sampling variation on a fresh, disjoint seed set, disclosed rather
+than smoothed over, not a new mechanism. The underlying cause is unchanged from Phase 2b's corrected disclosure: with 20 targets dosed simultaneously, `_outcome_columns` additively sums every active
+target's dosing on rows its predicate matches, shifting the comparison-group baseline used when grading any one trap/composite — a disclosed property of the trap suite under a dense composite, not a
+gate failure, not an RNG-isolation violation, and per `ADR-108` Decision 2 / `ADR-109` Decision 3 item 2 explicitly not used to change v2 in this cycle regardless of outcome.
+
+### 14.4 Step 3 (`ADR-109` Decision 3 item 3) - freeze manifest, written after 14.1-14.3 existed, before any discovery run
+
+`docs/benchmark/task-107-freeze-manifest.md`: sha256 of the v2 generator (`synthetic_benchmark_v2.py` `2d6231001ec5ba4e...`, `synthetic_benchmark_v2_targets.py` `4a9e75a8d27284db...`) and scorer
+(`benchmark_v2_scoring.py` `0878811a737ad360...`); confirmation and full hash list of every frozen-engine component (`engine.py`, `contract.py`, the rest of `discovery/*.py`/`validation/*.py`, v1
+generator, v1 scorer, v1 `hidden_ground_truth.json`, `checksums.json`) unchanged before and after this phase; the full 20-target table with final classes (section 2 of the manifest, superseding the
+calibration-only classes of spec section 13.4 per the pre-declared "outcomes decide" rule applied now to the acceptance seeds); every threshold (`tau`, `theta_J`, `theta_p`, `nu`, `eta`, `eps_x`,
+`rho_rep`, `theta_T`, family 60,000, `N`, scoreability floors, C4, `R5` final value); the complete seed-range ledger (`1001-1030`, `9001-9010`, `9101-9130`, `2001-2030`, `2101-2130`, `3001-3030`,
+`3101-3130`/`3201-3230`, `4001-4030`/`4101-4130`) with disposition (spent/reserved/untouched); the scorer's full semantics (Coverage/Specific/Exact, strict trap exemption with provenance labels,
+strata); and `R5`'s complete provenance table (0.25 original at `f8527cd` -> 0.35 Amendment A1 -> 0.45 Amendment A3, both at `8a5c636`, both before design freeze and the calibration run, stated
+rationale for each step, never reverted per `ADR-109` Decision 2). **No v2 ground truth exists as a single frozen per-row file the way v1's does** (v2 is a generator plus `TargetSpec` records
+evaluated across many seeds, not one materialized dataset); the manifest states this explicitly and treats the hashed `TargetDesign` records plus its own final-class table as the canonical v2 ground
+truth, rather than fabricating a v1-shaped artifact that would misrepresent the design.
+
+### 14.5 What remains, and what this revision does not do
+
+This revision does not declare `APPROVED` — per `ADR-109` Decision 4 that determination belongs to independent review and the founder, on the frozen artifact (this spec plus the freeze manifest plus
+`rev5-acceptance-results.md`) graded as a measurement instrument, including the absence of any engine exposure during construction. The two legitimate outcomes remain open: `APPROVED` freezes the
+benchmark and a separate task/ADR authorizes the first blind engine run (never read as a continuation of `TASK-107`'s own design); a substantive defect found means the engine still does not run and the
+defect is fixed with its own version/provenance treatment. No discovery or engine run occurred on any v2 draw at any point in this phase or in `TASK-107`'s history to date.
