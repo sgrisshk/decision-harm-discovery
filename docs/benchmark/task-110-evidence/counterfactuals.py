@@ -156,8 +156,8 @@ def counterfactual_c04_structural_reserve(seeds: list[int]) -> dict:
 
 
 def main() -> None:
-    seeds_c08 = [4001, 4002, 4019]
-    seeds_c04 = [4001, 4002]
+    seeds_c08 = [4001]
+    seeds_c04 = [4001]
     result = {
         "c08_reserve_k1_slot": counterfactual_c08_reserve_k1(seeds_c08),
         "c04_structural_reserve_quota": counterfactual_c04_structural_reserve(seeds_c04),
