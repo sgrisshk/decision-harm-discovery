@@ -81,6 +81,26 @@ reported separately below, never mixed into this denominator.**
 | **Specific Recall (headline)** | **6/11** (`C07, C09, C11, C12, C14, C15`) |
 | **Exact Recall** | **4/11** (`C07, C11, C12, C15`) |
 
+**[Correction, 2026-10-05, after independent review — read with equal prominence to the row above,
+not as a footnote.]** The "≥1 of 30 seeds" headline is deliberately the weaker of two readings
+(see section 5). Applying this project's own established reliability standard — the same one-sided
+95% Clopper-Pearson lower bound ≥ 0.90 on a `k`/30 count that `TASK-107` itself required to
+oracle-qualify these 11 targets as Core in the first place — to the engine's own `k`/30 discovery
+rates instead:
+
+| Aggregation | Specific Recall | Exact Recall |
+|---|---|---|
+| Headline ("≥1 of 30 seeds") | 6/11 | 4/11 |
+| Majority (≥16/30 seeds) | 3/11 (`C07, C11, C14`) | 2/11 (`C07, C11`) |
+| **CP-LB ≥ 0.90 ("reliable", `TASK-107`'s own standard)** | **1/11** (`C07` only, `k=30/30`, CP-LB 0.9050) | **0/11** (`C07`'s own `k=29/30` Exact rate gives CP-LB 0.8514, below 0.90) |
+
+Under the identical reliability bar this project already uses to decide whether a target counts as
+oracle-detectable at all, Specific Recall is **1/11**, not 6/11, and Exact Recall is **0/11**, not
+4/11. The headline and the "ever discovered" framing in section 5 are not withdrawn — the measurement
+itself is unchanged and the choice was disclosed before this correction — but a reader must not take
+"6/11" as implying anything close to majority or reliable capability; per the project's own standard,
+only one Core target (`C07`) clears a 90%-reliable bar for Specific recovery, and none does for Exact.
+
 ### Per-target rate across the 30 seeds (`k`/30), Core
 
 | Target | Coverage k/30 | Specific k/30 (θ_J=0.50) | Exact k/30 |
