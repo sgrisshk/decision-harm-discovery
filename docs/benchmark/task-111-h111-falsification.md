@@ -44,11 +44,16 @@ directly on: the canonical/specific rule, each of its single-literal and, for 3-
 each (k-1)-literal sub-rule (the eligibility necessary-condition for the real search's
 depth-1-to-depth-k frontier construction, `engine.py` lines ~883, 925-932), the **universal broad
 proxy** `U = (discount_rate>=0.03 AND manual_exception=False)` (the same unrelated structure
-`TASK-110` found dominant for 5/10 targets, used identically against every target so the kill
-criterion's "SAME identifiable mechanism" is tested apples-to-apples, not re-picked per target),
+`TASK-110` found dominant for 5/10 targets; computed identically against every target as an
+apples-to-apples cross-check, not re-picked per target),
 and each target's own **named competitor** -- the literal top entry of `TASK-110`'s own
 `stable-coverage-candidate-summary.json` per target (re-read programmatically from that committed
-file, not re-typed from prose). A second script, `h111_analyze.py`, is pure aggregation (no engine
+file, not re-typed from prose). **[Clarified, 2026-10-09, independent review]** Both numbers are
+computed and disclosed for every target and agree in direction throughout, but the headline
+Section 2 table below reports the target-specific **named competitor**, not the universal proxy —
+the two coincide for 7 of 11 targets but differ for `C04, C08, C14, C15`, which use a different,
+specifically-chosen rule. The universal proxy's own per-target numbers are in
+`h111-analysis-summary.json` for the cross-check. A second script, `h111_analyze.py`, is pure aggregation (no engine
 call) over that raw output: preference consistency, `Delta-score` margin distribution, and an
 **exact log-additive decomposition** of the formula's three multiplicative components:
 
@@ -195,7 +200,7 @@ roughly a third of the time does not matter in practice.
 | Specific/canonical rule | `customer_segment=leisure AND supplier=BlueWing AND discount_rate>=0.08` (3/3 true) | `destination=Tokyo AND customer_segment=leisure AND product_category=standard` (3/3 true) |
 | Competing partial | `discount_rate>=0.08 AND supplier=BlueWing` (2/3 true, own subset) | `destination=Tokyo AND product_category=standard` (2/3 true, own subset) |
 | Partial beats full, how many of 30 seeds | **30/30** | **30/30** |
-| Delta-score (partial - full), range | 2,444.3 to 7,330.8 (mean 4,762.2) | 2,145.8 to 6,095.5 (mean ~3,476) |
+| Delta-score (partial - full), range | 2,444.3 to 7,330.8 (mean 4,762.2) | 2,095.3 to 6,095.5 (mean 3,444.1) [corrected, 2026-10-09, independent review: originally read "2,145.8 to 6,095.5 (mean ~3,476)" — a transcription error in this prose table only; the underlying script/JSON (`h111-analysis-summary.json`) already had the correct values, and the max of 6,095.5 that the entire "largest margin on the success seed" argument rests on was correct both before and after this fix, so no conclusion changes] |
 | Full rule ever in final top-15 | 0/30 | 0/30 |
 | Partial rule in final top-15 | n/a (partial not separately tracked for `C14`; same structure as the dominant `discount+BlueWing` proxy already always present) | **1/30 -- seed 4019 only** |
 
