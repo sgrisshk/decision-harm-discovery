@@ -112,7 +112,7 @@ that length the real search actually evaluated and judged eligible that seed.
 |---|---|---|---|---|
 | 4001 | No | No | No | — (never constructed) |
 | 4002 | No | No | No | — |
-| 4010 | Yes | No | Yes | 442 / 1692 |
+| 4010 | No | Yes | Yes | 442 / 1692 | <!-- [Correction, 2026-10-07, independent review]: this row originally had the two "alone eligible?" columns swapped (said Rome=Yes, corporate=No). The committed raw data (search-trace-seed-4010.json) and c02_direct_eligibility_check.py 4010 both show the opposite: Rome alone is ineligible (harm=-110.92), corporate alone is eligible (harm=+17.20). Fixed here; does not change the S3 classification or the "4/5 seeds both wrong-signed, 1/5 one flips" conclusion. -->
 | 4019 | No | No | No | — |
 | 4030 | No | No | No | — |
 
@@ -254,7 +254,11 @@ The full 2-literal canonical rule is consistently well-ranked (top 1-3%) and is 
 single most common best-coverage candidate across all 30 `TASK-109` seeds (26/30,
 `stable-coverage-candidate-summary.json`), exactly matching the canonical rule with zero missing
 and zero spurious literals. This is the closest of the 10 to genuinely working (point estimate
-26/30 — only its CP-LB of 0.8514 keeps it below the 0.90 reliability bar).
+26/30 — only its CP-LB of **0.7204** keeps it below the 0.90 reliability bar; [correction,
+2026-10-07, independent review: this entry originally stated 0.8514, which is `TASK-109`'s own
+figure for a different fact (`C07`'s 29/30 Exact rate) copied in by error — the correct one-sided
+95% Clopper-Pearson lower bound for k=26/n=30 is 0.7204, still well above every other target's
+CP-LB and still "closest of the 10," so this does not change the classification or ranking claim]).
 
 **Classification: S6 (Stochastic instability), minor.** No structural block identified; the 4/30
 misses are consistent with ordinary seed-to-seed selection noise at the margin, not a systematic
@@ -277,6 +281,20 @@ construction. The full rule is reachable and decently ranked (top 0.5-2.5%) on e
 shows a near-coin-flip across the 30 seeds: the exact canonical rule is the best-coverage candidate
 on 7/30 seeds; an unrelated generic broad proxy (`discount_rate>=0.03 AND manual_exception=False`)
 wins on another 7/30. This matches `C12`'s 8/30 Specific rate closely.
+
+**[Disclosed-mixed note, 2026-10-07, after independent review — same treatment as `C04`/`C06`/`H01`'s
+secondary-mechanism disclosures, not applied here originally.]** "Near-equally-scored" is not quite
+right: the independent reviewer computed the real `_development_score` for `C12`'s canonical rule
+against the named competing broad proxy (`discount_rate>=0.03 AND manual_exception=False`) across
+all 30 seeds and found the proxy's raw score is *higher* on all 30/30, by a large, stable margin
+(canonical ≈8,000-11,000 vs. proxy ≈10,000-18,000) — not a close score. The 7/30-vs-7/30
+final-selection split is confirmed correct, but the mechanism is more structured than a coin flip:
+the two candidates' "in final top-15" seed-sets are disjoint, so a seed-sensitive selection/
+stability-credit process — not raw score parity — decides which structure gets a shot at the
+top-15 at all, sitting on top of a raw-score formula with a stable, S5-flavored bias toward breadth
+underneath it. This does not change `C12`'s primary `S6` classification, but the `S5`/`S6` boundary
+here is softer than a clean single-class label implies — the founder should read it with that
+caveat, as with `C04`/`C06`/`H01`.
 
 **Classification: S6 (Stochastic instability).** A genuinely competitive candidate that wins its
 selection race against near-equally-scored rivals about a quarter of the time.
