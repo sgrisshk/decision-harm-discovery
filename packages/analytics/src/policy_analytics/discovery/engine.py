@@ -83,6 +83,34 @@ new tunable is introduced. This is a genuine, unconditional behavior change (no 
 bump. See `_eligible()`'s own docstring, `DiscoveryConfig.max_support`'s field docstring, and
 `ADR-096`/`docs/analytics/task-101-max-support-search-eligibility-fix.md` for the full citation
 trail, both-direction regression evidence, and cross-domain check.
+
+`v0.6.3` (`TASK-112`, `ADR-113`) changes `_development_score`'s volume/support component only --
+the first actual engine code change in the whole `TASK-092`-`TASK-112` diagnostic arc. `TASK-111`
+(`H111`, independently reviewed `SUPPORTED`, 7/10 FNs incl. 4/5 `S6`) found the real formula's
+`n_exposed**population_score_exponent` term structurally rewards a candidate for covering more
+rows even at equivalent per-booking evidence quality, because every broad competitor examined has
+far larger `n_exposed` than the corresponding specific/canonical rule (7-23x median, `C14`
+excepted at 1.77x) -- the volume term inflates the broad side's score far more than the specific
+side's, regardless of which is the better estimate of a true, undiluted effect. `ADR-113`
+authorized exactly one parameter-free fix: removing the volume term entirely (its own natural
+`exponent -> 0` case -- a deletion, not a new coefficient picked by experiment):
+
+```
+OLD: score = harm_per_booking * n_exposed**population_score_exponent / (1 + 0.15*(k-1))
+NEW: score = harm_per_booking                                        / (1 + 0.15*(k-1))
+```
+
+`DiscoveryConfig.population_score_exponent` itself is untouched (default `0.5`, bounds unchanged)
+per `ADR-113`'s "every other component, weight ... untouched" scope -- it simply stops being read
+by `_development_score`; see that field's own docstring note. `_eligible()`'s `min_n` floor
+(default `40`, unchanged) already gates how little exposure a rule may have before it is scored at
+all, so a purely rate-based score does not newly admit statistically thin rules -- reliability is
+enforced by eligibility, not by the score shape. This is a genuine, unconditional behavior change
+(no opt-in flag), hence the version bump, following the same precedent as `v0.6.2`
+(`TASK-101`/`ADR-096`) above. Pre-registered counterfactual, Mechanism PASS evaluation, regression/
+kill tests, and the paired `4101-4130` go/no-go are in
+`docs/benchmark/task-112-specificity-neutral-score-results.md` and
+`docs/benchmark/task-112-evidence/`.
 """
 
 from __future__ import annotations
@@ -114,7 +142,7 @@ class OutcomeDefinition(Protocol):
 
 
 Operator = Literal["eq", "ge", "lt"]
-DISCOVERY_METHOD_VERSION = "discovery-engine-v0.6.2"
+DISCOVERY_METHOD_VERSION = "discovery-engine-v0.6.3"
 
 
 @dataclass(frozen=True, slots=True, order=True)
@@ -176,6 +204,17 @@ class DiscoveryConfig:
     #: broadening rather than by finding a genuinely stronger effect no longer automatically beats
     #: a smaller, purer one. Must be in `(0.0, 1.0]`. Changing it is a discovery-method decision,
     #: not a per-run tuning knob — see `docs/analytics/discovery-engine-v0.md`.
+    #:
+    #: **No longer read by `_development_score` as of `v0.6.3` (`TASK-112`, `ADR-113`).** `TASK-111`
+    #: (`H111`) found this term structurally rewards covering more rows at equivalent per-booking
+    #: evidence quality; `ADR-113` authorized the one parameter-free fix available -- removing the
+    #: term entirely rather than picking a different exponent (any other value would just be a new
+    #: hand-tuned coefficient, the thing `ADR-113` explicitly forbids). The field itself, its
+    #: default, and its validation bounds are untouched (`ADR-113`: "every other component, weight
+    #: ... untouched") -- kept, not deleted, so this stays a minimal, legible diff and so any future
+    #: task re-introducing a volume term has a documented prior value to reason about; it currently
+    #: has no effect on search or scoring. See `_development_score`'s own docstring and the module
+    #: docstring's `v0.6.3` entry.
     population_score_exponent: float = 0.5
     #: Weight of the overlap discount in top-K selection (see `_greedy_diverse_select`). At each
     #: selection round, a remaining rule's `_development_score` is multiplied by
@@ -436,15 +475,28 @@ def _development_score(metric: SplitMetric, condition_count: int, config: Discov
     # still same-signed) effect always scores higher than a smaller, purer rule with the same or
     # larger total exposure, even though the larger one is a worse estimate of any one underlying
     # mechanism (HANDOFF-043 §3.6: matched candidates' exposed populations ran ~15-16x larger than
-    # the true patterns they partially recovered). Raising n_exposed to `population_score_exponent`
-    # < 1 makes the score grow sub-linearly in population, so a narrower rule with a stronger
-    # per-booking effect can now out-score a broader, more diluted one at comparable total
-    # exposure — a geometric-mean-style balance between total materiality and per-booking purity,
-    # not a preference for narrowness on its own (a genuinely broad, undiluted true effect still
-    # wins). The mild complexity penalty prefers concise rules when descriptive exposure is
-    # similar. No validation/holdout outcome enters either term.
-    population_component = metric.n_exposed**config.population_score_exponent
-    magnitude = metric.harm_per_booking * population_component
+    # the true patterns they partially recovered). `v0.1.0` through `v0.6.2` addressed this by
+    # raising n_exposed to `population_score_exponent` < 1 (default 0.5) so the score grows
+    # sub-linearly in population -- a geometric-mean-style balance, not a removal of the volume
+    # reward. `TASK-111` (`H111`, independently reviewed SUPPORTED, 7/10 FNs incl. 4/5 S6) found
+    # that balance still structurally favors a broad, low-specificity rule over a specific one at
+    # equivalent per-booking evidence quality, because real broad competitors' n_exposed runs
+    # 7-23x the specific rule's (median across 30 seeds, TASK-112 Step 1 pre-registration) --
+    # enough for even a damped sqrt(n_exposed) term to dominate. `v0.6.3` (`TASK-112`, `ADR-113`)
+    # removes the volume term entirely rather than picking a different exponent (any other value in
+    # (0, 1) is just a new hand-tuned coefficient, which ADR-113 explicitly forbids): this is the
+    # term's own natural `exponent -> 0` case, i.e. deletion, not a newly-invented free parameter.
+    # The resulting score is purely rate-based: two rules with identical harm_per_booking and
+    # condition_count score identically regardless of how many rows either one covers. This does
+    # not newly admit statistically thin rules -- `_eligible()`'s `min_n` floor (unchanged) already
+    # gates how little exposure a rule may have before it is scored at all; reliability is enforced
+    # by eligibility, not by this score's shape. `config` is accepted for call-site/signature
+    # stability but no longer consulted here; `DiscoveryConfig.population_score_exponent` is
+    # unchanged (default, bounds) and simply unread -- see that field's own docstring note. The
+    # mild complexity penalty still prefers concise rules when per-booking evidence is similar. No
+    # validation/holdout outcome enters either term.
+    del config  # population_score_exponent intentionally no longer consulted -- see docstring.
+    magnitude = metric.harm_per_booking
     return magnitude / (1.0 + 0.15 * (condition_count - 1))
 
 
