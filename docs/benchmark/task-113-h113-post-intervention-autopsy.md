@@ -174,9 +174,29 @@ reproducible cause (the rate-only formula's unconstrained preference for maximal
 conjunctions, confirmed by the real final-15 depth-mix inversion at both independently-traced
 seeds covering all 8 targets).
 
-**Verdict: `H113` SUPPORTED**, per `ADR-114`'s exact, literal threshold (8/8 >= 6/8). This is not
-a reinterpretation of the threshold to fit the result: the threshold is a plain count and 8 clears
-6.
+**[Independence-structure correction, 2026-10-13, after independent review -- travels with the count,
+not left in Step 1 alone.]** The "8/8" is 8 target *labels*, not 8 independent trials of the
+mechanism. 7 of the 8 targets (`C04, C06, C08, C09, C14, C15, H01`) share one real displacement
+event at seed 4101, via 3 shared broad candidates (R1/R2/R3) that each happen to sweep >=50%
+recall of several targets at once (confirmed: these 7 targets have baseline Coverage on literally
+30/30 seeds, so any of several broad rules would have covered them). Only `C02` (seed 4102) is a
+genuinely separate trial. So this is **2 independently-confirmed instances of the same mechanism
+type, not 8** -- the mechanism's *kind* is identical at both (the real modified-engine winners at
+both seeds are the same type of competitor: narrow k=3, high-rate, structurally unconnected to any
+Core target), but the evidentiary base clearing `ADR-114`'s literal 6/8 count is thinner than "8/8"
+alone communicates. The threshold is still cleared on the literal count as written, but a reader
+should know n=2, not n=8, independent confirmations stand behind it.
+
+**Verdict: `H113` SUPPORTED on the literal 6/8 count (8/8, effectively 2 independent instances of
+the same mechanism) -- but NOT in its original direction.** `H113` proposed that the volume term's
+*broadness bias is harmful* at refinement; what this autopsy actually finds is the opposite --
+refinement without the volume term is harmful, because nothing then bounds unconstrained narrowing
+to `max_conditions`. **A reader must not take "H113 SUPPORTED" to mean "removing the volume term's
+refinement-stage broadness bias would help" -- this same data shows that removal causes 8/8
+Coverage loss.** See the full disclosed-nuance paragraph below for the complete mechanism. This is
+not a reinterpretation of `ADR-114`'s threshold (a plain count, 8 clears 6) -- it is a correction to
+how the verdict's own headline must be read, made explicit here rather than left only in the prose
+that follows.
 
 **Disclosed nuance (required for precision, not a reinterpretation of the verdict above).** The
 concentration count is unambiguous, but the *specific* mechanism found refines `H113`'s own
