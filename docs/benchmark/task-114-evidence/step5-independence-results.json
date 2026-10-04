@@ -1,0 +1,313 @@
+{
+  "bar_met_independently": true,
+  "n_qualifying_targets_method_b": 7,
+  "n_targets_independently_qualifying_excluding_shared_literals": 6,
+  "per_target_independence_detail": {
+    "C04": {
+      "canonical_eq_literals_shared_with_other_qualifying_targets": [
+        {
+          "feature": "customer_segment",
+          "operator": "eq",
+          "value": "leisure"
+        }
+      ],
+      "fraction_positive_excluding_shared": 1.0,
+      "independently_qualifies_excluding_shared_literal_starts": true,
+      "n_seeds_applicable_excluding_shared_literal_starts": 60,
+      "n_seeds_positive_excluding_shared_literal_starts": 60,
+      "per_starting_literal_positive_rate": {
+        "customer_segment eq 'leisure'": {
+          "is_shared": true,
+          "n": 60,
+          "pos": 1
+        },
+        "supplier eq 'Cedar'": {
+          "is_shared": false,
+          "n": 60,
+          "pos": 0
+        },
+        "trip_duration_days ge 8": {
+          "is_shared": false,
+          "n": 60,
+          "pos": 60
+        }
+      },
+      "shared_with_targets": {
+        "customer_segment='leisure'": [
+          "C09",
+          "C12",
+          "C14"
+        ]
+      }
+    },
+    "C06": {
+      "canonical_eq_literals_shared_with_other_qualifying_targets": [
+        {
+          "feature": "customer_type",
+          "operator": "eq",
+          "value": "returning"
+        }
+      ],
+      "fraction_positive_excluding_shared": 1.0,
+      "independently_qualifies_excluding_shared_literal_starts": true,
+      "n_seeds_applicable_excluding_shared_literal_starts": 60,
+      "n_seeds_positive_excluding_shared_literal_starts": 60,
+      "per_starting_literal_positive_rate": {
+        "customer_type eq 'returning'": {
+          "is_shared": true,
+          "n": 60,
+          "pos": 38
+        },
+        "destination eq 'Reykjavik'": {
+          "is_shared": false,
+          "n": 60,
+          "pos": 0
+        },
+        "discount_rate ge 0.05": {
+          "is_shared": false,
+          "n": 60,
+          "pos": 60
+        }
+      },
+      "shared_with_targets": {
+        "customer_type='returning'": [
+          "C15"
+        ]
+      }
+    },
+    "C09": {
+      "canonical_eq_literals_shared_with_other_qualifying_targets": [
+        {
+          "feature": "customer_segment",
+          "operator": "eq",
+          "value": "leisure"
+        }
+      ],
+      "fraction_positive_excluding_shared": 1.0,
+      "independently_qualifies_excluding_shared_literal_starts": true,
+      "n_seeds_applicable_excluding_shared_literal_starts": 60,
+      "n_seeds_positive_excluding_shared_literal_starts": 60,
+      "per_starting_literal_positive_rate": {
+        "customer_segment eq 'leisure'": {
+          "is_shared": true,
+          "n": 60,
+          "pos": 1
+        },
+        "destination eq 'Tokyo'": {
+          "is_shared": false,
+          "n": 60,
+          "pos": 60
+        },
+        "product_category eq 'standard'": {
+          "is_shared": false,
+          "n": 60,
+          "pos": 60
+        }
+      },
+      "shared_with_targets": {
+        "customer_segment='leisure'": [
+          "C04",
+          "C12",
+          "C14"
+        ]
+      }
+    },
+    "C12": {
+      "canonical_eq_literals_shared_with_other_qualifying_targets": [
+        {
+          "feature": "customer_segment",
+          "operator": "eq",
+          "value": "leisure"
+        },
+        {
+          "feature": "acquisition_channel",
+          "operator": "eq",
+          "value": "direct"
+        }
+      ],
+      "fraction_positive_excluding_shared": 0.08333333333333333,
+      "independently_qualifies_excluding_shared_literal_starts": false,
+      "n_seeds_applicable_excluding_shared_literal_starts": 60,
+      "n_seeds_positive_excluding_shared_literal_starts": 5,
+      "per_starting_literal_positive_rate": {
+        "acquisition_channel eq 'direct'": {
+          "is_shared": true,
+          "n": 60,
+          "pos": 38
+        },
+        "customer_segment eq 'leisure'": {
+          "is_shared": true,
+          "n": 60,
+          "pos": 0
+        },
+        "product_category eq 'premium'": {
+          "is_shared": false,
+          "n": 60,
+          "pos": 5
+        }
+      },
+      "shared_with_targets": {
+        "acquisition_channel='direct'": [
+          "C15"
+        ],
+        "customer_segment='leisure'": [
+          "C04",
+          "C09",
+          "C14"
+        ]
+      }
+    },
+    "C14": {
+      "canonical_eq_literals_shared_with_other_qualifying_targets": [
+        {
+          "feature": "customer_segment",
+          "operator": "eq",
+          "value": "leisure"
+        },
+        {
+          "feature": "supplier",
+          "operator": "eq",
+          "value": "BlueWing"
+        }
+      ],
+      "fraction_positive_excluding_shared": 1.0,
+      "independently_qualifies_excluding_shared_literal_starts": true,
+      "n_seeds_applicable_excluding_shared_literal_starts": 60,
+      "n_seeds_positive_excluding_shared_literal_starts": 60,
+      "per_starting_literal_positive_rate": {
+        "customer_segment eq 'leisure'": {
+          "is_shared": true,
+          "n": 60,
+          "pos": 0
+        },
+        "discount_rate ge 0.08": {
+          "is_shared": false,
+          "n": 60,
+          "pos": 60
+        },
+        "supplier eq 'BlueWing'": {
+          "is_shared": true,
+          "n": 60,
+          "pos": 60
+        }
+      },
+      "shared_with_targets": {
+        "customer_segment='leisure'": [
+          "C04",
+          "C09",
+          "C12"
+        ],
+        "supplier='BlueWing'": [
+          "H01"
+        ]
+      }
+    },
+    "C15": {
+      "canonical_eq_literals_shared_with_other_qualifying_targets": [
+        {
+          "feature": "customer_type",
+          "operator": "eq",
+          "value": "returning"
+        },
+        {
+          "feature": "acquisition_channel",
+          "operator": "eq",
+          "value": "direct"
+        }
+      ],
+      "fraction_positive_excluding_shared": 1.0,
+      "independently_qualifies_excluding_shared_literal_starts": true,
+      "n_seeds_applicable_excluding_shared_literal_starts": 60,
+      "n_seeds_positive_excluding_shared_literal_starts": 60,
+      "per_starting_literal_positive_rate": {
+        "acquisition_channel eq 'direct'": {
+          "is_shared": true,
+          "n": 60,
+          "pos": 51
+        },
+        "customer_type eq 'returning'": {
+          "is_shared": true,
+          "n": 60,
+          "pos": 12
+        },
+        "trip_duration_days ge 6": {
+          "is_shared": false,
+          "n": 60,
+          "pos": 60
+        }
+      },
+      "shared_with_targets": {
+        "acquisition_channel='direct'": [
+          "C12"
+        ],
+        "customer_type='returning'": [
+          "C06"
+        ]
+      }
+    },
+    "H01": {
+      "canonical_eq_literals_shared_with_other_qualifying_targets": [
+        {
+          "feature": "supplier",
+          "operator": "eq",
+          "value": "BlueWing"
+        }
+      ],
+      "fraction_positive_excluding_shared": 0.7,
+      "independently_qualifies_excluding_shared_literal_starts": true,
+      "n_seeds_applicable_excluding_shared_literal_starts": 60,
+      "n_seeds_positive_excluding_shared_literal_starts": 42,
+      "per_starting_literal_positive_rate": {
+        "customer_type eq 'new'": {
+          "is_shared": false,
+          "n": 60,
+          "pos": 42
+        },
+        "destination eq 'Zanzibar'": {
+          "is_shared": false,
+          "n": 60,
+          "pos": 3
+        },
+        "supplier eq 'BlueWing'": {
+          "is_shared": true,
+          "n": 60,
+          "pos": 60
+        }
+      },
+      "shared_with_targets": {
+        "supplier='BlueWing'": [
+          "C14"
+        ]
+      }
+    }
+  },
+  "qualifying_targets_method_b": [
+    "C04",
+    "C06",
+    "C09",
+    "C12",
+    "C14",
+    "C15",
+    "H01"
+  ],
+  "shared_eq_literals_across_qualifying_targets": {
+    "acquisition_channel eq 'direct'": [
+      "C12",
+      "C15"
+    ],
+    "customer_segment eq 'leisure'": [
+      "C04",
+      "C09",
+      "C12",
+      "C14"
+    ],
+    "customer_type eq 'returning'": [
+      "C06",
+      "C15"
+    ],
+    "supplier eq 'BlueWing'": [
+      "C14",
+      "H01"
+    ]
+  }
+}
