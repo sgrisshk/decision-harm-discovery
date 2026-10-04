@@ -1,0 +1,134 @@
+{
+  "seed": 4124,
+  "targets": {
+    "C07": {
+      "broad_candidate_id": "CAND-015",
+      "n_atoms_swept": 94,
+      "n_negative_control_atoms_found": 1,
+      "negative_control_findings": [
+        {
+          "added_atom": {
+            "feature": "party_size",
+            "operator": "ge",
+            "value": 4.0
+          },
+          "broad_step": {
+            "benchmark_v2_scoring": {
+              "covers_target_recall_ge_0_5": true,
+              "cp": 1.0,
+              "cr": 0.6666666666666666,
+              "dropped_vacuous_conditions": [],
+              "effective_conditions": [
+                {
+                  "feature": "acquisition_channel",
+                  "operator": "eq",
+                  "value": "direct"
+                },
+                {
+                  "feature": "supplier",
+                  "operator": "eq",
+                  "value": "BlueWing"
+                }
+              ],
+              "j_e": 0.5299492385786801,
+              "metric_specific_j_ge_theta_j_and_cp_ge_theta_p": true,
+              "n_effective": 2,
+              "n_exposed_full_dataset": 985,
+              "precision": 0.5299492385786801,
+              "recall": 1.0
+            },
+            "conditions": [
+              {
+                "feature": "acquisition_channel",
+                "operator": "eq",
+                "value": "direct"
+              },
+              {
+                "feature": "supplier",
+                "operator": "eq",
+                "value": "BlueWing"
+              }
+            ],
+            "development_score": 11849.231856959617,
+            "eligible": true,
+            "engine_metric_development": {
+              "comparison_mean": -249.89417884019477,
+              "exposed_mean": -848.0362620423894,
+              "harm_per_booking": 598.1420832021946,
+              "historical_exposure": 310435.741181939,
+              "n_exposed": 519,
+              "n_population": 5037,
+              "support": 0.10303752233472305
+            },
+            "n_conditions": 2,
+            "n_exposed_rows_development_split": 519
+          },
+          "child_step": {
+            "benchmark_v2_scoring": {
+              "covers_target_recall_ge_0_5": false,
+              "cp": 1.0,
+              "cr": 1.0,
+              "dropped_vacuous_conditions": [],
+              "effective_conditions": [
+                {
+                  "feature": "acquisition_channel",
+                  "operator": "eq",
+                  "value": "direct"
+                },
+                {
+                  "feature": "party_size",
+                  "operator": "ge",
+                  "value": 4.0
+                },
+                {
+                  "feature": "supplier",
+                  "operator": "eq",
+                  "value": "BlueWing"
+                }
+              ],
+              "j_e": 0.4444444444444444,
+              "metric_specific_j_ge_theta_j_and_cp_ge_theta_p": false,
+              "n_effective": 3,
+              "n_exposed_full_dataset": 232,
+              "precision": 1.0,
+              "recall": 0.4444444444444444
+            },
+            "conditions": [
+              {
+                "feature": "acquisition_channel",
+                "operator": "eq",
+                "value": "direct"
+              },
+              {
+                "feature": "supplier",
+                "operator": "eq",
+                "value": "BlueWing"
+              },
+              {
+                "feature": "party_size",
+                "operator": "ge",
+                "value": 4.0
+              }
+            ],
+            "development_score": 11333.449469407726,
+            "eligible": true,
+            "engine_metric_development": {
+              "comparison_mean": -279.349690805533,
+              "exposed_mean": -1618.7573553719005,
+              "harm_per_booking": 1339.4076645663677,
+              "historical_exposure": 162068.3274125305,
+              "n_exposed": 121,
+              "n_population": 5037,
+              "support": 0.024022235457613658
+            },
+            "n_conditions": 3,
+            "n_exposed_rows_development_split": 121
+          },
+          "coverage_collapsed": true,
+          "evidence_collapsed": false,
+          "is_canonical_literal": true
+        }
+      ]
+    }
+  }
+}
