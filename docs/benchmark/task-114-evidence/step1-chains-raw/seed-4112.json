@@ -1,0 +1,574 @@
+{
+  "seed": 4112,
+  "targets": {
+    "C02": {
+      "all_clean_broad_candidates": [],
+      "all_covering_candidates": [
+        {
+          "candidate_id": "CAND-005",
+          "conditions": [
+            {
+              "feature": "discount_rate",
+              "operator": "ge",
+              "value": 0.03
+            },
+            {
+              "feature": "manual_exception",
+              "operator": "eq",
+              "value": false
+            }
+          ],
+          "recall": 0.7654320987654321
+        }
+      ],
+      "canonical_literal_count": 2,
+      "canonical_rule": "destination=Rome AND customer_segment=corporate",
+      "chainable": true,
+      "has_qualifying_broad_candidate": false
+    },
+    "C04": {
+      "all_clean_broad_candidates": [],
+      "all_covering_candidates": [
+        {
+          "candidate_id": "CAND-005",
+          "conditions": [
+            {
+              "feature": "discount_rate",
+              "operator": "ge",
+              "value": 0.03
+            },
+            {
+              "feature": "manual_exception",
+              "operator": "eq",
+              "value": false
+            }
+          ],
+          "recall": 0.730593607305936
+        }
+      ],
+      "canonical_literal_count": 3,
+      "canonical_rule": "supplier=Cedar AND customer_segment=leisure AND trip_duration_days>=8",
+      "chainable": true,
+      "has_qualifying_broad_candidate": false
+    },
+    "C06": {
+      "all_clean_broad_candidates": [],
+      "all_covering_candidates": [
+        {
+          "candidate_id": "CAND-001",
+          "conditions": [
+            {
+              "feature": "discount_rate",
+              "operator": "ge",
+              "value": 0.08
+            },
+            {
+              "feature": "manual_exception",
+              "operator": "eq",
+              "value": false
+            }
+          ],
+          "recall": 0.6428571428571429
+        },
+        {
+          "candidate_id": "CAND-005",
+          "conditions": [
+            {
+              "feature": "discount_rate",
+              "operator": "ge",
+              "value": 0.03
+            },
+            {
+              "feature": "manual_exception",
+              "operator": "eq",
+              "value": false
+            }
+          ],
+          "recall": 0.951530612244898
+        },
+        {
+          "candidate_id": "CAND-014",
+          "conditions": [
+            {
+              "feature": "discount_rate",
+              "operator": "ge",
+              "value": 0.08
+            },
+            {
+              "feature": "quoted_cost_eur",
+              "operator": "ge",
+              "value": 1654.17
+            }
+          ],
+          "recall": 0.5943877551020408
+        }
+      ],
+      "canonical_literal_count": 3,
+      "canonical_rule": "destination=Reykjavik AND customer_type=returning AND discount_rate>=0.05",
+      "chainable": true,
+      "has_qualifying_broad_candidate": false
+    },
+    "C07": {
+      "all_clean_broad_candidates": [
+        {
+          "candidate_id": "CAND-009",
+          "conditions": [
+            {
+              "feature": "party_size",
+              "operator": "ge",
+              "value": 3.0
+            },
+            {
+              "feature": "supplier",
+              "operator": "eq",
+              "value": "BlueWing"
+            }
+          ],
+          "n_matched_canonical_literals": 2,
+          "recall": 1.0
+        },
+        {
+          "candidate_id": "CAND-015",
+          "conditions": [
+            {
+              "feature": "acquisition_channel",
+              "operator": "eq",
+              "value": "direct"
+            },
+            {
+              "feature": "supplier",
+              "operator": "eq",
+              "value": "BlueWing"
+            }
+          ],
+          "n_matched_canonical_literals": 2,
+          "recall": 1.0
+        }
+      ],
+      "all_covering_candidates": [
+        {
+          "candidate_id": "CAND-002",
+          "conditions": [
+            {
+              "feature": "acquisition_channel",
+              "operator": "eq",
+              "value": "direct"
+            },
+            {
+              "feature": "party_size",
+              "operator": "ge",
+              "value": 3.0
+            },
+            {
+              "feature": "supplier",
+              "operator": "eq",
+              "value": "BlueWing"
+            }
+          ],
+          "recall": 1.0
+        },
+        {
+          "candidate_id": "CAND-005",
+          "conditions": [
+            {
+              "feature": "discount_rate",
+              "operator": "ge",
+              "value": 0.03
+            },
+            {
+              "feature": "manual_exception",
+              "operator": "eq",
+              "value": false
+            }
+          ],
+          "recall": 0.7710843373493976
+        },
+        {
+          "candidate_id": "CAND-009",
+          "conditions": [
+            {
+              "feature": "party_size",
+              "operator": "ge",
+              "value": 3.0
+            },
+            {
+              "feature": "supplier",
+              "operator": "eq",
+              "value": "BlueWing"
+            }
+          ],
+          "recall": 1.0
+        },
+        {
+          "candidate_id": "CAND-015",
+          "conditions": [
+            {
+              "feature": "acquisition_channel",
+              "operator": "eq",
+              "value": "direct"
+            },
+            {
+              "feature": "supplier",
+              "operator": "eq",
+              "value": "BlueWing"
+            }
+          ],
+          "recall": 1.0
+        }
+      ],
+      "canonical_literal_count": 3,
+      "canonical_rule": "supplier=BlueWing AND acquisition_channel=direct AND party_size>=3",
+      "chain_steps": [
+        {
+          "benchmark_v2_scoring": {
+            "covers_target_recall_ge_0_5": true,
+            "cp": 1.0,
+            "cr": 0.6666666666666666,
+            "dropped_vacuous_conditions": [],
+            "effective_conditions": [
+              {
+                "feature": "party_size",
+                "operator": "ge",
+                "value": 3.0
+              },
+              {
+                "feature": "supplier",
+                "operator": "eq",
+                "value": "BlueWing"
+              }
+            ],
+            "j_e": 0.332,
+            "metric_specific_j_ge_theta_j_and_cp_ge_theta_p": false,
+            "n_effective": 2,
+            "n_exposed_full_dataset": 1500,
+            "precision": 0.332,
+            "recall": 1.0
+          },
+          "conditions": [
+            {
+              "feature": "party_size",
+              "operator": "ge",
+              "value": 3.0
+            },
+            {
+              "feature": "supplier",
+              "operator": "eq",
+              "value": "BlueWing"
+            }
+          ],
+          "development_score": 11872.82030038864,
+          "eligible": true,
+          "engine_metric_development": {
+            "comparison_mean": -236.15546212647672,
+            "exposed_mean": -723.168358778626,
+            "harm_per_booking": 487.0128966521493,
+            "historical_exposure": 382792.1367685894,
+            "n_exposed": 786,
+            "n_population": 5103,
+            "support": 0.1540270429159318
+          },
+          "n_conditions": 2,
+          "n_exposed_rows_development_split": 786
+        },
+        {
+          "benchmark_v2_scoring": {
+            "covers_target_recall_ge_0_5": true,
+            "cp": 1.0,
+            "cr": 1.0,
+            "dropped_vacuous_conditions": [],
+            "effective_conditions": [
+              {
+                "feature": "acquisition_channel",
+                "operator": "eq",
+                "value": "direct"
+              },
+              {
+                "feature": "party_size",
+                "operator": "ge",
+                "value": 3.0
+              },
+              {
+                "feature": "supplier",
+                "operator": "eq",
+                "value": "BlueWing"
+              }
+            ],
+            "j_e": 1.0,
+            "metric_specific_j_ge_theta_j_and_cp_ge_theta_p": true,
+            "n_effective": 3,
+            "n_exposed_full_dataset": 498,
+            "precision": 1.0,
+            "recall": 1.0
+          },
+          "conditions": [
+            {
+              "feature": "party_size",
+              "operator": "ge",
+              "value": 3.0
+            },
+            {
+              "feature": "supplier",
+              "operator": "eq",
+              "value": "BlueWing"
+            },
+            {
+              "feature": "acquisition_channel",
+              "operator": "eq",
+              "value": "direct"
+            }
+          ],
+          "development_score": 14076.39661793567,
+          "eligible": true,
+          "engine_metric_development": {
+            "comparison_mean": -253.56906295149636,
+            "exposed_mean": -1392.8346899224805,
+            "harm_per_booking": 1139.2656269709842,
+            "historical_exposure": 293930.5317585139,
+            "n_exposed": 258,
+            "n_population": 5103,
+            "support": 0.05055849500293945
+          },
+          "n_conditions": 3,
+          "n_exposed_rows_development_split": 258
+        }
+      ],
+      "chainable": true,
+      "chosen_broad_candidate": {
+        "candidate_id": "CAND-009",
+        "conditions": [
+          {
+            "feature": "party_size",
+            "operator": "ge",
+            "value": 3.0
+          },
+          {
+            "feature": "supplier",
+            "operator": "eq",
+            "value": "BlueWing"
+          }
+        ],
+        "n_matched_canonical_literals": 2,
+        "recall": 1.0
+      },
+      "has_qualifying_broad_candidate": true
+    },
+    "C08": {
+      "chainable": false,
+      "reason": "canonical target has a single literal; max_conditions=3 leaves no second true-to-target literal to add -- excluded from chain construction, not a qualifying or non-qualifying case either way."
+    },
+    "C09": {
+      "all_clean_broad_candidates": [],
+      "all_covering_candidates": [
+        {
+          "candidate_id": "CAND-005",
+          "conditions": [
+            {
+              "feature": "discount_rate",
+              "operator": "ge",
+              "value": 0.03
+            },
+            {
+              "feature": "manual_exception",
+              "operator": "eq",
+              "value": false
+            }
+          ],
+          "recall": 0.7420212765957447
+        }
+      ],
+      "canonical_literal_count": 3,
+      "canonical_rule": "destination=Tokyo AND customer_segment=leisure AND product_category=standard",
+      "chainable": true,
+      "has_qualifying_broad_candidate": false
+    },
+    "C11": {
+      "all_clean_broad_candidates": [],
+      "all_covering_candidates": [
+        {
+          "candidate_id": "CAND-003",
+          "conditions": [
+            {
+              "feature": "customer_segment",
+              "operator": "eq",
+              "value": "family"
+            },
+            {
+              "feature": "destination",
+              "operator": "eq",
+              "value": "Tokyo"
+            }
+          ],
+          "recall": 1.0
+        },
+        {
+          "candidate_id": "CAND-005",
+          "conditions": [
+            {
+              "feature": "discount_rate",
+              "operator": "ge",
+              "value": 0.03
+            },
+            {
+              "feature": "manual_exception",
+              "operator": "eq",
+              "value": false
+            }
+          ],
+          "recall": 0.6894075403949731
+        },
+        {
+          "candidate_id": "CAND-009",
+          "conditions": [
+            {
+              "feature": "party_size",
+              "operator": "ge",
+              "value": 3.0
+            },
+            {
+              "feature": "supplier",
+              "operator": "eq",
+              "value": "BlueWing"
+            }
+          ],
+          "recall": 0.5098743267504489
+        }
+      ],
+      "canonical_literal_count": 2,
+      "canonical_rule": "destination=Tokyo AND customer_segment=family",
+      "chainable": true,
+      "has_qualifying_broad_candidate": false
+    },
+    "C12": {
+      "all_clean_broad_candidates": [],
+      "all_covering_candidates": [
+        {
+          "candidate_id": "CAND-005",
+          "conditions": [
+            {
+              "feature": "discount_rate",
+              "operator": "ge",
+              "value": 0.03
+            },
+            {
+              "feature": "manual_exception",
+              "operator": "eq",
+              "value": false
+            }
+          ],
+          "recall": 0.7427652733118971
+        }
+      ],
+      "canonical_literal_count": 3,
+      "canonical_rule": "acquisition_channel=direct AND product_category=premium AND customer_segment=leisure",
+      "chainable": true,
+      "has_qualifying_broad_candidate": false
+    },
+    "C14": {
+      "all_clean_broad_candidates": [],
+      "all_covering_candidates": [
+        {
+          "candidate_id": "CAND-001",
+          "conditions": [
+            {
+              "feature": "discount_rate",
+              "operator": "ge",
+              "value": 0.08
+            },
+            {
+              "feature": "manual_exception",
+              "operator": "eq",
+              "value": false
+            }
+          ],
+          "recall": 0.9338422391857506
+        },
+        {
+          "candidate_id": "CAND-005",
+          "conditions": [
+            {
+              "feature": "discount_rate",
+              "operator": "ge",
+              "value": 0.03
+            },
+            {
+              "feature": "manual_exception",
+              "operator": "eq",
+              "value": false
+            }
+          ],
+          "recall": 0.9338422391857506
+        },
+        {
+          "candidate_id": "CAND-014",
+          "conditions": [
+            {
+              "feature": "discount_rate",
+              "operator": "ge",
+              "value": 0.08
+            },
+            {
+              "feature": "quoted_cost_eur",
+              "operator": "ge",
+              "value": 1654.17
+            }
+          ],
+          "recall": 0.8078880407124682
+        }
+      ],
+      "canonical_literal_count": 3,
+      "canonical_rule": "customer_segment=leisure AND supplier=BlueWing AND discount_rate>=0.08",
+      "chainable": true,
+      "has_qualifying_broad_candidate": false
+    },
+    "C15": {
+      "all_clean_broad_candidates": [],
+      "all_covering_candidates": [
+        {
+          "candidate_id": "CAND-005",
+          "conditions": [
+            {
+              "feature": "discount_rate",
+              "operator": "ge",
+              "value": 0.03
+            },
+            {
+              "feature": "manual_exception",
+              "operator": "eq",
+              "value": false
+            }
+          ],
+          "recall": 0.7416107382550335
+        }
+      ],
+      "canonical_literal_count": 3,
+      "canonical_rule": "customer_type=returning AND acquisition_channel=direct AND trip_duration_days>=6",
+      "chainable": true,
+      "has_qualifying_broad_candidate": false
+    },
+    "H01": {
+      "all_clean_broad_candidates": [],
+      "all_covering_candidates": [
+        {
+          "candidate_id": "CAND-005",
+          "conditions": [
+            {
+              "feature": "discount_rate",
+              "operator": "ge",
+              "value": 0.03
+            },
+            {
+              "feature": "manual_exception",
+              "operator": "eq",
+              "value": false
+            }
+          ],
+          "recall": 0.7337662337662337
+        }
+      ],
+      "canonical_literal_count": 3,
+      "canonical_rule": "supplier=BlueWing AND destination=Zanzibar AND customer_type=new",
+      "chainable": true,
+      "has_qualifying_broad_candidate": false
+    }
+  }
+}
