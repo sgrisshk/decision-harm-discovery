@@ -356,7 +356,37 @@ probe rules were already present under their own `candidate_id` in the committed
 validation blocks, so none could be reused as-is; a fresh run was required and performed, exactly
 as the task's own instruction anticipates checking for.
 
-[VALIDATION_SUMMARY_PLACEHOLDER]
+**All 60 seeds validated, zero missing lookups** (every distinct rule referenced by any Method A or
+Method B chain step was found and validated; `step6_validation_summary.py`,
+`step6-validation-summary.json`). Across the full set of 2,768 distinct probed rules (all 60 seeds
+combined), **zero received a FAIL/REJECT verdict** — every one received either `PASS` (397) or
+`DOWNGRADE` (2,371; still assigned a real evidence level, just not the strongest achievable one —
+driven overwhelmingly by `G13_IDENTIFICATION_DESIGN`/`G14_RANDOMIZATION_INTEGRITY`, expected for
+descriptive associations on an observational benchmark, not a defect specific to any chain step).
+
+For each of the 6 independently-qualifying targets, evidence level was tracked specifically along
+the single unique starting-literal chain that drives that target's own independent qualification
+(§4) — step 0 = the broad single-literal start, step 2 (or step 1 for a 2-step chain) = the full
+canonical/most-specific end, i.e. the child of the key `H114_POSITIVE` transition:
+
+| Target | Step 0 (broad) evidence level (60 seeds) | Final/most-specific step evidence level (60 seeds) |
+|---|---|---|
+| C04 | 54× `adjusted_observational_association`, 3× `predictive_association`, 3× `descriptive_observation` | 59× `predictive_association`, 1× `descriptive_observation` |
+| C06 | 60× `adjusted_observational_association` | 58× `predictive_association`, 2× `descriptive_observation` |
+| C09 | 60× `adjusted_observational_association` | **60× `predictive_association`** |
+| C14 | 60× `adjusted_observational_association` | **60× `predictive_association`** |
+| C15 | 47× `adjusted_observational_association`, 7× `predictive_association`, 6× `descriptive_observation` | **60× `predictive_association`** |
+| H01 | 55× `descriptive_observation`, 5× `adjusted_observational_association` | 59× `predictive_association`, 1× `descriptive_observation` |
+
+**The more-specific end of every one of these 6 chains clears `PREDICTIVE_OR_ABOVE`
+(`predictive_association` or stronger) on 58-60 of 60 seeds** — real contract 1.3.0 confirmation,
+independent of the development-split `_eligible`/`harm_per_booking>0` proxy used for the §2
+classification itself, that "evidence/signal remains sufficient" at the specific end of the chain
+the task's central question requires. The broad step is itself frequently *weaker*
+(`adjusted_observational_association`, or for `H01`, mostly `descriptive_observation`, below
+`PREDICTIVE_OR_ABOVE`) — which, if anything, strengthens the finding: `_development_score` prefers
+the broad step over the specific one even in cases where the specific step's own *contract-graded*
+evidence is as strong or stronger than the broad step's.
 
 ## 7. Engine integrity
 
