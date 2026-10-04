@@ -214,18 +214,31 @@ def _tkey(theta: float) -> str:
 
 
 def compute_rates(directory: Path, variant: str) -> dict[str, Any]:
+    """`theta_key` MUST be `_tkey(scoring.CONSTANTS.theta_j)` -- the real score result carries
+    MULTIPLE theta thresholds under `specific_targets` (observed: `0.30`, `0.50`, `0.70`), and
+    `scoring.CONSTANTS.theta_j` is the one TASK-109/TASK-111's own "Specific" primary endpoint uses
+    (confirmed `0.5` -> key `"0.50"`, exactly like `run_blind_engine.py`'s own `_stratum_block`).
+    Picking "whichever key appears first" would silently use the wrong threshold -- this constant
+    is imported fresh per call (not hardcoded) so a frozen-protocol change would be caught, not
+    silently mismatched."""
+    sys.path.insert(0, str(T107_EVIDENCE))
+    import v2_common as _vc
+
+    theta_key = _tkey(_vc.scoring.CONSTANTS.theta_j)
     files = sorted(directory.glob(f"{variant}-seed-*.json"), key=lambda p: int(p.stem.split("-")[-1]))
     data = [json.loads(f.read_text(encoding="utf-8")) for f in files]
-    theta_key = None
     per_seed = []
     per_target: dict[str, dict[str, int]] = {tid: {"coverage": 0, "specific": 0, "exact": 0} for tid in FINAL_CORE}
     any_trap_promoted_count = 0
     for d in data:
         core = d["score"]["strata"].get("core", {})
-        if theta_key is None:
-            # discover the theta key from the data itself (CONSTANTS.theta_j is fixed, 0.75 here)
-            spec = core.get("specific_targets", {})
-            theta_key = next(iter(spec), None)
+        available_theta_keys = set(core.get("specific_targets", {}))
+        if available_theta_keys and theta_key not in available_theta_keys:
+            raise SystemExit(
+                f"seed {d['seed']} ({variant}): expected theta_key {theta_key!r} not present in "
+                f"specific_targets keys {sorted(available_theta_keys)} -- frozen protocol drifted, "
+                "do not silently pick another key"
+            )
         cov = set(core.get("coverage_targets", []))
         spec_set = set(core.get("specific_targets", {}).get(theta_key, [])) if theta_key else set()
         exact_set = set(core.get("exact_targets", []))
