@@ -1,3 +1,5 @@
+import math
+
 import polars as pl
 import pytest
 from policy_analytics.discovery.engine import (
@@ -85,55 +87,35 @@ def test_rejects_missing_primary_outcome() -> None:
 # --- TASK-058 (HANDOFF-043 remediation part 2): precision term on the beam-survival score ---
 
 
-def test_population_score_exponent_no_longer_affects_development_score() -> None:
-    """**Superseded by `TASK-112`/`ADR-113` (`v0.6.3`).** This test originally asserted
-    `population_score_exponent=1.0` exactly reproduces `discovery-engine-v0.1.0`'s linear-in-
-    `n_exposed` ranking -- the very volume term `TASK-112` removed (`H111`: that term, at any
-    exponent including the pre-`TASK-058` default `0.5`, structurally rewarded a candidate for
-    covering more rows at equivalent per-booking evidence quality). `_development_score` no longer
-    reads `population_score_exponent` at all (see its own docstring and
-    `DiscoveryConfig.population_score_exponent`'s field docstring) -- this test now asserts exactly
-    that: varying the exponent from `0.5` to `1.0` changes nothing about the score, including the
-    specific broad-vs-narrow preference HANDOFF-043/TASK-058 cared about, which now reverses
-    relative to the old pure-linear-exposure ranking regardless of exponent."""
+def test_population_score_exponent_of_one_reproduces_old_pure_exposure_ranking() -> None:
+    """`population_score_exponent=1.0` must exactly reproduce `discovery-engine-v0.1.0`'s ranking:
+    linear in `n_exposed`, i.e. identical to sorting by `historical_exposure` alone."""
     broad = _metric(n_exposed=2000, harm_per_booking=50.0)
     narrow = _metric(n_exposed=100, harm_per_booking=700.0)
-    for exponent in (0.5, 1.0):
-        config = DiscoveryConfig(population_score_exponent=exponent)
-        broad_score = _development_score(broad, condition_count=2, config=config)
-        narrow_score = _development_score(narrow, condition_count=2, config=config)
-        assert broad_score == pytest.approx(50.0 / 1.15)
-        assert narrow_score == pytest.approx(700.0 / 1.15)
-        # narrow's stronger per-booking effect wins outright now, regardless of n_exposed or the
-        # now-unused exponent -- the opposite of the old v0.1.0 pure-exposure ranking (broad won
-        # there on total exposure, 100,000 > 70,000, see this test's superseded docstring history).
-        assert narrow_score > broad_score
-
-
-def test_default_development_score_is_purely_rate_based_regardless_of_volume() -> None:
-    """The exact mechanism `TASK-112`/`ADR-113` (`v0.6.3`) implements: two candidates with
-    identical `harm_per_booking` and `condition_count` must score IDENTICALLY, however different
-    their `n_exposed` -- no reward for covering more rows at equivalent per-unit evidence quality.
-    This directly supersedes the pre-`v0.6.3` test of the same intent
-    (`test_population_score_exponent_no_longer_affects_development_score` covers the exponent
-    side); here the volume term's absence is tested directly via `n_exposed`."""
-    config = DiscoveryConfig()
-    small = _metric(n_exposed=100, harm_per_booking=50.0)
-    huge = _metric(n_exposed=100_000, harm_per_booking=50.0)
-    assert _development_score(small, condition_count=2, config=config) == pytest.approx(
-        _development_score(huge, condition_count=2, config=config)
-    )
-    # And the exact mechanism HANDOFF-043/TASK-058/TASK-111/TASK-112 chain cared about: a narrow,
-    # purer rule with a stronger per-booking effect always beats a broader, more diluted one now,
-    # at ANY relative volume (not just "once the narrow rule's effect is proportionally large
-    # enough," the old v0.5.0-v0.6.2 qualifier) -- because volume no longer enters the score.
-    broad = _metric(n_exposed=2_000_000, harm_per_booking=50.0)  # historical_exposure = 100,000,000
-    narrow = _metric(n_exposed=100, harm_per_booking=700.0)  # historical_exposure = 70,000
+    config = DiscoveryConfig(population_score_exponent=1.0)
     broad_score = _development_score(broad, condition_count=2, config=config)
     narrow_score = _development_score(narrow, condition_count=2, config=config)
-    assert broad_score == pytest.approx(50.0 / 1.15)
-    assert narrow_score == pytest.approx(700.0 / 1.15)
-    assert narrow_score > broad_score
+    assert broad_score == pytest.approx(broad.historical_exposure / 1.15)
+    assert narrow_score == pytest.approx(narrow.historical_exposure / 1.15)
+    assert broad_score > narrow_score  # broad wins on raw total exposure alone (100,000 > 70,000)
+
+
+def test_default_population_score_exponent_prefers_the_purer_rule_at_comparable_exposure() -> None:
+    """The exact mechanism HANDOFF-043 diagnosed: a broad, diluted rule (large N, modest
+    per-booking harm) outscores a narrow, purer rule (small N, strong per-booking harm) under
+    linear population scaling even when the narrow rule's total exposure is smaller — but the
+    default `population_score_exponent=0.5` must flip that preference once the narrow rule's
+    per-booking effect is proportionally large enough, without ever opening real benchmark data."""
+    broad = _metric(n_exposed=2000, harm_per_booking=50.0)  # historical_exposure = 100,000
+    narrow = _metric(n_exposed=100, harm_per_booking=700.0)  # historical_exposure = 70,000
+    config = DiscoveryConfig()  # default population_score_exponent = 0.5
+    assert config.population_score_exponent == pytest.approx(0.5)
+    broad_score = _development_score(broad, condition_count=2, config=config)
+    narrow_score = _development_score(narrow, condition_count=2, config=config)
+    # sqrt-scaled: broad = 50*sqrt(2000)/1.15, narrow = 700*sqrt(100)/1.15
+    assert broad_score == pytest.approx(50.0 * math.sqrt(2000) / 1.15)
+    assert narrow_score == pytest.approx(700.0 * math.sqrt(100) / 1.15)
+    assert narrow_score > broad_score  # preference reversed relative to the exponent=1.0 case
 
 
 def test_population_score_exponent_must_be_in_zero_to_one_range() -> None:
@@ -174,7 +156,7 @@ def test_discover_candidates_with_exponent_one_matches_manual_pure_exposure_repr
         )
         assert result["candidate_count"] > 0
         assert all(candidate["fit_split"] == "development" for candidate in result["candidates"])
-        assert result["methodology_version"] == "discovery-engine-v0.6.3"
+        assert result["methodology_version"] == "discovery-engine-v0.6.2"
 
 
 # --- TASK-071: exposure-identical redundancy pruning compares row sets, not counts ---
@@ -875,29 +857,6 @@ def _signal_identities(result: dict[str, object]) -> set[str]:
     return identities
 
 
-@pytest.mark.xfail(
-    reason=(
-        "TASK-112/ADR-113 (v0.6.3): this fixture's crowding mechanism is structurally a volume-"
-        "reward artifact of the OLD _development_score (n_exposed**population_score_exponent), "
-        "which TASK-112 removed. feature_alpha's 'rescalings' here are alpha paired with an inert "
-        "filler_* feature (zero effect on the outcome, by design -- see the fixture's own module "
-        "docstring); they used to out-crowd alpha+distinct_i combos only because the OLD score "
-        "rewarded their larger n_exposed despite identical per-booking harm. Under the new, purely "
-        "rate-based score, alpha+distinct_i (which stacks a second REAL effect) always scores "
-        "higher than alpha+filler_j (which adds none) -- confirmed empirically: the disabled-cap "
-        "baseline on this exact fixture now surfaces all 3 distinct features on its own, with no "
-        "filler-based rescaling ever selected. This is a genuine, structural, positive side effect "
-        "of the H111 fix, not a defect in _apply_feature_identity_cap (TASK-068, untouched by "
-        "TASK-112) -- it only means THIS PARTICULAR fixture no longer manufactures a crowding "
-        "scenario to cap. Retuning the fixture's magnitude constants cannot restore the scenario "
-        "(filler is inert by construction; any real competing signal will out-rate it under a "
-        "rate-only score) -- a new fixture design is a separate, future task, not a TASK-112 "
-        "change (TASK-112's scope is the one score formula change, not this test's fixture). "
-        "xfail(strict=True) so a future fixture redesign that restores crowding is caught as an "
-        "unexpected pass, not silently left stale."
-    ),
-    strict=True,
-)
 def test_identity_cap_disabled_default_lets_one_feature_crowd_the_selected_set() -> None:
     """(a) Old behavior: with the default (disabled) config, feature_alpha's many rescalings fill
     the entire top-K, crowding out all but (at most) one of three independently strong,
@@ -920,22 +879,6 @@ def test_identity_cap_disabled_default_lets_one_feature_crowd_the_selected_set()
     assert len(_signal_identities(result) - {"feature_alpha"}) <= 1  # at most one alternative
 
 
-@pytest.mark.xfail(
-    reason=(
-        "TASK-112/ADR-113 (v0.6.3): depends on the same now-stale crowding premise as "
-        "test_identity_cap_disabled_default_lets_one_feature_crowd_the_selected_set (see its "
-        "xfail reason) -- the disabled baseline on this fixture already reaches all 4 signal "
-        "identities (feature_alpha + all 3 distinct features) under the new, purely rate-based "
-        "score, so 'capped > baseline' no longer holds (4 > 4 is false). Empirically, enabling the "
-        "cap on this fixture now also shrinks candidate_count below top_k (4 of 6, not a full "
-        "top-K) -- the cap's own backfill no longer has enough above-floor alpha-touching "
-        "candidates to draw on once alpha+filler rescalings stop being score-competitive. "
-        "_apply_feature_identity_cap (TASK-068) itself is untouched by TASK-112; this is a fixture-"
-        "staleness consequence of the H111 fix, not a cap-mechanism defect. xfail(strict=True) so "
-        "a future fixture redesign is caught as an unexpected pass."
-    ),
-    strict=True,
-)
 def test_identity_cap_enabled_increases_distinct_signal_identity_count() -> None:
     """(b) Enabling the constraint increases distinct feature-identity count relative to the same
     fixture's disabled baseline, and the dominant feature's own count is capped as configured."""
@@ -1017,7 +960,7 @@ def test_identity_cap_disabled_reproduces_v050_selection_exactly() -> None:
         ),
     )
     assert implicit_default["candidates"] == explicit_disabled["candidates"]
-    assert implicit_default["methodology_version"] == "discovery-engine-v0.6.3"
+    assert implicit_default["methodology_version"] == "discovery-engine-v0.6.2"
 
     # `_apply_feature_identity_cap` on the actual selected output must be a true no-op at the
     # default -- confirms the guarantee structurally, not just behaviorally.
@@ -1472,34 +1415,30 @@ _RESERVATION_FEATURES = ("supplier", "discount_rate", "party_size")
 
 
 def test_discover_candidates_common_case_promotes_a_single_end_to_end() -> None:
-    """§7.1 end to end: at top_k=6, this fixture's real search fills every slot with interactions
+    """§7.1 end to end: at top_k=9, this fixture's real search fills every slot with interactions
     (confirmed by the reserve_k1_slot=False baseline below) -- reserve_k1_slot=True must promote
     a genuinely qualifying single, displacing the weakest interaction, while candidate_count stays
     exactly top_k.
 
-    **TASK-101/ADR-096 note (superseded by TASK-112/ADR-113 below):** this scenario previously
-    moved from `top_k=10` to `top_k=9` when `_eligible()` stopped excluding `supplier == "A"`
-    purely for exceeding `max_support`.
-
-    **TASK-112/ADR-113 note:** moved again, from `top_k=9` to `top_k=6`. `TASK-112` removed
-    `_development_score`'s volume term (`H111`'s score-bias mechanism) -- this fixture's total
-    *interaction* pool no longer grows with volume-driven rescalings, so the real, undiluted
-    interaction family this fixture produces caps at exactly 6 (confirmed empirically: at
-    `top_k=7` and beyond, the baseline already includes a single on its own, via Stage 2's
-    pre-existing fallback -- see `test_discover_candidates_composition_edge_case_does_not_double_
-    promote_end_to_end`, which moved from `top_k=10` to `top_k=7` for the same reason). `top_k=6`
-    is the new value at which the baseline naturally fills every slot with interactions, before
-    Stage 2's fallback ever needs to reach for a single, restoring this test's original
-    scenario."""
+    **TASK-101/ADR-096 note:** this scenario moved from `top_k=10` to `top_k=9` when `_eligible()`
+    stopped excluding `supplier == "A"` purely for exceeding `max_support` (its comparison group,
+    200 rows, clears `min_n=20`). That single is a genuine, correctly-signed pattern on this
+    fixture (not noise) -- it now legitimately competes at depth 1 and seeds new depth-2
+    expansions, which changed how many *diverse* interactions this exact fixture naturally
+    produces before any single is needed. `top_k=9` is the new value at which the baseline
+    (`reserve_k1_slot=False`) naturally fills every slot with interactions again, restoring this
+    test's original scenario; `top_k=10` now naturally includes exactly one single already (see
+    `test_discover_candidates_composition_edge_case_does_not_double_promote_end_to_end`, moved
+    from `top_k=11` to `top_k=10` for the identical reason)."""
     frame = _reservation_fixture_frame()
     outcome = primary_outcome()
     baseline = discover_candidates(
         frame,
         _RESERVATION_FEATURES,
         outcome,
-        DiscoveryConfig(min_n=20, beam_width=30, top_k=6, reserve_k1_slot=False),
+        DiscoveryConfig(min_n=20, beam_width=30, top_k=9, reserve_k1_slot=False),
     )
-    assert baseline["candidate_count"] == 6
+    assert baseline["candidate_count"] == 9
     assert all(len(c["conditions"]) >= 2 for c in baseline["candidates"])
     assert baseline["k1_reservation"] == {
         "eligible": False,
@@ -1512,9 +1451,9 @@ def test_discover_candidates_common_case_promotes_a_single_end_to_end() -> None:
         frame,
         _RESERVATION_FEATURES,
         outcome,
-        DiscoveryConfig(min_n=20, beam_width=30, top_k=6, reserve_k1_slot=True),
+        DiscoveryConfig(min_n=20, beam_width=30, top_k=9, reserve_k1_slot=True),
     )
-    assert reserved["candidate_count"] == 6  # top_k itself never changes
+    assert reserved["candidate_count"] == 9  # top_k itself never changes
     ks = [len(c["conditions"]) for c in reserved["candidates"]]
     assert ks.count(1) == 1  # exactly the one reserved slot, never more
     assert reserved["k1_reservation"]["eligible"] is True
@@ -1537,16 +1476,9 @@ def test_discover_candidates_common_case_promotes_a_single_end_to_end() -> None:
 
 
 def test_discover_candidates_uncommon_case_does_not_fire_end_to_end() -> None:
-    """§7.2 end to end: at a top_k this fixture's real candidate pool cannot fill at all, Stage 3
-    must not even be eligible -- the trigger's own count check fails before its composition check
-    is ever reached.
-
-    **TASK-112/ADR-113 note:** the pool size changed from 11 (pre-`TASK-112`) to 9. `TASK-112`
-    removed the volume term from `_development_score`, which changes the relative ranking inside
-    the relevance-floor/diversity selection, and this fixture's real eligible-and-diverse pool now
-    caps at 9 regardless of top_k (confirmed empirically for top_k in 9..19) -- still well under
-    `top_k=15`, so the scenario (count check fails, Stage 3 never reaches its composition check)
-    is unchanged in kind, only in the exact pool size."""
+    """§7.2 end to end: at a top_k this fixture's real candidate pool cannot fill at all (11 total
+    eligible candidates, well under top_k=15), Stage 3 must not even be eligible -- the trigger's
+    own count check fails before its composition check is ever reached."""
     frame = _reservation_fixture_frame()
     result = discover_candidates(
         frame,
@@ -1554,7 +1486,7 @@ def test_discover_candidates_uncommon_case_does_not_fire_end_to_end() -> None:
         primary_outcome(),
         DiscoveryConfig(min_n=20, beam_width=30, top_k=15, reserve_k1_slot=True),
     )
-    assert result["candidate_count"] == 9
+    assert result["candidate_count"] == 11
     assert result["candidate_count"] < 15
     assert result["k1_reservation"] == {
         "eligible": False,
@@ -1565,28 +1497,25 @@ def test_discover_candidates_uncommon_case_does_not_fire_end_to_end() -> None:
 
 
 def test_discover_candidates_composition_edge_case_does_not_double_promote_end_to_end() -> None:
-    """§7.3 end to end: at top_k=7, this fixture's real Stage 2 fallback already promotes exactly
-    one single to reach a full top_k=7 -- Stage 3's own trigger (`all(len(rule) >= 2 ...)`) must
+    """§7.3 end to end: at top_k=10, this fixture's real Stage 2 fallback already promotes exactly
+    one single to reach a full top_k=10 -- Stage 3's own trigger (`all(len(rule) >= 2 ...)`) must
     then correctly read that composition and decline to run at all, not attempt a second
     promotion. reserve_k1_slot=True and reserve_k1_slot=False must produce byte-identical output
     here -- the "up to 1" bound is respected by construction, not a separate counter.
 
-    **TASK-101/ADR-096 note (superseded by TASK-112/ADR-113 below):** previously moved from
-    `top_k=11` to `top_k=10`.
-
-    **TASK-112/ADR-113 note:** moved again, from `top_k=10` to `top_k=7`, for the same reason
-    recorded on `test_discover_candidates_common_case_promotes_a_single_end_to_end` -- removing
-    `_development_score`'s volume term shrank this fixture's real interaction-only pool to 6
-    (confirmed empirically), so Stage 2's pre-existing singles-fallback now first places exactly
-    one single at `top_k=7`, one slot past the interaction pool's own exhaustion point."""
+    **TASK-101/ADR-096 note:** moved from `top_k=11` to `top_k=10` for the same reason recorded on
+    `test_discover_candidates_common_case_promotes_a_single_end_to_end` -- `_eligible()`'s
+    comparison-group escape hatch admits one more genuine single-condition pattern on this
+    fixture, which shifted the top_k at which Stage 2's own pre-existing singles-fallback first
+    places exactly one single from 11 to 10."""
     frame = _reservation_fixture_frame()
     outcome = primary_outcome()
-    config_kwargs: dict[str, int] = {"min_n": 20, "beam_width": 30, "top_k": 7}
+    config_kwargs: dict[str, int] = {"min_n": 20, "beam_width": 30, "top_k": 10}
     config_without = DiscoveryConfig(**config_kwargs, reserve_k1_slot=False)
     config_with = DiscoveryConfig(**config_kwargs, reserve_k1_slot=True)
     without_reservation = discover_candidates(frame, _RESERVATION_FEATURES, outcome, config_without)
     with_reservation = discover_candidates(frame, _RESERVATION_FEATURES, outcome, config_with)
-    assert without_reservation["candidate_count"] == 7
+    assert without_reservation["candidate_count"] == 10
     ks = [len(c["conditions"]) for c in without_reservation["candidates"]]
     assert ks.count(1) == 1  # Stage 2's own pre-existing fallback already placed one single
     assert with_reservation["k1_reservation"] == {
@@ -1601,8 +1530,8 @@ def test_discover_candidates_composition_edge_case_does_not_double_promote_end_t
 def test_reserve_k1_slot_false_is_a_structural_no_op_not_output_matching() -> None:
     """Confirms structurally, not just by output-matching, that the new Stage 3 code path is never
     even evaluated when reserve_k1_slot=False: monkeypatch _reserve_k1_slot to raise, at the exact
-    top_k=6 fixture/config where the trigger condition would otherwise hold (per the common-case
-    test above; `TASK-112`/`ADR-113` moved this from `top_k=9`, see that test's own note) --
+    top_k=9 fixture/config where the trigger condition would otherwise hold (per the common-case
+    test above; TASK-101/ADR-096 moved this from top_k=10, see that test's own note) --
     discover_candidates must still succeed, proving the call is behind a real
     `config.reserve_k1_slot and ...` guard, not a code path that happens to produce the same
     result."""
@@ -1619,11 +1548,11 @@ def test_reserve_k1_slot_false_is_a_structural_no_op_not_output_matching() -> No
             frame,
             _RESERVATION_FEATURES,
             primary_outcome(),
-            DiscoveryConfig(min_n=20, beam_width=30, top_k=6, reserve_k1_slot=False),
+            DiscoveryConfig(min_n=20, beam_width=30, top_k=9, reserve_k1_slot=False),
         )
     finally:
         engine_module._reserve_k1_slot = original  # type: ignore[assignment]
-    assert result["candidate_count"] == 6
+    assert result["candidate_count"] == 9
     assert all(len(c["conditions"]) >= 2 for c in result["candidates"])
 
 
@@ -1631,35 +1560,31 @@ def test_reserve_k1_slot_false_is_byte_identical_to_pre_task_097_selection() -> 
     """The required reserve_k1_slot=False regression (design §11 test 1 / TASK-097's own testing
     bar): run the identical fixture/config through discover_candidates with reserve_k1_slot
     omitted (defaults False) and confirm every per-candidate field, in order, matches a literal,
-    independently-verified capture -- not merely "equivalent". Diffed against the top_k=6 fixture
+    independently-verified capture -- not merely "equivalent". Diffed against the top_k=9 fixture
     specifically because that is the exact configuration
     (test_discover_candidates_common_case_promotes_a_single_end_to_end) where reserve_k1_slot=True
     changes the output, so this byte-identity claim is meaningful, not vacuous.
 
-    **TASK-101/ADR-096 note (superseded by TASK-112/ADR-113 below):** previously moved from
-    `top_k=10` to `top_k=9`.
-
-    **TASK-112/ADR-113 note:** moved again, from `top_k=9` to `top_k=6`, and the literal `ks`
-    capture below re-verified against the real post-fix (v0.6.3) engine output (not hand-edited)
-    -- see `test_discover_candidates_common_case_promotes_a_single_end_to_end`'s own note for
-    why."""
+    **TASK-101/ADR-096 note:** moved from `top_k=10` to `top_k=9` and the literal `ks` capture
+    below re-verified against the real post-fix engine output (not hand-edited) -- see
+    `test_discover_candidates_common_case_promotes_a_single_end_to_end`'s own note for why."""
     frame = _reservation_fixture_frame()
     implicit_default = discover_candidates(
         frame,
         _RESERVATION_FEATURES,
         primary_outcome(),
-        DiscoveryConfig(min_n=20, beam_width=30, top_k=6),
+        DiscoveryConfig(min_n=20, beam_width=30, top_k=9),
     )
     explicit_false = discover_candidates(
         frame,
         _RESERVATION_FEATURES,
         primary_outcome(),
-        DiscoveryConfig(min_n=20, beam_width=30, top_k=6, reserve_k1_slot=False),
+        DiscoveryConfig(min_n=20, beam_width=30, top_k=9, reserve_k1_slot=False),
     )
     assert implicit_default["candidates"] == explicit_false["candidates"]
-    assert implicit_default["methodology_version"] == "discovery-engine-v0.6.3"
+    assert implicit_default["methodology_version"] == "discovery-engine-v0.6.2"
     ks = [len(c["conditions"]) for c in implicit_default["candidates"]]
-    assert ks == [2, 2, 3, 3, 3, 2]  # all six slots filled by interactions, no k==1
+    assert ks == [2, 2, 2, 3, 3, 2, 2, 2, 2]  # all nine slots filled by interactions, no k==1
 
 
 def test_discover_candidates_top_k_never_changes_regardless_of_reservation() -> None:
