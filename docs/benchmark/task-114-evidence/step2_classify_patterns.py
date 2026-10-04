@@ -33,6 +33,7 @@ def classify_transition(step_a: dict, step_b: dict) -> dict:
     cv = step_b["benchmark_v2_scoring"]
     coverage_retained = bv["recall"] >= COVERAGE_RECALL and cv["recall"] >= COVERAGE_RECALL
     specificity_increased = cv["j_e"] > bv["j_e"] or cv["cr"] > bv["cr"]
+    parent_eligible = step_a["eligible"]
     child_eligible = step_b["eligible"]
     child_harm = (
         step_b["engine_metric_development"]["harm_per_booking"]
@@ -51,6 +52,15 @@ def classify_transition(step_a: dict, step_b: dict) -> dict:
         kind = "NEGATIVE_CONTROL_COVERAGE_LOST"
     elif specificity_increased and not evidence_sufficient:
         kind = "NEGATIVE_CONTROL_EVIDENCE_COLLAPSED"
+    elif not parent_eligible:
+        # The broader "parent" step was never itself a real contender (the real engine's own
+        # `_eligible` gate runs BEFORE scoring -- an ineligible rule never enters `scored` at all,
+        # so it could never actually have been preferred by anything). Comparing its score to an
+        # eligible child's would misrepresent "the real ranking prefers broad" when the broad
+        # rule was never really in contention. Verified separately (results doc) that this never
+        # actually changed any target's qualification -- zero `H114_POSITIVE` transitions in the
+        # full dataset had an ineligible parent even before this guard was added.
+        kind = "OTHER_PARENT_INELIGIBLE_NOT_A_REAL_CONTENDER"
     elif coverage_retained and specificity_increased and evidence_sufficient and score_prefers_broad:
         kind = "H114_POSITIVE_SCORE_PREFERS_BROAD"
     elif coverage_retained and specificity_increased and evidence_sufficient and score_prefers_specific:
@@ -65,6 +75,7 @@ def classify_transition(step_a: dict, step_b: dict) -> dict:
         "coverage_retained": coverage_retained,
         "specificity_increased": specificity_increased,
         "evidence_sufficient_at_child": evidence_sufficient,
+        "parent_eligible": parent_eligible,
         "child_eligible": child_eligible,
         "child_harm_per_booking": child_harm,
         "j_e_parent": bv["j_e"],
