@@ -1,0 +1,1057 @@
+{
+  "family_size_reused_from_committed_raw_data": 36075,
+  "n_rules": 46,
+  "rules": {
+    "acquisition_channel eq 'direct'": {
+      "conditions": [
+        {
+          "feature": "acquisition_channel",
+          "operator": "eq",
+          "value": "direct"
+        }
+      ],
+      "evidence_level": "adjusted_observational_association",
+      "exposed_records_development": 1714,
+      "failed_gates": [
+        "G13_IDENTIFICATION_DESIGN",
+        "G14_RANDOMIZATION_INTEGRITY"
+      ],
+      "policy_readiness": "shadow_policy",
+      "verdict": "PASS"
+    },
+    "acquisition_channel eq 'direct' & customer_segment eq 'leisure'": {
+      "conditions": [
+        {
+          "feature": "customer_segment",
+          "operator": "eq",
+          "value": "leisure"
+        },
+        {
+          "feature": "acquisition_channel",
+          "operator": "eq",
+          "value": "direct"
+        }
+      ],
+      "evidence_level": "predictive_association",
+      "exposed_records_development": 982,
+      "failed_gates": [
+        "G13_IDENTIFICATION_DESIGN",
+        "G14_RANDOMIZATION_INTEGRITY",
+        "G16_CANDIDATE_COMPOSITION_SAFETY"
+      ],
+      "policy_readiness": "experiment_only",
+      "verdict": "DOWNGRADE"
+    },
+    "acquisition_channel eq 'direct' & customer_segment eq 'leisure' & product_category eq 'premium'": {
+      "conditions": [
+        {
+          "feature": "customer_segment",
+          "operator": "eq",
+          "value": "leisure"
+        },
+        {
+          "feature": "acquisition_channel",
+          "operator": "eq",
+          "value": "direct"
+        },
+        {
+          "feature": "product_category",
+          "operator": "eq",
+          "value": "premium"
+        }
+      ],
+      "evidence_level": "predictive_association",
+      "exposed_records_development": 285,
+      "failed_gates": [
+        "G11_SEASONALITY",
+        "G13_IDENTIFICATION_DESIGN",
+        "G14_RANDOMIZATION_INTEGRITY",
+        "G16_CANDIDATE_COMPOSITION_SAFETY"
+      ],
+      "policy_readiness": "experiment_only",
+      "verdict": "DOWNGRADE"
+    },
+    "acquisition_channel eq 'direct' & customer_type eq 'returning'": {
+      "conditions": [
+        {
+          "feature": "acquisition_channel",
+          "operator": "eq",
+          "value": "direct"
+        },
+        {
+          "feature": "customer_type",
+          "operator": "eq",
+          "value": "returning"
+        }
+      ],
+      "evidence_level": "predictive_association",
+      "exposed_records_development": 622,
+      "failed_gates": [
+        "G13_IDENTIFICATION_DESIGN",
+        "G14_RANDOMIZATION_INTEGRITY",
+        "G16_CANDIDATE_COMPOSITION_SAFETY"
+      ],
+      "policy_readiness": "experiment_only",
+      "verdict": "DOWNGRADE"
+    },
+    "acquisition_channel eq 'direct' & customer_type eq 'returning' & trip_duration_days ge 6": {
+      "conditions": [
+        {
+          "feature": "trip_duration_days",
+          "operator": "ge",
+          "value": 6
+        },
+        {
+          "feature": "customer_type",
+          "operator": "eq",
+          "value": "returning"
+        },
+        {
+          "feature": "acquisition_channel",
+          "operator": "eq",
+          "value": "direct"
+        }
+      ],
+      "evidence_level": "predictive_association",
+      "exposed_records_development": 393,
+      "failed_gates": [
+        "G13_IDENTIFICATION_DESIGN",
+        "G14_RANDOMIZATION_INTEGRITY",
+        "G16_CANDIDATE_COMPOSITION_SAFETY"
+      ],
+      "policy_readiness": "experiment_only",
+      "verdict": "DOWNGRADE"
+    },
+    "acquisition_channel eq 'direct' & party_size ge 3 & supplier eq 'BlueWing'": {
+      "conditions": [
+        {
+          "feature": "party_size",
+          "operator": "ge",
+          "value": 3
+        },
+        {
+          "feature": "supplier",
+          "operator": "eq",
+          "value": "BlueWing"
+        },
+        {
+          "feature": "acquisition_channel",
+          "operator": "eq",
+          "value": "direct"
+        }
+      ],
+      "evidence_level": "predictive_association",
+      "exposed_records_development": 274,
+      "failed_gates": [
+        "G13_IDENTIFICATION_DESIGN",
+        "G14_RANDOMIZATION_INTEGRITY",
+        "G16_CANDIDATE_COMPOSITION_SAFETY"
+      ],
+      "policy_readiness": "experiment_only",
+      "verdict": "DOWNGRADE"
+    },
+    "acquisition_channel eq 'direct' & product_category eq 'premium'": {
+      "conditions": [
+        {
+          "feature": "product_category",
+          "operator": "eq",
+          "value": "premium"
+        },
+        {
+          "feature": "acquisition_channel",
+          "operator": "eq",
+          "value": "direct"
+        }
+      ],
+      "evidence_level": "predictive_association",
+      "exposed_records_development": 531,
+      "failed_gates": [
+        "G13_IDENTIFICATION_DESIGN",
+        "G14_RANDOMIZATION_INTEGRITY",
+        "G16_CANDIDATE_COMPOSITION_SAFETY"
+      ],
+      "policy_readiness": "experiment_only",
+      "verdict": "DOWNGRADE"
+    },
+    "acquisition_channel eq 'direct' & supplier eq 'BlueWing'": {
+      "conditions": [
+        {
+          "feature": "acquisition_channel",
+          "operator": "eq",
+          "value": "direct"
+        },
+        {
+          "feature": "supplier",
+          "operator": "eq",
+          "value": "BlueWing"
+        }
+      ],
+      "evidence_level": "predictive_association",
+      "exposed_records_development": 528,
+      "failed_gates": [
+        "G13_IDENTIFICATION_DESIGN",
+        "G14_RANDOMIZATION_INTEGRITY",
+        "G16_CANDIDATE_COMPOSITION_SAFETY"
+      ],
+      "policy_readiness": "experiment_only",
+      "verdict": "DOWNGRADE"
+    },
+    "customer_segment eq 'corporate'": {
+      "conditions": [
+        {
+          "feature": "customer_segment",
+          "operator": "eq",
+          "value": "corporate"
+        }
+      ],
+      "evidence_level": "descriptive_observation",
+      "exposed_records_development": 795,
+      "failed_gates": [
+        "G03_SAMPLE_ADEQUACY",
+        "G04_UNCERTAINTY",
+        "G05_MULTIPLE_COMPARISONS",
+        "G06_CONFOUNDING",
+        "G10_TEMPORAL_STABILITY",
+        "G13_IDENTIFICATION_DESIGN",
+        "G14_RANDOMIZATION_INTEGRITY",
+        "G15_ECONOMIC_MATERIALITY"
+      ],
+      "policy_readiness": "not_ready",
+      "verdict": "DOWNGRADE"
+    },
+    "customer_segment eq 'corporate' & destination eq 'Rome'": {
+      "conditions": [
+        {
+          "feature": "customer_segment",
+          "operator": "eq",
+          "value": "corporate"
+        },
+        {
+          "feature": "destination",
+          "operator": "eq",
+          "value": "Rome"
+        }
+      ],
+      "evidence_level": "predictive_association",
+      "exposed_records_development": 180,
+      "failed_gates": [
+        "G13_IDENTIFICATION_DESIGN",
+        "G14_RANDOMIZATION_INTEGRITY",
+        "G16_CANDIDATE_COMPOSITION_SAFETY"
+      ],
+      "policy_readiness": "experiment_only",
+      "verdict": "DOWNGRADE"
+    },
+    "customer_segment eq 'family'": {
+      "conditions": [
+        {
+          "feature": "customer_segment",
+          "operator": "eq",
+          "value": "family"
+        }
+      ],
+      "evidence_level": "descriptive_observation",
+      "exposed_records_development": 1329,
+      "failed_gates": [
+        "G03_SAMPLE_ADEQUACY",
+        "G04_UNCERTAINTY",
+        "G05_MULTIPLE_COMPARISONS",
+        "G06_CONFOUNDING",
+        "G12_ROBUSTNESS",
+        "G13_IDENTIFICATION_DESIGN",
+        "G14_RANDOMIZATION_INTEGRITY",
+        "G15_ECONOMIC_MATERIALITY"
+      ],
+      "policy_readiness": "not_ready",
+      "verdict": "DOWNGRADE"
+    },
+    "customer_segment eq 'family' & destination eq 'Tokyo'": {
+      "conditions": [
+        {
+          "feature": "customer_segment",
+          "operator": "eq",
+          "value": "family"
+        },
+        {
+          "feature": "destination",
+          "operator": "eq",
+          "value": "Tokyo"
+        }
+      ],
+      "evidence_level": "predictive_association",
+      "exposed_records_development": 274,
+      "failed_gates": [
+        "G11_SEASONALITY",
+        "G13_IDENTIFICATION_DESIGN",
+        "G14_RANDOMIZATION_INTEGRITY",
+        "G16_CANDIDATE_COMPOSITION_SAFETY"
+      ],
+      "policy_readiness": "experiment_only",
+      "verdict": "DOWNGRADE"
+    },
+    "customer_segment eq 'leisure'": {
+      "conditions": [
+        {
+          "feature": "customer_segment",
+          "operator": "eq",
+          "value": "leisure"
+        }
+      ],
+      "evidence_level": "descriptive_observation",
+      "exposed_records_development": 2832,
+      "failed_gates": [
+        "G03_SAMPLE_ADEQUACY",
+        "G04_UNCERTAINTY",
+        "G05_MULTIPLE_COMPARISONS",
+        "G06_CONFOUNDING",
+        "G10_TEMPORAL_STABILITY",
+        "G12_ROBUSTNESS",
+        "G13_IDENTIFICATION_DESIGN",
+        "G14_RANDOMIZATION_INTEGRITY",
+        "G15_ECONOMIC_MATERIALITY"
+      ],
+      "policy_readiness": "not_ready",
+      "verdict": "DOWNGRADE"
+    },
+    "customer_segment eq 'leisure' & destination eq 'Tokyo'": {
+      "conditions": [
+        {
+          "feature": "customer_segment",
+          "operator": "eq",
+          "value": "leisure"
+        },
+        {
+          "feature": "destination",
+          "operator": "eq",
+          "value": "Tokyo"
+        }
+      ],
+      "evidence_level": "descriptive_observation",
+      "exposed_records_development": 612,
+      "failed_gates": [
+        "G10_TEMPORAL_STABILITY",
+        "G13_IDENTIFICATION_DESIGN",
+        "G14_RANDOMIZATION_INTEGRITY",
+        "G16_CANDIDATE_COMPOSITION_SAFETY"
+      ],
+      "policy_readiness": "experiment_only",
+      "verdict": "DOWNGRADE"
+    },
+    "customer_segment eq 'leisure' & destination eq 'Tokyo' & product_category eq 'standard'": {
+      "conditions": [
+        {
+          "feature": "product_category",
+          "operator": "eq",
+          "value": "standard"
+        },
+        {
+          "feature": "destination",
+          "operator": "eq",
+          "value": "Tokyo"
+        },
+        {
+          "feature": "customer_segment",
+          "operator": "eq",
+          "value": "leisure"
+        }
+      ],
+      "evidence_level": "predictive_association",
+      "exposed_records_development": 345,
+      "failed_gates": [
+        "G13_IDENTIFICATION_DESIGN",
+        "G14_RANDOMIZATION_INTEGRITY",
+        "G16_CANDIDATE_COMPOSITION_SAFETY"
+      ],
+      "policy_readiness": "experiment_only",
+      "verdict": "DOWNGRADE"
+    },
+    "customer_segment eq 'leisure' & discount_rate ge 0.08": {
+      "conditions": [
+        {
+          "feature": "discount_rate",
+          "operator": "ge",
+          "value": 0.08
+        },
+        {
+          "feature": "customer_segment",
+          "operator": "eq",
+          "value": "leisure"
+        }
+      ],
+      "evidence_level": "predictive_association",
+      "exposed_records_development": 1349,
+      "failed_gates": [
+        "G13_IDENTIFICATION_DESIGN",
+        "G14_RANDOMIZATION_INTEGRITY",
+        "G16_CANDIDATE_COMPOSITION_SAFETY"
+      ],
+      "policy_readiness": "experiment_only",
+      "verdict": "DOWNGRADE"
+    },
+    "customer_segment eq 'leisure' & discount_rate ge 0.08 & supplier eq 'BlueWing'": {
+      "conditions": [
+        {
+          "feature": "discount_rate",
+          "operator": "ge",
+          "value": 0.08
+        },
+        {
+          "feature": "customer_segment",
+          "operator": "eq",
+          "value": "leisure"
+        },
+        {
+          "feature": "supplier",
+          "operator": "eq",
+          "value": "BlueWing"
+        }
+      ],
+      "evidence_level": "predictive_association",
+      "exposed_records_development": 417,
+      "failed_gates": [
+        "G13_IDENTIFICATION_DESIGN",
+        "G14_RANDOMIZATION_INTEGRITY",
+        "G16_CANDIDATE_COMPOSITION_SAFETY"
+      ],
+      "policy_readiness": "experiment_only",
+      "verdict": "DOWNGRADE"
+    },
+    "customer_segment eq 'leisure' & supplier eq 'BlueWing'": {
+      "conditions": [
+        {
+          "feature": "supplier",
+          "operator": "eq",
+          "value": "BlueWing"
+        },
+        {
+          "feature": "customer_segment",
+          "operator": "eq",
+          "value": "leisure"
+        }
+      ],
+      "evidence_level": "descriptive_observation",
+      "exposed_records_development": 870,
+      "failed_gates": [
+        "G10_TEMPORAL_STABILITY",
+        "G13_IDENTIFICATION_DESIGN",
+        "G14_RANDOMIZATION_INTEGRITY",
+        "G16_CANDIDATE_COMPOSITION_SAFETY"
+      ],
+      "policy_readiness": "experiment_only",
+      "verdict": "DOWNGRADE"
+    },
+    "customer_segment eq 'leisure' & supplier eq 'Cedar'": {
+      "conditions": [
+        {
+          "feature": "customer_segment",
+          "operator": "eq",
+          "value": "leisure"
+        },
+        {
+          "feature": "supplier",
+          "operator": "eq",
+          "value": "Cedar"
+        }
+      ],
+      "evidence_level": "descriptive_observation",
+      "exposed_records_development": 657,
+      "failed_gates": [
+        "G03_SAMPLE_ADEQUACY",
+        "G05_MULTIPLE_COMPARISONS",
+        "G06_CONFOUNDING",
+        "G13_IDENTIFICATION_DESIGN",
+        "G14_RANDOMIZATION_INTEGRITY",
+        "G16_CANDIDATE_COMPOSITION_SAFETY"
+      ],
+      "policy_readiness": "experiment_only",
+      "verdict": "DOWNGRADE"
+    },
+    "customer_segment eq 'leisure' & supplier eq 'Cedar' & trip_duration_days ge 8": {
+      "conditions": [
+        {
+          "feature": "trip_duration_days",
+          "operator": "ge",
+          "value": 8
+        },
+        {
+          "feature": "supplier",
+          "operator": "eq",
+          "value": "Cedar"
+        },
+        {
+          "feature": "customer_segment",
+          "operator": "eq",
+          "value": "leisure"
+        }
+      ],
+      "evidence_level": "predictive_association",
+      "exposed_records_development": 315,
+      "failed_gates": [
+        "G13_IDENTIFICATION_DESIGN",
+        "G14_RANDOMIZATION_INTEGRITY",
+        "G16_CANDIDATE_COMPOSITION_SAFETY"
+      ],
+      "policy_readiness": "experiment_only",
+      "verdict": "DOWNGRADE"
+    },
+    "customer_type eq 'new'": {
+      "conditions": [
+        {
+          "feature": "customer_type",
+          "operator": "eq",
+          "value": "new"
+        }
+      ],
+      "evidence_level": "adjusted_observational_association",
+      "exposed_records_development": 3086,
+      "failed_gates": [
+        "G13_IDENTIFICATION_DESIGN",
+        "G14_RANDOMIZATION_INTEGRITY",
+        "G15_ECONOMIC_MATERIALITY"
+      ],
+      "policy_readiness": "not_ready",
+      "verdict": "DOWNGRADE"
+    },
+    "customer_type eq 'new' & destination eq 'Zanzibar' & supplier eq 'BlueWing'": {
+      "conditions": [
+        {
+          "feature": "customer_type",
+          "operator": "eq",
+          "value": "new"
+        },
+        {
+          "feature": "supplier",
+          "operator": "eq",
+          "value": "BlueWing"
+        },
+        {
+          "feature": "destination",
+          "operator": "eq",
+          "value": "Zanzibar"
+        }
+      ],
+      "evidence_level": "predictive_association",
+      "exposed_records_development": 143,
+      "failed_gates": [
+        "G11_SEASONALITY",
+        "G13_IDENTIFICATION_DESIGN",
+        "G14_RANDOMIZATION_INTEGRITY",
+        "G16_CANDIDATE_COMPOSITION_SAFETY"
+      ],
+      "policy_readiness": "experiment_only",
+      "verdict": "DOWNGRADE"
+    },
+    "customer_type eq 'new' & supplier eq 'BlueWing'": {
+      "conditions": [
+        {
+          "feature": "customer_type",
+          "operator": "eq",
+          "value": "new"
+        },
+        {
+          "feature": "supplier",
+          "operator": "eq",
+          "value": "BlueWing"
+        }
+      ],
+      "evidence_level": "predictive_association",
+      "exposed_records_development": 896,
+      "failed_gates": [
+        "G13_IDENTIFICATION_DESIGN",
+        "G14_RANDOMIZATION_INTEGRITY",
+        "G16_CANDIDATE_COMPOSITION_SAFETY"
+      ],
+      "policy_readiness": "experiment_only",
+      "verdict": "DOWNGRADE"
+    },
+    "customer_type eq 'returning'": {
+      "conditions": [
+        {
+          "feature": "customer_type",
+          "operator": "eq",
+          "value": "returning"
+        }
+      ],
+      "evidence_level": "adjusted_observational_association",
+      "exposed_records_development": 1870,
+      "failed_gates": [
+        "G13_IDENTIFICATION_DESIGN",
+        "G14_RANDOMIZATION_INTEGRITY"
+      ],
+      "policy_readiness": "shadow_policy",
+      "verdict": "PASS"
+    },
+    "customer_type eq 'returning' & destination eq 'Reykjavik'": {
+      "conditions": [
+        {
+          "feature": "customer_type",
+          "operator": "eq",
+          "value": "returning"
+        },
+        {
+          "feature": "destination",
+          "operator": "eq",
+          "value": "Reykjavik"
+        }
+      ],
+      "evidence_level": "descriptive_observation",
+      "exposed_records_development": 294,
+      "failed_gates": [
+        "G05_MULTIPLE_COMPARISONS",
+        "G11_SEASONALITY",
+        "G13_IDENTIFICATION_DESIGN",
+        "G14_RANDOMIZATION_INTEGRITY",
+        "G16_CANDIDATE_COMPOSITION_SAFETY"
+      ],
+      "policy_readiness": "experiment_only",
+      "verdict": "DOWNGRADE"
+    },
+    "customer_type eq 'returning' & destination eq 'Reykjavik' & discount_rate ge 0.05": {
+      "conditions": [
+        {
+          "feature": "discount_rate",
+          "operator": "ge",
+          "value": 0.05
+        },
+        {
+          "feature": "destination",
+          "operator": "eq",
+          "value": "Reykjavik"
+        },
+        {
+          "feature": "customer_type",
+          "operator": "eq",
+          "value": "returning"
+        }
+      ],
+      "evidence_level": "predictive_association",
+      "exposed_records_development": 181,
+      "failed_gates": [
+        "G11_SEASONALITY",
+        "G13_IDENTIFICATION_DESIGN",
+        "G14_RANDOMIZATION_INTEGRITY",
+        "G16_CANDIDATE_COMPOSITION_SAFETY"
+      ],
+      "policy_readiness": "experiment_only",
+      "verdict": "DOWNGRADE"
+    },
+    "customer_type eq 'returning' & trip_duration_days ge 6": {
+      "conditions": [
+        {
+          "feature": "trip_duration_days",
+          "operator": "ge",
+          "value": 6
+        },
+        {
+          "feature": "customer_type",
+          "operator": "eq",
+          "value": "returning"
+        }
+      ],
+      "evidence_level": "predictive_association",
+      "exposed_records_development": 1178,
+      "failed_gates": [
+        "G13_IDENTIFICATION_DESIGN",
+        "G14_RANDOMIZATION_INTEGRITY",
+        "G16_CANDIDATE_COMPOSITION_SAFETY"
+      ],
+      "policy_readiness": "experiment_only",
+      "verdict": "DOWNGRADE"
+    },
+    "destination eq 'Reykjavik'": {
+      "conditions": [
+        {
+          "feature": "destination",
+          "operator": "eq",
+          "value": "Reykjavik"
+        }
+      ],
+      "evidence_level": "descriptive_observation",
+      "exposed_records_development": 759,
+      "failed_gates": [
+        "G03_SAMPLE_ADEQUACY",
+        "G04_UNCERTAINTY",
+        "G05_MULTIPLE_COMPARISONS",
+        "G06_CONFOUNDING",
+        "G09_SIMPSON_AND_HETEROGENEITY",
+        "G12_ROBUSTNESS",
+        "G13_IDENTIFICATION_DESIGN",
+        "G14_RANDOMIZATION_INTEGRITY",
+        "G15_ECONOMIC_MATERIALITY"
+      ],
+      "policy_readiness": "not_ready",
+      "verdict": "DOWNGRADE"
+    },
+    "destination eq 'Reykjavik' & discount_rate ge 0.05": {
+      "conditions": [
+        {
+          "feature": "discount_rate",
+          "operator": "ge",
+          "value": 0.05
+        },
+        {
+          "feature": "destination",
+          "operator": "eq",
+          "value": "Reykjavik"
+        }
+      ],
+      "evidence_level": "predictive_association",
+      "exposed_records_development": 498,
+      "failed_gates": [
+        "G13_IDENTIFICATION_DESIGN",
+        "G14_RANDOMIZATION_INTEGRITY",
+        "G16_CANDIDATE_COMPOSITION_SAFETY"
+      ],
+      "policy_readiness": "experiment_only",
+      "verdict": "DOWNGRADE"
+    },
+    "destination eq 'Rome'": {
+      "conditions": [
+        {
+          "feature": "destination",
+          "operator": "eq",
+          "value": "Rome"
+        }
+      ],
+      "evidence_level": "descriptive_observation",
+      "exposed_records_development": 1022,
+      "failed_gates": [
+        "G05_MULTIPLE_COMPARISONS",
+        "G13_IDENTIFICATION_DESIGN",
+        "G14_RANDOMIZATION_INTEGRITY",
+        "G15_ECONOMIC_MATERIALITY"
+      ],
+      "policy_readiness": "not_ready",
+      "verdict": "DOWNGRADE"
+    },
+    "destination eq 'Tokyo'": {
+      "conditions": [
+        {
+          "feature": "destination",
+          "operator": "eq",
+          "value": "Tokyo"
+        }
+      ],
+      "evidence_level": "adjusted_observational_association",
+      "exposed_records_development": 1058,
+      "failed_gates": [
+        "G13_IDENTIFICATION_DESIGN",
+        "G14_RANDOMIZATION_INTEGRITY"
+      ],
+      "policy_readiness": "shadow_policy",
+      "verdict": "PASS"
+    },
+    "destination eq 'Tokyo' & product_category eq 'standard'": {
+      "conditions": [
+        {
+          "feature": "product_category",
+          "operator": "eq",
+          "value": "standard"
+        },
+        {
+          "feature": "destination",
+          "operator": "eq",
+          "value": "Tokyo"
+        }
+      ],
+      "evidence_level": "predictive_association",
+      "exposed_records_development": 603,
+      "failed_gates": [
+        "G13_IDENTIFICATION_DESIGN",
+        "G14_RANDOMIZATION_INTEGRITY",
+        "G16_CANDIDATE_COMPOSITION_SAFETY"
+      ],
+      "policy_readiness": "experiment_only",
+      "verdict": "DOWNGRADE"
+    },
+    "destination eq 'Zanzibar'": {
+      "conditions": [
+        {
+          "feature": "destination",
+          "operator": "eq",
+          "value": "Zanzibar"
+        }
+      ],
+      "evidence_level": "predictive_association",
+      "exposed_records_development": 1041,
+      "failed_gates": [
+        "G11_SEASONALITY",
+        "G13_IDENTIFICATION_DESIGN",
+        "G14_RANDOMIZATION_INTEGRITY",
+        "G15_ECONOMIC_MATERIALITY"
+      ],
+      "policy_readiness": "not_ready",
+      "verdict": "DOWNGRADE"
+    },
+    "destination eq 'Zanzibar' & supplier eq 'BlueWing'": {
+      "conditions": [
+        {
+          "feature": "destination",
+          "operator": "eq",
+          "value": "Zanzibar"
+        },
+        {
+          "feature": "supplier",
+          "operator": "eq",
+          "value": "BlueWing"
+        }
+      ],
+      "evidence_level": "descriptive_observation",
+      "exposed_records_development": 243,
+      "failed_gates": [
+        "G05_MULTIPLE_COMPARISONS",
+        "G11_SEASONALITY",
+        "G13_IDENTIFICATION_DESIGN",
+        "G14_RANDOMIZATION_INTEGRITY",
+        "G16_CANDIDATE_COMPOSITION_SAFETY"
+      ],
+      "policy_readiness": "experiment_only",
+      "verdict": "DOWNGRADE"
+    },
+    "discount_rate ge 0.05": {
+      "conditions": [
+        {
+          "feature": "discount_rate",
+          "operator": "ge",
+          "value": 0.05
+        }
+      ],
+      "evidence_level": "adjusted_observational_association",
+      "exposed_records_development": 3451,
+      "failed_gates": [
+        "G13_IDENTIFICATION_DESIGN",
+        "G14_RANDOMIZATION_INTEGRITY"
+      ],
+      "policy_readiness": "shadow_policy",
+      "verdict": "PASS"
+    },
+    "discount_rate ge 0.08": {
+      "conditions": [
+        {
+          "feature": "discount_rate",
+          "operator": "ge",
+          "value": 0.08
+        }
+      ],
+      "evidence_level": "adjusted_observational_association",
+      "exposed_records_development": 2345,
+      "failed_gates": [
+        "G13_IDENTIFICATION_DESIGN",
+        "G14_RANDOMIZATION_INTEGRITY"
+      ],
+      "policy_readiness": "shadow_policy",
+      "verdict": "PASS"
+    },
+    "discount_rate ge 0.08 & supplier eq 'BlueWing'": {
+      "conditions": [
+        {
+          "feature": "discount_rate",
+          "operator": "ge",
+          "value": 0.08
+        },
+        {
+          "feature": "supplier",
+          "operator": "eq",
+          "value": "BlueWing"
+        }
+      ],
+      "evidence_level": "predictive_association",
+      "exposed_records_development": 696,
+      "failed_gates": [
+        "G13_IDENTIFICATION_DESIGN",
+        "G14_RANDOMIZATION_INTEGRITY",
+        "G16_CANDIDATE_COMPOSITION_SAFETY"
+      ],
+      "policy_readiness": "experiment_only",
+      "verdict": "DOWNGRADE"
+    },
+    "party_size ge 3": {
+      "conditions": [
+        {
+          "feature": "party_size",
+          "operator": "ge",
+          "value": 3
+        }
+      ],
+      "evidence_level": "descriptive_observation",
+      "exposed_records_development": 2588,
+      "failed_gates": [
+        "G03_SAMPLE_ADEQUACY",
+        "G04_UNCERTAINTY",
+        "G05_MULTIPLE_COMPARISONS",
+        "G06_CONFOUNDING",
+        "G12_ROBUSTNESS",
+        "G13_IDENTIFICATION_DESIGN",
+        "G14_RANDOMIZATION_INTEGRITY",
+        "G15_ECONOMIC_MATERIALITY"
+      ],
+      "policy_readiness": "not_ready",
+      "verdict": "DOWNGRADE"
+    },
+    "party_size ge 3 & supplier eq 'BlueWing'": {
+      "conditions": [
+        {
+          "feature": "party_size",
+          "operator": "ge",
+          "value": 3
+        },
+        {
+          "feature": "supplier",
+          "operator": "eq",
+          "value": "BlueWing"
+        }
+      ],
+      "evidence_level": "predictive_association",
+      "exposed_records_development": 766,
+      "failed_gates": [
+        "G13_IDENTIFICATION_DESIGN",
+        "G14_RANDOMIZATION_INTEGRITY",
+        "G16_CANDIDATE_COMPOSITION_SAFETY"
+      ],
+      "policy_readiness": "experiment_only",
+      "verdict": "DOWNGRADE"
+    },
+    "product_category eq 'premium'": {
+      "conditions": [
+        {
+          "feature": "product_category",
+          "operator": "eq",
+          "value": "premium"
+        }
+      ],
+      "evidence_level": "descriptive_observation",
+      "exposed_records_development": 1523,
+      "failed_gates": [
+        "G03_SAMPLE_ADEQUACY",
+        "G04_UNCERTAINTY",
+        "G05_MULTIPLE_COMPARISONS",
+        "G06_CONFOUNDING",
+        "G09_SIMPSON_AND_HETEROGENEITY",
+        "G10_TEMPORAL_STABILITY",
+        "G12_ROBUSTNESS",
+        "G13_IDENTIFICATION_DESIGN",
+        "G14_RANDOMIZATION_INTEGRITY",
+        "G15_ECONOMIC_MATERIALITY"
+      ],
+      "policy_readiness": "not_ready",
+      "verdict": "DOWNGRADE"
+    },
+    "product_category eq 'standard'": {
+      "conditions": [
+        {
+          "feature": "product_category",
+          "operator": "eq",
+          "value": "standard"
+        }
+      ],
+      "evidence_level": "adjusted_observational_association",
+      "exposed_records_development": 2895,
+      "failed_gates": [
+        "G13_IDENTIFICATION_DESIGN",
+        "G14_RANDOMIZATION_INTEGRITY"
+      ],
+      "policy_readiness": "shadow_policy",
+      "verdict": "PASS"
+    },
+    "supplier eq 'BlueWing'": {
+      "conditions": [
+        {
+          "feature": "supplier",
+          "operator": "eq",
+          "value": "BlueWing"
+        }
+      ],
+      "evidence_level": "adjusted_observational_association",
+      "exposed_records_development": 1460,
+      "failed_gates": [
+        "G13_IDENTIFICATION_DESIGN",
+        "G14_RANDOMIZATION_INTEGRITY"
+      ],
+      "policy_readiness": "shadow_policy",
+      "verdict": "PASS"
+    },
+    "supplier eq 'Cedar'": {
+      "conditions": [
+        {
+          "feature": "supplier",
+          "operator": "eq",
+          "value": "Cedar"
+        }
+      ],
+      "evidence_level": "descriptive_observation",
+      "exposed_records_development": 1149,
+      "failed_gates": [
+        "G03_SAMPLE_ADEQUACY",
+        "G04_UNCERTAINTY",
+        "G05_MULTIPLE_COMPARISONS",
+        "G06_CONFOUNDING",
+        "G09_SIMPSON_AND_HETEROGENEITY",
+        "G10_TEMPORAL_STABILITY",
+        "G13_IDENTIFICATION_DESIGN",
+        "G14_RANDOMIZATION_INTEGRITY",
+        "G15_ECONOMIC_MATERIALITY"
+      ],
+      "policy_readiness": "not_ready",
+      "verdict": "DOWNGRADE"
+    },
+    "supplier eq 'Cedar' & trip_duration_days ge 8": {
+      "conditions": [
+        {
+          "feature": "trip_duration_days",
+          "operator": "ge",
+          "value": 8
+        },
+        {
+          "feature": "supplier",
+          "operator": "eq",
+          "value": "Cedar"
+        }
+      ],
+      "evidence_level": "descriptive_observation",
+      "exposed_records_development": 507,
+      "failed_gates": [
+        "G09_SIMPSON_AND_HETEROGENEITY",
+        "G13_IDENTIFICATION_DESIGN",
+        "G14_RANDOMIZATION_INTEGRITY",
+        "G16_CANDIDATE_COMPOSITION_SAFETY"
+      ],
+      "policy_readiness": "experiment_only",
+      "verdict": "DOWNGRADE"
+    },
+    "trip_duration_days ge 6": {
+      "conditions": [
+        {
+          "feature": "trip_duration_days",
+          "operator": "ge",
+          "value": 6
+        }
+      ],
+      "evidence_level": "adjusted_observational_association",
+      "exposed_records_development": 3205,
+      "failed_gates": [
+        "G13_IDENTIFICATION_DESIGN",
+        "G14_RANDOMIZATION_INTEGRITY"
+      ],
+      "policy_readiness": "shadow_policy",
+      "verdict": "PASS"
+    },
+    "trip_duration_days ge 8": {
+      "conditions": [
+        {
+          "feature": "trip_duration_days",
+          "operator": "ge",
+          "value": 8
+        }
+      ],
+      "evidence_level": "adjusted_observational_association",
+      "exposed_records_development": 2274,
+      "failed_gates": [
+        "G13_IDENTIFICATION_DESIGN",
+        "G14_RANDOMIZATION_INTEGRITY"
+      ],
+      "policy_readiness": "shadow_policy",
+      "verdict": "PASS"
+    }
+  },
+  "seed": 4009
+}
