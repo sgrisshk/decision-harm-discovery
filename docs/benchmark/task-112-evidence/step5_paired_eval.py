@@ -268,6 +268,7 @@ def main() -> None:
     b.add_argument("--variant", choices=["baseline", "modified"], required=True)
     b.add_argument("--seeds", type=int, nargs=2, required=True)
     b.add_argument("--dir", type=Path, required=True)
+    b.add_argument("--procs", type=int, default=1)
     r = sub.add_parser("rates")
     r.add_argument("--variant", choices=["baseline", "modified"], required=True)
     r.add_argument("--dir", type=Path, required=True)
@@ -276,11 +277,19 @@ def main() -> None:
     if a.cmd == "seed":
         run_seed(a.variant, a.seed, a.dir / f"{a.variant}-seed-{a.seed}.json")
     elif a.cmd == "batch":
+        todo = []
         for seed_ in range(a.seeds[0], a.seeds[1] + 1):
             out_path = a.dir / f"{a.variant}-seed-{seed_}.json"
-            if out_path.exists():
-                continue
-            run_seed(a.variant, seed_, out_path)
+            if not out_path.exists():
+                todo.append((a.variant, seed_, out_path))
+        if a.procs > 1 and todo:
+            from multiprocessing import Pool
+
+            with Pool(a.procs) as pool:
+                pool.starmap(run_seed, todo)
+        else:
+            for variant_, seed_, out_path in todo:
+                run_seed(variant_, seed_, out_path)
     else:
         rates = compute_rates(a.dir, a.variant)
         a.out.write_text(json.dumps(rates, indent=1, sort_keys=True) + "\n", encoding="utf-8")
