@@ -69,6 +69,15 @@ def main() -> None:
     total_specific_modified = sum(r["modified_specific_k"] for r in rows)
     total_exact_baseline = sum(r["baseline_exact_k"] for r in rows)
     total_exact_modified = sum(r["modified_exact_k"] for r in rows)
+    # "ever recovered" / "any_of_30" style counts -- same convention as run_blind_engine.py's
+    # coverage_recall_any_of_30 / specific_recall_any_of_30 / exact_recall_any_of_30 (how many of
+    # the 11 Core targets are recovered at least once in 30 seeds), used for Decision 7's
+    # Coverage (condition 4) and Exact Recall (condition 5) checks -- distinct from condition 3's
+    # explicit raw-sum "total Specific-hit count across 11x30".
+    coverage_ever_baseline = sum(1 for r in rows if r["baseline_coverage_k"] >= 1)
+    coverage_ever_modified = sum(1 for r in rows if r["modified_coverage_k"] >= 1)
+    exact_ever_baseline = sum(1 for r in rows if r["baseline_exact_k"] >= 1)
+    exact_ever_modified = sum(1 for r in rows if r["modified_exact_k"] >= 1)
     coverage_losses = [
         r["target"] for r in rows if r["modified_coverage_k"] == 0 and r["baseline_coverage_k"] > 0
     ]
@@ -82,6 +91,8 @@ def main() -> None:
     print(f"n_reliable (CP-LB>=0.90): baseline={n_reliable_baseline}/11  modified={n_reliable_modified}/11")
     print(f"total Specific-hit count across 11x30: baseline={total_specific_baseline}  modified={total_specific_modified}")
     print(f"total Exact-hit count across 11x30: baseline={total_exact_baseline}  modified={total_exact_modified}")
+    print(f"Coverage Recall (ever-recovered, any_of_30 style): baseline={coverage_ever_baseline}/11  modified={coverage_ever_modified}/11")
+    print(f"Exact Recall (ever-recovered, any_of_30 style): baseline={exact_ever_baseline}/11  modified={exact_ever_modified}/11")
     print(f"Core targets losing coverage at headline ever-recovered level: {coverage_losses or 'NONE'}")
     print(f"Core targets with material (>=20%) systematic coverage hit-rate drop: {material_coverage_drop or 'NONE'}")
     print(f"baseline n_seeds_any_trap_promoted: {baseline['n_seeds_any_trap_promoted']}")
@@ -91,7 +102,7 @@ def main() -> None:
     cond2 = n_reliable_modified > n_reliable_baseline
     cond3 = total_specific_modified > total_specific_baseline
     cond4 = (not coverage_losses) and (not material_coverage_drop)
-    cond5 = total_exact_modified >= total_exact_baseline
+    cond5 = exact_ever_modified >= exact_ever_baseline
     cond6 = modified["n_seeds_any_trap_promoted"] <= baseline["n_seeds_any_trap_promoted"]
 
     verdict = all([cond1, cond2, cond3, cond4, cond5, cond6])
@@ -101,7 +112,7 @@ def main() -> None:
     print(f"  (2) modified has MORE reliable Core targets than baseline: {cond2}  ({n_reliable_modified} vs {n_reliable_baseline})")
     print(f"  (3) total Specific-hit count increases: {cond3}  ({total_specific_modified} vs {total_specific_baseline})")
     print(f"  (4) no Core target loses coverage / no material systematic hit-rate drop: {cond4}")
-    print(f"  (5) Exact Recall does not worsen: {cond5}  ({total_exact_modified} vs {total_exact_baseline})")
+    print(f"  (5) Exact Recall (ever-recovered) does not worsen: {cond5}  ({exact_ever_modified}/11 vs {exact_ever_baseline}/11; raw totals {total_exact_modified} vs {total_exact_baseline})")
     print(f"  (6) precision/safety regression suite does not worsen (trap promotion proxy): {cond6}")
     print()
     print(f"STEP 6 VERDICT: {'SUCCESS' if verdict else 'NOT SUCCESS -- hard stop, no second tweak'}")
@@ -114,6 +125,10 @@ def main() -> None:
         "total_specific_modified": total_specific_modified,
         "total_exact_baseline": total_exact_baseline,
         "total_exact_modified": total_exact_modified,
+        "coverage_ever_baseline": coverage_ever_baseline,
+        "coverage_ever_modified": coverage_ever_modified,
+        "exact_ever_baseline": exact_ever_baseline,
+        "exact_ever_modified": exact_ever_modified,
         "coverage_losses": coverage_losses,
         "material_coverage_drop": material_coverage_drop,
         "baseline_trap_promoted_seeds": baseline["n_seeds_any_trap_promoted"],
