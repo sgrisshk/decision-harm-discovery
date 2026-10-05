@@ -981,6 +981,7 @@ def _refinement_candidates(
         "eligible": True,
         "parents_considered": 0,
         "admissible_descendants_checked": 0,
+        "admissible_descendants_validated": 0,
         "validated_pass": 0,
         "added": 0,
         "ordering_rule": (
@@ -1022,9 +1023,30 @@ def _refinement_candidates(
     if not admissible:
         return [], meta
 
-    passed_rules = validate([rule for rule, *_ in admissible], evaluated_hypotheses)
-    kept = [item for item in admissible if item[0] in passed_rules]
+    # Performance-only batching, result-identical to "validate every admissible descendant once,
+    # then keep the top config.top_k by score": real validation (the frozen contract's full gate
+    # battery) is far more expensive per-candidate than the in-memory enumeration above, and a
+    # real search's admissible count can run into the hundreds. Validating in strictly descending
+    # (-score, rule) order -- the exact order the capacity tie-break (ADR-116 Decision 2) already
+    # uses -- and stopping once config.top_k descendants have PASSed is provably equivalent: every
+    # not-yet-validated descendant at that point has a score no higher than every already-kept
+    # one (descending order), so it could never displace a kept descendant even if validated and
+    # found to PASS. config.top_k is reused as the batch size too -- no new tunable. If fewer than
+    # config.top_k ever PASS, every admissible descendant is validated exactly as a single
+    # unbatched call would have done.
+    admissible.sort(key=lambda item: (-item[3], item[0]))
+    kept: list[tuple[tuple[Condition, ...], tuple[Condition, ...], SplitMetric, float]] = []
+    batch_size = max(config.top_k, 1)
+    start = 0
+    validated_count = 0
+    while start < len(admissible) and len(kept) < config.top_k:
+        batch = admissible[start : start + batch_size]
+        start += batch_size
+        validated_count += len(batch)
+        passed_rules = validate([item[0] for item in batch], evaluated_hypotheses)
+        kept.extend(item for item in batch if item[0] in passed_rules)
     meta["validated_pass"] = len(kept)
+    meta["admissible_descendants_validated"] = validated_count
     kept.sort(key=lambda item: (-item[3], item[0]))
     if len(kept) > config.top_k:
         kept = kept[: config.top_k]
@@ -1258,6 +1280,7 @@ def discover_candidates(
         "eligible": refine_with_validation is not None,
         "parents_considered": 0,
         "admissible_descendants_checked": 0,
+        "admissible_descendants_validated": 0,
         "validated_pass": 0,
         "added": 0,
         "ordering_rule": None,
