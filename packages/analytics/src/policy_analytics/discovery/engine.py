@@ -966,16 +966,19 @@ def _refinement_candidates(
     verbatim here rather than inventing a new redundancy rule. No specificity/Jaccard score, no
     benchmark ground truth, and no support-retention threshold enters this filter anywhere.
 
-    All admissible descendants (across every parent) are batched into one call to `validate` --
-    real callers wrap one `run_validation` call over the batch, never one call per descendant.
-    Validation-PASSing descendants (`validate`'s return value) are the full admitted set unless
-    there are more than `config.top_k` of them, in which case -- `config.top_k` is the only
-    existing parameter in this codebase that already caps "how many final candidates are
-    produced," reused rather than inventing a new one -- they are ranked by the existing,
+    All admissible descendants (across every parent) are validated via `validate` -- real callers
+    wrap a `run_validation` call over each batch handed to them, never one call per descendant.
+    Descendants are submitted in batches of `config.top_k` (reused as the batch size too -- no new
+    tunable), in descending `(-development_score, rule)` order, stopping once `config.top_k` have
+    PASSed; this is a performance optimization only, provably identical to validating every
+    admissible descendant in one call and then keeping the top `config.top_k` by score -- see the
+    inline comment just below this docstring for the equivalence argument. `config.top_k` -- the
+    only existing parameter in this codebase that already caps "how many final candidates are
+    produced" -- is reused rather than inventing a new one; the kept set is ranked by the existing,
     unmodified `_development_score` (descending, ties broken by the frozen, `order=True`
-    `Condition` tuple comparison) and only the top `config.top_k` are kept. This is the one point
-    anywhere in this function where score enters: it breaks a *capacity* tie among already-PASSing
-    descendants, exactly as `ADR-116` Decision 2 specifies, and never decides admissibility itself.
+    `Condition` tuple comparison). This is the one point anywhere in this function where score
+    enters: it breaks a *capacity* tie among already-PASSing descendants, exactly as `ADR-116`
+    Decision 2 specifies, and never decides admissibility itself.
     """
     meta: dict[str, Any] = {
         "eligible": True,
