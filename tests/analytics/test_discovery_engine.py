@@ -156,11 +156,7 @@ def test_discover_candidates_with_exponent_one_matches_manual_pure_exposure_repr
         )
         assert result["candidate_count"] > 0
         assert all(candidate["fit_split"] == "development" for candidate in result["candidates"])
-        # TASK-115/ADR-116 bumped the version to v0.6.4 (the refinement pass this test never opts
-        # into -- refine_with_validation is omitted here, so behavior is unchanged); the literal
-        # was never meant to pin this test to one specific version, only to confirm the field is
-        # populated and consistent, so it is updated rather than this test's own intent changing.
-        assert result["methodology_version"] == "discovery-engine-v0.6.4"
+        assert result["methodology_version"] == "discovery-engine-v0.6.2"
 
 
 # --- TASK-071: exposure-identical redundancy pruning compares row sets, not counts ---
@@ -964,9 +960,7 @@ def test_identity_cap_disabled_reproduces_v050_selection_exactly() -> None:
         ),
     )
     assert implicit_default["candidates"] == explicit_disabled["candidates"]
-    # TASK-115/ADR-116 version bump (v0.6.4); refine_with_validation is omitted by both calls here,
-    # so candidate selection itself is exactly v0.6.2's -- only the version literal changes.
-    assert implicit_default["methodology_version"] == "discovery-engine-v0.6.4"
+    assert implicit_default["methodology_version"] == "discovery-engine-v0.6.2"
 
     # `_apply_feature_identity_cap` on the actual selected output must be a true no-op at the
     # default -- confirms the guarantee structurally, not just behaviorally.
@@ -1588,9 +1582,7 @@ def test_reserve_k1_slot_false_is_byte_identical_to_pre_task_097_selection() -> 
         DiscoveryConfig(min_n=20, beam_width=30, top_k=9, reserve_k1_slot=False),
     )
     assert implicit_default["candidates"] == explicit_false["candidates"]
-    # TASK-115/ADR-116 version bump (v0.6.4); refine_with_validation is omitted by both calls here,
-    # so selection itself is exactly v0.6.2's/pre-TASK-097's -- only the version literal changes.
-    assert implicit_default["methodology_version"] == "discovery-engine-v0.6.4"
+    assert implicit_default["methodology_version"] == "discovery-engine-v0.6.2"
     ks = [len(c["conditions"]) for c in implicit_default["candidates"]]
     assert ks == [2, 2, 2, 3, 3, 2, 2, 2, 2]  # all nine slots filled by interactions, no k==1
 
