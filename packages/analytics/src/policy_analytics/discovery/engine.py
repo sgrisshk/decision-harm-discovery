@@ -83,6 +83,60 @@ new tunable is introduced. This is a genuine, unconditional behavior change (no 
 bump. See `_eligible()`'s own docstring, `DiscoveryConfig.max_support`'s field docstring, and
 `ADR-096`/`docs/analytics/task-101-max-support-search-eligibility-fix.md` for the full citation
 trail, both-direction regression evidence, and cross-domain check.
+
+`v0.6.3` was `TASK-112`'s direct `_development_score` objective correction (a specificity-neutral
+reweighting). It was **not accepted**
+(`docs/benchmark/task-112-specificity-neutral-score-results.md`) and is not reused as a version
+label here — `TASK-101`'s own versioning precedent is followed, so this next real engine change
+gets the next unused number.
+
+`v0.6.4` (`TASK-115`, `ADR-116`) adds a bounded, strictly additive, opt-in-by-argument refinement
+pass to `discover_candidates()`, run only when a caller supplies `refine_with_validation`
+(`None` by default — see below). `TASK-112` showed that correcting `_development_score` itself is
+dangerous (it changed which candidates the acquisition path surfaces at all, for better in some
+cases and worse in others, entangling a scoring change with a specificity question). `TASK-114`
+then found, using only the existing frozen search/scoring functions, that the real objection was
+narrower: for several Core targets, a materially more specific, equally-well-supported descendant
+of an already-shortlisted candidate is available in the frozen atom vocabulary, but
+`_development_score` would never rank it into the acquisition path's own top-K on raw score alone.
+`v0.6.4` does not change `_development_score`, the beam, `max_conditions`, the generator, or the
+scorer at all — every one of `discover_candidates()`'s existing code paths through the point the
+final shortlist (`selected`, after `_greedy_diverse_select`/`_apply_feature_identity_cap`/
+`_reserve_k1_slot`) is assembled is untouched, byte-for-byte, and remains so when the new argument
+is omitted (every pre-existing call site, including every test in `tests/analytics/
+test_discovery_engine.py`, omits it, so this version is behavior-identical to `v0.6.2` for every
+caller that does not opt in).
+
+When a caller does pass `refine_with_validation` (a batch callback: given the list of admissible
+one-literal descendants this pass wants checked, it returns the subset that passes the real,
+frozen validation contract — `policy_analytics.validation.apply.run_validation`, contract 1.3.0,
+called by the caller, never imported here, keeping `discovery/` and `validation/`'s existing
+acyclic dependency exactly as it was), `discover_candidates()` additionally, for each rule already
+in the final shortlist (the parent; never a rule the shortlist does not already contain), tries
+adding exactly one more real atom from the same frozen `_atoms()` vocabulary already computed for
+this search, on a feature the parent does not already use (mirroring the existing frontier-
+expansion rule in this same function, which also never combines two conditions on the same
+feature) and within the existing `max_conditions` depth (a descendant is never attempted from a
+parent already at `max_conditions`, so no refinement descendant can ever exceed the same language
+depth the frozen acquisition path itself is bounded to). A descendant is admissible only if it
+passes the engine's own existing, unmodified `_eligible()` gate and is not redundant with its
+parent (its development-split exposed row set must differ from the parent's — the exact same
+`_exposed_rows`-equality check this function already applies to depth>1 parent/child pairs,
+reused verbatim, not a new rule). Admissible descendants are batched into one call to
+`refine_with_validation`; those that PASS (verdict `PASS` or `DOWNGRADE`, i.e. not `REJECT` —
+reusing exactly `TASK-114`'s own disclosed "PASS/DOWNGRADE are real evidence, REJECT is not"
+framing, not a new threshold) are kept, capped at `config.top_k` if more pass than that — the only
+existing parameter in this codebase that already caps "how many final candidates are produced,"
+reused rather than inventing a new one — by the existing, unmodified `_development_score`
+(descending, ties broken by the frozen `Condition` tuple order), and **appended** to the returned
+candidate list after the unmodified shortlist's own candidates, each carrying a disclosed warning
+naming its parent and the validation basis for its admission. The existing shortlist itself
+(identity, order, count, every per-candidate field) is never modified, reordered, or pruned by this
+pass — this is strictly additive, matching `ADR-116`'s "not a second independent search and not a
+new scoring objective" framing. See `discover_candidates()`'s own inline comments,
+`docs/benchmark/task-115-evidence/step1-predictions.md`, and
+`docs/benchmark/task-115-validation-preserving-refinement-results.md` for the full citation trail
+and both-engine paired-evaluation evidence.
 """
 
 from __future__ import annotations
@@ -114,7 +168,7 @@ class OutcomeDefinition(Protocol):
 
 
 Operator = Literal["eq", "ge", "lt"]
-DISCOVERY_METHOD_VERSION = "discovery-engine-v0.6.2"
+DISCOVERY_METHOD_VERSION = "discovery-engine-v0.6.4"
 
 
 @dataclass(frozen=True, slots=True, order=True)
@@ -859,13 +913,136 @@ def _reserve_k1_slot(
     return [*final_selected[:-1], promoted], metadata
 
 
+#: Type of the one dependency `_refinement_candidates`/`discover_candidates` accept from a caller
+#: (TASK-115/ADR-116): given the batch of admissible one-literal descendants the refinement pass
+#: wants checked, return the subset that passes the real, frozen validation contract (verdict
+#: `PASS` or `DOWNGRADE` -- not `REJECT`; see `discover_candidates`'s own docstring and the module
+#: docstring's `v0.6.4` entry). Always the real `policy_analytics.validation.apply.run_validation`
+#: in production use; `discovery/` itself never imports `validation/` to call it directly, keeping
+#: the existing acyclic dependency between the two packages exactly as it was.
+RefinementValidator = Callable[[list[tuple[Condition, ...]]], set[tuple[Condition, ...]]]
+
+
+def _format_rule(rule: tuple[Condition, ...]) -> str:
+    """Human-readable provenance string for a refinement candidate's `warnings` entry (TASK-115).
+    Never used for eligibility, scoring, or ordering -- display only."""
+    return " AND ".join(f"{c.feature} {c.operator} {c.value!r}" for c in rule)
+
+
+def _refinement_candidates(
+    frame: pl.DataFrame,
+    development: pl.DataFrame,
+    outcome: OutcomeDefinition,
+    config: DiscoveryConfig,
+    atoms: tuple[Condition, ...],
+    shortlist: list[tuple[Condition, ...]],
+    validate: RefinementValidator,
+) -> tuple[
+    list[tuple[tuple[Condition, ...], tuple[Condition, ...], SplitMetric, float]], dict[str, Any]
+]:
+    """TASK-115/`ADR-116` -- the one permitted post-acquisition mechanism: `existing shortlisted
+    parent -> +one eligible literal -> validation -> PASS => refinement candidate`. `shortlist` is
+    exactly `discover_candidates`'s own already-finalized final candidate list (after
+    `_greedy_diverse_select`/`_apply_feature_identity_cap`/`_reserve_k1_slot`) -- never mutated,
+    never re-ranked; every parent considered here is a rule the real, unmodified acquisition path
+    already selected, nothing else.
+
+    For each shortlisted parent with room (`len(parent) < config.max_conditions`, so no descendant
+    can ever exceed the same language depth the frozen acquisition path itself is bounded to), every
+    atom in the same frozen `atoms` vocabulary `discover_candidates` already computed for this
+    search is tried on a feature the parent does not already use (mirroring the existing frontier-
+    expansion rule in `discover_candidates`, which likewise never combines two conditions on the
+    same feature) in `atoms`'s own existing, already-deterministic order -- the canonical ordering
+    rule fixed in `docs/benchmark/task-115-evidence/step1-predictions.md` §5, before any run. A
+    descendant is admissible only via the engine's own existing, unmodified `_eligible()` gate, and
+    only if it is not redundant with its parent: its development-split exposed row set
+    (`_exposed_rows`) must differ from the parent's -- the identical `_exposed_rows`-equality check
+    `discover_candidates` already applies to depth>1 parent/child pairs (`TASK-071`), reused
+    verbatim here rather than inventing a new redundancy rule. No specificity/Jaccard score, no
+    benchmark ground truth, and no support-retention threshold enters this filter anywhere.
+
+    All admissible descendants (across every parent) are batched into one call to `validate` --
+    real callers wrap one `run_validation` call over the batch, never one call per descendant.
+    Validation-PASSing descendants (`validate`'s return value) are the full admitted set unless
+    there are more than `config.top_k` of them, in which case -- `config.top_k` is the only
+    existing parameter in this codebase that already caps "how many final candidates are
+    produced," reused rather than inventing a new one -- they are ranked by the existing,
+    unmodified `_development_score` (descending, ties broken by the frozen, `order=True`
+    `Condition` tuple comparison) and only the top `config.top_k` are kept. This is the one point
+    anywhere in this function where score enters: it breaks a *capacity* tie among already-PASSing
+    descendants, exactly as `ADR-116` Decision 2 specifies, and never decides admissibility itself.
+    """
+    meta: dict[str, Any] = {
+        "eligible": True,
+        "parents_considered": 0,
+        "admissible_descendants_checked": 0,
+        "validated_pass": 0,
+        "added": 0,
+        "ordering_rule": (
+            "atom-grid order (the same deterministic order _atoms() already returns: sorted by "
+            "feature, then operator, then value) per parent; when more validation-PASSing "
+            "descendants exist across all parents than config.top_k can hold, the kept subset is "
+            "chosen by the existing, unmodified _development_score (descending), ties broken by "
+            "the frozen Condition tuple order -- TASK-115/ADR-116, no new specificity score."
+        ),
+    }
+    seen: set[tuple[Condition, ...]] = set(shortlist)
+    parent_exposed_cache: dict[tuple[Condition, ...], frozenset[int]] = {}
+    admissible: list[tuple[tuple[Condition, ...], tuple[Condition, ...], SplitMetric, float]] = []
+    for parent in shortlist:
+        meta["parents_considered"] += 1
+        if len(parent) >= config.max_conditions:
+            continue
+        used_features = {condition.feature for condition in parent}
+        if parent not in parent_exposed_cache:
+            parent_exposed_cache[parent] = _exposed_rows(development, parent)
+        parent_exposed = parent_exposed_cache[parent]
+        for atom in atoms:
+            if atom.feature in used_features or atom in parent:
+                continue
+            descendant = tuple(sorted((*parent, atom)))
+            if descendant in seen:
+                continue
+            seen.add(descendant)
+            metric = _metric(frame, descendant, outcome, "development")
+            if not _eligible(metric, config):
+                continue
+            assert metric is not None
+            if _exposed_rows(development, descendant) == parent_exposed:
+                continue  # non-redundant guard: the added literal changed nothing on this draw
+            meta["admissible_descendants_checked"] += 1
+            score = _development_score(metric, len(descendant), config)
+            admissible.append((descendant, parent, metric, score))
+
+    if not admissible:
+        return [], meta
+
+    passed_rules = validate([rule for rule, *_ in admissible])
+    kept = [item for item in admissible if item[0] in passed_rules]
+    meta["validated_pass"] = len(kept)
+    kept.sort(key=lambda item: (-item[3], item[0]))
+    if len(kept) > config.top_k:
+        kept = kept[: config.top_k]
+    meta["added"] = len(kept)
+    return kept, meta
+
+
 def discover_candidates(
     frame: pl.DataFrame,
     feature_columns: tuple[str, ...],
     outcome: OutcomeDefinition,
     config: DiscoveryConfig | None = None,
+    *,
+    refine_with_validation: RefinementValidator | None = None,
 ) -> dict[str, Any]:
-    """Search and rank immutable candidate rules using development data only."""
+    """Search and rank immutable candidate rules using development data only.
+
+    `refine_with_validation` (`TASK-115`/`ADR-116`, default `None`) opts in to the bounded,
+    strictly additive post-acquisition refinement pass (`_refinement_candidates`): when omitted,
+    every code path below through the final shortlist assembly, and the returned `candidates`
+    list itself, is exactly `discovery-engine-v0.6.2`'s behavior, byte-for-byte -- this parameter
+    changes nothing unless a caller supplies it.
+    """
     config = config or DiscoveryConfig()
     required = {*feature_columns, outcome.column, "split_label"}
     missing = sorted(required - set(frame.columns))
@@ -1066,6 +1243,59 @@ def discover_candidates(
                 warnings=tuple(warnings),
             )
         )
+
+    # TASK-115 (ADR-116): the one permitted post-acquisition mechanism. Strictly additive --
+    # `selected`/`candidates` above (the real, unmodified acquisition path's own final shortlist)
+    # are never mutated, reordered, or pruned by this block; refinement candidates are appended
+    # after them, never in place of them. No-op (refinement_meta["eligible"] = False) unless a
+    # caller supplies refine_with_validation.
+    refinement_meta: dict[str, Any] = {
+        "eligible": refine_with_validation is not None,
+        "parents_considered": 0,
+        "admissible_descendants_checked": 0,
+        "validated_pass": 0,
+        "added": 0,
+        "ordering_rule": None,
+    }
+    if refine_with_validation is not None:
+        kept, refinement_meta = _refinement_candidates(
+            frame, development, outcome, config, atoms, list(selected), refine_with_validation
+        )
+        next_index = len(candidates) + 1
+        for descendant, parent, refinement_metric, refinement_score in kept:
+            info = _temporal_consistency(frame, descendant, outcome)
+            warnings = ["Raw descriptive association; not adjusted and not causal."]
+            if info.consistency < 1.0:
+                warnings.append(
+                    "Harm direction is not stable across all later chronological splits."
+                )
+            if actionability_label(descendant) != "HIGH":
+                warnings.append(
+                    "Actionability requires business review; condition may not be controllable."
+                )
+            warnings.append(
+                "TASK-115 refinement candidate (discovery-engine-v0.6.4): one eligible literal "
+                f"added to existing shortlisted parent [{_format_rule(parent)}]; admitted because "
+                "it passed the frozen validation contract (1.3.0, verdict PASS or DOWNGRADE, "
+                "never REJECT), not because of its own _development_score -- the unmodified "
+                "acquisition path alone did not select this rule."
+            )
+            candidates.append(
+                Candidate(
+                    candidate_id=f"CAND-{next_index:03d}",
+                    conditions=descendant,
+                    fit_split="development",
+                    development=refinement_metric,
+                    validation=info.validation,
+                    future_holdout=info.future_holdout,
+                    temporal_direction_consistency=info.consistency,
+                    actionability=actionability_label(descendant),
+                    rank_score=refinement_score,
+                    warnings=tuple(warnings),
+                )
+            )
+            next_index += 1
+
     return {
         "methodology_version": DISCOVERY_METHOD_VERSION,
         "search": {**asdict(config), "evaluated_hypotheses": evaluated},
@@ -1079,4 +1309,5 @@ def discover_candidates(
         "candidates": [asdict(candidate) for candidate in candidates],
         "evidence_boundary": "Candidate discovery only; requires Statistics validation.",
         "k1_reservation": k1_reservation,
+        "refinement": refinement_meta,
     }
