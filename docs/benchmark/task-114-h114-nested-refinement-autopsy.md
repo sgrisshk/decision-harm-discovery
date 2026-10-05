@@ -26,6 +26,19 @@ literal it shares exactly with `C15` (see §4). The mandatory negative control i
 reported with equal rigor (§5): a clean, reproducible destructive-narrowing case for `C07`, plus a
 weaker, disclosed secondary case for `C04`.
 
+**[Disclosure additions, 2026-10-16, after independent review — no change to the count or verdict.]**
+The composition is more precisely: **5 targets show the pattern on all 60 applicable seeds
+(`C04, C06, C09, C14, C15`); `H01` qualifies more weakly, on 42/60 (70%)** — still clearly above the
+pre-stated "most of applicable seeds" bar, but the honest framing is "5 solid targets plus 1
+qualifying-but-weaker target, against a bar of 5," not "6 vs 5 with margin." Even discounting `H01`
+entirely, the count would still be 5 and the bar would still clear. Separately: **4 of the 6 counted
+targets (`C04, C06, C15, H01`) have zero Method-A (real-top-15-survivor) support** — no clean broad
+sub-canonical candidate for any of them ever actually survived to the real search's own top-15 in
+any of the 60 observed seeds. Their entire evidentiary basis is Method B's construction (below);
+only `C09`/`C14` have any Method-A support at all. This does not invalidate Method B (independent
+review found it methodologically sound and introduces no new score/threshold — see §2's added note),
+but a reader should know this up front, not reconstruct it by cross-referencing §1 and §2.
+
 This verdict rests on **Method B** (§2), a direct, bounded application of the four real engine
 functions the task names (`_metric`, `_eligible`, `_development_score`, `_exposed_rows`) plus the
 real `benchmark_v2_scoring` functions (`effective_rule`, `pair_metrics`, `metric_specific`) to
@@ -133,6 +146,16 @@ spot-checked (4001, 4005, 4015, 4110, 4125) — `C06`'s `0.05`, `C14`'s `0.08`, 
 `max_categorical_levels` (12), which holds for every feature used here. Method B's chains are
 therefore built entirely from rules the real engine's own atom grid can and does construct.
 
+**[Added, 2026-10-16, after independent review] The real depth-1 beam never cuts, across all 60
+seeds in use, for any Method B starting literal.** Beyond confirming the literals are real atoms
+(above), the reviewer independently checked the real search's own depth-1 enumeration itself:
+across all 60 seeds, the maximum number of eligible depth-1 single-condition candidates is 46,
+against `beam_width=80` — depth-1 selection never excludes anything, in any seed. Every Method B
+"step 0" single-literal rule is therefore not just a real atom, but a rule the real search's own
+beam genuinely scores and allows to proceed at depth 1, in every seed used — closing the one gap
+the original atom-grid check alone left open (that the literal exists does not by itself guarantee
+the real beam would have let it through).
+
 **Classification** (`step2_classify_patterns.py`'s `classify_transition`, reused by
 `step2b_classify_method_b.py`): each step transition is classified as:
 - `H114_POSITIVE_SCORE_PREFERS_BROAD`: coverage retained, specificity increased (`j_e` or `cr`
@@ -145,9 +168,12 @@ therefore built entirely from rules the real engine's own atom grid can and does
 - `OTHER_PARENT_INELIGIBLE_NOT_A_REAL_CONTENDER`: the broader step was itself never `_eligible`
   (the real engine's own gate runs *before* scoring, so an ineligible rule never enters `scored` at
   all and could never actually have been preferred by anything) — excluded from the positive count
-  on principle. **Verified this guard changed nothing**: zero of the 759 `H114_POSITIVE`
-  transitions found below had an ineligible parent even before the guard was added (checked
-  directly over the full dataset, not assumed).
+  on principle. **[Reworded, 2026-10-16, after independent review]** This exclusion is enforced
+  structurally, not discovered empirically: `classify_transition`'s own if/elif ordering checks the
+  `OTHER_PARENT_INELIGIBLE` condition before `H114_POSITIVE` can ever be reached, so by
+  construction none of the 759 `H114_POSITIVE` transitions below can have an ineligible parent --
+  this is a logical guarantee of the classification code's branch order, confirmed by reading it,
+  not an independent empirical finding over the dataset.
 
 **Result** (`step2b-classification-results.json`):
 
