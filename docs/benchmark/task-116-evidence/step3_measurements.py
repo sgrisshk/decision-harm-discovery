@@ -178,7 +178,12 @@ def measure_seed(seed: int) -> dict[str, Any]:
     # simulated for -- the kept set is target-independent, computed once more here cleanly).
     sim15_generic = simulate_capacity_cutoff(top60, verdicts, REAL_TOP_K)
     canonical_features_by_target = {
-        tid: {c["feature"] for c in pool_doc["per_target_summary"][tid].get("productive_descendant", {}).get("conditions", [])}
+        tid: {
+            c["feature"]
+            for c in (pool_doc["per_target_summary"][tid].get("productive_descendant") or {}).get(
+                "conditions", []
+            )
+        }
         for tid in TARGETS
     }
     all_canon_features: set[str] = set()
