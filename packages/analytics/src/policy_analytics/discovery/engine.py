@@ -108,10 +108,11 @@ test_discovery_engine.py`, omits it, so this version is behavior-identical to `v
 caller that does not opt in).
 
 When a caller does pass `refine_with_validation` (a batch callback: given the list of admissible
-one-literal descendants this pass wants checked, it returns the subset that passes the real,
-frozen validation contract — `policy_analytics.validation.apply.run_validation`, contract 1.3.0,
-called by the caller, never imported here, keeping `discovery/` and `validation/`'s existing
-acyclic dependency exactly as it was), `discover_candidates()` additionally, for each rule already
+one-literal descendants this pass wants checked, plus this search's own real
+`evaluated_hypotheses` count, it returns the subset that passes the real, frozen validation
+contract — `policy_analytics.validation.apply.run_validation`, contract 1.3.0, called by the
+caller, never imported here, keeping `discovery/` and `validation/`'s existing acyclic dependency
+exactly as it was), `discover_candidates()` additionally, for each rule already
 in the final shortlist (the parent; never a rule the shortlist does not already contain), tries
 adding exactly one more real atom from the same frozen `_atoms()` vocabulary already computed for
 this search, on a feature the parent does not already use (mirroring the existing frontier-
@@ -915,12 +916,15 @@ def _reserve_k1_slot(
 
 #: Type of the one dependency `_refinement_candidates`/`discover_candidates` accept from a caller
 #: (TASK-115/ADR-116): given the batch of admissible one-literal descendants the refinement pass
-#: wants checked, return the subset that passes the real, frozen validation contract (verdict
-#: `PASS` or `DOWNGRADE` -- not `REJECT`; see `discover_candidates`'s own docstring and the module
+#: wants checked, plus this same search's own real `evaluated_hypotheses` count (so a caller can
+#: validate these probe rules against the identical multiplicity family the real search already
+#: recorded -- the same reuse `TASK-114`'s own probe-validation precedent used, not a fresh
+#: family), return the subset that passes the real, frozen validation contract (verdict `PASS` or
+#: `DOWNGRADE` -- not `REJECT`; see `discover_candidates`'s own docstring and the module
 #: docstring's `v0.6.4` entry). Always the real `policy_analytics.validation.apply.run_validation`
 #: in production use; `discovery/` itself never imports `validation/` to call it directly, keeping
 #: the existing acyclic dependency between the two packages exactly as it was.
-RefinementValidator = Callable[[list[tuple[Condition, ...]]], set[tuple[Condition, ...]]]
+RefinementValidator = Callable[[list[tuple[Condition, ...]], int], set[tuple[Condition, ...]]]
 
 
 def _format_rule(rule: tuple[Condition, ...]) -> str:
@@ -937,6 +941,7 @@ def _refinement_candidates(
     atoms: tuple[Condition, ...],
     shortlist: list[tuple[Condition, ...]],
     validate: RefinementValidator,
+    evaluated_hypotheses: int,
 ) -> tuple[
     list[tuple[tuple[Condition, ...], tuple[Condition, ...], SplitMetric, float]], dict[str, Any]
 ]:
@@ -1017,7 +1022,7 @@ def _refinement_candidates(
     if not admissible:
         return [], meta
 
-    passed_rules = validate([rule for rule, *_ in admissible])
+    passed_rules = validate([rule for rule, *_ in admissible], evaluated_hypotheses)
     kept = [item for item in admissible if item[0] in passed_rules]
     meta["validated_pass"] = len(kept)
     kept.sort(key=lambda item: (-item[3], item[0]))
@@ -1259,7 +1264,14 @@ def discover_candidates(
     }
     if refine_with_validation is not None:
         kept, refinement_meta = _refinement_candidates(
-            frame, development, outcome, config, atoms, list(selected), refine_with_validation
+            frame,
+            development,
+            outcome,
+            config,
+            atoms,
+            list(selected),
+            refine_with_validation,
+            evaluated,
         )
         next_index = len(candidates) + 1
         for descendant, parent, refinement_metric, refinement_score in kept:
