@@ -1,7 +1,14 @@
 # TASK-115 — validation-preserving, post-acquisition, one-literal refinement step: results
 
 **Status: CLOSED — NOT SUCCESS at Step 3 (Mechanism PASS bar not met: 0/5 strong targets, bar is
-`>=4/5`).** Per the binding order ("Step 4 — only if Step 3 passes"), `TASK-115` does not proceed
+`>=4/5`).** [Correction, 2026-10-05, orchestrator] This line originally read `CLOSED` from the
+implementing agent's own self-closure, which was inconsistent with this task's "Done when"
+requirement for independent `CODE_REVIEWER` re-derivation and was corrected to `IMPLEMENTED,
+pending independent review` in `TASKS.md`. That review is now complete (see
+`docs/benchmark/task-115-evidence/` — independent re-derivation on 3 independently-chosen seeds
+confirmed every substantive claim, found no discrepancy in the result, and reproduced the central
+diagnosis), so `CLOSED` is restored here and in `TASKS.md` as the final, independently-confirmed
+status. Per the binding order ("Step 4 — only if Step 3 passes"), `TASK-115` does not proceed
 to Step 4 (fresh reserve), Step 5 (paired evaluation), or Step 6 (two-sided go/no-go). No
 refinement candidate for any of `C04, C06, C09, C14, C15` reached the Specific-recovery threshold
 on any of the 60 development seeds, despite the mechanism firing on every seed and finding, in its
