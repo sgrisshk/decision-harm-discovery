@@ -95,7 +95,12 @@ canonical rule `customer_segment=leisure AND discount_rate>=0.08 AND supplier=Bl
 (`j_e=1.000`) sits at rank 307 of 889 admissible descendants by `_development_score`; real
 validation verdict `DOWNGRADE`. Representative example (seed 4108, `C09`): canonical rule
 `customer_segment=leisure AND destination=Tokyo AND product_category=standard` (`j_e=1.000`), rank
-371 of 974; verdict `DOWNGRADE`.
+371 of 954; verdict `DOWNGRADE`. **[Correction, 2026-10-05, independent review]** This line originally
+read "974" — seed 4113's admissible-pool size, a different representative example — instead of
+954, seed 4108's actual pool size (`n_admissible_pool=954` in
+`docs/benchmark/task-116-evidence/step1-pool-raw/pool-seed-4108.json`), a copy/transposition slip
+mixing two examples. The rank (371), `j_e` (1.000), and verdict (`DOWNGRADE`) were all independently
+confirmed correct from the raw data; only the pool-size denominator was wrong.
 
 **C07's own best-matching descendant is comparatively shallow** (rank 1-29 across its 16
 applicable seeds, median well inside the real top-15/top-30), so capacity crowds it out in only
