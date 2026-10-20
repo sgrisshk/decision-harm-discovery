@@ -25,16 +25,8 @@ The deployable system is deliberately a modular monolith: Next.js → FastAPI �
 
 Configuration comes from environment variables or a secret manager. Production refuses missing/unsafe critical configuration. CORS is explicit, debug is off, request logs contain metadata—not payloads—and unhandled errors return a request ID without internals. Authentication has a future dependency boundary at the route/application edge; no fake auth is included.
 
-## Agent collaboration and memory boundary
+## Documentation
 
-Repository knowledge has distinct sources of truth:
-
-- `PROJECT_CONTEXT.md` contains stable product thesis, scope, and terminology.
-- `ARCHITECTURE.md` contains current technical boundaries and invariants.
-- `DECISIONS.md` is the append-only record of deliberate durable choices.
-- `TASKS.md` contains actionable work and ownership.
-- `agents/` defines specialist authority and mandatory handoff boundaries.
-- `memory/` contains compact durable state, experiments, validated findings, open questions, and cross-role handoffs.
-- `docs/` contains scoped specifications grouped by domain according to `docs/README.md`; scoped documents do not live in the repository root.
-
-Conversation transcripts, debugging notes, generated claims, and implementation details obvious from code do not belong in memory. Memory never overrides the source-of-truth hierarchy in `engineering rules` and must never contain secrets, PII, or customer rows.
+`ARCHITECTURE.md` holds the current technical boundaries and invariants. Scoped specifications,
+protocols and results live under `docs/`, grouped by domain as described in `docs/README.md`. Dataset
+documentation stays next to its synthetic dataset.

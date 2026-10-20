@@ -42,6 +42,5 @@ expose this MVP to untrusted networks** — most of the API still has no access 
 an append-only audit row (`dataset_deletions`) recording who, when, why, and the exact disposition
 of the raw bytes (purged, or retained because another active dataset shares the same
 content-addressed hash). See `docs/architecture/dataset-deletion-contract.md` for the full contract,
-including what happens to derived artifacts and the disclosed open questions flagged to Founder
-Strategy in `memory/HANDOFFS.md`.
+including what happens to derived artifacts and its disclosed open questions.
 
