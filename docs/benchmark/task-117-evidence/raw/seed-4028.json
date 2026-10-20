@@ -1,0 +1,996 @@
+{
+ "evaluated_hypotheses": 35764,
+ "fidelity_matches_task109": true,
+ "frozen_after": {
+  "discovery_method_version": "discovery-engine-v0.6.2",
+  "g17_present": false,
+  "hashes": {
+   "packages/analytics/src/policy_analytics/benchmark_v2_scoring.py": "0878811a737ad3608f2ee14568f10a67fc92fd052d866c261d44c9650a8ada1b",
+   "packages/analytics/src/policy_analytics/discovery/engine.py": "fefceeaac20e8ff7b57f4e7a9cc9a1e9c649dd05269e10884d358d326d2e4549",
+   "packages/analytics/src/policy_analytics/synthetic_benchmark_v2.py": "2d6231001ec5ba4e526263e2ad7e67b84d651408be2183fcc024b927fc1627da",
+   "packages/analytics/src/policy_analytics/synthetic_benchmark_v2_targets.py": "4a9e75a8d27284dbaa20ba0467d43871d0df20db6e16268ca01af208eb9d2059",
+   "packages/analytics/src/policy_analytics/validation/contract.py": "a55fdc94c7e520cc4e287c6627d345e5a2335bfc1bd684db584218790b7403cd"
+  },
+  "validation_contract_version": "1.3.0"
+ },
+ "frozen_before": {
+  "discovery_method_version": "discovery-engine-v0.6.2",
+  "g17_present": false,
+  "hashes": {
+   "packages/analytics/src/policy_analytics/benchmark_v2_scoring.py": "0878811a737ad3608f2ee14568f10a67fc92fd052d866c261d44c9650a8ada1b",
+   "packages/analytics/src/policy_analytics/discovery/engine.py": "fefceeaac20e8ff7b57f4e7a9cc9a1e9c649dd05269e10884d358d326d2e4549",
+   "packages/analytics/src/policy_analytics/synthetic_benchmark_v2.py": "2d6231001ec5ba4e526263e2ad7e67b84d651408be2183fcc024b927fc1627da",
+   "packages/analytics/src/policy_analytics/synthetic_benchmark_v2_targets.py": "4a9e75a8d27284dbaa20ba0467d43871d0df20db6e16268ca01af208eb9d2059",
+   "packages/analytics/src/policy_analytics/validation/contract.py": "a55fdc94c7e520cc4e287c6627d345e5a2335bfc1bd684db584218790b7403cd"
+  },
+  "validation_contract_version": "1.3.0"
+ },
+ "seed": 4028,
+ "selected": [
+  [
+   "discount_rate ge 0.08",
+   "trip_duration_days ge 3.0"
+  ],
+  [
+   "acquisition_channel eq direct",
+   "party_size ge 3.0",
+   "supplier eq BlueWing"
+  ],
+  [
+   "destination eq Tokyo",
+   "party_size ge 4.0"
+  ],
+  [
+   "acquisition_channel eq direct",
+   "destination eq Tokyo"
+  ],
+  [
+   "discount_rate ge 0.03",
+   "payment_method eq wallet"
+  ],
+  [
+   "destination eq Tokyo",
+   "party_size ge 3.0"
+  ],
+  [
+   "acquisition_channel eq direct",
+   "destination eq Tokyo",
+   "party_size ge 4.0"
+  ],
+  [
+   "acquisition_channel eq direct",
+   "quoted_cost_eur ge 2310.21",
+   "supplier eq BlueWing"
+  ],
+  [
+   "discount_rate ge 0.03",
+   "trip_duration_days ge 6.0"
+  ],
+  [
+   "acquisition_channel eq direct",
+   "supplier eq BlueWing"
+  ],
+  [
+   "discount_rate ge 0.05",
+   "quoted_cost_eur ge 1619.36"
+  ],
+  [
+   "destination eq Tokyo",
+   "trip_duration_days ge 8.0"
+  ],
+  [
+   "discount_rate ge 0.08",
+   "supplier eq BlueWing"
+  ],
+  [
+   "party_size ge 4.0",
+   "quoted_cost_eur ge 2841.58",
+   "supplier eq BlueWing"
+  ],
+  [
+   "discount_rate ge 0.08",
+   "quoted_cost_eur ge 1619.36"
+  ]
+ ],
+ "targets": {
+  "C04": {
+   "all_literals_atoms": true,
+   "baseline_specific_task109": false,
+   "best_productive_scored": {
+    "conditions": [
+     "customer_segment eq leisure",
+     "supplier eq Cedar",
+     "trip_duration_days ge 8.0"
+    ],
+    "development_score": 6711.456285426472,
+    "effective_rank_among_interactions": 2502,
+    "effective_score": 10067.184428139708,
+    "effective_score_of_15th_selected": 22132.900498966865,
+    "n_exposed_development": 311,
+    "n_interactions": 22976,
+    "ratio_to_15th_selected": 0.45485156491846296
+   },
+   "canonical": [
+    "customer_segment eq leisure",
+    "supplier eq Cedar",
+    "trip_duration_days ge 8"
+   ],
+   "counterfactual": {
+    "applicable": true,
+    "displaced": [
+     "discount_rate ge 0.08",
+     "quoted_cost_eur ge 1619.36"
+    ],
+    "forced_validation": {
+     "evidence_level": "predictive_association",
+     "failed_gates": [
+      "G13_IDENTIFICATION_DESIGN",
+      "G14_RANDOMIZATION_INTEGRITY",
+      "G16_CANDIDATE_COMPOSITION_SAFETY"
+     ],
+     "verdict": "DOWNGRADE"
+    },
+    "intervention": "force best productive rule into final slot 15",
+    "interventions_needed": 1,
+    "restored_specific": true
+   },
+   "divergence": {
+    "cause": "d",
+    "principle": "FINAL_SELECTION"
+   },
+   "n_productive_scored": 2,
+   "productive_in_final_top15": [],
+   "subsets": {
+    "customer_segment eq leisure": {
+     "atoms_present": true,
+     "conditions": [
+      "customer_segment eq leisure"
+     ],
+     "generated": true,
+     "identical_dropped": false,
+     "in_beam": false,
+     "ineligible": true,
+     "n_scored_at_depth": 43,
+     "productive": false,
+     "rank_at_depth": null,
+     "scored": false
+    },
+    "customer_segment eq leisure & supplier eq Cedar": {
+     "atoms_present": true,
+     "conditions": [
+      "customer_segment eq leisure",
+      "supplier eq Cedar"
+     ],
+     "generated": false,
+     "identical_dropped": false,
+     "in_beam": false,
+     "ineligible": false,
+     "n_scored_at_depth": 1767,
+     "productive": false,
+     "rank_at_depth": null,
+     "scored": false
+    },
+    "customer_segment eq leisure & supplier eq Cedar & trip_duration_days ge 8": {
+     "atoms_present": true,
+     "conditions": [
+      "customer_segment eq leisure",
+      "supplier eq Cedar",
+      "trip_duration_days ge 8"
+     ],
+     "generated": true,
+     "identical_dropped": false,
+     "in_beam": false,
+     "ineligible": false,
+     "n_scored_at_depth": 21209,
+     "productive": true,
+     "rank_at_depth": 2212,
+     "scored": true
+    },
+    "customer_segment eq leisure & trip_duration_days ge 8": {
+     "atoms_present": true,
+     "conditions": [
+      "customer_segment eq leisure",
+      "trip_duration_days ge 8"
+     ],
+     "generated": true,
+     "identical_dropped": false,
+     "in_beam": true,
+     "ineligible": false,
+     "n_scored_at_depth": 1767,
+     "productive": false,
+     "rank_at_depth": 343,
+     "scored": true
+    },
+    "supplier eq Cedar": {
+     "atoms_present": true,
+     "conditions": [
+      "supplier eq Cedar"
+     ],
+     "generated": true,
+     "identical_dropped": false,
+     "in_beam": false,
+     "ineligible": true,
+     "n_scored_at_depth": 43,
+     "productive": false,
+     "rank_at_depth": null,
+     "scored": false
+    },
+    "supplier eq Cedar & trip_duration_days ge 8": {
+     "atoms_present": true,
+     "conditions": [
+      "supplier eq Cedar",
+      "trip_duration_days ge 8"
+     ],
+     "generated": true,
+     "identical_dropped": false,
+     "in_beam": false,
+     "ineligible": false,
+     "n_scored_at_depth": 1767,
+     "productive": true,
+     "rank_at_depth": 384,
+     "scored": true
+    },
+    "trip_duration_days ge 8": {
+     "atoms_present": true,
+     "conditions": [
+      "trip_duration_days ge 8"
+     ],
+     "generated": true,
+     "identical_dropped": false,
+     "in_beam": true,
+     "ineligible": false,
+     "n_scored_at_depth": 43,
+     "productive": false,
+     "rank_at_depth": 7,
+     "scored": true
+    }
+   }
+  },
+  "C06": {
+   "all_literals_atoms": true,
+   "baseline_specific_task109": false,
+   "best_productive_scored": {
+    "conditions": [
+     "customer_type eq returning",
+     "destination eq Reykjavik",
+     "discount_rate ge 0.08"
+    ],
+    "development_score": 4942.58981506276,
+    "effective_rank_among_interactions": 5152,
+    "effective_score": 7413.88472259414,
+    "effective_score_of_15th_selected": 22132.900498966865,
+    "n_exposed_development": 108,
+    "n_interactions": 22976,
+    "ratio_to_15th_selected": 0.3349712218215688
+   },
+   "canonical": [
+    "customer_type eq returning",
+    "destination eq Reykjavik",
+    "discount_rate ge 0.05"
+   ],
+   "counterfactual": {
+    "applicable": true,
+    "displaced": [
+     "discount_rate ge 0.08",
+     "quoted_cost_eur ge 1619.36"
+    ],
+    "forced_validation": {
+     "evidence_level": "predictive_association",
+     "failed_gates": [
+      "G13_IDENTIFICATION_DESIGN",
+      "G14_RANDOMIZATION_INTEGRITY",
+      "G16_CANDIDATE_COMPOSITION_SAFETY"
+     ],
+     "verdict": "DOWNGRADE"
+    },
+    "intervention": "force best productive rule into final slot 15",
+    "interventions_needed": 1,
+    "restored_specific": true
+   },
+   "divergence": {
+    "cause": "d",
+    "principle": "FINAL_SELECTION"
+   },
+   "n_productive_scored": 3,
+   "productive_in_final_top15": [],
+   "subsets": {
+    "customer_type eq returning": {
+     "atoms_present": true,
+     "conditions": [
+      "customer_type eq returning"
+     ],
+     "generated": true,
+     "identical_dropped": false,
+     "in_beam": true,
+     "ineligible": false,
+     "n_scored_at_depth": 43,
+     "productive": false,
+     "rank_at_depth": 24,
+     "scored": true
+    },
+    "customer_type eq returning & destination eq Reykjavik": {
+     "atoms_present": true,
+     "conditions": [
+      "customer_type eq returning",
+      "destination eq Reykjavik"
+     ],
+     "generated": true,
+     "identical_dropped": false,
+     "in_beam": false,
+     "ineligible": false,
+     "n_scored_at_depth": 1767,
+     "productive": true,
+     "rank_at_depth": 779,
+     "scored": true
+    },
+    "customer_type eq returning & destination eq Reykjavik & discount_rate ge 0.05": {
+     "atoms_present": true,
+     "conditions": [
+      "customer_type eq returning",
+      "destination eq Reykjavik",
+      "discount_rate ge 0.05"
+     ],
+     "generated": false,
+     "identical_dropped": false,
+     "in_beam": false,
+     "ineligible": false,
+     "n_scored_at_depth": 21209,
+     "productive": true,
+     "rank_at_depth": null,
+     "scored": false
+    },
+    "customer_type eq returning & discount_rate ge 0.05": {
+     "atoms_present": true,
+     "conditions": [
+      "customer_type eq returning",
+      "discount_rate ge 0.05"
+     ],
+     "generated": true,
+     "identical_dropped": false,
+     "in_beam": false,
+     "ineligible": false,
+     "n_scored_at_depth": 1767,
+     "productive": false,
+     "rank_at_depth": 262,
+     "scored": true
+    },
+    "destination eq Reykjavik": {
+     "atoms_present": true,
+     "conditions": [
+      "destination eq Reykjavik"
+     ],
+     "generated": true,
+     "identical_dropped": false,
+     "in_beam": true,
+     "ineligible": false,
+     "n_scored_at_depth": 43,
+     "productive": false,
+     "rank_at_depth": 40,
+     "scored": true
+    },
+    "destination eq Reykjavik & discount_rate ge 0.05": {
+     "atoms_present": true,
+     "conditions": [
+      "destination eq Reykjavik",
+      "discount_rate ge 0.05"
+     ],
+     "generated": true,
+     "identical_dropped": false,
+     "in_beam": false,
+     "ineligible": false,
+     "n_scored_at_depth": 1767,
+     "productive": false,
+     "rank_at_depth": 553,
+     "scored": true
+    },
+    "discount_rate ge 0.05": {
+     "atoms_present": true,
+     "conditions": [
+      "discount_rate ge 0.05"
+     ],
+     "generated": true,
+     "identical_dropped": false,
+     "in_beam": true,
+     "ineligible": false,
+     "n_scored_at_depth": 43,
+     "productive": false,
+     "rank_at_depth": 3,
+     "scored": true
+    }
+   }
+  },
+  "C07": {
+   "all_literals_atoms": true,
+   "baseline_specific_task109": true,
+   "best_productive_scored": {
+    "conditions": [
+     "acquisition_channel eq direct",
+     "party_size ge 3.0",
+     "supplier eq BlueWing"
+    ],
+    "development_score": 15661.12686905551,
+    "effective_rank_among_interactions": 2,
+    "effective_score": 23491.690303583266,
+    "effective_score_of_15th_selected": 22132.900498966865,
+    "n_exposed_development": 289,
+    "n_interactions": 22976,
+    "ratio_to_15th_selected": 1.0613923062040524
+   },
+   "canonical": [
+    "acquisition_channel eq direct",
+    "party_size ge 3",
+    "supplier eq BlueWing"
+   ],
+   "counterfactual": {
+    "applicable": false
+   },
+   "divergence": {
+    "cause": null,
+    "principle": "NONE_PRODUCTIVE_SELECTED"
+   },
+   "n_productive_scored": 3,
+   "productive_in_final_top15": [
+    [
+     "acquisition_channel eq direct",
+     "party_size ge 3.0",
+     "supplier eq BlueWing"
+    ],
+    [
+     "acquisition_channel eq direct",
+     "supplier eq BlueWing"
+    ]
+   ],
+   "subsets": {
+    "acquisition_channel eq direct": {
+     "atoms_present": true,
+     "conditions": [
+      "acquisition_channel eq direct"
+     ],
+     "generated": true,
+     "identical_dropped": false,
+     "in_beam": true,
+     "ineligible": false,
+     "n_scored_at_depth": 43,
+     "productive": false,
+     "rank_at_depth": 10,
+     "scored": true
+    },
+    "acquisition_channel eq direct & party_size ge 3": {
+     "atoms_present": true,
+     "conditions": [
+      "acquisition_channel eq direct",
+      "party_size ge 3"
+     ],
+     "generated": true,
+     "identical_dropped": false,
+     "in_beam": true,
+     "ineligible": false,
+     "n_scored_at_depth": 1767,
+     "productive": false,
+     "rank_at_depth": 179,
+     "scored": true
+    },
+    "acquisition_channel eq direct & party_size ge 3 & supplier eq BlueWing": {
+     "atoms_present": true,
+     "conditions": [
+      "acquisition_channel eq direct",
+      "party_size ge 3",
+      "supplier eq BlueWing"
+     ],
+     "generated": true,
+     "identical_dropped": false,
+     "in_beam": true,
+     "ineligible": false,
+     "n_scored_at_depth": 21209,
+     "productive": true,
+     "rank_at_depth": 1,
+     "scored": true
+    },
+    "acquisition_channel eq direct & supplier eq BlueWing": {
+     "atoms_present": true,
+     "conditions": [
+      "acquisition_channel eq direct",
+      "supplier eq BlueWing"
+     ],
+     "generated": true,
+     "identical_dropped": false,
+     "in_beam": true,
+     "ineligible": false,
+     "n_scored_at_depth": 1767,
+     "productive": true,
+     "rank_at_depth": 8,
+     "scored": true
+    },
+    "party_size ge 3": {
+     "atoms_present": true,
+     "conditions": [
+      "party_size ge 3"
+     ],
+     "generated": true,
+     "identical_dropped": false,
+     "in_beam": true,
+     "ineligible": false,
+     "n_scored_at_depth": 43,
+     "productive": false,
+     "rank_at_depth": 18,
+     "scored": true
+    },
+    "party_size ge 3 & supplier eq BlueWing": {
+     "atoms_present": true,
+     "conditions": [
+      "party_size ge 3",
+      "supplier eq BlueWing"
+     ],
+     "generated": true,
+     "identical_dropped": false,
+     "in_beam": true,
+     "ineligible": false,
+     "n_scored_at_depth": 1767,
+     "productive": false,
+     "rank_at_depth": 54,
+     "scored": true
+    },
+    "supplier eq BlueWing": {
+     "atoms_present": true,
+     "conditions": [
+      "supplier eq BlueWing"
+     ],
+     "generated": true,
+     "identical_dropped": false,
+     "in_beam": true,
+     "ineligible": false,
+     "n_scored_at_depth": 43,
+     "productive": false,
+     "rank_at_depth": 9,
+     "scored": true
+    }
+   }
+  },
+  "C09": {
+   "all_literals_atoms": true,
+   "baseline_specific_task109": false,
+   "best_productive_scored": {
+    "conditions": [
+     "destination eq Tokyo",
+     "product_category eq standard"
+    ],
+    "development_score": 8607.727428911674,
+    "effective_rank_among_interactions": 923,
+    "effective_score": 12911.59114336751,
+    "effective_score_of_15th_selected": 22132.900498966865,
+    "n_exposed_development": 636,
+    "n_interactions": 22976,
+    "ratio_to_15th_selected": 0.5833664297171628
+   },
+   "canonical": [
+    "customer_segment eq leisure",
+    "destination eq Tokyo",
+    "product_category eq standard"
+   ],
+   "counterfactual": {
+    "applicable": true,
+    "displaced": [
+     "discount_rate ge 0.08",
+     "quoted_cost_eur ge 1619.36"
+    ],
+    "forced_validation": {
+     "evidence_level": "predictive_association",
+     "failed_gates": [
+      "G13_IDENTIFICATION_DESIGN",
+      "G14_RANDOMIZATION_INTEGRITY",
+      "G16_CANDIDATE_COMPOSITION_SAFETY"
+     ],
+     "verdict": "DOWNGRADE"
+    },
+    "intervention": "force best productive rule into final slot 15",
+    "interventions_needed": 1,
+    "restored_specific": true
+   },
+   "divergence": {
+    "cause": "d",
+    "principle": "FINAL_SELECTION"
+   },
+   "n_productive_scored": 3,
+   "productive_in_final_top15": [],
+   "subsets": {
+    "customer_segment eq leisure": {
+     "atoms_present": true,
+     "conditions": [
+      "customer_segment eq leisure"
+     ],
+     "generated": true,
+     "identical_dropped": false,
+     "in_beam": false,
+     "ineligible": true,
+     "n_scored_at_depth": 43,
+     "productive": false,
+     "rank_at_depth": null,
+     "scored": false
+    },
+    "customer_segment eq leisure & destination eq Tokyo": {
+     "atoms_present": true,
+     "conditions": [
+      "customer_segment eq leisure",
+      "destination eq Tokyo"
+     ],
+     "generated": true,
+     "identical_dropped": false,
+     "in_beam": true,
+     "ineligible": false,
+     "n_scored_at_depth": 1767,
+     "productive": true,
+     "rank_at_depth": 348,
+     "scored": true
+    },
+    "customer_segment eq leisure & destination eq Tokyo & product_category eq standard": {
+     "atoms_present": true,
+     "conditions": [
+      "customer_segment eq leisure",
+      "destination eq Tokyo",
+      "product_category eq standard"
+     ],
+     "generated": true,
+     "identical_dropped": false,
+     "in_beam": false,
+     "ineligible": false,
+     "n_scored_at_depth": 21209,
+     "productive": true,
+     "rank_at_depth": 2776,
+     "scored": true
+    },
+    "customer_segment eq leisure & product_category eq standard": {
+     "atoms_present": true,
+     "conditions": [
+      "customer_segment eq leisure",
+      "product_category eq standard"
+     ],
+     "generated": true,
+     "identical_dropped": false,
+     "in_beam": false,
+     "ineligible": false,
+     "n_scored_at_depth": 1767,
+     "productive": false,
+     "rank_at_depth": 1551,
+     "scored": true
+    },
+    "destination eq Tokyo": {
+     "atoms_present": true,
+     "conditions": [
+      "destination eq Tokyo"
+     ],
+     "generated": true,
+     "identical_dropped": false,
+     "in_beam": true,
+     "ineligible": false,
+     "n_scored_at_depth": 43,
+     "productive": false,
+     "rank_at_depth": 6,
+     "scored": true
+    },
+    "destination eq Tokyo & product_category eq standard": {
+     "atoms_present": true,
+     "conditions": [
+      "destination eq Tokyo",
+      "product_category eq standard"
+     ],
+     "generated": true,
+     "identical_dropped": false,
+     "in_beam": true,
+     "ineligible": false,
+     "n_scored_at_depth": 1767,
+     "productive": true,
+     "rank_at_depth": 183,
+     "scored": true
+    },
+    "product_category eq standard": {
+     "atoms_present": true,
+     "conditions": [
+      "product_category eq standard"
+     ],
+     "generated": true,
+     "identical_dropped": false,
+     "in_beam": true,
+     "ineligible": false,
+     "n_scored_at_depth": 43,
+     "productive": false,
+     "rank_at_depth": 29,
+     "scored": true
+    }
+   }
+  },
+  "C14": {
+   "all_literals_atoms": true,
+   "baseline_specific_task109": true,
+   "best_productive_scored": {
+    "conditions": [
+     "discount_rate ge 0.08",
+     "supplier eq BlueWing"
+    ],
+    "development_score": 11237.313281540582,
+    "effective_rank_among_interactions": 140,
+    "effective_score": 16855.969922310873,
+    "effective_score_of_15th_selected": 22132.900498966865,
+    "n_exposed_development": 676,
+    "n_interactions": 22976,
+    "ratio_to_15th_selected": 0.7615797994075691
+   },
+   "canonical": [
+    "customer_segment eq leisure",
+    "discount_rate ge 0.08",
+    "supplier eq BlueWing"
+   ],
+   "counterfactual": {
+    "applicable": false
+   },
+   "divergence": {
+    "cause": null,
+    "principle": "NONE_PRODUCTIVE_SELECTED"
+   },
+   "n_productive_scored": 5,
+   "productive_in_final_top15": [
+    [
+     "discount_rate ge 0.08",
+     "supplier eq BlueWing"
+    ]
+   ],
+   "subsets": {
+    "customer_segment eq leisure": {
+     "atoms_present": true,
+     "conditions": [
+      "customer_segment eq leisure"
+     ],
+     "generated": true,
+     "identical_dropped": false,
+     "in_beam": false,
+     "ineligible": true,
+     "n_scored_at_depth": 43,
+     "productive": false,
+     "rank_at_depth": null,
+     "scored": false
+    },
+    "customer_segment eq leisure & discount_rate ge 0.08": {
+     "atoms_present": true,
+     "conditions": [
+      "customer_segment eq leisure",
+      "discount_rate ge 0.08"
+     ],
+     "generated": true,
+     "identical_dropped": false,
+     "in_beam": true,
+     "ineligible": false,
+     "n_scored_at_depth": 1767,
+     "productive": false,
+     "rank_at_depth": 149,
+     "scored": true
+    },
+    "customer_segment eq leisure & discount_rate ge 0.08 & supplier eq BlueWing": {
+     "atoms_present": true,
+     "conditions": [
+      "customer_segment eq leisure",
+      "discount_rate ge 0.08",
+      "supplier eq BlueWing"
+     ],
+     "generated": true,
+     "identical_dropped": false,
+     "in_beam": false,
+     "ineligible": false,
+     "n_scored_at_depth": 21209,
+     "productive": true,
+     "rank_at_depth": 3698,
+     "scored": true
+    },
+    "customer_segment eq leisure & supplier eq BlueWing": {
+     "atoms_present": true,
+     "conditions": [
+      "customer_segment eq leisure",
+      "supplier eq BlueWing"
+     ],
+     "generated": true,
+     "identical_dropped": false,
+     "in_beam": true,
+     "ineligible": false,
+     "n_scored_at_depth": 1767,
+     "productive": false,
+     "rank_at_depth": 633,
+     "scored": true
+    },
+    "discount_rate ge 0.08": {
+     "atoms_present": true,
+     "conditions": [
+      "discount_rate ge 0.08"
+     ],
+     "generated": true,
+     "identical_dropped": false,
+     "in_beam": true,
+     "ineligible": false,
+     "n_scored_at_depth": 43,
+     "productive": false,
+     "rank_at_depth": 2,
+     "scored": true
+    },
+    "discount_rate ge 0.08 & supplier eq BlueWing": {
+     "atoms_present": true,
+     "conditions": [
+      "discount_rate ge 0.08",
+      "supplier eq BlueWing"
+     ],
+     "generated": true,
+     "identical_dropped": false,
+     "in_beam": true,
+     "ineligible": false,
+     "n_scored_at_depth": 1767,
+     "productive": true,
+     "rank_at_depth": 57,
+     "scored": true
+    },
+    "supplier eq BlueWing": {
+     "atoms_present": true,
+     "conditions": [
+      "supplier eq BlueWing"
+     ],
+     "generated": true,
+     "identical_dropped": false,
+     "in_beam": true,
+     "ineligible": false,
+     "n_scored_at_depth": 43,
+     "productive": false,
+     "rank_at_depth": 9,
+     "scored": true
+    }
+   }
+  },
+  "C15": {
+   "all_literals_atoms": true,
+   "baseline_specific_task109": false,
+   "best_productive_scored": {
+    "conditions": [
+     "acquisition_channel eq direct",
+     "customer_type eq returning",
+     "trip_duration_days ge 8.0"
+    ],
+    "development_score": 10250.414823364246,
+    "effective_rank_among_interactions": 282,
+    "effective_score": 15375.622235046369,
+    "effective_score_of_15th_selected": 22132.900498966865,
+    "n_exposed_development": 294,
+    "n_interactions": 22976,
+    "ratio_to_15th_selected": 0.6946953127884925
+   },
+   "canonical": [
+    "acquisition_channel eq direct",
+    "customer_type eq returning",
+    "trip_duration_days ge 6"
+   ],
+   "counterfactual": {
+    "applicable": true,
+    "displaced": [
+     "discount_rate ge 0.08",
+     "quoted_cost_eur ge 1619.36"
+    ],
+    "forced_validation": {
+     "evidence_level": "predictive_association",
+     "failed_gates": [
+      "G13_IDENTIFICATION_DESIGN",
+      "G14_RANDOMIZATION_INTEGRITY",
+      "G16_CANDIDATE_COMPOSITION_SAFETY"
+     ],
+     "verdict": "DOWNGRADE"
+    },
+    "intervention": "force best productive rule into final slot 15",
+    "interventions_needed": 1,
+    "restored_specific": true
+   },
+   "divergence": {
+    "cause": "d",
+    "principle": "FINAL_SELECTION"
+   },
+   "n_productive_scored": 4,
+   "productive_in_final_top15": [],
+   "subsets": {
+    "acquisition_channel eq direct": {
+     "atoms_present": true,
+     "conditions": [
+      "acquisition_channel eq direct"
+     ],
+     "generated": true,
+     "identical_dropped": false,
+     "in_beam": true,
+     "ineligible": false,
+     "n_scored_at_depth": 43,
+     "productive": false,
+     "rank_at_depth": 10,
+     "scored": true
+    },
+    "acquisition_channel eq direct & customer_type eq returning": {
+     "atoms_present": true,
+     "conditions": [
+      "acquisition_channel eq direct",
+      "customer_type eq returning"
+     ],
+     "generated": true,
+     "identical_dropped": false,
+     "in_beam": true,
+     "ineligible": false,
+     "n_scored_at_depth": 1767,
+     "productive": true,
+     "rank_at_depth": 186,
+     "scored": true
+    },
+    "acquisition_channel eq direct & customer_type eq returning & trip_duration_days ge 6": {
+     "atoms_present": true,
+     "conditions": [
+      "acquisition_channel eq direct",
+      "customer_type eq returning",
+      "trip_duration_days ge 6"
+     ],
+     "generated": true,
+     "identical_dropped": false,
+     "in_beam": true,
+     "ineligible": false,
+     "n_scored_at_depth": 21209,
+     "productive": true,
+     "rank_at_depth": 659,
+     "scored": true
+    },
+    "acquisition_channel eq direct & trip_duration_days ge 6": {
+     "atoms_present": true,
+     "conditions": [
+      "acquisition_channel eq direct",
+      "trip_duration_days ge 6"
+     ],
+     "generated": true,
+     "identical_dropped": false,
+     "in_beam": false,
+     "ineligible": false,
+     "n_scored_at_depth": 1767,
+     "productive": false,
+     "rank_at_depth": 150,
+     "scored": true
+    },
+    "customer_type eq returning": {
+     "atoms_present": true,
+     "conditions": [
+      "customer_type eq returning"
+     ],
+     "generated": true,
+     "identical_dropped": false,
+     "in_beam": true,
+     "ineligible": false,
+     "n_scored_at_depth": 43,
+     "productive": false,
+     "rank_at_depth": 24,
+     "scored": true
+    },
+    "customer_type eq returning & trip_duration_days ge 6": {
+     "atoms_present": true,
+     "conditions": [
+      "customer_type eq returning",
+      "trip_duration_days ge 6"
+     ],
+     "generated": true,
+     "identical_dropped": false,
+     "in_beam": true,
+     "ineligible": false,
+     "n_scored_at_depth": 1767,
+     "productive": false,
+     "rank_at_depth": 474,
+     "scored": true
+    },
+    "trip_duration_days ge 6": {
+     "atoms_present": true,
+     "conditions": [
+      "trip_duration_days ge 6"
+     ],
+     "generated": true,
+     "identical_dropped": false,
+     "in_beam": true,
+     "ineligible": false,
+     "n_scored_at_depth": 43,
+     "productive": false,
+     "rank_at_depth": 8,
+     "scored": true
+    }
+   }
+  }
+ }
+}
