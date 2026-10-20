@@ -406,6 +406,13 @@ def test_display_path_falls_back_to_absolute_outside_the_repository() -> None:
     assert _display_path(outside) == str(outside)
 
 
+@pytest.mark.skipif(
+    not (REPOSITORY / "artifacts/evaluation/task-028-benchmark-evaluation.json").exists(),
+    reason=(
+        "artifacts/evaluation/task-028-benchmark-evaluation.json is a gitignored local artifact "
+        "(regenerable via scripts/) and is not present on this checkout"
+    ),
+)
 def test_main_with_no_dataset_root_or_ground_truth_flags_reproduces_the_frozen_travel_result(
     tmp_path: Path,
 ) -> None:

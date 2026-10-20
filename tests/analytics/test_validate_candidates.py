@@ -33,6 +33,15 @@ from validate_candidates import DEFAULT_CANDIDATES_PATH, DEFAULT_DATASET_ROOT, m
 pytestmark = [pytest.mark.analytics, pytest.mark.slow]
 
 
+@pytest.mark.skipif(
+    not (
+        Path(__file__).resolve().parents[2] / "artifacts/discovery/task-015-candidates.json"
+    ).exists(),
+    reason=(
+        "artifacts/discovery/task-015-candidates.json is a gitignored local artifact "
+        "(regenerable via scripts/) and is not present on this checkout"
+    ),
+)
 def test_default_run_binds_travel_to_its_real_non_provisional_outcome(tmp_path: Path) -> None:
     output_path = tmp_path / "regression-check.json"
 

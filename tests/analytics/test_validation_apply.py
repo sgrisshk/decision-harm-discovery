@@ -428,6 +428,13 @@ def test_run_validation_against_the_real_frozen_candidates() -> None:
     assert run_manifest["robustness_semantics_version"] == ROBUSTNESS_SEMANTICS_VERSION.value
 
 
+@pytest.mark.skipif(
+    not REAL_CANDIDATES.exists(),
+    reason=(
+        "artifacts/discovery/task-015-candidates.json is a gitignored local artifact "
+        "(regenerable via scripts/) and is not present on this checkout"
+    ),
+)
 def test_pre_v1_3_0_semantics_reproduce_the_previous_contract_versions_verdicts() -> None:
     """Old frozen runs stay reproducible, not merely un-re-graded (TASK-070 scope item 4).
 
@@ -469,6 +476,13 @@ def test_pre_v1_3_0_semantics_reproduce_the_previous_contract_versions_verdicts(
     )
 
 
+@pytest.mark.skipif(
+    not REAL_CANDIDATES.exists(),
+    reason=(
+        "artifacts/discovery/task-015-candidates.json is a gitignored local artifact "
+        "(regenerable via scripts/) and is not present on this checkout"
+    ),
+)
 def test_no_gate_other_than_g12_moved_between_v1_2_0_and_v1_3_0() -> None:
     """TASK-070 scope item 6, checked on the real artifact rather than only on synthetic data.
 
