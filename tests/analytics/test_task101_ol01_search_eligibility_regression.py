@@ -199,9 +199,7 @@ def test_new_mechanism_admits_ol01_real_rule_through_to_validation(
             for c in conditions
         )
 
-    matching_candidates = [
-        c for c in result["candidates"] if _touches_ol01_atom(c["conditions"])
-    ]
+    matching_candidates = [c for c in result["candidates"] if _touches_ol01_atom(c["conditions"])]
     assert matching_candidates, (
         "no final candidate under the new mechanism uses OL01's own atom "
         "(seller_customer_cross_state) at all -- the fix did not actually reach "

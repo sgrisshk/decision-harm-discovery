@@ -871,9 +871,7 @@ def test_identity_cap_disabled_default_lets_one_feature_crowd_the_selected_set()
     candidates = result["candidates"]
     assert len(candidates) == _CROWDING_TOP_K
     alpha_uses = sum(
-        1
-        for c in candidates
-        if any(cond["feature"] == "feature_alpha" for cond in c["conditions"])
+        1 for c in candidates if any(cond["feature"] == "feature_alpha" for cond in c["conditions"])
     )
     assert alpha_uses == _CROWDING_TOP_K  # every single selected slot touches the same feature
     assert len(_signal_identities(result) - {"feature_alpha"}) <= 1  # at most one alternative
@@ -969,9 +967,7 @@ def test_identity_cap_disabled_reproduces_v050_selection_exactly() -> None:
         tuple(Condition(cond["feature"], cond["operator"], cond["value"]) for cond in rule)
         for rule in rules
     ]
-    unchanged = _apply_feature_identity_cap(
-        conditions_only, DiscoveryConfig(top_k=_CROWDING_TOP_K)
-    )
+    unchanged = _apply_feature_identity_cap(conditions_only, DiscoveryConfig(top_k=_CROWDING_TOP_K))
     assert unchanged == conditions_only
 
 
@@ -1151,7 +1147,13 @@ def test_reserve_k1_slot_max_overlap_correction_is_necessary() -> None:
     config = DiscoveryConfig(top_k=2)
 
     result, metadata = _reserve_k1_slot(
-        final_selected, singles, exposures, effective_score, dict(atom_usage), {}, config,
+        final_selected,
+        singles,
+        exposures,
+        effective_score,
+        dict(atom_usage),
+        {},
+        config,
         _noop_prepare,
     )
     assert result == final_selected
@@ -1232,10 +1234,7 @@ def test_reserve_k1_slot_atom_usage_correction_is_necessary() -> None:
     naive_max_overlap: dict[tuple[Condition, ...], float] = {}
     for single in singles:
         naive_max_overlap[single] = max(
-            (
-                _jaccard(exposures[single], exposures[rule])
-                for rule in final_selected
-            ),
+            (_jaccard(exposures[single], exposures[rule]) for rule in final_selected),
             default=0.0,
         )
     _greedy_diverse_select(

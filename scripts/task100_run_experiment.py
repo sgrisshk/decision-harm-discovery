@@ -277,9 +277,9 @@ def phase2_split(frame: pl.DataFrame) -> tuple[pl.DataFrame, dict[str, Any]]:
         outcome_availability_mode="CLOSED_SYNTHETIC_BENCHMARK",
     )
 
-    purchase_dates = frame.select(
-        pl.col("order_purchase_timestamp").str.slice(0, 10).alias("d")
-    )["d"]
+    purchase_dates = frame.select(pl.col("order_purchase_timestamp").str.slice(0, 10).alias("d"))[
+        "d"
+    ]
     labels = assign_temporal_splits(purchase_dates, config)
     frame = frame.with_columns(labels.alias("split_label"))
 
@@ -544,9 +544,7 @@ def leakage_audit_one(
     return result
 
 
-def phase4_leakage_audit(
-    dev_full: pl.DataFrame, dev_matched: pl.DataFrame
-) -> dict[str, Any]:
+def phase4_leakage_audit(dev_full: pl.DataFrame, dev_matched: pl.DataFrame) -> dict[str, Any]:
     """§4.2, run and recorded for ALL FOUR patterns at BOTH scales, before Stage 1/Stage 2 run."""
     _log("phase4_leakage", "start", note="no Stage 1/Stage 2 code has executed yet")
     results: list[dict[str, Any]] = []
@@ -555,8 +553,13 @@ def phase4_leakage_audit(
         mask_ol01 = pl.col("seller_customer_cross_state") == 1
         results.append(
             leakage_audit_one(
-                "OL01", scale_name, dev, "seller_customer_cross_state", "categorical",
-                "OUTCOME_LATE", mask_ol01,
+                "OL01",
+                scale_name,
+                dev,
+                "seller_customer_cross_state",
+                "categorical",
+                "OUTCOME_LATE",
+                mask_ol01,
             )
         )
 
@@ -567,8 +570,13 @@ def phase4_leakage_audit(
         )
         mask_ol02 = pl.col("max_installments").cast(pl.Float64) >= p75_installments
         r = leakage_audit_one(
-            "OL02", scale_name, dev, "max_installments", "numeric",
-            "OUTCOME_LOW_REVIEW", mask_ol02,
+            "OL02",
+            scale_name,
+            dev,
+            "max_installments",
+            "numeric",
+            "OUTCOME_LOW_REVIEW",
+            mask_ol02,
         )
         r["detail"]["p75_threshold"] = float(cast(float, p75_installments))
         results.append(r)
@@ -582,8 +590,13 @@ def phase4_leakage_audit(
         mode_payment = mode_row["modal_payment_type"][0]
         mask_ol03 = pl.col("modal_payment_type") != mode_payment
         r = leakage_audit_one(
-            "OL03", scale_name, dev, "modal_payment_type", "categorical",
-            "OUTCOME_LOW_REVIEW", mask_ol03,
+            "OL03",
+            scale_name,
+            dev,
+            "modal_payment_type",
+            "categorical",
+            "OUTCOME_LOW_REVIEW",
+            mask_ol03,
         )
         r["detail"]["mode_category"] = mode_payment
         results.append(r)
@@ -597,8 +610,13 @@ def phase4_leakage_audit(
         mode_category = mode_row2["product_category_name"][0]
         mask_ol04 = pl.col("product_category_name") != mode_category
         r = leakage_audit_one(
-            "OL04", scale_name, dev, "product_category_name", "categorical",
-            "OUTCOME_LATE", mask_ol04,
+            "OL04",
+            scale_name,
+            dev,
+            "product_category_name",
+            "categorical",
+            "OUTCOME_LATE",
+            mask_ol04,
         )
         r["detail"]["mode_category"] = mode_category
         results.append(r)
@@ -813,7 +831,6 @@ def stage1_oracle_one(
     dev: pl.DataFrame,
     family_size: int,
 ) -> dict[str, Any]:
-
     outcome_col = outcome_id
     elig = dev.filter(pl.col(f"{outcome_id}_eligible"))  # pyright: ignore[reportUnknownMemberType]
     mode_payment_rows = dev.filter(  # pyright: ignore[reportUnknownMemberType]
@@ -888,8 +905,7 @@ def stage1_oracle_one(
     reasons = []
     if not floor_exposed:
         reasons.append(
-            f"n_exposed={n_exposed} < "
-            f"min_exposed_records={DEFAULT_THRESHOLDS.min_exposed_records}"
+            f"n_exposed={n_exposed} < min_exposed_records={DEFAULT_THRESHOLDS.min_exposed_records}"
         )
     if not floor_events:
         reasons.append(

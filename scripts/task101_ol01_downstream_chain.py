@@ -139,8 +139,11 @@ def main() -> None:
             "stage2_evaluated_hypotheses": stage2["search"]["evaluated_hypotheses"],
             "stage2_candidate_count": stage2["candidate_count"],
             "stage2_ol01_candidates": [
-                {"candidate_id": c["candidate_id"], "conditions": c["conditions"],
-                 "development": c["development"]}
+                {
+                    "candidate_id": c["candidate_id"],
+                    "conditions": c["conditions"],
+                    "development": c["development"],
+                }
                 for c in ol01_candidates
             ],
             "stage3_ol01_validations": [],

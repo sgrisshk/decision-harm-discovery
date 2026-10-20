@@ -1,9 +1,9 @@
 """Deterministic Finding title/summary generation (TASK-024).
 
-Implements `docs/product/finding-product-contract.md` §12.2's mechanical v0 template exactly:
-a pure function of `CandidatePattern.conditions` plus the outcome contract's harm-direction
-phrase. Never generative model-authored at render time (`ADR-004`) — this runs once, at promotion time, and the
-result is stored (`Finding.title`/`Finding.summary`/`Finding.title_template_version`).
+Implements `docs/product/finding-product-contract.md` §12.2's mechanical v0 template exactly: a pure
+function of `CandidatePattern.conditions` plus the outcome contract's harm-direction phrase. Never
+written by a generative model at render time (`ADR-004`) — this runs once, at promotion time, and
+the result is stored (`Finding.title`/`Finding.summary`/`Finding.title_template_version`).
 """
 
 from __future__ import annotations

@@ -4,10 +4,10 @@ A mapping says which source column (if any) supplies each canonical field, plus 
 values. It is never invented automatically for real data: `suggest_mapping` proposes candidates
 from exact/alias name matches only and is explicitly advisory (see its own docstring) — an actual
 `ColumnMapping` used to canonicalize real customer data must be confirmed by a human, matching this
-repository's rule that semantic meaning is never guessed silently (`ADR-004`,
-`engineering rules`: "never allow unknown ... fields into explanatory features silently"). The synthetic
-benchmark is the one dataset whose canonical identity mapping is safe to construct automatically,
-because its column names already *are* the canonical names by construction.
+repository's rule that semantic meaning is never guessed silently (`ADR-004`, and the shared
+engineering rule: "never allow unknown ... fields into explanatory features silently"). The
+synthetic benchmark is the one dataset whose canonical identity mapping is safe to construct
+automatically, because its column names already *are* the canonical names by construction.
 """
 
 from __future__ import annotations

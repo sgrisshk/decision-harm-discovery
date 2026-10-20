@@ -4,15 +4,15 @@ Classifies every profiled column (`policy_analytics.profiling.schema_profiler.Co
 `TASK-007`) into exactly one `policy_schemas.domain.FeatureTiming`: `IDENTIFIER`, `DECISION_TIME`,
 `POST_DECISION`, `OUTCOME`, `METADATA`, or `UNKNOWN`.
 
-Safety invariant this module exists to enforce (`ARCHITECTURE.md` §4, `engineering rules` shared rules):
-only `DECISION_TIME` columns may ever become explanatory features. Every other classification —
-including `UNKNOWN` — is excluded by
-`policy_analytics.outcomes.contract.EXCLUDED_EXPLANATORY_CLASSIFICATIONS`.
-That makes `UNKNOWN` the safe default: a column this module cannot confidently place is never
-silently admitted as `DECISION_TIME`. `DECISION_TIME` itself is reached only through explicit,
-disclosed positive rules below (categorical attribute, quoted/agreed amount, plausible booking-time
-count, recognized flag, or a date with no post-decision-event name signal) — never as a catch-all
-for "nothing else matched."
+Safety invariant this module exists to enforce (`ARCHITECTURE.md` §4 and the shared engineering
+rules): only `DECISION_TIME` columns may ever become explanatory features. Every other
+classification — including `UNKNOWN` — is excluded by
+`policy_analytics.outcomes.contract.EXCLUDED_EXPLANATORY_CLASSIFICATIONS`. That makes `UNKNOWN` the
+safe default: a column this module cannot confidently place is never silently admitted as
+`DECISION_TIME`. `DECISION_TIME` itself is reached only through explicit, disclosed positive rules
+below (categorical attribute, quoted/agreed amount, plausible booking-time count, recognized flag,
+or a date with no post-decision-event name signal) — never as a catch-all for "nothing else
+matched."
 
 No ML/black-box guessing (`ADR-004`): every rule here is a plain, disclosed, whole-token name match
 or a `TASK-007` profiler signal — nothing invented, nothing opaque, no dataset-specific hardcoding.

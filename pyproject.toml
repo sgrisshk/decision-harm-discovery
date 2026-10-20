@@ -45,7 +45,15 @@ line-length = 100
 #: `docs/benchmark` holds evidence and data artifacts (hash-pinned scratch/evidence scripts, raw
 #: JSON), excluded per ADR-107 D13. Executable benchmark code (scripts/, packages/, tests/) stays
 #: linted; do not add executable code under docs/benchmark.
-extend-exclude = ["apps/api/migrations/versions", "docs/benchmark"]
+#: `docs/analytics/*-evidence` and the one-off `scripts/diagnose_*` / `scripts/review_*` research
+#: diagnostics are frozen evidence of the same kind (some are hash-pinned); they are not reformatted.
+extend-exclude = [
+    "apps/api/migrations/versions",
+    "docs/benchmark",
+    "docs/analytics",
+    "scripts/diagnose_*.py",
+    "scripts/review_*.py",
+]
 #: Without this, `ruff check docs/benchmark` (an explicitly passed path) would still lint it.
 force-exclude = true
 
@@ -72,5 +80,5 @@ select = ["E", "F", "I", "B", "UP", "SIM", "RUF"]
 pythonVersion = "3.12"
 typeCheckingMode = "strict"
 include = ["apps/api/app", "packages/analytics/src", "packages/schemas/src", "scripts", "tools"]
-exclude = ["apps/api/migrations"]
+exclude = ["apps/api/migrations", "scripts/diagnose_*.py", "scripts/review_*.py"]
 extraPaths = ["apps/api", "packages/analytics/src", "packages/schemas/src"]

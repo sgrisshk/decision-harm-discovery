@@ -94,9 +94,7 @@ def _synthetic_frame(n: int, seed: int) -> pl.DataFrame:
     a = [1 if rng.random() < 0.5 else 0 for _ in range(n)]
     b = [1 if rng.random() < 0.5 else 0 for _ in range(n)]
     c = [1 if rng.random() < 0.5 else 0 for _ in range(n)]
-    y = [
-        1000.0 + 150.0 * a[i] + 40.0 * b[i] - 20.0 * c[i] + rng.gauss(0.0, 60.0) for i in range(n)
-    ]
+    y = [1000.0 + 150.0 * a[i] + 40.0 * b[i] - 20.0 * c[i] + rng.gauss(0.0, 60.0) for i in range(n)]
     return pl.DataFrame({"A": a, "B": b, "C": c, "y": y})
 
 
@@ -196,9 +194,7 @@ def test_classify_atom_classification_assignment_is_binary_by_construction() -> 
     for node in ast.walk(tree):
         if isinstance(node, ast.Assign):
             targets = [
-                t.id
-                for t in node.targets
-                if isinstance(t, ast.Name) and t.id == "classification"
+                t.id for t in node.targets if isinstance(t, ast.Name) and t.id == "classification"
             ]
             if targets and isinstance(node.value, ast.Attribute):
                 assigned_names.add(node.value.attr)

@@ -75,11 +75,7 @@ def create_dataset_from_upload(
     # deleting a dataset and then re-uploading the exact same content under the same name -- a
     # very plausible real action ("delete this, we'll re-send it") -- is permanently blocked by a
     # 409 referencing a version number that resolves nowhere else in the API.
-    if (
-        latest is not None
-        and latest.deleted_at is None
-        and latest.checksum_sha256 == stored.sha256
-    ):
+    if latest is not None and latest.deleted_at is None and latest.checksum_sha256 == stored.sha256:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=f"identical content already exists as version {latest.version}",

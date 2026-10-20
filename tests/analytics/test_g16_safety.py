@@ -243,9 +243,10 @@ def test_no_downstream_gate_or_state_transition_can_silently_re_raise_the_g16_ca
     once G16 alone fails -- the cap has no bypass through any other gate's own success.
     """
     all_pass_except_g16 = _all_gates({GateId.COMPOSITION_SAFETY: GateOutcome.FAIL})
-    assert classify_evidence_level(
-        all_pass_except_g16, IdentificationDesign.OBSERVATIONAL
-    ) is EvidenceLevel.PREDICTIVE
+    assert (
+        classify_evidence_level(all_pass_except_g16, IdentificationDesign.OBSERVATIONAL)
+        is EvidenceLevel.PREDICTIVE
+    )
     with pytest.raises(ValueError, match="not supported by the gate results"):
         _report(
             gate_results=all_pass_except_g16, evidence_level=EvidenceLevel.ADJUSTED_OBSERVATIONAL
